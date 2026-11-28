@@ -16,7 +16,13 @@ Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO .
   --listar      mostra o plano (modo e módulos) e não roda nada
   --completa    roda a suíte inteira, sem consultar o mapa, pela trava e pela fila do `.githooks/pre-push --suite`
   --afetados    o plano do pre-push: os testes afetados (mapa, mais todo teste que cita o caminho, mais os que exercitam
-                os arquivos de controle), nunca a suíte completa; o que nenhum teste lê fica para o CI, com aviso
+                os arquivos de controle), nunca a suíte completa; o que nenhum teste lê fica para o CI, com aviso.
+                Todo plano dirigido cujo diff toca hooks/, bin/ ou um protegido da catraca (PROTEGIDOS de
+                tests/catraca.py) leva também o teste de custo (test_hooks_volta_corpus) e a catraca no modo do diff
+                (`tests/catraca.py --base REF`, depois dos módulos; a saída do comando é a primeira vermelha) (E9.1).
+                Plano com mais de LIMITE_LOCAL (1.000) testes roda só a catraca, o teste de custo e os testes do
+                arquivo mudado (o módulo de teste no diff, a regra do MAPA e o test_<nome>, sem o test_forge) e diz
+                quantos ficam para o CI do PR (E9.2)
   --texto      o pré-envio de texto (PRE-ENVIO-RAPIDO, mp1311): o mapa de testes e os testes de tamanho de texto
                 (`TESTES_DE_TEXTO`), num `unittest` só, com o código de saída dele e uma linha de resumo; não combina com nada
   --registros  a conferência de registros (PR-VERDE B1), só leitura e em segundos: roda, em paralelo, os mesmos testes do CI
@@ -536,6 +542,95 @@ def planejar_afetados(caminhos, raiz=Path(".")):
     if modulos:
         modulos.update(oraculos(raiz))
     return sorted(modulos), notas
+
+
+# E9.1 (v048, AFETADOS-CATRACA-E-CUSTO): o diff que toca hooks/, bin/, scripts/ ou um arquivo protegido da catraca
+# (a PROTEGIDOS de tests/catraca.py, lida pela árvore com `ast`, sem cópia da lista) leva ao plano dirigido a catraca
+# no modo do diff (`tests/catraca.py --base REF`) e o teste de custo; o CI os reprovava com os afetados verdes (#957,
+# #940, #944).
+CATRACA = "tests/catraca.py"
+TESTE_DE_CUSTO = "test_hooks_volta_corpus"
+PASTAS_DA_CATRACA = ("hooks/", "bin/", "scripts/")  # scripts/ está nas PASTAS_CUSTO e SENSIVEIS da catraca
+
+
+def protegidos_da_catraca(arquivo):
+    """A tupla PROTEGIDOS da catraca, lida sem importar nada, ou None se não a acha legível (tupla de textos não vazia)."""
+    try:
+        arvore = ast.parse(arquivo.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
+        return None
+    for no in arvore.body:
+        if isinstance(no, ast.Assign) and [getattr(alvo, "id", None) for alvo in no.targets] == ["PROTEGIDOS"]:
+            try:
+                valor = ast.literal_eval(no.value)
+            except (ValueError, SyntaxError, RecursionError, MemoryError):
+                return None
+            if isinstance(valor, tuple) and valor and all(isinstance(item, str) for item in valor):
+                return valor
+            return None
+    return None
+
+
+def toca_a_catraca(caminho, protegidos):
+    """O caminho está em hooks/, bin/ ou scripts/, é um protegido ou cai numa pasta protegida (o item terminado em `/`)."""
+    if caminho.startswith(PASTAS_DA_CATRACA):
+        return True
+    return any(caminho == item or (item.endswith("/") and caminho.startswith(item)) for item in protegidos)
+
+
+def custo_e_catraca(caminhos, raiz=Path(".")):
+    """(módulos a somar, se a catraca roda): o teste de custo, se a raiz o tem, e a catraca, quando algum caminho a toca;
+    ((), False) sem tests/catraca.py (o projeto sem catraca) ou sem caminho que a toque. Falha fechada: PROTEGIDOS
+    ilegível conta como tocada, e a catraca em link ou apagada no diff a pede, para o comando a reprovar sem executá-la."""
+    arquivo = raiz / CATRACA
+    custo = (TESTE_DE_CUSTO,) if arquivo_do_modulo(TESTE_DE_CUSTO, raiz).is_file() else ()
+    if arquivo.is_symlink() or (CATRACA in caminhos and not arquivo.is_file()):
+        return custo, True
+    if not arquivo.is_file():
+        return (), False
+    protegidos = protegidos_da_catraca(arquivo)
+    if not any(protegidos is None or toca_a_catraca(caminho, protegidos) for caminho in caminhos):
+        return (), False
+    return custo, True
+
+
+def catraca_rodavel(raiz=Path(".")):
+    """A catraca é um arquivo comum (nem link nem ausente): só assim o comando a executa."""
+    arquivo = raiz / CATRACA
+    return arquivo.is_file() and not arquivo.is_symlink()
+
+
+# E9.2 (v048, ajuste do dono de 28/11 11:19): plano dos afetados acima de uns 1.000 testes roda no computador só a catraca,
+# o teste de custo e os testes do arquivo mudado; o resto fica para o CI do PR, que roda a suíte inteira.
+LIMITE_LOCAL = 1000
+
+
+def contar_testes(modulos, raiz=Path(".")):
+    """Os testes do plano, contados sem importar (`def test*` no corpo de cada classe do módulo); ilegível conta 0."""
+    total = 0
+    for modulo in modulos:
+        try:
+            arvore = ast.parse(arquivo_do_modulo(modulo, raiz).read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
+            continue
+        total += sum(1 for classe in ast.walk(arvore) if isinstance(classe, ast.ClassDef) for no in classe.body
+                     if isinstance(no, (ast.FunctionDef, ast.AsyncFunctionDef)) and no.name.startswith("test"))
+    return total
+
+
+def testes_do_arquivo(caminhos, raiz=Path(".")):
+    """Os módulos de teste do próprio arquivo mudado, se existem: o módulo de teste no diff, a regra do MAPA e o
+    tests/test_<nome>.py de bin/, hooks/ ou scripts/ (convenção O2 ou subcomando forge-<nome>). Sem o test_forge, que
+    varre as pastas (PASTAS_VARRIDAS) e sozinho passa de 600 testes: ele fica para o CI."""
+    candidatos = set()
+    for caminho in caminhos:
+        if nome := nome_do_modulo(caminho):
+            candidatos.add(nome)
+        candidatos.update(next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), ()))
+        for padrao, grupo in ((CONVENCAO, 2), (SUBCOMANDO, 1)):
+            if achado := padrao.fullmatch(caminho):
+                candidatos.add("test_" + achado.group(grupo).replace("-", "_"))
+    return {m for m in candidatos - {"test_forge"} if arquivo_do_modulo(m, raiz).is_file()}
 
 
 def comando_dirigido(modulos, filtros, raiz=Path(".")):
@@ -1221,20 +1316,18 @@ def main(argv=None):
             print(aviso, file=sys.stderr)
     except RuntimeError:
         pass  # o plano abaixo trata o erro do git
+    caminhos = pedidos
     if args.completa:
         modo, detalhe = "completo", ["pedido --completa"]
     elif args.afetados:
         try:
-            alterados = pedidos or caminhos_alterados(args.base)
+            caminhos = pedidos or caminhos_alterados(args.base)
         except RuntimeError as erro:
             print(f"forge-testes: não consegui ler o git ({erro})", file=sys.stderr)
             return 2
-        detalhe, notas = planejar_afetados(alterados)
+        detalhe, notas = planejar_afetados(caminhos)
         for nota in notas:
             print(f"forge-testes: {nota}", file=sys.stderr)
-        if not detalhe:
-            print("forge-testes: nada a rodar (nenhum teste afetado). O CI do PR roda a suíte inteira.")
-            return 0
         modo = "dirigido"
     elif pedidos and (so_modulos := modulos_sem_mapa(pedidos)):
         modo, detalhe = "dirigido", so_modulos
@@ -1243,13 +1336,23 @@ def main(argv=None):
         modo, detalhe = planejar(pedidos)
     else:
         try:
-            modo, detalhe = planejar(caminhos_alterados(args.base))
+            caminhos = caminhos_alterados(args.base)
+            modo, detalhe = planejar(caminhos)
         except RuntimeError as erro:
             modo, detalhe = "completo", [f"não consegui ler o git ({erro})"]
-        else:
-            if modo == "dirigido" and not detalhe:
-                print("forge-testes: nada alterado; nada a rodar.")
-                return 0
+    catraca, extra = False, ()
+    if modo == "dirigido":  # E9.1: a catraca e o teste de custo entram antes do "nada a rodar"
+        extra, catraca = custo_e_catraca(caminhos)
+        detalhe = sorted({*detalhe, *extra})
+    if args.afetados and (total := contar_testes(detalhe)) > LIMITE_LOCAL:  # E9.2: acima do limite, só o essencial
+        detalhe = sorted({*testes_do_arquivo(caminhos), *extra})
+        print(f"forge-testes: plano de {total} testes passa do limite local de {LIMITE_LOCAL}: roda só a catraca, o teste"
+              f" de custo e os testes do arquivo mudado; {total - contar_testes(detalhe)} testes ficam para o CI do PR.",
+              file=sys.stderr)
+    if modo == "dirigido" and not detalhe and not catraca:
+        print("forge-testes: nada a rodar (nenhum teste afetado). O CI do PR roda a suíte inteira." if args.afetados
+              else "forge-testes: nada alterado; nada a rodar.")
+        return 0
 
     if modo == "completo":
         print(f"forge-testes: suíte completa ({'; '.join(detalhe)})")
@@ -1257,6 +1360,13 @@ def main(argv=None):
     else:
         print(f"forge-testes: dirigido ({', '.join(detalhe)}). O CI do PR roda a suíte inteira.")
         comando, modulos = comando_dirigido(detalhe, args.filtros), detalhe
+    # stderr: o stdout do plano é uma linha só, que o forge-mutante (modulos_listados) lê inteira
+    if catraca:
+        print(f"forge-testes: catraca no diff ({CATRACA} --base {args.base}): o diff toca hooks/, bin/, scripts/ ou"
+              " arquivo protegido.", file=sys.stderr)
+        if not catraca_rodavel():
+            print(f"forge-testes: {CATRACA} apagado ou trocado por link: a catraca não roda e o plano reprova.",
+                  file=sys.stderr)
     if modo == "completo":
         for filtro in args.filtros:
             comando += ["-k", filtro]
@@ -1265,7 +1375,11 @@ def main(argv=None):
     if modo == "completo" and not args.filtros:
         return suite_na_trava(raiz, args.completa)
     inicio = time.monotonic()
-    codigo = subprocess.run(comando).returncode
+    codigo = subprocess.run(comando).returncode if modo == "completo" or modulos else 0
+    if catraca:
+        rodavel = catraca_rodavel()
+        da_catraca = subprocess.run([sys.executable, "-I", CATRACA, "--base", args.base]).returncode if rodavel else 1
+        codigo = codigo or da_catraca
     anotar(modo, modulos, time.monotonic() - inicio, codigo)
     return codigo
 

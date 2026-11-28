@@ -1961,6 +1961,21 @@ class LimiteDosModulos(unittest.TestCase):
                 self.assertIn("forge-testes --listar falhou", saida.getvalue())
 
 
+class ContratoDoListar(unittest.TestCase):
+    """v048 E9.2 (review e QA c7df039 A1, sonda S1): com a catraca no plano do forge-testes, o modulos_listados, que lê o
+    stdout inteiro do --listar, segue dando o recorte H5 de um diff em bin/ (antes, o conjunto vazio)."""
+
+    def test_modulos_listados_de_bin_forge_mutante_no_forge(self):
+        origem = os.getcwd()
+        os.chdir(RAIZ)  # o forge-testes roda na pasta atual, com o ambiente dela (sem os GIT_* de quem roda a suíte)
+        self.addCleanup(os.chdir, origem)
+        limpo = sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": os.environ.get("HOME", "/"),
+                                "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null"})
+        with mock.patch.dict(os.environ, limpo, clear=True):
+            listados = carregar().modulos_listados(["bin/forge-mutante"])
+        self.assertLessEqual({"test_forge_mutante", "test_hooks_volta_corpus", "test_pre_push_patch"}, listados)
+
+
 class CoberturaDoPedidoInteiro(unittest.TestCase):
     """Sonda S1 da segurança (v0481, 5da1505, A1): `python3 tests/catraca.py --base 3c833f3f1ba1e9770b8e5b10e7a1b0ed588d161f`
     dava rc 1 pela guarda `__main__` do hook novo sem mutante. A análise da regra das guardas da catraca
