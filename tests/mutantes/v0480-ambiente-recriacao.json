@@ -66,7 +66,7 @@
       "id": "M7",
       "guarda": "estação: o ~/.local/bin entra no PATH do bash uma vez só (idempotente)",
       "arquivo": "scripts/preparar-estacao.sh",
-      "de": "grep -qE '^[[:space:]]*export PATH=.*\\.local/bin' \"$HOME/.bashrc\" 2>/dev/null && return 0",
+      "de": "grep -qE '^[[:space:]]*export PATH=\"?(\\$HOME|\\$\\{HOME\\}|/root)/\\.local/bin:' \"$HOME/.bashrc\" 2>/dev/null && return 0",
       "para": "false && return 0",
       "testes": [
         "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_sem_claude_local_instala_pelo_instalador_oficial_e_a_segunda_rodada_nao_repete"
@@ -116,7 +116,7 @@
       "id": "M12",
       "guarda": "estação: comentário com .local/bin no .bashrc não conta como o export do PATH",
       "arquivo": "scripts/preparar-estacao.sh",
-      "de": "'^[[:space:]]*export PATH=.*\\.local/bin'",
+      "de": "'^[[:space:]]*export PATH=\"?(\\$HOME|\\$\\{HOME\\}|/root)/\\.local/bin:'",
       "para": "'\\.local/bin'",
       "testes": [
         "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_comentario_com_local_bin_no_bashrc_nao_conta_como_o_export"
@@ -156,8 +156,8 @@
       "id": "M16",
       "guarda": "estação: o --simular não grava o .bashrc",
       "arquivo": "scripts/preparar-estacao.sh",
-      "de": "  [ \"$simular\" = 0 ] || return 0\n  command grep -qE",
-      "para": "  command grep -qE",
+      "de": "  [ \"$simular\" = 0 ] || return 0\n  # DEVCONTAINER-CLAUDE-NO-PATH",
+      "para": "  # DEVCONTAINER-CLAUDE-NO-PATH",
       "testes": [
         "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_simular_nao_grava_o_bashrc_e_nao_roda_o_instalador"
       ]

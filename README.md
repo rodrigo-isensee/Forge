@@ -44,7 +44,7 @@ A sessão fica num tmux `jarvis-<projeto>`: sobrevive ao fechamento do terminal 
 
 ## Vários projetos na mesma máquina
 Cada projeto tem o seu Jarvis; o Forge reparte a máquina entre eles (diretriz 35).
-- **Uma janela por projeto:** abra cada um na pasta dele, sempre no modo auto: `cd ~/<projeto> && jarvis` (ou `claude --agent forge:jarvis --permission-mode auto`). Um Jarvis só altera a própria pasta.
+- **Uma janela por projeto:** abra cada um na pasta dele, sempre no modo auto: `cd ~/<projeto> && jarvis` (ou `/root/.local/bin/claude --agent forge:jarvis --permission-mode auto` no container; o `claude` de `/usr/local/bin` pode ser antigo e quebrar a proteção dos comandos). Um Jarvis só altera a própria pasta.
 - **Teto em partes iguais:** com um projeto ativo, ele usa a máquina inteira; com dois ou mais, o teto de agentes da máquina é dividido em partes iguais, e a vaga parada de um é emprestada a outro até o dono dela precisar. Para dar mais a um projeto, ponha um `peso` (acima de 0 e até 10; padrão 1) no `.forge/config.json` dele, por branch e PR como qualquer arquivo do projeto: `jq '.peso = 2' .forge/config.json > .forge/config.novo && mv .forge/config.novo .forge/config.json`.
 - **Trava de memória:** o escape `FORGE_CARGA_LIVRE=1` só vale com um projeto ativo; com dois ou mais, a trava vale para todos.
 - **Mensagens:** com dois ou mais ativos, o Jarvis começa cada recibo e pergunta por `Projeto: <nome>` e confirma o projeto quando a mensagem cita outro. No Telegram, um bot só serve a todos: cada resposta começa por `[<projeto>]`, e mensagem sua sem o nome do projeto recebe "para qual projeto?".
