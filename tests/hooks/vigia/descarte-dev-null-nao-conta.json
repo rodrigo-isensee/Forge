@@ -1,0 +1,43 @@
+{
+  "descricao": "Write barrado em .git/config e, em seguida, cat .git/config 2>/dev/null aceito: a redireção de descritor para /dev/null não grava arquivo nem é alvo; não é contorno (HOOK-PARADA-CONTA-REDIRECAO).",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "anexar": {
+        "{tmp}/t.jsonl": [
+          "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"a\", \"name\": \"Write\", \"input\": {\"file_path\": \"{raiz}/.git/config\", \"content\": \"ok\"}}]}}",
+          "{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"a\", \"is_error\": true, \"content\": \"R-CONFORMIDADE: .git/config é protegido\"}]}}",
+          "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"b\", \"name\": \"Bash\", \"input\": {\"command\": \"cat .git/config 2>/dev/null\"}}]}}",
+          "{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"b\", \"is_error\": false, \"content\": \"\"}]}}"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "violacoes.jsonl"
+    ]
+  }
+}

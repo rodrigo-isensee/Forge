@@ -1,0 +1,47 @@
+{
+  "pedido": "v048-parada-redirecao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E12.3 a redireção de descritor para /dev/null sai do comando antes do alvo e dos verbos",
+      "arquivo": "hooks/vigia.py",
+      "de": "    comando = _DESCARTE.sub(\" \", comando)",
+      "para": "    comando = comando",
+      "testes": [
+        "tests.test_vigia_descarte.DescarteNaoConta.test_ler_o_alvo_barrado_com_2_dev_null_nao_e_contorno",
+        "tests.test_vigia_descarte.DescarteNaoConta.test_dev_null_nao_e_alvo_comum_entre_duas_chamadas"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E12.3 /dev/null colado a outra grafia não é descarte: segue contando como escrita",
+      "arquivo": "hooks/vigia.py",
+      "de": "/dev/null(?=[\\s;&|)]|$)\")",
+      "para": "/dev/null\")",
+      "testes": [
+        "tests.test_vigia_descarte.EscritaNoAlvoSegueContando.test_dev_null_colado_a_outra_grafia_segue_contando_como_escrita"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E12.3 a redireção colada à palavra anterior não é descarte",
+      "arquivo": "hooks/vigia.py",
+      "de": "_DESCARTE = re.compile(r\"(?<![^\\s;&|(])",
+      "para": "_DESCARTE = re.compile(r\"",
+      "testes": [
+        "tests.test_vigia_descarte.EscritaNoAlvoSegueContando.test_redirecao_colada_a_palavra_anterior_fica"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E12.3 o acréscimo (>>/dev/null) também é descarte",
+      "arquivo": "hooks/vigia.py",
+      "de": "(?:\\d*|&)>>?[ \\t]*/dev/null",
+      "para": "(?:\\d*|&)>[ \\t]*/dev/null",
+      "testes": [
+        "tests.test_vigia_descarte.DescarteNaoConta.test_ler_o_alvo_barrado_com_2_dev_null_nao_e_contorno"
+      ]
+    }
+  ]
+}
