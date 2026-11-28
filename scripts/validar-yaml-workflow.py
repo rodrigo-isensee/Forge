@@ -9,11 +9,14 @@ aspas num valor simples e o run nasceu sem jobs, parecendo verde). Pega: tabula�
 terminado em `:`, chave repetida no mesmo mapa. Corpo de bloco `|`/`>`, valores entre aspas e coleções `[ ]`/`{ }` não
 têm o conteúdo conferido.
 """
+import os
 import re
+import stat
 import sys
 from pathlib import Path
 
 BLOCO = re.compile(r"^[|>][+\-0-9]*$")
+TETO = 1 << 20  # 1 MiB por workflow
 PAR = re.compile(r"^([^\s\"'\[{#][^:]*?):(?:\s+(.*))?$")
 
 
@@ -37,7 +40,7 @@ def validar(texto):
             itens = True
             col += len(resto) - len(resto[1:].lstrip())
             resto = resto[1:].lstrip()
-        resto = re.sub(r"\s+#.*$", "", resto)
+        resto = re.sub(r"\s#.*$", "", resto).rstrip()
         for k in [k for k in mapas if k > col or (itens and k >= col)]:
             del mapas[k]
         par = PAR.match(resto)
@@ -60,10 +63,21 @@ def main(argv):
     else:
         pasta = Path(__file__).resolve().parent.parent / ".github" / "workflows"
         arquivos = sorted([*pasta.glob("*.yml"), *pasta.glob("*.yaml")])
+    if not arquivos:
+        print("nenhum workflow para validar (sem .github/workflows/*.yml?)", file=sys.stderr)
+        return 2
     ruim = 0
     for arq in arquivos:
         try:
-            texto = arq.read_text(encoding="utf-8")
+            if not stat.S_ISREG(os.lstat(arq).st_mode):
+                print(f"{arq}: não é arquivo regular (link ou especial)", file=sys.stderr)
+                return 2
+            with open(arq, "rb") as f:
+                dados = f.read(TETO + 1)
+            if len(dados) > TETO:
+                print(f"{arq}: passa de 1 MiB", file=sys.stderr)
+                return 2
+            texto = dados.decode("utf-8")
         except (OSError, UnicodeDecodeError) as e:
             print(f"{arq}: não li o arquivo: {e}", file=sys.stderr)
             return 2

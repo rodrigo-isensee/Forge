@@ -1,9 +1,12 @@
 """VALIDAR-YAML-DO-WORKFLOW (v048 E13.6): scripts/validar-yaml-workflow.py recusa o YAML que o GitHub recusa sem criar jobs
 (#929: `: ` sem aspas num valor simples) e aceita os workflows do repositório."""
 import importlib.util
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -91,6 +94,57 @@ class ValidarYaml(unittest.TestCase):
     def test_arquivo_ilegivel_sai_2(self):
         r = subprocess.run([sys.executable, str(SCRIPT), "/nao/existe.yml"], capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
+
+    def _arvore(self, d):
+        """Árvore temporária com a cópia do script e .github/workflows/ vazio; devolve (script, pasta dos workflows)."""
+        (Path(d) / "scripts").mkdir()
+        shutil.copy(SCRIPT, Path(d) / "scripts" / SCRIPT.name)
+        wf = Path(d) / ".github" / "workflows"
+        wf.mkdir(parents=True)
+        return Path(d) / "scripts" / SCRIPT.name, wf
+
+    def _rodar(self, script, *args):
+        return subprocess.run([sys.executable, str(script), *args], capture_output=True, text=True, timeout=20)
+
+    def test_linha_longa_de_espacos_e_linear(self):
+        for n in (10000, 20000, 40000):
+            t = time.perf_counter()
+            vyw.validar("a: x" + " " * n + "y\n")
+            self.assertLess(time.perf_counter() - t, 0.05, n)
+
+    def test_link_para_arquivo_especial_sai_2(self):
+        with tempfile.TemporaryDirectory() as d:
+            script, wf = self._arvore(d)
+            os.symlink("/dev/zero", wf / "zero.yml")
+            r = self._rodar(script)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("não é arquivo regular", r.stderr)
+
+    def test_link_para_fora_nao_ecoa_o_conteudo(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as fora:
+            script, wf = self._arvore(d)
+            (Path(fora) / "fora.txt").write_text("segredo: token: XYZ-fora-do-repo\n", encoding="utf-8")
+            os.symlink(Path(fora) / "fora.txt", wf / "link.yml")
+            r = self._rodar(script)
+        self.assertEqual(r.returncode, 2)
+        self.assertNotIn("XYZ-fora-do-repo", r.stdout + r.stderr)
+
+    def test_arquivo_acima_de_1_mib_sai_2(self):
+        with tempfile.TemporaryDirectory() as d:
+            arq = Path(d) / "grande.yml"
+            arq.write_text("a: " + "x" * (1 << 20) + "\n", encoding="utf-8")
+            r = self._rodar(SCRIPT, str(arq))
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("1 MiB", r.stderr)
+
+    def test_sem_workflow_nenhum_sai_2(self):
+        with tempfile.TemporaryDirectory() as d:
+            script, _ = self._arvore(d)
+            r = self._rodar(script)
+            shutil.rmtree(Path(d) / ".github")
+            r2 = self._rodar(script)
+        self.assertEqual((r.returncode, r2.returncode), (2, 2))
+        self.assertIn("nenhum workflow", r.stderr)
 
 
 if __name__ == "__main__":
