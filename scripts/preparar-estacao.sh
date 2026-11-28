@@ -194,6 +194,7 @@ garantir_path_local() {
   [ "$simular" = 0 ] || return 0
   # DEVCONTAINER-CLAUDE-NO-PATH (v0481 E39.1): só conta a linha que PÕE ~/.local/bin na frente; no fim do PATH (ou depois do
   # /usr/local/bin da imagem) o claude 2.1.224 antigo continua primeiro.
+  # shellcheck disable=SC2016 # os \$HOME do padrão são literais da regex
   command grep -qE '^[[:space:]]*export PATH="?(\$HOME|\$\{HOME\}|/root)/\.local/bin:' "$HOME/.bashrc" 2>/dev/null && return 0
   # shellcheck disable=SC2016 # $HOME e $PATH devem ir literais para o .bashrc
   printf '\n# claude e atalhos pessoais\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.bashrc"
