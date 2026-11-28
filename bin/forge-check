@@ -4918,6 +4918,10 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
                 saida.append((f"volta: falta sonda \"{sonda['id']}\" de {caminho_impresso(p['rel'])}", True))
             elif sonda["entrada"] not in entradas:
                 saida.append((f"volta: sonda {sonda['id']} difere do parecer {caminho_impresso(p['rel'])}", True))
+    lidas = {(p["tipo"], s["id"]) for p in pareceres for s in p["sondas"]}  # BRIEF-SONDA-ESCRITA: a sonda sem par não passa por copiada
+    for tipo, _, ident, _ in (m.groups() for m in map(SONDA_NO_ENTREGAR.match, novos.get("Entregar", [])) if m):
+        if (tipo, ident) not in lidas:
+            saida.append((f"volta: sonda {ident} de {tipo} não está nos pareceres lidos", True))
     for linha in novos.get("Entregar", []):  # a recomendação incluída é relida da ref (ou do P): o texto ao lado da marca é o do parecer
         marca = INCLUIDO.search(linha)
         if not marca:
@@ -9048,24 +9052,31 @@ SEM_VERIFICACAO = re.compile(r"[$*?\[<]")  # VV-3: variável, curinga ou `<...>`
 TETO_DE_CAMINHOS = 64  # VV-3 (C-8): caminhos do Entregar conferidos por brief; o excedente reprova
 
 
-def caminhos_do_entregar(secoes):
+def sem_entrada_de_sonda(linha):
+    """BRIEF-SONDA-ESCRITA: a linha `(sonda ...)` sem a entrada copiada do parecer (o caminho citado nela é da cópia de teste da
+    sonda, que vai ao corpus de testes, não arquivo a gravar); a marca e o `espera:` seguem conferidos. Outra linha, intacta."""
+    m = SONDA_NO_ENTREGAR.match(linha)
+    return linha[:m.start(4)] + linha[m.end(4):] if m else linha
+
+
+def caminhos_do_entregar(secoes, sondas_relidas=False):
     """VV-3: cada palavra com `/` dentro de crases no `## Entregar` e cada item da linha `- arquivos:` (0.43.1), na ordem e sem
-    repetir."""
+    repetir. Com `sondas_relidas` (brief de volta conferido contra os pareceres da --ref), fora a entrada das linhas de sonda."""
     entregar = secoes.get("Entregar", [])
-    texto = "\n".join(entregar)
+    texto = "\n".join(map(sem_entrada_de_sonda, entregar) if sondas_relidas else entregar)
     crases = [p for t in re.findall(r"`([^`\n]+)`", texto) for p in t.split() if "/" in p]
     declarados = [item_do_entregar(t) for linha in entregar if (m := LINHA_DE_ARQUIVOS.match(linha)) for t in re.split(r"[,\s]+", m.group(1))]
     return list(dict.fromkeys(crases + [t for t in declarados if "/" in t and PREENCHER not in t]))
 
 
-def conferir_escrita(secoes, destino, raiz, ramo):
+def conferir_escrita(secoes, destino, raiz, ramo, sondas_relidas=False):
     """VV-3: uma linha `escrita: ok|barrada|não conferida|não verificável` por caminho do Entregar, pela resposta do hook
     `conformidade` (`escrita_barrada`, sem copiar regra) para o destino, na raiz do pedido e no `ramo`. `barrada` e `não conferida`
     reprovam (hook ilegível ou erro nunca vira `ok`); a linha nunca é `aviso:`. Caractere de `conformidade.INVISIVEIS` no caminho
     dá `barrada`; com `$ * ? [ <`, a pasta fixa antes da marca, se já barrada, dá `barrada`; os `não verificável` saem contados numa
     linha; acima de `TETO_DE_CAMINHOS`, o excedente não é conferido e reprova. O brief que manda escrever onde o hook do papel destino
     barra sai reprovado antes do trabalho (o `brief selar` não sela)."""
-    caminhos = caminhos_do_entregar(secoes)
+    caminhos = caminhos_do_entregar(secoes, sondas_relidas)
     if not caminhos:
         return []
     sys.path.insert(0, str(PLUGIN / "hooks"))
@@ -9101,7 +9112,7 @@ def conferir_escrita(secoes, destino, raiz, ramo):
 
 
 def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_id="", conteudo=b"", caminho=None, anterior=None, cobradas=None,
-                   raiz=None):
+                   raiz=None, ref=None):
     """Linhas de saída do `forge-check brief`: lista de (linha, reprova). Mesmo texto, mesma saída."""
     secoes = secoes_por(texto, CABECALHO_BRIEF)
     pedido = ler_pedido_brief(pedido_txt)
@@ -9127,7 +9138,8 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
     saida += conferir_corte(secoes, pedido, destino, grupo(r"\bCobre:\s*(\S+)", cabecalho_do_brief(texto)))
     saida += conferir_pedido_contraditorio(secoes, pedido)
     if destino:  # VV-3: o Entregar contra a fronteira de escrita do destino, no ramo do `Branch:` (sem ele, ramo vazio; nunca o do disco)
-        saida += conferir_escrita(secoes, destino, raiz, grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto)) or "")
+        relidas = bool(ref) and bool(re.search(r"^Volta-de:", texto, re.M))  # a `conferir_volta` relê cada sonda do parecer na --ref
+        saida += conferir_escrita(secoes, destino, raiz, grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto)) or "", relidas)
     if cobradas is not None:
         referencia = referencia_do_brief(secoes)  # P4 (0.43.1): a referência ao bloco substitui a cópia; o brief antigo segue cobrado
         cabecalho = cabecalho_do_brief(texto)
@@ -9409,7 +9421,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     pedido_id = m.group(1) if m else caminho_pedido.stem
     cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief, pedido_id)
     linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas,
-                            raiz=raiz)
+                            raiz=raiz, ref=ref)
     linhas += [(o, False) for o in (linha_de_origem(caminho_pedido), linha_de_origem(brief)) if o]
     linhas += aviso_de_base_sha(raiz, texto)
     linhas += caminhos_ausentes_do_pq(raiz, texto, secoes_por(texto, CABECALHO_BRIEF))

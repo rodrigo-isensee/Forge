@@ -1,0 +1,56 @@
+{
+  "pedido": "v0481-brief-sonda-escrita",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a linha de sonda perde so a entrada copiada do parecer",
+      "arquivo": "bin/forge-check",
+      "de": "    return linha[:m.start(4)] + linha[m.end(4):] if m else linha",
+      "para": "    return linha",
+      "testes": [
+        "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_volta_com_a_sonda_do_parecer_nao_barra_a_escrita"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "sem sondas relidas o Entregar inteiro segue conferido",
+      "arquivo": "bin/forge-check",
+      "de": "texto = \"\\n\".join(map(sem_entrada_de_sonda, entregar) if sondas_relidas else entregar)",
+      "para": "texto = \"\\n\".join(map(sem_entrada_de_sonda, entregar) if True else entregar)",
+      "testes": [
+        "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_sem_ref_ou_sem_volta_de_a_entrada_segue_barrada"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "sem --ref a sonda nao se confere e a entrada segue barrada",
+      "arquivo": "bin/forge-check",
+      "de": "relidas = bool(ref) and bool(re.search(r\"^Volta-de:\", texto, re.M))",
+      "para": "relidas = bool(re.search(r\"^Volta-de:\", texto, re.M))",
+      "testes": [
+        "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_sem_ref_ou_sem_volta_de_a_entrada_segue_barrada"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "sem Volta-de a entrada segue barrada",
+      "arquivo": "bin/forge-check",
+      "de": "relidas = bool(ref) and bool(re.search(r\"^Volta-de:\", texto, re.M))",
+      "para": "relidas = bool(ref)",
+      "testes": [
+        "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_sem_ref_ou_sem_volta_de_a_entrada_segue_barrada"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "sonda copiada sem par nos pareceres lidos reprova a volta",
+      "arquivo": "bin/forge-check",
+      "de": "        if (tipo, ident) not in lidas:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_sonda_alterada_ou_sem_par_no_parecer_e_recusada"
+      ]
+    }
+  ]
+}
