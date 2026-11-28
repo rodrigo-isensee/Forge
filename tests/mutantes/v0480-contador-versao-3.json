@@ -4,10 +4,10 @@
   "mutantes": [
     {
       "id": "M17",
-      "guarda": "sem origin/develop, cai na develop local",
+      "guarda": "sem origin, cai na develop local",
       "arquivo": "bin/forge-contador",
-      "de": "        if subprocess.run([\"git\", \"-C\", str(raiz), \"rev-parse\"",
-      "para": "        if False and subprocess.run([\"git\", \"-C\", str(raiz), \"rev-parse\"",
+      "de": "        if existe(raiz, \"rev-parse\", \"-q\", \"--verify\", \"develop^{commit}\"):",
+      "para": "        if False:",
       "testes": [
         "tests.test_forge_contador.LinhaDaVersao.test_conta_fragmentos_sem_readme_e_sobe_o_patch"
       ]
@@ -46,8 +46,8 @@
       "id": "M21",
       "guarda": "--ref passado vale sobre o padrão",
       "arquivo": "bin/forge-contador",
-      "de": "        ref = a.ref or ref_padrao(a.raiz)",
-      "para": "        ref = ref_padrao(a.raiz)",
+      "de": "        ref, fonte = (a.ref, None) if a.ref else ref_padrao(a.raiz)",
+      "para": "        ref, fonte = ref_padrao(a.raiz)",
       "testes": [
         "tests.test_forge_contador.LinhaDaVersao.test_ref_inexistente_e_erro"
       ]

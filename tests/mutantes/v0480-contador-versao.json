@@ -14,10 +14,10 @@
     },
     {
       "id": "M2",
-      "guarda": "sem origin/develop nem develop, erro pedindo --ref",
+      "guarda": "sem origin nem develop, erro pedindo --ref",
       "arquivo": "bin/forge-contador",
-      "de": "    raise Erro(\"nem origin/develop nem develop existem; passe --ref\")",
-      "para": "    return \"develop\"",
+      "de": "        raise Erro(\"sem origin e sem develop; passe --ref\")",
+      "para": "        return \"develop\", \"develop local, sem origin\"",
       "testes": [
         "tests.test_forge_contador.LinhaDaVersao.test_sem_develop_e_erro"
       ]

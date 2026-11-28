@@ -22,8 +22,8 @@
       "id": "M11",
       "guarda": "S1a: forge-contador lento passa do teto e vira não verificável",
       "arquivo": "bin/forge_estado.py",
-      "de": "    except (OSError, subprocess.TimeoutExpired) as erro:",
-      "para": "    except OSError as erro:",
+      "de": "    except subprocess.TimeoutExpired:  # DEVELOP-DO-GITHUB (v048 E14.1): o contador lê a develop do origin pela rede",
+      "para": "    except ImportError:",
       "testes": ["tests.test_forge_status_estado.Contador.test_contador_lento_nao_verificavel"]
     },
     {
