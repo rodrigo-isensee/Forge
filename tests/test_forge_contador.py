@@ -90,13 +90,22 @@ class LinhaDaVersao(Base):
                      "changelog.d/README.md": "r", "changelog.d/a.md": "a", "changelog.d/b.md": "b",
                      "changelog.d/nota.txt": "n"})
         r = self.contador()
-        self.assertEqual((r.returncode, r.stdout), (0, "1.4.10: 2 de 20\n"), r.stderr)
+        self.assertEqual((r.returncode, r.stdout), (0, "1.5.0: 2 de 20\n"), r.stderr)
+
+    def test_versao_corta_no_9(self):
+        # VERSAO-PATCH-ATE-9 (v048 E2.1): depois de X.Y.9 vem X.(Y+1).0; o patch nunca passa de 9
+        for atual, seguinte in (("0.47.9", "0.48.0"), ("0.47.19", "0.48.0"), ("0.48.0", "0.48.1"),
+                                ("0.48.8", "0.48.9"), ("0.48.9", "0.49.0")):
+            with self.subTest(atual=atual):
+                self.commit({".claude-plugin/plugin.json": json.dumps({"version": atual}), "changelog.d/a.md": "a"})
+                r = self.contador()
+                self.assertEqual((r.returncode, r.stdout), (0, f"{seguinte}: 1 de 20\n"), r.stderr)
 
     def test_readme_com_caixa_mista_nao_conta(self):
         self.commit({".claude-plugin/plugin.json": json.dumps({"version": "1.4.9"}),
                      "changelog.d/Readme.md": "r", "changelog.d/a.md": "a"})
         r = self.contador()
-        self.assertEqual((r.returncode, r.stdout), (0, "1.4.10: 1 de 20\n"), r.stderr)
+        self.assertEqual((r.returncode, r.stdout), (0, "1.5.0: 1 de 20\n"), r.stderr)
 
     def test_le_a_ref_e_nao_a_arvore(self):
         self.commit({".claude-plugin/plugin.json": json.dumps({"version": "0.1.0"}), "changelog.d/a.md": "a"})

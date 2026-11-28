@@ -1,0 +1,56 @@
+{
+  "pedido": "v0481-espera-amarela",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M21",
+      "guarda": "E47.6: no ci.yml, o sufixo da espera só com todos os needs do agregador em success",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "needs.pareceres.result == 'success' && needs.verificacoes.result == 'success' && ",
+      "para": "needs.pareceres.result == 'success' && ",
+      "testes": [
+        "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_sufixo_so_com_todos_os_needs_verdes"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "E47.6: na catraca.yml, o sufixo da espera só com a conferência em success",
+      "arquivo": ".github/workflows/catraca.yml",
+      "de": "catraca${{ (needs.conferencia.result == 'success') && ",
+      "para": "catraca${{ (needs.conferencia.result != 'x') && ",
+      "testes": [
+        "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_sufixo_so_com_todos_os_needs_verdes"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "E47.6: sem matriz, o nome do check local é o exato (o sufixo da espera some)",
+      "arquivo": "scripts/ci-local",
+      "de": "    if not matriz:  # o sufixo",
+      "para": "    if False:  # o sufixo",
+      "testes": [
+        "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_check_exigido_tem_o_sufixo_da_saida_e_o_da_catraca_exige_a_conferencia"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "E47.6: só o caminho conhecido que abre a linha (seguido de ': ') separa o caminho da espera",
+      "arquivo": "tests/catraca.py",
+      "de": "for c in caminhos if linha.startswith(c + \": \")), key=len",
+      "para": "for c in caminhos if c), key=len",
+      "testes": [
+        "tests.test_catraca.EsperaNaoEVermelho.test_caminho_da_espera_e_o_conhecido_seguido_de_dois_pontos"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "E47.6: com as execuções respondendo, o rótulo ainda vale pelo conteúdo",
+      "arquivo": "tests/catraca.py",
+      "de": "                    elif rotulo_vale_pelo_conteudo(",
+      "para": "                    elif False and rotulo_vale_pelo_conteudo(",
+      "testes": [
+        "tests.test_catraca.RotuloSobreviveAoConteudo.test_p9_push_sem_arquivo_protegido_mantem_o_rotulo"
+      ]
+    }
+  ]
+}

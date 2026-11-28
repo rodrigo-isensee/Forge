@@ -5,10 +5,10 @@ description: Boas práticas de desenvolvimento e modelagem do time (conforme a s
 
 # Boas práticas de engenharia
 
-Mantidas pelo `tech-lead` e pelo `software-architect`. Ajustes específicos do projeto ficam em `docs/engineering/praticas.md` e prevalecem sobre este arquivo; decisões estruturais ficam em ADR.
+Mantidas pelo `tech-lead` e pelo `software-architect`. Ajustes específicos do projeto ficam em `docs/engineering/praticas.md` e prevalecem sobre este; decisões estruturais, em ADR.
 
 ## Código (conforme a stack do projeto)
-- Linguagem, tipagem, lint e formatação seguem a stack declarada no `CLAUDE.md` (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`); tipagem no modo mais estrito, sem escapes sem comentário explicando.
+- Linguagem, tipagem, lint e formatação seguem a stack declarada no `CLAUDE.md` (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`); tipagem no modo mais estrito, sem escape sem comentário.
 - Tipos e contratos compartilhados entre as camadas numa fonte única; nada de tipo duplicado à mão.
 - Funções pequenas, com um propósito; nomes que dizem o que fazem; sem abreviação obscura.
 - Regra de negócio isolada de framework (services puros, testáveis sem HTTP nem banco).
@@ -27,7 +27,8 @@ Mantidas pelo `tech-lead` e pelo `software-architect`. Ajustes específicos do p
 - Revisão de modelagem pelo tech lead e pelo arquiteto antes de escrever a migração.
 
 ## Definição de pronto
-- O autor só entrega com o comando de pronto do projeto (`CLAUDE.md`) verde, rodado da raiz do repositório, e com a documentação afetada pela mudança atualizada na mesma entrega (README, guias, ADR, comentários de contrato). Entrega sem isso volta ao autor antes do review; essa devolução não abre rodada de review (`docs/economia-de-tokens.md`, regra 1) nem conta como volta de `R-QA`, e quem a confere é o Jarvis pela prova `PQ-n` do brief (`R-PROVA`).
+- O autor só entrega com o comando de pronto do projeto (`CLAUDE.md`) verde, rodado da raiz do repositório, e com a documentação afetada pela mudança atualizada na mesma entrega (README, guias, ADR, comentários de contrato). Sem isso, volta ao autor antes do review e não abre rodada de review (`docs/economia-de-tokens.md`, regra 1) nem conta como volta de `R-QA`, e quem a confere é o Jarvis pela prova `PQ-n` do brief (`R-PROVA`).
+- No Forge, antes do envio, rode `scripts/gerar-derivados.py` e commite o que mudar.
 - No Forge, com teste-oráculo do portão (`tests/test_oraculo_<pedido>.py`), o autor roda o oráculo e não o edita: o hook `conformidade` barra a escrita, e oráculo que pareça errado volta ao portão que o escreveu.
 
 ## Testes
@@ -49,11 +50,11 @@ Cada regra do `docs/engineering/praticas.md` do projeto diz quem a decide: "deci
 9. Commits limpos e mensagem clara?
 10. Decisão ou experimento novo traz critério de reversão? Mecanismo novo traz "Por que o existente não basta" (evidência de execução)?
 11. Teste de ausência ("não achei X") cujo alvo mudou é relido: o texto que ele procura ainda existe? Teste que percorre pasta ou lista afirma um mínimo de itens?
-12. Falso de `git` ou `gh` num teste (a função que imita `head_do_pr`, `ls-remote` e afins) confere a mesma regra que o script corrige (nome exato, não prefixo nem substring)? Falso mais frouxo que o script deixa o teste verde com o defeito presente.
+12. Falso de `git` ou `gh` num teste (o que imita `head_do_pr`, `ls-remote` e afins) confere a mesma regra que o script corrige (nome exato, não prefixo nem substring)? Falso mais frouxo que o script deixa o teste verde com o defeito presente.
 
 **Suíte:** a suíte inteira roda só no CI do PR, obrigatório para o merge. O review grava `- ci: <sha40> verde` com o `gh pr checks` do `commit:` verde fora `bateria (pareceres)`, `bateria` e `catraca` (PARECER-LE-O-CI), ou `verde via <sha40 do descendente>` se outro parecer cancelou o run (G3.7); sem CI verde, não aprova, e não rerroda o SHA. Roda só os testes afetados pelo diff e o mutante.
 
-Achado cuja classe se repete (já está em `docs/engineering/achados-recorrentes.md` ou volta neste pedido): grave a linha `AR-<n>` nesse arquivo, no formato dele (só classe, ID da regra, contagem e `arquivo:linha`), no mesmo PR do parecer; o `tech-lead` é quem a escreve no review.
+Achado cuja classe se repete (já está em `docs/engineering/achados-recorrentes.md` ou volta neste pedido): grave `AR-<n>` nesse arquivo, no formato dele (só classe, ID da regra, contagem e `arquivo:linha`), no mesmo PR do parecer; o `tech-lead` a escreve no review.
 
 Parecer: **aprovado** ou **ajustes necessários** (arquivo:linha · problema · sugestão · severidade: bloqueia / recomendado).
 

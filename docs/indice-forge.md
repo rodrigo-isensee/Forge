@@ -95,6 +95,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `conferir-reversao.py` | confere, antes do review, se cada commit da branch se reverte sozinho (M10). Só biblioteca padrão. |
 | `configurar-ambiente-local.sh` | Grava (ou mescla) a chave "env" em .claude/settings.local.json, que o git ignora. |
 | `falhas-no-resumo.py` | as falhas de uma parte da suíte no resumo do GitHub e em anotações (v047 E2.270). |
+| `gerar-derivados.py` | gerador único dos derivados versionados, rodado pelo autor antes do envio (proposta 1 da auditoria dos testes). |
 | `indice-fixtures.py` | índice do corpus de fixtures dos hooks (`tests/hooks/<hook>/<caso>.json`, ADR 0003). Só biblioteca padrão. |
 | `indice-forge.py` | índice do Forge (arquivo e o que faz), para o brief citar em vez de colar trechos (H7). |
 | `instalar-atalho.sh` | instala os comandos `jarvis`, `jarvis-forge` e `forge` em ~/.local/bin e garante esse diretório no PATH do bash. |

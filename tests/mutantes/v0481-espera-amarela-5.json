@@ -1,0 +1,57 @@
+{
+  "pedido": "v0481-espera-amarela",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M26",
+      "guarda": "volta 2 do #948 (A1 do QA, Q1): sem arquivo sensível, o parecer que reprova não vira espera",
+      "arquivo": "tests/catraca.py",
+      "de": "    if not tocados:\n        return nao_aprovam, False",
+      "para": "    if not tocados:\n        return nao_aprovam, True",
+      "testes": [
+        "tests.test_catraca.EsperaNaoEVermelho.test_reprovado_sem_arquivo_sensivel_sai_1"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "volta 2 do #948 (A1 do QA, Q2): com o cmd_pr sem achado, o QA que reprova não vira espera",
+      "arquivo": "tests/catraca.py",
+      "de": "    if pedidos and not achados:\n        return nao_aprovam, False",
+      "para": "    if pedidos and not achados:\n        return nao_aprovam, True",
+      "testes": [
+        "tests.test_catraca.EsperaNaoEVermelho.test_qa_reprovado_com_review_aprovado_e_arquivo_sensivel_sai_1"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "volta 2 do #948 (A2 do QA, Q3): a linha sem parecer da branch é espera",
+      "arquivo": "tests/catraca.py",
+      "de": "(?:para o pedido|da branch) ",
+      "para": "(?:para o pedido|) ",
+      "testes": [
+        "tests.test_catraca.EsperaNaoEVermelho.test_so_parecer_de_outra_branch_sai_3",
+        "tests.test_catraca.EsperaNaoEVermelho.test_linha_sem_parecer_da_branch_e_o_vizinho"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "volta 2 do #948 (A3 do QA, Q5): na catraca.yml, só o rc 3 do script segue para a espera",
+      "arquivo": ".github/workflows/catraca.yml",
+      "de": "[ \"$rc\" = 3 ] || exit \"$rc\"",
+      "para": "[ \"$rc\" = 3 ] || [ \"$rc\" = 1 ] || exit \"$rc\"",
+      "testes": [
+        "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_espera_grava_o_sufixo_e_defeito_ou_verde_velho_fica_vermelho"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "volta 2 do #948 (A3 do QA, Q5): no ci.yml, só o rc 3 do script segue para a espera",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "[ \"$rc\" = 3 ] || exit \"$rc\"",
+      "para": "[ \"$rc\" = 3 ] || [ \"$rc\" = 1 ] || exit \"$rc\"",
+      "testes": [
+        "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_espera_grava_o_sufixo_e_defeito_ou_verde_velho_fica_vermelho"
+      ]
+    }
+  ]
+}
