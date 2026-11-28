@@ -1,0 +1,36 @@
+{
+  "pedido": "v048-bateria-pareceres-amarela",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E14.2: o reprovado de commit que o código já passou é espera do parecer novo",
+      "arquivo": "tests/catraca.py",
+      "de": "    if dono in velhos and linha.startswith(dono + \": parecer: o último parecer não é aprovado\"):",
+      "para": "    if False and dono in velhos and linha.startswith(dono + \": parecer: o último parecer não é aprovado\"):",
+      "testes": [
+        "tests.test_catraca.EsperaNaoEVermelho.test_reprovado_de_commit_que_o_codigo_ja_passou_sai_3"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E14.2: o reprovado sobre o código de agora segue defeito (só o commit que não vale entra em velhos)",
+      "arquivo": "tests/catraca.py",
+      "de": "                if veredito and veredito[0] == \"commit\":",
+      "para": "                if True:",
+      "testes": [
+        "tests.test_catraca.EsperaNaoEVermelho.test_reprovado_do_codigo_de_agora_segue_1"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E14.2: outro reprovado atual tira a espera do velho",
+      "arquivo": "tests/catraca.py",
+      "de": "    defeitos = [v for v in outros if not any(c in v for c in velhos)]",
+      "para": "    defeitos = []",
+      "testes": [
+        "tests.test_catraca.EsperaNaoEVermelho.test_reprovado_velho_com_outro_reprovado_atual_sai_1"
+      ]
+    }
+  ]
+}

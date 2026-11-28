@@ -16,7 +16,7 @@
       "id": "M14",
       "guarda": "E47.6: outro parecer que não aprova tira a espera",
       "arquivo": "tests/catraca.py",
-      "de": "    return sem_parecer + outros, so_espera and not outros",
+      "de": "    return sem_parecer + outros, so_espera and not defeitos",
       "para": "    return sem_parecer + outros, so_espera",
       "testes": [
         "tests.test_catraca.EsperaNaoEVermelho.test_review_ausente_com_outro_parecer_reprovado_sai_1"

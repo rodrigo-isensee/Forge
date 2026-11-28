@@ -2096,11 +2096,13 @@ def pareceres_e_espera(raiz, base, head, ramo, base_ref, repo_head="", repo_base
         return [violacao_de_git(e)], False
 
 
-def linha_de_espera(linha, caminhos):
+def linha_de_espera(linha, caminhos, velhos=()):
     """A linha do `cmd_pr` é só espera: o padrão ancorado no início casa e o caminho que ele separa é o mais longo dos `caminhos`
     conhecidos (pastas e pareceres) que abre a linha. Um nome de arquivo com `: commit: desatualizado` dentro não forja a espera."""
     m = LINHA_DE_ESPERA.match(linha)
     dono = max((c for c in caminhos if linha.startswith(c + ": ")), key=len, default=None)
+    if dono in velhos and linha.startswith(dono + ": parecer: o último parecer não é aprovado"):
+        return True  # E14.2: reprovado de commit que o código já passou espera o parecer novo
     return bool(m) and dono == (m.group(1) or m.group(2))
 
 
@@ -2109,11 +2111,13 @@ def caminhos_de_pareceres(fc, raiz, head):
     return pastas | {fc.caminho_impresso(rel) for tipo in fc.PASTA_E_REGRA for rel, _ in fc.documentos(Path(raiz), tipo, head)}
 
 
-def pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo=None):
+def pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo=None, velhos=None, base=None):
     """Violações do último parecer de cada tipo (review, qa, revisao-devops, revisao-seguranca) dos `pedidos` da branch, quando
     ele não aprova. O "último" usa a chave do `cmd_pr` (data, caminho); o critério é o dele: `aprovado`, ou `riscos-aceitos` com
     o aceite do usuário. Não depende de arquivo sensível, do tipo ser exigido nem da base (QA na `develop` inclusive). Com `ramo`,
-    só contam os pareceres com `branch: <ramo>`, como no `cmd_pr` (E11)."""
+    só contam os pareceres com `branch: <ramo>`, como no `cmd_pr` (E11). BATERIA-PARECERES-ESPERA-AMARELA (E14.2): com o conjunto
+    `velhos`, entram nele os caminhos dos `reprovado` cujo `commit:` o código já passou (o critério do `forge-check` aplicado como
+    se fosse aprovado): o autor corrigiu e falta o parecer novo, que é espera; o reprovado sobre o código de agora segue defeito."""
     achadas = []
     for ped in pedidos:
         for tipo, (_, rid) in fc.PASTA_E_REGRA.items():
@@ -2128,6 +2132,10 @@ def pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo=None):
             valor = campos.get("parecer")
             if valor == "aprovado" or (valor == "riscos-aceitos" and fc.aceite_do_usuario(Path(raiz), ped, campos.get("commit"), head)):
                 continue
+            if velhos is not None and valor == "reprovado" and fc.COMMIT.match(campos.get("commit") or ""):
+                veredito = fc.veredito_do_parecer(Path(raiz), ped, {**campos, "parecer": "aprovado"}, tipo, head, base, ())
+                if veredito and veredito[0] == "commit":
+                    velhos.add(fc.caminho_impresso(rel))
             achadas.append(msg(rid, f"parecer que não aprova: {fc.caminho_impresso(rel)} (parecer: {valor})",
                                "o último parecer do tipo não aprova (ou `riscos-aceitos` sem o aceite do usuário), e a mudança entraria mesmo assim",
                                f"corrija e peça novo parecer, e confira com `bin/forge-check pr {ped}`", f"docs/regras/{rid}.md"))
@@ -2145,9 +2153,10 @@ def _pareceres_e_espera(raiz, base, head, ramo, base_ref):
     tocados = [a for a in alterados(raiz, b, head) if a.startswith(SENSIVEIS)]
     fc = forge_check()
     pedidos = fc.pedidos_da_branch(Path(raiz), ramo, head)
-    nao_aprovam = pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo)
+    velhos = set()
+    nao_aprovam = pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo, velhos, b)
     if not tocados:
-        return nao_aprovam, False
+        return nao_aprovam, bool(nao_aprovam) and all(any(c in v for c in velhos) for v in nao_aprovam)
     achados = []
     for ped in pedidos:  # todos os pedidos da branch passam: um aprovado não cobre o reprovado de outro
         linhas = [l for l in fc.cmd_pr(Path(raiz), ped, head, base, ramo) if l.strip()]  # E11: o parecer é o da branch do PR
@@ -2155,11 +2164,11 @@ def _pareceres_e_espera(raiz, base, head, ramo, base_ref):
             linhas = [l for l in linhas if not l.startswith("docs/qa") and "(R-QA)" not in l]
         achados += linhas
     if pedidos and not achados:
-        return nao_aprovam, False
+        return nao_aprovam, bool(nao_aprovam) and all(any(c in v for c in velhos) for v in nao_aprovam)
     exige = "review e QA" if base_ref == "homolog" else "review"
     detalhe = f" ({'; '.join(achados[:2])})" if achados else ""
     caminhos = caminhos_de_pareceres(fc, raiz, head) if achados else set()
-    so_espera = all(linha_de_espera(l, caminhos) for l in achados)  # ausente ou de commit anterior; o resto é defeito
+    so_espera = all(linha_de_espera(l, caminhos, velhos) for l in achados)  # ausente ou de commit anterior; o resto é defeito
     if so_espera:
         detalhe += f" ({SO_ESPERA_PARECER})"
     sem_parecer = [msg("R-REVIEW", f"PR toca {tocados[0]} (e outros {len(tocados) - 1}) sem parecer aprovado de {exige}{detalhe}",
@@ -2169,7 +2178,8 @@ def _pareceres_e_espera(raiz, base, head, ramo, base_ref):
     # o parecer de tipo exigido que não aprova já está dito no `detalhe`: só entra o que o `cmd_pr` não lê (tipo não exigido, QA na develop)
     ja_ditos = [l.split(": parecer:", 1)[0] for l in achados if ": parecer: o último" in l]
     outros = [v for v in nao_aprovam if not any(caminho in v for caminho in ja_ditos)]
-    return sem_parecer + outros, so_espera and not outros
+    defeitos = [v for v in outros if not any(c in v for c in velhos)]
+    return sem_parecer + outros, so_espera and not defeitos
 
 
 def resumo(titulo, linhas):

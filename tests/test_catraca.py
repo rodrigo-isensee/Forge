@@ -4742,6 +4742,31 @@ class EsperaNaoEVermelho(Base):
         self.assertEqual(r.returncode, catraca.ESPERA, r.stdout + r.stderr)
         self.assertIn("commit: desatualizado", r.stdout)
 
+    # BATERIA-PARECERES-ESPERA-AMARELA (v048 E14.2): o reprovado sobre código que o autor já mudou espera o parecer novo
+    def test_reprovado_de_commit_que_o_codigo_ja_passou_sai_3(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", "reprovado")
+        self.repo.escreve("hooks/novo.py", "x = 2\n")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, catraca.ESPERA, r.stdout + r.stderr)
+        self.assertIn(catraca.SO_ESPERA_PARECER, r.stdout)
+
+    def test_reprovado_do_codigo_de_agora_segue_1(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", "reprovado")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertNotIn("catraca: espera", r.stdout)
+
+    def test_reprovado_velho_com_outro_reprovado_atual_sai_1(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", "reprovado")
+        self.repo.escreve("hooks/novo.py", "x = 2\n")
+        self.parecer("qa", "reprovado")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertNotIn("catraca: espera", r.stdout)
+
     def test_sonda_s1_arquivo_com_a_marca_e_parecer_reprovado_sai_1(self):
         self.repo.escreve(f"hooks/{catraca.SO_ESPERA_PARECER}", "x = 1\n")
         self.parecer("review", "reprovado")
