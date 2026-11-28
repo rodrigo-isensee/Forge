@@ -19,24 +19,7 @@ Ferramentas, pastas e comandos: `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`
 Os E2E cobrem os fluxos críticos; o restante fica nos níveis mais baixos.
 
 ## Plano de testes (`docs/qa/<feature>.md`)
-```markdown
-# Plano de testes - <feature>
-Links: especificação de UX, contrato da API, plano técnico.
-
-## Escopo
-O que está e o que não está coberto.
-
-## Cenários
-| ID | Cenário | Tipo | Prioridade | Automatizado |
-|---|---|---|---|---|
-| CT-01 | Login com credenciais válidas | E2E | Alta | sim |
-
-## Dados de teste
-Usuários, permissões e fixtures necessários.
-
-## Resultado da execução
-Data, ambiente, aprovados/falhos, links para bugs.
-```
+Modelo do plano (escopo, cenários `CT-n`, dados de teste, resultado da execução): `referencia.md` nesta skill, ao abrir o plano.
 
 Para cada critério de aceite da especificação, pelo menos um cenário. A tabela critério → teste → resultado do parecer traz a coluna "fronteira protegida" (o limite que o teste guarda: vazio, máximo, permissão; `n/a` se não houver). Sempre incluir: entradas inválidas, limites (vazio, máximo, caracteres especiais), usuário sem permissão, falha da API e navegação só por teclado.
 
@@ -49,9 +32,8 @@ Para cada critério de aceite da especificação, pelo menos um cenário. A tabe
 
 ## Teste-oráculo do portão (EXT-1, no Forge)
 - **Quando:** pedido de guarda ou controle, o que toca hook, `.githooks/`, portão do forge-check, catraca ou CI. Na 1ª rodada, antes da construção, o portão escreve o oráculo: a segurança com gatilho de segurança, o QA sem ele.
-- **Onde e como:** `tests/test_oraculo_<pedido>.py` (nome minúsculo, `[a-z0-9_]`), só em `melhoria/*`, num commit próprio que só toca o oráculo. O hook `conformidade` barra a escrita do autor (tech-lead, dev, jarvis) nesse padrão; o bin/forge-testes põe todo oráculo em todo plano dirigido. Autocontido: só biblioteca padrão, o código sob teste e utilitários do próprio arquivo, sem `skip`, `skipIf`, `expectedFailure` nem ambiente que decida o que testa. O commit vermelho do oráculo chega ao autor por `git fetch` local, nunca vai sozinho ao remoto.
+- **Onde e como** (nome do arquivo, commit próprio, hook que barra o autor, autocontido, entrega por `git fetch` local) e **o review do oráculo**: `referencia.md` nesta skill, ao escrever o oráculo ou ao revisar um.
 - **Prova de não edição (o hook não basta):** o portão grava no parecer `oraculo: <caminho> commit <sha40> blob <sha40>`. O parecer final confere as três, e falhar em uma reprova: `git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado; `git log --format=%H <sha>..HEAD -- <oráculo>` vazio. Depois de um rebase limpo vale o blob igual, e o log do trecho novo só pode mostrar o commit reescrito do próprio oráculo. Registre quantos testes do oráculo rodaram; zero reprova.
-- **Review:** o oráculo é contrato. O parecer do review cita o sha dele e diz se cobre os casos de abuso do modelo de ameaças; o portão não aprova contra o próprio oráculo sem essa leitura.
 
 ## E2E
 - Seletores por papel e texto acessível; `data-testid` só em último caso.
@@ -85,10 +67,10 @@ Quando a stack tiver ferramenta gratuita (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/
 Simule o merge sobre a base de integração fora da árvore de trabalho, com as refs remotas: passos e comando pronto em `comandos.md` nesta skill, com os do vermelho, da mutação e do segundo plano.
 
 ## Mutantes declarados nos pedidos de controle
-No Forge, o que decide por regra de código (`bin/`, `hooks/`, `.githooks/`, `tests/catraca.py`) tem a prova de mutação feita à mão e declarada: `bin/forge-mutante tests/mutantes/<pedido>.json` lê a spec (3 a 16 mutantes: arquivo, trecho `de`, trecho `para`, testes que devem cair; o mutante equivalente se declara no campo `equivalente`, com a justificativa, e sai na linha `equivalente: <id> · <justificativa>`, sem rodar; com `testes`, roda, e o que eles matam é inválido; o equivalente não prova: a spec só de equivalentes sem `testes` sai 2 e, no `--cobertura`, a condição coberta só por ele sai `só equivalente`, rc 1) e roda cada um numa cópia descartável. Pedido com mais de 16 mutantes divide em `tests/mutantes/<pedido>-<n>.json` (mesmo `pedido`, id único no conjunto) e passa todas as specs numa só rodada (`bin/forge-mutante tests/mutantes/<pedido>.json tests/mutantes/<pedido>-2.json`).
+No Forge, o que decide por regra de código (`bin/`, `hooks/`, `.githooks/`, `tests/catraca.py`) tem a prova de mutação feita à mão e declarada: `bin/forge-mutante tests/mutantes/<pedido>.json` lê a spec (3 a 16 mutantes: arquivo, trecho `de`, trecho `para`, testes que devem cair; o mutante equivalente se declara no campo `equivalente`, com a justificativa: formato e saídas em `referencia.md`) e roda cada um numa cópia descartável. Pedido com mais de 16 mutantes divide em `tests/mutantes/<pedido>-<n>.json` (mesmo `pedido`, id único no conjunto) e passa todas as specs numa só rodada (`bin/forge-mutante tests/mutantes/<pedido>.json tests/mutantes/<pedido>-2.json`).
 - Pedido de controle: o autor declara os mutantes, **um por linha de guarda mudada no diff**. Nos demais, o QA escreve a lista e pode somar até 16.
 - O QA confere a lista contra o diff antes de rodar: linha de guarda mudada sem mutante é achado bloqueante do QA, porque a saída 0 só prova o que a lista cobre (o autor, sozinho, escolheria mutantes que o teste dele já mata).
-- `bin/forge-mutante --cobertura --base <Base-sha>` é a checagem do autor antes do push: lista a condição Python mudada sem mutante declarado ("declarado, não provado"; shell e outros saem `não coberto: <arquivo>`; as `isentas` da spec, até 8, saem `isenta · arq:L · motivo`, e a que não cruza, `isenta velha`, rc 1). A rodada de mutantes segue como evidência do QA; nenhum hook, pre-push nem CI chama a checagem.
+- `bin/forge-mutante --cobertura --base <Base-sha>` é a checagem do autor antes do push: lista a condição Python mudada sem mutante declarado (as saídas, em `referencia.md`). A rodada de mutantes segue como evidência do QA; nenhum hook, pre-push nem CI chama a checagem.
 - O QA roda `bin/forge-mutante tests/mutantes/<pedido>.json`, depois do commit, e cola a saída no parecer. Saída 0: todos os mutantes morreram. Erro do teste sob o mutante com o controle verde mata: `morreu · … · (erro)`. Prazo, erro de carga ou processo caído é "sem veredito". `--processos K` (1 a 4; padrão 1) roda k mutantes por vez, cada um na sua cópia e com o mesmo veredito; k > 1 dentro da vez da trava da suíte (`R-TETO`). Na revalidação, `--base <head aprovado>` roda os mutantes do delta e o parecer confere a linha `base=`. Placar e bench rodam por versão, fora do PR.
 - Mutante sobrevivente é achado bloqueante do QA até virar teste ou equivalente aceito pelo QA.
 - Classe que já reprovou vira linha `AR-<n> · qa` em `docs/engineering/achados-recorrentes.md`.
@@ -96,20 +78,7 @@ No Forge, o que decide por regra de código (`bin/`, `hooks/`, `.githooks/`, `te
 Bug ou falha de plano cuja classe se repete (já está em `docs/engineering/achados-recorrentes.md` ou volta neste pedido): o `qa-engineer` grava a linha `AR-<n>` nesse arquivo, no formato dele, no mesmo PR do parecer.
 
 ## Relatório de bug (`docs/qa/bugs/<id>-<titulo>.md`)
-```markdown
-# <id> - <título curto>
-- Severidade: crítica | alta | média | baixa
-- Responsável sugerido: agente de desenvolvimento da stack
-- Ambiente: branch/commit, navegador
-
-## Passos para reproduzir
-1. ...
-
-## Resultado esperado
-## Resultado obtido
-## Evidência
-Log, screenshot ou trace da ferramenta de E2E.
-```
+Campos (severidade, responsável sugerido, ambiente, passos, esperado, obtido, evidência): modelo em `referencia.md` nesta skill, ao abrir o relatório.
 
 ## Severidade
 - **Crítica:** perda de dados, falha de segurança, fluxo principal bloqueado sem contorno.
