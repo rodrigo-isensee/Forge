@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C2B-M25",
+      "guarda": "o fetch que não traz o commit remoto: Recusa, nunca o ref local (M10.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "        if not tem_commit(raiz, remoto[0]):\n            raise Recusa(",
+      "para": "        if False:\n            raise Recusa(",
+      "testes": [
+        "tests.test_forge_pareceres.ListaFechada.test_fetch_que_nao_traz_o_commit_recusa"
+      ]
+    },
+    {
+      "id": "C2B-M26",
+      "guarda": "o git do hook parecer não roda config da cópia (A3 do #947)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "r = subprocess.run([\"git\", *SEM_CONFIG_DA_COPIA, *args],",
+      "para": "r = subprocess.run([\"git\", *args],",
+      "testes": [
+        "tests.test_forge_pareceres.ListaFechada.test_sonda_s3_hook_da_copia_nao_roda_no_fetch"
+      ]
+    },
+    {
+      "id": "C2B-M27",
+      "guarda": "sem hooks da cópia no fetch (S3)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "\"-c\", \"core.hooksPath=/dev/null\", \"-c\", \"core.fsmonitor=\", \"-c\", \"protocol.ext.allow=never\")",
+      "para": "\"-c\", \"core.fsmonitor=\", \"-c\", \"protocol.ext.allow=never\")",
+      "testes": [
+        "tests.test_forge_pareceres.ListaFechada.test_sonda_s3_hook_da_copia_nao_roda_no_fetch"
+      ]
+    },
+    {
+      "id": "C2B-M28",
+      "guarda": "sem ext:: da config da cópia",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "\"-c\", \"core.fsmonitor=\", \"-c\", \"protocol.ext.allow=never\")",
+      "para": "\"-c\", \"core.fsmonitor=\")",
+      "testes": [
+        "tests.test_forge_pareceres.ListaFechada.test_protocolo_ext_da_copia_nao_roda"
+      ]
+    }
+  ]
+}

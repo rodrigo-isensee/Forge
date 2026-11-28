@@ -40,7 +40,6 @@ from apoio_volta_unica import (  # noqa: E402
     REGRAS_DA_VOLTA_UNICA,
     MEDIDA_DO_CORPUS,
     PASSOS_POR_NIVEL_DO_TMP,
-    PASSOS_POR_VARIAVEL_POR_SUBPROCESSO,
     RUIDO_DO_CORPUS,
     corpus_da_volta_unica,
     excessos_de_trabalho,
@@ -704,19 +703,52 @@ class ContadorDeTrabalhoDoCorpus(unittest.TestCase):
             no_teto = self.trabalho(interpretador=MEDIDA_DO_CORPUS["interpretador"] + PASSOS_POR_NIVEL_DO_TMP + ruido)
             self.assertEqual(excessos_de_trabalho(no_teto, MEDIDA_DO_CORPUS["execucoes"], "3.12"), [])
 
-    def test_medida_do_interpretador_acerta_pelo_tamanho_do_ambiente(self):
-        """Cada variável a mais no ambiente do hook soma `PASSOS_POR_VARIAVEL_POR_SUBPROCESSO` passos por subprocesso da
-        medida, e cada uma a menos tira; os subprocessos não mudam."""
-        ruido = RUIDO_DO_CORPUS["interpretador"]
-        for variaveis in (-3, 1, 40):
-            medida = (MEDIDA_DO_CORPUS["interpretador"]
-                      + PASSOS_POR_VARIAVEL_POR_SUBPROCESSO * MEDIDA_DO_CORPUS["subprocessos"] * variaveis)
-            ambiente = MEDIDA_DO_CORPUS["variaveis_do_ambiente"] + variaveis
-            with self.subTest(variaveis=variaveis):
-                self.assertEqual(self.excessos(self.trabalho(ambiente=ambiente, interpretador=medida + ruido)), [])
-                self.assertEqual(self.excessos(self.trabalho(ambiente=ambiente, interpretador=medida + ruido + 1)),
-                                 [f"{medida + ruido + 1} interpretador, acima do teto de {medida + ruido} "
-                                  f"(medida {medida} mais o ruído {ruido})"])
+    def test_ambiente_diferente_do_da_medida_reprova(self):
+        """O hook roda com o ambiente completado até `variaveis_do_ambiente`; mais variáveis em quem roda (o contador não
+        tira nenhuma) ou o completar que não rodou (0) reprovam, mesmo com o interpretador dentro da medida."""
+        medida = MEDIDA_DO_CORPUS["variaveis_do_ambiente"]
+        for ambiente in (0, medida - 1, medida + 1):
+            with self.subTest(ambiente=ambiente):
+                self.assertEqual(self.excessos(self.trabalho(ambiente=ambiente)),
+                                 [f"o hook viu {ambiente} variáveis no ambiente, e a medida é com {medida}: o ambiente "
+                                  "de quem roda passa delas"])
+
+    def passos_com_o_ambiente(self, variaveis, voltas=0):
+        """O trabalho de um hook de mentira que copia o ambiente num filho Python (como o `git` do `forge-check`, variável
+        por variável) e dá `voltas` voltas de laço a mais, rodado com `variaveis` variáveis herdadas de quem roda."""
+        with tempfile.TemporaryDirectory(prefix="forge-contador-") as tmp:
+            contador, codigo = ContadorDeTrabalho(tmp), Path(tmp) / "codigo"
+            codigo.mkdir()
+            filho = "import os\nenv = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}\n"
+            (codigo / "filho.py").write_text(filho, encoding="utf-8")
+            (codigo / "hook.py").write_text(
+                f"import os, subprocess, sys\n{filho}for i in range({voltas}):\n    pass\n"
+                "subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'filho.py')], check=True)\n",
+                encoding="utf-8")
+            # Sem `-I`: ele ignora o PYTHONPATH, por onde o contador entra (como no `rodar`); o herdado sai inteiro.
+            herdado = {"PATH": "/usr/bin:/bin", **{f"HERDADA_{i}": "x" for i in range(variaveis - 1)}}
+            env = {**herdado, **contador.ambiente(), "FORGE_TESTE_TRABALHO_CODIGO": str(codigo)}
+            subprocess.run([sys.executable, str(codigo / "hook.py")], env=env, cwd=tmp, check=True, timeout=60,
+                           stdin=subprocess.DEVNULL, capture_output=True)
+            return contador.ler()
+
+    def test_trabalho_nao_muda_com_as_variaveis_de_quem_roda(self):
+        """E45.73: o runner do CI deu 132 e 133 variáveis no ambiente, e o custo de copiar o ambiente mudava o teto. O
+        contador completa o ambiente do hook (só dele: o filho herda e não completa de novo) até `variaveis_do_ambiente`:
+        com 132 ou 133 herdadas, o mesmo ambiente e os mesmos passos, e o veredito é o mesmo. Uma volta de laço a mais
+        (custo real) segue contada."""
+        com_132, com_133 = self.passos_com_o_ambiente(132), self.passos_com_o_ambiente(133)
+        self.assertEqual(com_132["ambiente"], MEDIDA_DO_CORPUS["variaveis_do_ambiente"])
+        self.assertEqual(com_132, com_133)
+        self.assertEqual((com_132["execucoes"], com_132["subprocessos"]), (2, 1))
+        self.assertGreater(com_132["interpretador"], 2 * MEDIDA_DO_CORPUS["variaveis_do_ambiente"])  # as duas cópias
+        self.assertEqual(self.passos_com_o_ambiente(133, voltas=1)["interpretador"] - com_133["interpretador"], 1)
+        with mock.patch.dict(MEDIDA_DO_CORPUS, interpretador=com_132["interpretador"]):
+            vereditos = [self.excessos({**t, "execucoes": MEDIDA_DO_CORPUS["execucoes"], "sono": 0.0})
+                         for t in (com_132, com_133, {**com_133, "interpretador": com_133["interpretador"] + 1})]
+        self.assertEqual(vereditos[:2], [[], []])
+        self.assertEqual(len(vereditos[2]), 1)
+        self.assertIn("interpretador, acima do teto", vereditos[2][0])
 
     def test_sono_do_hook_reprova(self):
         self.assertEqual(self.excessos(self.trabalho(sono=0.001)), ["0.001 s de sono pedidos pelo hook"])

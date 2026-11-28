@@ -1,0 +1,87 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C2B-M9",
+      "guarda": "status só numa branch de trabalho; sem lista, o caminho de arquivo",
+      "arquivo": "bin/forge-check",
+      "de": "    publicados = pareceres_publicados(raiz, pedido, branch, ref) if de_trabalho and pelo_status else None",
+      "para": "    publicados = pareceres_publicados(raiz, pedido, branch, ref) if pelo_status else None",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_branch_de_integracao_segue_o_arquivo"
+      ]
+    },
+    {
+      "id": "C2B-M10",
+      "guarda": "fora da lista só o status; na lista sem status, o arquivo",
+      "arquivo": "bin/forge-check",
+      "de": "        if publicados is not None and (not publicados[0] or tipo in publicados[1]):",
+      "para": "        if publicados is not None and tipo in publicados[1]:",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_fora_da_lista_so_o_status"
+      ]
+    },
+    {
+      "id": "C2B-M11",
+      "guarda": "sem a lista, nenhum PR usa status (dormente)",
+      "arquivo": "bin/forge-check",
+      "de": "        if (lista := pareceres.lista_fechada(raiz)) is None:\n            return None",
+      "para": "        if (lista := pareceres.lista_fechada(raiz)) is None and False:\n            return None",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_sem_a_lista_nada_muda"
+      ]
+    },
+    {
+      "id": "C2B-M12",
+      "guarda": "só o PR da lista cai no arquivo",
+      "arquivo": "bin/forge-check",
+      "de": "return pr is not None and pr[\"number\"] in lista,",
+      "para": "return pr is not None,",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_fora_da_lista_so_o_status"
+      ]
+    },
+    {
+      "id": "C2B-M13",
+      "guarda": "leitura recusada reprova (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if isinstance(publicados[1], str):\n        return [",
+      "para": "    if False:\n        return [",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_leitura_recusada_reprova"
+      ]
+    },
+    {
+      "id": "C2B-M14",
+      "guarda": "fora da lista, sem status, o tipo falta",
+      "arquivo": "bin/forge-check",
+      "de": "    if tipo not in publicados[1]:\n        ausente(",
+      "para": "    if False:\n        ausente(",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_fora_da_lista_so_o_status"
+      ]
+    },
+    {
+      "id": "C2B-M15",
+      "guarda": "status que não vale reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if veredito is None:\n        return [f\"{pasta}: {tipo}: status",
+      "para": "    if False:\n        return [f\"{pasta}: {tipo}: status",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_status_que_nao_vale_reprova"
+      ]
+    },
+    {
+      "id": "C2B-M16",
+      "guarda": "o domínio do tipo da origem ao head (M11.1, M12.1)",
+      "arquivo": "bin/forge-check",
+      "de": "({url}): {campo}: {motivo} ({rid})\"] if motivo else []",
+      "para": "({url}): {campo}: {motivo} ({rid})\"] if False else []",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_dominio_mexido_depois_da_origem_recusa",
+        "tests.test_forge_pareceres.PrPeloStatus.test_reprovado_vigente_barra"
+      ]
+    }
+  ]
+}

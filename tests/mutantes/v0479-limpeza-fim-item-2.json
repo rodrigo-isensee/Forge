@@ -76,7 +76,7 @@
       "id": "M16",
       "guarda": "LIMPEZA-AO-FIM-DO-ITEM: criar pede --branch",
       "arquivo": "bin/forge-copia",
-      "de": "    if not a.branch:",
+      "de": "    if not a.branch and not a.d2:",
       "para": "    if False:",
       "testes": [
         "tests.test_forge_copia.Limpar.test_criar_sem_branch_e_recusado"

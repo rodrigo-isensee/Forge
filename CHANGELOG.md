@@ -4,6 +4,19 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.48.0] - 2026-11-28
+### Adicionado
+- o hook conformidade barra o status e o comentário de parecer gravados pelo gh do terminal (gh api em statuses e comentários, mutação de comentário do GraphQL, gh pr comment com o marcador tipo:) e o forge-check parecer publicar pelo bin/ de uma cópia (também por link de arquivo e com o PATH trocado na linha); lê todo --body e --body-file, e o corpo com expansão (heredoc sem aspas, variável, $(cat) sem o seu heredoc) ou o endpoint ilegível barram; parecer só pelo publicar do plugin (F1 parte 2, C1b; M4.2 e M10.1)
+- forge_pareceres.vigentes lê o parecer pelo status nos commits do PR: o mais novo de cada tipo vale (failure mais novo barra; comentário sumido ou editado não volta a um anterior), a origem é ancestral do head e do PR, e linha do registro de publicações sem o status correspondente recusa a leitura (F1 parte 2, C2a; C0-1, C0-2, CONTROLE-RUN-GRAFIA); dormente até o C2b
+- gerador único dos derivados: `scripts/gerar-derivados.py` roda os geradores que existem (índice do Forge, índice das fixtures) e diz o que mudou; `--conferir` não grava e sai 1 com derivado desatualizado (v0481 E48.1, proposta 1 da auditoria dos testes).
+### Alterado
+- **Versão até .9 (VERSAO-PATCH-ATE-9):** o `forge-contador` calcula a próxima versão com o patch até 9 (depois de 0.47.9 ou de 0.47.19 vem 0.48.0) e o `forge-changelog release` recusa versão com patch acima de 9, sem gravar nada (v048 E2.1).
+- as verificações bateria e catraca ficam pendentes (amarelas) no GitHub quando só falta o parecer aprovado ou, com [afrouxa-regra no título, o rótulo do dono: o tests/catraca.py sai com 3, o agregador muda de nome e o check exigido fica esperando, ainda barrando a junção; defeito segue vermelho, e o check exigido já verde no head vira vermelho em vez de esperar (F1-ESPERA-NAO-E-VERMELHO, v0481 E47.1)
+- a espera só renomeia o check com os outros jobs verdes, a dos pareceres se decide pelo caminho do parecer e não pelo texto, a do rótulo exige a API e o git respondendo, e só uma lista fechada de estados do check do head vale como espera (v0481 E47.6)
+### Corrigido
+- Teste da trava (`test_texto_da_trava_sai_limitado_e_sem_controle`) mede o texto do hook sem o aviso de locale do bash, que traz o caminho da cópia, e passa a exercitar o pid lido da trava na linha da fila (v048 E1.2).
+- Hook `agentes`: o aviso de brief vencido pergunta ao git em lote (um `rev-list` por ponta e um `cat-file --batch-check`), com as mesmas respostas; com centenas de linhas `conferida` no pedido, o disparo decide em menos de 1 s, sem a recusa do vigia de 8 s (R-TETO) (v0481 E50.1).
+
 ## [0.47.20] - 2026-11-27
 ### Adicionado
 - G2.2, 1º corte do F1 (parecer fora da branch): `forge_pareceres.ler` lê o parecer de portão no status do commit, só das contas da lista e com o comentário íntegro do PR do head (sha256, URL, frontmatter), em falha fechada; nada a chama ainda: o `pr` passa a lê-la depois das mitigações cortadas do G2.1 (v0481 E29.1).
