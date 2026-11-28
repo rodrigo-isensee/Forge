@@ -201,8 +201,11 @@ if _pasta:
 # parecer da etapa (brief v0478-tech-lead-481); prova em tests/provas/v0479-corpus-custo.md, "E63.1".
 # E63.5 (volta única dos portões da trilha): 5902634 -> 5902697 (+63; total sobre 5897219: +5478 passos, 0,093%; os
 # subprocessos seguem 4631); prova em tests/provas/v0479-corpus-custo.md, "E63.5".
+# E45.44 (v0481, C1b-2 com a develop a90a7a93): 5902697 -> 5902741 (+44; total sobre 5897219: +5522, 0,094%), medido no CI
+# do head 234217a1; decisão técnica do Jarvis no pedido v0481 (custo de hook até +0,5% decidido pelo time); prova em
+# tests/provas/v0479-corpus-custo.md, "E45.44".
 MEDIDA_DO_CORPUS = {"python": "3.12", "profundidade_do_tmp": 2, "variaveis_do_ambiente": 234,
-                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5902697}
+                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5902741}
 PASSOS_POR_NIVEL_DO_TMP = 460
 PASSOS_POR_VARIAVEL_POR_SUBPROCESSO = 2
 RUIDO_DO_CORPUS = {"subprocessos": 0, "interpretador": 0}

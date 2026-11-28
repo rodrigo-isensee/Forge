@@ -168,3 +168,18 @@ segurança), a base e o 0f4facab por `git archive`:
 - +0 sobre o 0f4facab: a regex nova é texto compilado só no uso, e a `GuardaDaProva.bash` e o `sem_copia_de_wt` não rodam
   no corpus; os absolutos daqui diferem dos de antes (233 variáveis), a diferença não: +5478 sobre a base, 0,093% sobre
   5897219 (5478 / 5897219) e sobre 5887957; abaixo de 0,1%, e `MEDIDA_DO_CORPUS` segue a mesma
+
+## E45.44 (v0481, C1b-2, volta 6 do #944)
+
+O head 234217a1 (C1b-2 com a develop a90a7a93 trazida) passou o teto no CI, run 46129091229, `suíte (python 3.12,
+parte 4/5)`, `test_corpus_nos_dois_hooks`: `4958477 interpretador, acima do teto de 4958433 (medida 4958433 mais o
+ruído 0)`; os subprocessos e as execuções ficaram dentro (557). A medida do CI já vem acertada pela profundidade do tmp
+e pelas variáveis do ambiente de lá, e a diferença vale igual sobre a medida de referência: +44 passos.
+- medida local, Python 3.12.3, tmp `/tmp/claude-0`, 237 variáveis, `test_corpus_nos_dois_hooks` com o
+  `excessos_de_trabalho` espiado só para imprimir a contagem, cada árvore num checkout git:
+  - develop a90a7a93: `{'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 5897060, 'ambiente': 237}`
+  - head 234217a1: `{'execucoes': 557, 'subprocessos': 4510, 'sono': 0, 'interpretador': 5905117, 'ambiente': 237}`
+- os absolutos locais não se comparam com a referência (subprocessos 4508 contra 4631 e 237 variáveis; as duas passam
+  aqui); o que sobe o teto é o excesso medido no CI
+- medida nova: `interpretador` 5902697 -> 5902741 (+44); total sobre 5897219: +5522 passos (0,094%), dentro do teto de
+  +0,5% que o dono deixou ao time; decisão técnica do Jarvis no pedido v0481 (histórico de 2026-11-28 06:35)
