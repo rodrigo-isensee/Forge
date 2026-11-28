@@ -20,7 +20,7 @@ Delta `f4ae675c..ecc3b742`, revisado em cópia própria (`.../v048-afetados-catr
 - A2 (recomendado) bin/forge-testes:575 · `contar_testes` conta `def test*` por `ast` e erra para baixo (7325 contados contra 7439 reais); do 1º parecer, fora do delta: cartão depois do merge, documente como aproximação.
 
 ## Sondas
-- S1 (A1 anterior, resolvido) · `modulos_listados(["bin/forge-mutante"])` no head ecc3b742, com a catraca no plano · espera: test_forge_mutante, test_hooks_volta_corpus, test_pre_push_patch · obtido: `test_forge, test_forge_mutante, test_hooks_volta_corpus, test_indice_forge, test_oraculo_sempre_atual, test_oraculo_v047, test_pre_push_patch` (recorte H5 de volta); a linha da catraca vai ao stderr e o stdout do plano tem 1 linha.
+- S1 · modulos_listados com bin/forge-mutante no head ecc3b742, catraca no plano (A1 anterior) · espera: test_forge_mutante, test_hooks_volta_corpus e test_pre_push_patch no conjunto · obtido: conjunto de 7 módulos com os três (a linha da catraca vai ao stderr; o stdout do plano tem 1 linha); resolvido
 
 ## Critério → teste → resultado (delta)
 | Critério | Teste | Fronteira protegida | Resultado |
