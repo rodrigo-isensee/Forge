@@ -3,31 +3,32 @@ tipo: review
 contrato: 1
 pedido: v048
 branch: melhoria/v048-afetados-catraca-custo
-commit: f4ae675c22dd8b656a5dc28a7db85f1e3e3d1e99
-parecer: reprovado
+commit: ecc3b7429450779edbda367bb40ddf834e4417d4
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-28
 ---
-# Review: v048 (#960, AFETADOS-CATRACA-E-CUSTO, E9.1 e E9.2, classe C)
+# Review: v048 (#960, AFETADOS-CATRACA-E-CUSTO, volta 1, classe C)
 
-1ª rodada completa no head f4ae675c (E9.3), diff `ed6e6dbf..f4ae675c`: `bin/forge-testes` (+109 −12, dentro do teto H1), teste novo `tests/test_afetados_catraca_custo.py`, 5 listas de mutantes e o fragmento do changelog.
+Revalidação (E9.7) do head ecc3b742. Delta lido: `forge-check parecer delta` deu `f4ae675c..ecc3b742`, com 7 arquivos no domínio: `bin/forge-testes`, o fragmento do changelog, as listas de mutantes -2, -3 e -5, `tests/test_afetados_catraca_custo.py` e `tests/test_forge_mutante.py`. Fora do domínio: os três pareceres da 1ª rodada.
 
 ## Achados
-- A1 (bloqueante) bin/forge-testes:1353 · a 2ª linha do stdout ("catraca no diff") quebra o `modulos_listados` do bin/forge-mutante:1193, que faz fullmatch no stdout inteiro: diff em bin/, hooks/ ou protegido perde o recorte H5 e roda os testes declarados inteiros (S1). Mande a linha ao stderr ou leia só a 1ª linha, com teste.
-- A2 (bloqueante) bin/forge-testes:1 · corpo do PR #960: `catraca (conferência)` vermelha no f4ae675c (R-CONTRIB, sem "Projeto de origem" nem "Como medir"); o corpo só descreve a E9.1 (M1 a M23, "23 morreram") e omite a E9.2 (LIMITE_LOCAL, M24 a M32). Corrija o texto; sem esse check verde o review não aprova.
-- A3 (recomendado) bin/forge-testes:1342 · acima do limite, sem catraca e sem teste do arquivo mudado, o plano cai em "nada a rodar (nenhum teste afetado)" logo após o aviso de corte, e o pre-push repete "nenhum teste afetado": a mensagem diz o contrário do aviso; diga que o plano ficou todo para o CI.
+- A1 (recomendado) tests/test_afetados_catraca_custo.py:62 · saiu "scripts/protegido.pyx", único caso do protegido exato contra prefixo: `caminho == item` → `caminho.startswith(item)` sobrevive (S1). Ponha um protegido de brinquedo fora de scripts/ e o caso `.pyx` dele.
 
 ## Sondas
-- S1 · bin/forge-mutante `modulos_listados(["bin/forge-mutante"])` com o forge-testes da base ed6e6dbf e do head f4ae675c · espera: o mesmo recorte nos dois (test_forge, test_forge_mutante, ...) · obtido: base 6 módulos; head conjunto vazio (stdout com a linha "catraca no diff")
+- S1 · `bin/forge-testes`: `any(caminho == item or` vira `any(caminho.startswith(item) or`, roda `tests.test_afetados_catraca_custo` · espera: algum teste falha · obtido: ecc3b742 OK (sobrevive); com o teste e a ferramenta do f4ae675c, `test_o_resto_fica_como_esta` falha (o mutante morria)
 
 ## Conferido
-- Lista de protegidos: `protegidos_da_catraca` lê a `PROTEGIDOS` de `tests/catraca.py` por `ast`, sem cópia; o teste `ListaDaCatracaReal` usa a catraca real.
-- Falha fechada: PROTEGIDOS ilegível, vazia, lista, com não-texto, por chamada ou ausente conta como tocada e leva os dois (`test_protegidos_ilegiveis_contam_como_tocados`). Catraca ausente ou em link não entra (repositório sem catraca, como os projetos).
-- Corte de 1.000 só no `--afetados` (`args.afetados and ...`, linha 1336), com teste dos dois lados (1000 e 1001) e do modo sem `--afetados`.
-- Pre-push: lê só a 1ª linha do `--afetados --listar` (`.githooks/pre-push:587-590`), que segue "forge-testes: dirigido (" ou "forge-testes: nada a rodar"; o aviso do corte vai ao stderr. O `scripts/conferir-reversao.py:51` também lê só a 1ª linha. O consumidor que lê o stdout inteiro é o forge-mutante (A1).
-- Guardas: `bin/forge-mutante --cobertura --base ed6e6dbf` dá todas as guardas mudadas cobertas (a 1235 da base isenta, com motivo); os 32 mutantes declarados (M1 a M32, 5 listas) morreram aqui, 1 processo.
-- Testes locais do diff: `tests.test_afetados_catraca_custo` 19 OK; `tests.test_testes_tocados tests.test_changelog` 290 OK (1 pulado); `tests/catraca.py --base ed6e6dbf` rc=0.
-- CI do f4ae675c (`gh pr checks 960`): suíte 1/5 a 5/5, bateria (passos, python 3.14, verificações longas), instalação e árvore já provada verdes; `catraca` espera o parecer; `catraca (conferência)` vermelha pelo texto do PR (A2). Sem CI verde fora das exceções, não há linha de CI verde neste parecer.
+- A1 da 1ª rodada (stdout do plano): resolvido. A linha "catraca no diff" e o aviso da catraca que não pode rodar vão ao stderr (`bin/forge-testes:1366-1369`). Os três leitores do stdout: `.githooks/pre-push:587` descarta o stderr (`2>/dev/null`) e casa só o começo ("forge-testes: dirigido (" ou "nada a rodar"); `scripts/conferir-reversao.py` (`ponta_dirigida`) lê só a 1ª linha; `bin/forge-mutante:1193` (`modulos_listados`) faz fullmatch no stdout, que agora tem uma linha só. O contrato `ContratoDoListar` roda o `modulos_listados` real num diff em bin/, com ambiente limpo, e o M38 (linha de volta ao stdout) morre nele.
+- A2 da 1ª rodada (texto do PR): resolvido. O corpo do #960 tem "Projeto de origem", "Como medir" e a E9.2 (LIMITE_LOCAL), e `catraca (conferência)` passa no ecc3b742.
+- Falha fechada (A1 da segurança): o link em `tests/catraca.py` sempre pede a catraca. Ela também é pedida quando o arquivo some e o diff o lista. O diff vem de `git diff --name-only --no-renames`, então uma remoção entra na lista. O `catraca_rodavel` é conferido de novo na hora de executar, e o plano sai com rc 1 sem executar o alvo (`test_catraca_em_link_reprova_sem_executar` confere que `catraca-rodou` não existe). Sem `tests/catraca.py` e fora do diff (projeto sem catraca), nada muda (M39).
+- Testes mudados, sem perda fora de A1: `test_catraca_em_link_nao_conta` fixava a falha aberta e virou `..._pede_a_catraca_e_nao_e_rodavel`, mais forte (3 casos e `catraca_rodavel`). As asserções de `r.stdout` foram para `r.stderr`, e o `--listar` ganhou `len(stdout.splitlines()) == 1`. O teste sem catraca agora procura em `stdout + stderr`, uma busca mais ampla. `scripts/outro.py` passou para o lado que pede a catraca, que é o novo comportamento. Entraram `lib/scripts/x.py` e `tests/scripts/x`, que provam que a regra é um prefixo da raiz e não uma substring.
+- scripts/ em `PASTAS_DA_CATRACA`: bate com `SENSIVEIS` e `PASTAS_CUSTO` de `tests/catraca.py:51-52` (M37).
+- Mutantes: M33 a M39, M9, M12 e M21 morreram aqui, um processo por spec (`bin/forge-mutante --processos 1 ... --ids`). `bin/forge-mutante --cobertura --base f4ae675c` dá rc 0: as guardas 587, 589, 600, 1367 e 1381 têm mutante.
+- Testes locais do delta: `tests.test_afetados_catraca_custo tests.test_forge_mutante.ContratoDoListar` passam, 23 OK.
+- Tamanho: o delta em `bin/forge-testes` tem +26 −10 e fica dentro do teto H1 junto com a 1ª rodada.
+- ci: ecc3b7429450779edbda367bb40ddf834e4417d4 verde
+- CI lido em `gh pr checks 960`, runs 46159710035 e 46159816483 com headSha ecc3b742. Verdes: suíte 1/5 a 5/5, bateria (passos, python 3.14, verificações longas), instalação, árvore já provada, catraca e catraca (conferência). Só `bateria (pareceres)` fica de fora, porque espera os pareceres.
 
 ## Parecer
-Reprovado. O código faz o que E9.1 e E9.2 pedem, com a lista sem cópia, a falha fechada e o corte só no `--afetados`. Bloqueia: A1, a linha nova no stdout desliga o recorte de módulos do forge-mutante justamente nos diffs de classe C (sugestão: a nota da catraca vai ao stderr, ou o forge-mutante passa a ler a 1ª linha, com teste de contrato que roda o `modulos_listados` com a catraca no plano); A2, o texto do PR, que deixa um check obrigatório vermelho e não descreve a E9.2. A3 vira cartão depois do merge. Na volta, o review lê só o delta.
+Aprovado. O delta resolve os dois bloqueantes da 1ª rodada: o stdout do plano tem uma linha só, com teste de contrato no leitor que o lê inteiro, e o texto do PR está corrigido. Também fecha a falha aberta que a segurança apontou e põe scripts/ entre as pastas da catraca. A1 vira cartão depois do merge. O A3 da 1ª rodada, a mensagem "nada a rodar" depois do corte, segue como cartão.
