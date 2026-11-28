@@ -1131,10 +1131,24 @@ class EsperaAmarelaNosWorkflows(unittest.TestCase):
     def jobs(self, arquivo):
         return {j["id"]: j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / arquivo).read_text(encoding="utf-8"))}
 
+    def job(self, arquivo, nome):
+        """O job pelo id, com asserção explícita (A4 do QA): na base sem ele o teste reprova por asserção, não por KeyError."""
+        jobs = self.jobs(arquivo)
+        self.assertIn(nome, jobs, f"{arquivo}: sem o job {nome}")
+        return jobs[nome]
+
+    def agregador(self, arquivo):
+        job, check, _ = self.CASOS[arquivo]
+        self.job(arquivo, job)
+        agregadores = [j for j in self.jobs(arquivo).values() if job in j["needs"] and j["nome"].startswith(check + "$")]
+        self.assertEqual(len(agregadores), 1, f"{arquivo}: agregador {check} com o sufixo de {job}")
+        return agregadores[0]
+
     def fim_do_passo(self, arquivo):
         job, _, _ = self.CASOS[arquivo]
-        (passo,) = [p for p in self.jobs(arquivo)[job]["passos"] if "rc=0\n" in p["run"]]
-        return "rc=0\n" + passo["run"].split("rc=0\n", 1)[1]
+        passos = [p for p in self.job(arquivo, job)["passos"] if "rc=0\n" in p["run"]]
+        self.assertEqual(len(passos), 1, f"{arquivo}: um passo com o rc do script")
+        return "rc=0\n" + passos[0]["run"].split("rc=0\n", 1)[1]
 
     def roda(self, arquivo, rc, gh):
         """O fim do passo com python3 e gh falsos (subprocesso com ambiente limpo): (rc, saída GITHUB_OUTPUT, args do gh)."""
@@ -1157,6 +1171,9 @@ class EsperaAmarelaNosWorkflows(unittest.TestCase):
             with self.subTest(arquivo):
                 self.assertEqual(self.roda(arquivo, 0, "exit 9")[:2], (0, ""))
                 self.assertEqual(self.roda(arquivo, 1, "exit 9")[:2], (1, ""))
+                for estado in ("nenhum", "failure"):  # A3 do QA: rc 1 com a API respondendo um estado de espera segue vermelho
+                    with self.subTest(arquivo=arquivo, rc=1, estado=estado):
+                        self.assertEqual(self.roda(arquivo, 1, f"echo {estado}")[:2], (1, ""))
                 rc, saida, args = self.roda(arquivo, 3, "echo nenhum")
                 self.assertEqual((rc, saida), (0, f"espera={sufixo}\n"))
                 self.assertIn(f"check_name={check}&", args)
@@ -1172,11 +1189,13 @@ class EsperaAmarelaNosWorkflows(unittest.TestCase):
     def test_check_exigido_tem_o_sufixo_da_saida_e_o_da_catraca_exige_a_conferencia(self):
         for arquivo, (job, check, _) in self.CASOS.items():
             with self.subTest(arquivo):
-                (agregador,) = [j for j in self.jobs(arquivo).values() if job in j["needs"] and j["nome"].startswith(check + "$")]
+                agregador = self.agregador(arquivo)
                 self.assertTrue(agregador["nome"].endswith(f"&& needs.{job}.outputs.espera || '' }}}}"), agregador["nome"])
                 self.assertEqual(ci.pernas(agregador)[0][0]["nome"], check)
                 self.assertIn("always()", agregador["se"])
-        (passo,) = self.jobs("catraca.yml")["catraca"]["passos"]
+        passos = self.job("catraca.yml", "catraca")["passos"]
+        self.assertEqual(len(passos), 1)
+        passo = passos[0]
         for resultado, esperado in (("success", 0), ("failure", 1), ("cancelled", 1), ("skipped", 1), ("", 1)):
             with self.subTest(resultado=resultado):
                 p = subprocess.run(["bash", "--noprofile", "--norc", "-e", "-c", passo["run"]],
@@ -1187,7 +1206,7 @@ class EsperaAmarelaNosWorkflows(unittest.TestCase):
         """E47.6 (A1 da segurança): com um `needs` do agregador fora de success, o nome é o exato (o defeito fica vermelho nele);
         a condição do sufixo é avaliada pelo avaliador do ci-local, com cada `needs` reprovado de cada vez."""
         for arquivo, (job, check, _) in self.CASOS.items():
-            (agregador,) = [j for j in self.jobs(arquivo).values() if job in j["needs"] and j["nome"].startswith(check + "$")]
+            agregador = self.agregador(arquivo)
             m = re.fullmatch(rf"{check}\$\{{\{{ \((.+)\) && needs\.{job}\.outputs\.espera \|\| '' \}}\}}", agregador["nome"])
             self.assertIsNotNone(m, agregador["nome"])
             verdes = {f"needs.{n}.result": "success" for n in agregador["needs"]}

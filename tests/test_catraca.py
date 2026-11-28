@@ -4673,6 +4673,42 @@ class EsperaNaoEVermelho(Base):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("ped.md (parecer: reprovado)", r.stdout)
 
+    # volta 2 do #948 (A1 do QA, mutantes Q1 e Q2): parecer que reprova é defeito no CLI, com ou sem arquivo sensível
+    def test_reprovado_sem_arquivo_sensivel_sai_1(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "reprovado")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ped.md (parecer: reprovado)", r.stdout)
+        self.assertNotIn("catraca: espera", r.stdout)
+
+    def test_qa_reprovado_com_review_aprovado_e_arquivo_sensivel_sai_1(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # hooks/ é classe C: com review e segurança aprovados, o cmd_pr não acha nada
+        self.parecer("qa", "reprovado", commita=False)
+        r = self.pareceres()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertNotIn("R-REVIEW", r.stdout)  # chegou ao ramo do cmd_pr sem achado (M27)
+        self.assertRegex(r.stdout, r"qa/ped\.md \(parecer: reprovado\)")
+        self.assertNotIn("catraca: espera", r.stdout)
+
+    # volta 2 do #948 (A2 do QA, mutante Q3): o parecer só de outra branch é espera; o vizinho que casa só o começo, não
+    def test_so_parecer_de_outra_branch_sai_3(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", ramo="outra")
+        self.parecer("qa", commita=False)  # o pedido é da branch `pr` pelo QA; o review só da `outra`
+        r = self.pareceres()
+        self.assertEqual(r.returncode, catraca.ESPERA, r.stdout + r.stderr)
+        self.assertIn("sem parecer da branch", r.stdout)
+
+    def test_linha_sem_parecer_da_branch_e_o_vizinho(self):
+        self.assertTrue(catraca.LINHA_DE_ESPERA.search("docs/reviews: review: sem parecer da branch pr para o pedido `p` (R-REVIEW)"))
+        for vizinho in ("docs/reviews: review: sem parecer da branchx pr (R-REVIEW)", "docs/reviews: review: sem parecer  pr (R-REVIEW)",
+                        "docs/reviews: review: sem parecer conferido (R-REVIEW)"):
+            with self.subTest(vizinho):
+                self.assertIsNone(catraca.LINHA_DE_ESPERA.search(vizinho))
+
     def test_linha_de_espera_so_casa_ausente_e_desatualizado(self):
         self.assertTrue(catraca.LINHA_DE_ESPERA.search("docs/reviews: review: sem parecer para o pedido `p` (R-REVIEW)"))
         self.assertTrue(catraca.LINHA_DE_ESPERA.search("docs/reviews/p.md: commit: desatualizado: x (R-REVIEW)"))
