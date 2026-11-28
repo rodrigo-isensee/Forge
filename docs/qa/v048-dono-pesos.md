@@ -14,7 +14,7 @@ data: 2026-11-28
 ---
 # QA delta: v048 dono dos pesos (#959, classe C), volta 1 (ca3c07bb..64183ee2)
 
-- ci: 64183ee2507ebfb92ed62ea70a45cd1abf16a826 verde (check-runs do sha: suíte 1/5 a 5/5, bateria passos, python 3.14, verificações longas, instalação, catraca e catraca (conferência) success; `bateria (pareceres)` falha por esperar parecer, fora da leitura)
+- ci: 64183ee2507ebfb92ed62ea70a45cd1abf16a826 verde
 
 Escopo: só o delta. O A1 do review (`pull_requests` vazio na API real) está corrigido: `pr_unico_valido` acha o PR por `commits/<sha>/pulls`, com sha validado por `[0-9a-f]{40}` antes de virar caminho.
 
