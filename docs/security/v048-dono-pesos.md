@@ -3,34 +3,28 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v048
 branch: melhoria/v048-dono-pesos
-commit: ca3c07bb5c4eebe23e849d0031dd9822c5aed05f
+commit: 64183ee2507ebfb92ed62ea70a45cd1abf16a826
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-28
 ---
-# Review de segurança: v048 (#959, DONO-DA-GERACAO-DOS-TEMPOS, E6.8)
+# Review de segurança: v048 (#959, DONO-DA-GERACAO-DOS-TEMPOS, E6.13, volta 1 por delta)
 
-1ª rodada completa no head `ca3c07bb` contra a base `ae194fa9` (develop). Exceção de tamanho aceita pelo dono (decisão de 2026-11-28 11:19). Escopo lido: `scripts/pesos-do-ci.py`, `skills/trabalho-em-paralelo/ritmo-e-corte.md`, `tests/test_pesos_do_ci.py`, `tests/mutantes/v048-dono-pesos.json`, os 3 specs da v047 realinhados e o fragmento de changelog. Nenhum arquivo em `.github/` muda no diff.
+Delta `ca3c07bb..64183ee2` (correção do A1 do code review: o PR passa a ser achado pelo sha da execução em `commits/<sha>/pulls`). `forge-check parecer delta`: no domínio só `scripts/pesos-do-ci.py`; testes, fixtures e specs de mutantes fora do domínio, lidos como evidência. A rodada anterior (aprovada em `ca3c07bb`) fica no git.
 
-## Gatilhos
 Gatilhos: dado externo não confiável (API do GitHub) alimentando artefato versionado da suíte, CI (confiança em execução de PR).
 
-## Achados
+## Detalhe
+Sem achado. A condição deixada na rodada anterior foi cumprida:
 
-## Sondas
+- **Guardas mantidas.** `scripts/pesos-do-ci.py:65-73` (`execucao_de_pr_valida`) não mudou de lógica: na execução, `pull_request`, ci.yml, `repository` e `head_repository` iguais ao `--repo`, `completed/success`; no PR, `merged_at` string, base `develop`, `head.repo` igual ao `--repo` (fork fora), `head.sha` não vazio e igual ao `head_sha` da execução. A nova `pr_unico_valido` (`:76-83`) aplica essa função a cada PR da rota e aceita só quando **exatamente um** a cumpre; nenhum ou mais de um descarta. Um válido entre PRs barrados (fork, não mesclado, outra base, outro sha) entra, o que é correto: o PR válido sozinho prova que o código da execução é o mesclado na develop.
+- **Sha validado antes de virar caminho.** `:79-82`: `head_sha` só como `str` e `SHA.fullmatch` (`[0-9a-f]{40}`, `fullmatch` não aceita `\n` final) antes de formatar `repos/{repo}/commits/{sha}/pulls`. Sondas locais com a API injetada, todas `False` e sem nenhuma chamada à API: `"a"*40+"\n"`, `"a"*40+"/../x"`, 41 caracteres, `"g"*40`; controle válido `True`; execução de fork `False`; `head.sha` booleano no PR `False`. Testes: `test_execucao_de_pr_malformada_nao_quebra_nem_entra` (sem sha, outro tipo, curto, com `../`, maiúsculas; afirma `pedidos == []`), `test_resposta_de_prs_que_nao_e_lista_de_prs_validos_nao_entra`, `test_dois_prs_validos_no_mesmo_sha_descartam_a_execucao_e_o_de_fork_no_sha_nao_conta`, `test_guardas_de_fork_e_de_sha_do_pr_valem_cada_uma_sozinha`.
+- **Mutantes das guardas.** `forge-mutante` no Revisar-sha: M7, M8, M9 (`v048-dono-pesos-1.json`) e M14, M15, M16, M17 (`v048-dono-pesos-2.json`) morreram.
+- **Teto de chamadas.** Uma leitura de `commits/<sha>/pulls` por execução de PR no lugar da de `pulls/N`; continua no máximo uma página de 100 execuções, sem amplificação.
+- **Fixtures da API real** (`tests/fixtures/pesos-do-ci/`): só ids de execução, branch, sha, número e base de PR, todos públicos do próprio repositório; sem token, cabeçalho ou dado pessoal além do dono do repositório no `full_name`.
+- **CI, permissão e segredo.** Nenhum arquivo em `.github/` no delta; sem token ou escopo novo.
 
-## Detalhe dos achados
-Sem achado. O que foi conferido, com evidência:
-
-- **Execução de fork ou de outro repositório não entra.** `scripts/pesos-do-ci.py:64-72` exige, na execução, `event=pull_request`, `path` do ci.yml, `repository` e `head_repository` iguais ao `--repo`, `completed/success`; e, no PR lido em `repos/<repo>/pulls/N`, `merged_at` string, base `develop`, `head.repo` igual ao `--repo` e `head.sha` não vazio igual ao `head_sha` da execução. Teste: `tests/test_pesos_do_ci.py` `DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra`. Sondas locais (todas devolveram `{}`, controle válido devolveu os pesos): execução com `head_repository` de fork, execução de outro repositório, PR com `head.repo` nulo (fork apagado), `head.sha` vazio dos dois lados, `merged_at: true`, `pulls/N` devolvendo lista, execução `failure`, outro workflow, perna de push dentro de execução de PR.
-- **Confiança equivalente à do push na develop.** Só conta a execução do último sha de um PR mesclado do próprio repositório: o código que gerou as anotações é o que passou por review e entrou na develop. O caso residual (execução nossa listando um número de PR de outro repositório) cai no `head.sha` igual e, mesmo se casasse, o código seria o mesmo já mesclado; sem caminho de ataque.
-- **Perna amarrada ao tipo da execução.** `scripts/pesos-do-ci.py:86-92`: a perna de push só vale em execução de push e a de PR só em execução de PR. Teste: `test_perna_de_push_nao_vale_em_execucao_de_pr_e_a_de_pr_nao_vale_em_push`. Os filtros de anotação (alfabeto, plano, finito, teto de 900 s, conjunto completo de partes) seguem os da v047 e valem para as duas origens.
-- **Entrada malformada falha fechada.** `scripts/pesos-do-ci.py:149-155`: execução que não é objeto, sem PR, com dois PRs ou número de outro tipo é descartada sem pedir `pulls/` (`test_execucao_de_pr_malformada_nao_quebra_nem_entra`). JSON ilegível da API cai em `scripts/pesos-do-ci.py:230-232`: rc 1, stdout vazio, stderr só com o nome do tipo da exceção (sonda local: `JSONDecodeError`, rc 1), sem eco de cabeçalho ou token. `--conferir` com arquivo que não é objeto sai 1 (`:223-228`, `test_conferir_com_pesos_que_nao_sao_objeto_sai_1`).
-- **Teto de chamadas.** O laço de PR para em `2 * limite` execuções aceitas e lê no máximo uma página de 100 execuções; o pior caso é 100 leituras de `pulls/N` por geração, sem amplificação explorável.
-- **CI, permissão e segredo.** Nenhum workflow muda; a geração continua manual, pelo tech-lead, na marca de versão (`skills/trabalho-em-paralelo/ritmo-e-corte.md:52`), com `python3 -I` e saída revisada em commit; sem token novo, sem escopo novo, sem escrita automática no repositório (`R-MAIN`, `R-CUSTO`).
-- **Para a correção do A1 do code review** (achar o PR pelo sha da execução, p.ex. a lista de PRs do commit): muda o caminho de confiança e volta a esta segurança por delta. Essa rota pode devolver mais de um PR, inclusive de fork com o mesmo sha; a correção mantém, para o PR escolhido, todas as guardas de `scripts/pesos-do-ci.py:64-72` (mesclado, base `develop`, `head.repo` igual ao `--repo`, `head.sha` igual ao da execução), descarta a execução quando nenhum ou mais de um PR as cumpre, e o teste ganha a lista vazia na execução e um PR de fork no mesmo sha.
-
-Suíte: `python3 -m unittest tests.test_pesos_do_ci` local, 24 testes OK; a suíte inteira fica com o CI do PR #959 no Revisar-sha (citado no relatório da etapa, não afirmado aqui).
+Suíte: `python3 -m unittest tests.test_pesos_do_ci` local, 29 testes OK. CI do PR #959 no Revisar-sha (run 46157387219): suíte 5/5, passos, verificações longas, instalação e catraca verdes; só `bateria (pareceres)` e o agregador `bateria` vermelhos, à espera dos pareceres.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura estática, a suíte do arquivo e sondas locais com a API injetada (sem rede). Faltaram no PATH, sem instalar (`R-CUSTO`): o varredor de segredos, o de workflows e o SAST da skill; lacuna sem efeito aqui, porque o diff não toca workflow nem traz credencial.
+Nenhum risco aceito. Ferramentas: leitura estática, a suíte do arquivo, `forge-mutante` e sondas locais sem rede. Faltaram no PATH, sem instalar (`R-CUSTO`): o varredor de segredos, o de workflows e o SAST da skill; lacuna sem efeito, o delta não toca workflow nem traz credencial.
