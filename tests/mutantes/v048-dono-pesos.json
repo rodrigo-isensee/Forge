@@ -171,6 +171,17 @@
       "testes": [
         "tests.test_pesos_do_ci.DepoisDoF6.test_guardas_de_fork_e_de_sha_do_pr_valem_cada_uma_sozinha"
       ]
+    },
+    {
+      "id": "M17",
+      "guarda": "execucao de PR so entra com o PR unico valido",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if pr_unico_valido(execucao, repo, ler):",
+      "para": "if True:",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_execucao_de_pr_malformada_nao_quebra_nem_entra"
+      ]
     }
   ]
 }
