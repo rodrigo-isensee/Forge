@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Forge: linha do contador da versão e visão do backlog para o aviso de marco. Só leitura, sem rede; erro sai com 2.
 N: fragmentos changelog.d/*.md da REF sem o README; sem changelog.d/, PRs mesclados (merge ou squash #n) desde a última
-marca vX.Y.Z, ou "sem contagem" se não der para saber. Teto: teto_versao no config.json do .forge (padrão 20)."""
+marca vX.Y.Z, ou "sem contagem" se não der para saber. Próxima versão: patch + 1 até 9; depois de X.Y.9, X.(Y+1).0.
+Teto: teto_versao no config.json do .forge (padrão 20)."""
 import argparse, json, math, re, subprocess, sys
 import datetime as dt
 from pathlib import Path
@@ -45,6 +46,8 @@ def versao_seguinte(raiz, ref):
     m = VERSAO.match(str(texto).strip())
     if not m:
         raise Erro(f"versão ilegível: {texto!r}")
+    if int(m[3]) >= 9:  # VERSAO-PATCH-ATE-9: depois de X.Y.9 (ou de um patch antigo acima dele) vem X.(Y+1).0
+        return f"{m[1]}.{int(m[2]) + 1}.0"
     return f"{m[1]}.{m[2]}.{int(m[3]) + 1}"
 
 

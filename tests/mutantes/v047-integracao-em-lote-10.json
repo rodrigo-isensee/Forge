@@ -67,8 +67,8 @@
       "id": "IL-M79",
       "guarda": "pareceres só dispensados na promoção aceita",
       "arquivo": "tests/catraca.py",
-      "de": "    if promocao_aceita(raiz, ramo, base_ref, head):\n        return []\n    b = base_efetiva",
-      "para": "    if linha_de_promocao(ramo, base_ref):\n        return []\n    b = base_efetiva",
+      "de": "    if promocao_aceita(raiz, ramo, base_ref, head):\n        return [], False\n    b = base_efetiva",
+      "para": "    if linha_de_promocao(ramo, base_ref):\n        return [], False\n    b = base_efetiva",
       "testes": [
         "tests.test_catraca_promocao.Promocao.test_pareceres_nao_sao_exigidos_so_na_promocao_aceita"
       ]
