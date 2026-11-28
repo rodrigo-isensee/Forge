@@ -36,7 +36,7 @@
       "id": "M20",
       "guarda": "sem modulo nao roda o unittest",
       "arquivo": "bin/forge-testes",
-      "de": "subprocess.run(comando).returncode if modulos else 0",
+      "de": "subprocess.run(comando).returncode if modo == \"completo\" or modulos else 0",
       "para": "subprocess.run(comando).returncode if True else 0",
       "testes": [
         "tests.test_afetados_catraca_custo.PeloComando.test_sem_teste_afetado_a_catraca_roda_mesmo_assim"
@@ -60,6 +60,16 @@
       "para": "        codigo = codigo",
       "testes": [
         "tests.test_afetados_catraca_custo.PeloComando.test_afetados_roda_a_catraca_no_modo_do_diff_e_devolve_a_saida_dela"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "a completa com -k roda a suite mesmo sem modulo",
+      "arquivo": "bin/forge-testes",
+      "de": "returncode if modo == \"completo\" or modulos else 0",
+      "para": "returncode if modulos else 0",
+      "testes": [
+        "tests.test_testes_tocados.TravaDoForgeTestes.test_completa_com_k_segue_como_antes"
       ]
     }
   ],

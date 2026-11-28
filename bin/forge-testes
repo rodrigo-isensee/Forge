@@ -1318,7 +1318,7 @@ def main(argv=None):
     if modo == "completo" and not args.filtros:
         return suite_na_trava(raiz, args.completa)
     inicio = time.monotonic()
-    codigo = subprocess.run(comando).returncode if modulos else 0
+    codigo = subprocess.run(comando).returncode if modo == "completo" or modulos else 0
     if catraca:
         da_catraca = subprocess.run([sys.executable, "-I", CATRACA, "--base", args.base]).returncode
         codigo = codigo or da_catraca
