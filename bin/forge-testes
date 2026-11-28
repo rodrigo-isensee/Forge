@@ -19,7 +19,10 @@ Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO .
                 os arquivos de controle), nunca a suíte completa; o que nenhum teste lê fica para o CI, com aviso.
                 Todo plano dirigido cujo diff toca hooks/, bin/ ou um protegido da catraca (PROTEGIDOS de
                 tests/catraca.py) leva também o teste de custo (test_hooks_volta_corpus) e a catraca no modo do diff
-                (`tests/catraca.py --base REF`, depois dos módulos; a saída do comando é a primeira vermelha) (E9.1)
+                (`tests/catraca.py --base REF`, depois dos módulos; a saída do comando é a primeira vermelha) (E9.1).
+                Plano com mais de LIMITE_LOCAL (1.000) testes roda só a catraca, o teste de custo e os testes do
+                arquivo mudado (o módulo de teste no diff, a regra do MAPA e o test_<nome>, sem o test_forge) e diz
+                quantos ficam para o CI do PR (E9.2)
   --texto      o pré-envio de texto (PRE-ENVIO-RAPIDO, mp1311): o mapa de testes e os testes de tamanho de texto
                 (`TESTES_DE_TEXTO`), num `unittest` só, com o código de saída dele e uma linha de resumo; não combina com nada
   --registros  a conferência de registros (PR-VERDE B1), só leitura e em segundos: roda, em paralelo, os mesmos testes do CI
@@ -584,6 +587,39 @@ def custo_e_catraca(caminhos, raiz=Path(".")):
     if not any(protegidos is None or toca_a_catraca(caminho, protegidos) for caminho in caminhos):
         return (), False
     return ((TESTE_DE_CUSTO,) if arquivo_do_modulo(TESTE_DE_CUSTO, raiz).is_file() else ()), True
+
+
+# E9.2 (v048, ajuste do dono de 28/11 11:19): plano dos afetados acima de uns 1.000 testes roda no computador só a catraca,
+# o teste de custo e os testes do arquivo mudado; o resto fica para o CI do PR, que roda a suíte inteira.
+LIMITE_LOCAL = 1000
+
+
+def contar_testes(modulos, raiz=Path(".")):
+    """Os testes do plano, contados sem importar (`def test*` no corpo de cada classe do módulo); ilegível conta 0."""
+    total = 0
+    for modulo in modulos:
+        try:
+            arvore = ast.parse(arquivo_do_modulo(modulo, raiz).read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
+            continue
+        total += sum(1 for classe in ast.walk(arvore) if isinstance(classe, ast.ClassDef) for no in classe.body
+                     if isinstance(no, (ast.FunctionDef, ast.AsyncFunctionDef)) and no.name.startswith("test"))
+    return total
+
+
+def testes_do_arquivo(caminhos, raiz=Path(".")):
+    """Os módulos de teste do próprio arquivo mudado, se existem: o módulo de teste no diff, a regra do MAPA e o
+    tests/test_<nome>.py de bin/, hooks/ ou scripts/ (convenção O2 ou subcomando forge-<nome>). Sem o test_forge, que
+    varre as pastas (PASTAS_VARRIDAS) e sozinho passa de 600 testes: ele fica para o CI."""
+    candidatos = set()
+    for caminho in caminhos:
+        if nome := nome_do_modulo(caminho):
+            candidatos.add(nome)
+        candidatos.update(next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), ()))
+        for padrao, grupo in ((CONVENCAO, 2), (SUBCOMANDO, 1)):
+            if achado := padrao.fullmatch(caminho):
+                candidatos.add("test_" + achado.group(grupo).replace("-", "_"))
+    return {m for m in candidatos - {"test_forge"} if arquivo_do_modulo(m, raiz).is_file()}
 
 
 def comando_dirigido(modulos, filtros, raiz=Path(".")):
@@ -1293,10 +1329,15 @@ def main(argv=None):
             modo, detalhe = planejar(caminhos)
         except RuntimeError as erro:
             modo, detalhe = "completo", [f"não consegui ler o git ({erro})"]
-    catraca = False
+    catraca, extra = False, ()
     if modo == "dirigido":  # E9.1: a catraca e o teste de custo entram antes do "nada a rodar"
         extra, catraca = custo_e_catraca(caminhos)
         detalhe = sorted({*detalhe, *extra})
+    if args.afetados and (total := contar_testes(detalhe)) > LIMITE_LOCAL:  # E9.2: acima do limite, só o essencial
+        detalhe = sorted({*testes_do_arquivo(caminhos), *extra})
+        print(f"forge-testes: plano de {total} testes passa do limite local de {LIMITE_LOCAL}: roda só a catraca, o teste"
+              f" de custo e os testes do arquivo mudado; {total - contar_testes(detalhe)} testes ficam para o CI do PR.",
+              file=sys.stderr)
     if modo == "dirigido" and not detalhe and not catraca:
         print("forge-testes: nada a rodar (nenhum teste afetado). O CI do PR roda a suíte inteira." if args.afetados
               else "forge-testes: nada alterado; nada a rodar.")

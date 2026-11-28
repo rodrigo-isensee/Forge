@@ -1,6 +1,8 @@
 """E9.1 (v048, AFETADOS-CATRACA-E-CUSTO): o diff que toca hooks/, bin/ ou um arquivo protegido da catraca leva ao plano
 dirigido do `bin/forge-testes` a catraca no modo do diff e o teste de custo (`test_hooks_volta_corpus`); o resto fica como
-estava. O #957 nasceu vermelho na catraca e o #940 e o #944 no teste de custo, com os afetados verdes no computador."""
+estava. O #957 nasceu vermelho na catraca e o #940 e o #944 no teste de custo, com os afetados verdes no computador.
+E9.2 (ajuste do dono de 28/11 11:19): o plano do `--afetados` acima de LIMITE_LOCAL testes roda só a catraca, o teste de
+custo e os testes do arquivo mudado, e diz quantos ficaram para o CI."""
 import importlib.machinery
 import importlib.util
 import os
@@ -84,6 +86,32 @@ class CustoECatraca(Brinquedo):
                 self.assertEqual(self.plano("docs/guia.md"), (("test_hooks_volta_corpus",), True))
 
 
+def modulo_com(testes, cita=""):
+    """Um módulo de teste com `testes` métodos test_*, um setUp e um auxiliar (que não contam) e o texto `cita`."""
+    corpo = "".join(f"    def test_{i}(self):\n        pass\n\n" for i in range(testes))
+    return (f"import unittest\n# {cita}\n\n\nclass T(unittest.TestCase):\n    def setUp(self):\n        pass\n\n"
+            f"    def ajuda(self):\n        pass\n\n{corpo}")
+
+
+class LimiteLocal(Brinquedo):
+    """E9.2: a contagem do plano e os testes do arquivo mudado."""
+
+    def test_conta_so_os_metodos_test_das_classes(self):
+        (self.raiz / "tests" / "test_a.py").write_text(modulo_com(3), encoding="utf-8")
+        (self.raiz / "tests" / "test_ruim.py").write_text("def (", encoding="utf-8")
+        self.assertEqual(self.f.contar_testes(["test_a", "test_ruim", "test_ausente", "test_hooks_volta_corpus"], self.raiz), 4)
+
+    def test_testes_do_arquivo_mudado(self):
+        for nome in ("test_protegido", "test_x", "test_forge", "test_novo"):
+            (self.raiz / "tests" / f"{nome}.py").write_text(modulo_com(1), encoding="utf-8")
+        caminhos = ["scripts/protegido.py", "bin/forge-x", "tests/test_novo.py", "lib/sem_teste.py", "docs/guia.md"]
+        self.assertEqual(self.f.testes_do_arquivo(caminhos, self.raiz), {"test_protegido", "test_x", "test_novo"})
+        self.assertEqual(self.f.testes_do_arquivo(["bin/forge-testes"], RAIZ), {"test_testes_tocados"})  # o MAPA, sem test_forge
+
+    def test_o_limite_esta_num_lugar_so(self):
+        self.assertEqual(self.f.LIMITE_LOCAL, 1000)
+
+
 class ListaDaCatracaReal(unittest.TestCase):
     """A lista vem da PROTEGIDOS de tests/catraca.py, sem cópia: um protegido fora de hooks/ e bin/ a pede."""
 
@@ -109,6 +137,34 @@ class PeloComando(Brinquedo):
     def rodar(self, *args):
         return subprocess.run([sys.executable, "-I", "bin/forge-testes", *args], cwd=self.raiz, env=AMBIENTE,
                               capture_output=True, text=True, timeout=120)
+
+    def plano_com(self, grandes):
+        """Plano de `scripts/protegido.py`: o teste de custo (1), o test_protegido (1) e um test_grande que o cita."""
+        (self.raiz / "tests" / "test_protegido.py").write_text(modulo_com(1), encoding="utf-8")
+        (self.raiz / "tests" / "test_grande.py").write_text(modulo_com(grandes, "scripts/protegido.py"), encoding="utf-8")
+        return self.rodar("--afetados", "--listar", "scripts/protegido.py")
+
+    def test_no_limite_o_plano_fica_inteiro(self):  # 998 + 1 + 1 = 1000, não passa do limite
+        r = self.plano_com(998)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.splitlines()[0],
+                         "forge-testes: dirigido (test_grande, test_hooks_volta_corpus, test_protegido). O CI do PR roda a suíte inteira.")
+        self.assertNotIn("limite local", r.stderr)
+
+    def test_acima_do_limite_so_catraca_custo_e_o_arquivo_e_diz_o_que_fica(self):  # 999 + 1 + 1 = 1001
+        r = self.plano_com(999)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.splitlines()[0],
+                         "forge-testes: dirigido (test_hooks_volta_corpus, test_protegido). O CI do PR roda a suíte inteira.")
+        self.assertIn("forge-testes: catraca no diff", r.stdout)
+        self.assertIn("plano de 1001 testes passa do limite local de 1000", r.stderr)
+        self.assertIn("999 testes ficam para o CI do PR", r.stderr)
+
+    def test_o_limite_vale_so_para_os_afetados(self):
+        (self.raiz / "tests" / "test_grande.py").write_text(modulo_com(1001, "x"), encoding="utf-8")
+        r = self.rodar("--listar", "tests/test_grande.py")
+        self.assertIn("test_grande", r.stdout)
+        self.assertNotIn("limite local", r.stderr)
 
     def test_listar_mostra_a_catraca_e_o_custo_para_bin(self):
         r = self.rodar("--afetados", "--listar", "bin/forge-testes")
