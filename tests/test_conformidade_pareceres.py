@@ -5,7 +5,9 @@ gravado pelo papel do tipo e recusa sem o registro. De ponta a ponta: o hook de 
 import contextlib
 import io
 import json
+import socket
 import subprocess
+import threading
 import sys
 import unittest
 from pathlib import Path
@@ -425,7 +427,7 @@ class ParecerDeItem(NoTerminal):
         self.armar(f"touch {marca}")
         self.git("config", "extensions.partialClone", "origin")
         self.git("config", "remote.origin.promisor", "true")
-        for nome in ("file", "ext", "git", "ssh", "http", "https"):
+        for nome in ("file", "ext", "git", "ssh", "http", "https", "ftp", "ftps", "fd"):
             self.git("config", f"protocol.{nome}.allow", "always")
         ausente = "1" * 40 + "\n"
         (self.repo / ".git" / "refs/remotes/origin/develop").write_text(ausente, encoding="utf-8")
@@ -439,6 +441,40 @@ class ParecerDeItem(NoTerminal):
         with self.subTest(ref="HEAD"):
             self.libera_write(self.ITENS[:1])
             self.assertFalse(marca.exists(), "o hook rodou a configuração da cópia pela busca preguiçosa")
+
+    def test_ftp_da_copia_nao_conecta_no_clone_parcial(self):
+        """Sonda S5 da segurança (29c1bea, A4): com `protocol.ftp.allow` e `protocol.ftps.allow=always` na cópia (vencem a
+        geral), o `cat-file -e` do ref para objeto ausente buscaria do promisor pelo `git-remote-ftp` e abriria conexão para
+        o host da URL, fora do sandbox."""
+        servidor = socket.socket()
+        self.addCleanup(servidor.close)
+        servidor.bind(("127.0.0.1", 0))
+        servidor.listen(8)
+        servidor.settimeout(0.2)
+        conexoes, parar = [], threading.Event()
+
+        def aceitar():
+            while not parar.is_set():
+                try:
+                    c, _ = servidor.accept()
+                except OSError:
+                    continue
+                conexoes.append(c)
+                c.close()
+        vigia = threading.Thread(target=aceitar, daemon=True)
+        vigia.start()
+        self.addCleanup(vigia.join)
+        self.addCleanup(parar.set)
+        self.git("config", "extensions.partialClone", "origin")
+        self.git("config", "remote.origin.promisor", "true")
+        (self.repo / ".git" / "refs/remotes/origin/develop").write_text("1" * 40 + "\n", encoding="utf-8")
+        porta = servidor.getsockname()[1]
+        for esquema in ("ftp", "ftps"):
+            with self.subTest(esquema=esquema):
+                self.git("config", "remote.origin.url", f"{esquema}://127.0.0.1:{porta}/x")
+                self.git("config", f"protocol.{esquema}.allow", "always")
+                self.libera_write(self.ITENS[:1])
+                self.assertEqual(len(conexoes), 0, f"o hook conectou pelo {esquema} da cópia")
 
     def test_remoto_lento_nao_recusa_o_parecer_dormente(self):
         self.armar("sleep 4")

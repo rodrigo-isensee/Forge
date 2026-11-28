@@ -1,0 +1,37 @@
+{
+  "descricao": "C1b-2, S6 da segurança (29c1bea): no clone parcial com remote.origin.url ext:: e protocol.ext.allow=always na cópia, o cat-file da lista fechada não roda o comando da URL",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "config": {
+        "remote.origin.url": "ext::sh -c touch% MARCA6",
+        "remote.origin.promisor": "true",
+        "extensions.partialClone": "origin",
+        "protocol.ext.allow": "always"
+      }
+    },
+    {
+      "arquivos": {
+        ".git/refs/remotes/origin/develop": "1111111111111111111111111111111111111111\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/docs/reviews/v1.md",
+      "content": "parecer\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_caminho": [
+      "{raiz}/MARCA6"
+    ]
+  }
+}

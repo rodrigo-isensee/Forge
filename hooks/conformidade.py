@@ -298,11 +298,14 @@ version whatchanged worktree write-tree""".split())
 ALIAS_QUE_MESCLA = {"merge", "pull"}
 PROFUNDIDADE_DO_ALIAS = 8
 # A3 da segurança (0ad43a8): o `cat-file` do objeto ausente no clone parcial busca do promisor pelo transporte, que roda a
-# configuração da cópia (`remote.origin.uploadpack`, `core.sshCommand`); a chave por protocolo vence a geral, então todas.
-# Literal: o corpus conta os passos do interpretador de cada execução do hook (CORPUS-CUSTO-CONTADOR).
+# configuração da cópia (`remote.origin.uploadpack`, `core.sshCommand`); a chave por protocolo vence a geral, então todas:
+# os embutidos (`file`, `git`, `ssh`) e todo helper que o git instala (`git-remote-ext`, `-fd`, `-ftp`, `-ftps`, `-http`,
+# `-https`; A4 da segurança, 29c1bea). Literal: o corpus conta os passos do interpretador de cada execução do hook
+# (CORPUS-CUSTO-CONTADOR).
 SEM_TRANSPORTE = ("-c", "protocol.allow=never", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never",
                   "-c", "protocol.git.allow=never", "-c", "protocol.ssh.allow=never", "-c", "protocol.http.allow=never",
-                  "-c", "protocol.https.allow=never")
+                  "-c", "protocol.https.allow=never", "-c", "protocol.ftp.allow=never", "-c", "protocol.ftps.allow=never",
+                  "-c", "protocol.fd.allow=never")
 CONFIG_NO_AMBIENTE = re.compile(r"^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+|PARAMETERS)$")
 REFSPEC_NA_CONFIG = re.compile(r"remote\..+\.(fetch|push)", re.I)
 # IMPL-FURO-HOOK-N, N5 (L22, C-22-1): na branch de integração a única entrada é o `git merge` com parecer; o que grava
