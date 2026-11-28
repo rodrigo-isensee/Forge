@@ -17,6 +17,30 @@
       "de": "hook.expira_s(), agentes.Liberacao(leitor, agora))",
       "para": "hook.expira_s())",
       "testes": ["tests.test_agente_preso_baixa.VigiaSemOParado.test_parado_pela_notificacao_nao_roda"]
+    },
+    {
+      "id": "M11",
+      "guarda": "C1: a forma user só vale com promptSource system",
+      "arquivo": "hooks/agentes.py",
+      "de": "if entrada.get(\"type\") == \"user\" and entrada.get(\"promptSource\") == \"system\":",
+      "para": "if entrada.get(\"type\") == \"user\":",
+      "testes": ["tests.test_trava_agente_morto.C1NotificacaoDoClaudeCode.test_mensagem_do_usuario_nao_libera"]
+    },
+    {
+      "id": "M12",
+      "guarda": "E12.2: --limpar pula o registro que não é objeto",
+      "arquivo": "hooks/agentes.py",
+      "de": "if isinstance(a, dict) and isinstance(a.get(\"sessao\"), str)})",
+      "para": "if isinstance(a.get(\"sessao\"), str)})",
+      "testes": ["tests.test_agente_preso_baixa.Limpar.test_registro_fora_da_forma_nao_derruba"]
+    },
+    {
+      "id": "M13",
+      "guarda": "E12.2: sem sessão no registro, --limpar ainda passa uma vez (prazo e sessão morta)",
+      "arquivo": "hooks/agentes.py",
+      "de": "for sessao in sessoes or [None]:",
+      "para": "for sessao in sessoes:",
+      "testes": ["tests.test_agente_preso_baixa.Limpar.test_sem_sessao_ainda_tira_o_vencido"]
     }
   ]
 }

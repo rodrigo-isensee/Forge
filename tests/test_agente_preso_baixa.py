@@ -117,6 +117,16 @@ class Limpar(Base):
         rc, estado = self.limpar([self.registro()], na_fila(self.agora - 5))
         self.assertEqual((rc, [a["id"] for a in estado["agentes"]]), (0, [AID]))
 
+    def test_registro_fora_da_forma_nao_derruba(self):
+        rc, estado = self.limpar([5, self.registro()], na_fila(self.agora - 5))
+        self.assertEqual((rc, estado["agentes"]), (0, []))
+
+    def test_sem_sessao_ainda_tira_o_vencido(self):  # a passada sem sessão aplica o prazo, como o hook
+        vencido = self.registro(desde=self.agora - 99999)
+        del vencido["sessao"]
+        rc, estado = self.limpar([vencido])
+        self.assertEqual((rc, estado["agentes"]), (0, []))
+
     def test_sessao_fora_da_forma_nao_procura_transcript(self):
         self.escrever()
         self.assertEqual(agentes.transcripts_da_sessao("*"), [])
