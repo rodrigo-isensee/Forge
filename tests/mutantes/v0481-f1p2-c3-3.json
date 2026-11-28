@@ -1,0 +1,76 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C3-M16",
+      "guarda": "M16.1: só o bloco final da mensagem conta",
+      "arquivo": "bin/forge-check",
+      "de": "linha.startswith(\"Parecer: \") for linha in msg.strip().split(\"\\n\\n\")[-1].splitlines())]",
+      "para": "linha.startswith(\"Parecer: \") for linha in msg.splitlines())]",
+      "testes": [
+        "tests.test_forge_pareceres.SquashSemParecer.test_depois_da_virada_so_o_bloco_final_vale"
+      ]
+    },
+    {
+      "id": "C3-M17",
+      "guarda": "sem a develop, nenhum squash a acusar",
+      "arquivo": "bin/forge-check",
+      "de": "    if not sha_do_commit(raiz, develop):\n        return []",
+      "para": "    if False:\n        return []",
+      "testes": [
+        "tests.test_forge_pareceres.SquashSemParecer.test_develop_ausente_nada_e_git_que_falha_none"
+      ]
+    },
+    {
+      "id": "C3-M18",
+      "guarda": "antes da virada (sem a lista na develop), nenhum",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod or not criados:\n        return None if cod else []",
+      "para": "    if cod:\n        return None if cod else []",
+      "testes": [
+        "tests.test_forge_pareceres.SquashSemParecer.test_antes_da_virada_nada"
+      ]
+    },
+    {
+      "id": "C3-M19",
+      "guarda": "git que falha na busca da virada: None",
+      "arquivo": "bin/forge-check",
+      "de": "        return None if cod else []",
+      "para": "        return None if False else []",
+      "testes": [
+        "tests.test_forge_pareceres.SquashSemParecer.test_develop_ausente_nada_e_git_que_falha_none"
+      ]
+    },
+    {
+      "id": "C3-M20",
+      "guarda": "git que falha na leitura dos commits: None, não lista vazia",
+      "arquivo": "bin/forge-check",
+      "de": "    return None if cod else [sha for sha, _, msg in registros",
+      "para": "    return None if False else [sha for sha, _, msg in registros",
+      "testes": [
+        "tests.test_forge_pareceres.SquashSemParecer.test_develop_ausente_nada_e_git_que_falha_none"
+      ]
+    },
+    {
+      "id": "C3-M21",
+      "guarda": "leitura que falha vira aviso",
+      "arquivo": "bin/forge-check",
+      "de": "    if sem is None:\n        print(f\"metricas: aviso: não li",
+      "para": "    if False:\n        print(f\"metricas: aviso: não li",
+      "testes": [
+        "tests.test_forge_pareceres.SquashSemParecer.test_aviso_da_leitura_que_falha_e_silencio_sem_squash"
+      ]
+    },
+    {
+      "id": "C3-M22",
+      "guarda": "sem squash a acusar, silêncio",
+      "arquivo": "bin/forge-check",
+      "de": "    elif sem:\n        print(f\"metricas: aviso:",
+      "para": "    elif True:\n        print(f\"metricas: aviso:",
+      "testes": [
+        "tests.test_forge_pareceres.SquashSemParecer.test_aviso_da_leitura_que_falha_e_silencio_sem_squash"
+      ]
+    }
+  ]
+}

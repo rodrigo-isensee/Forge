@@ -1,0 +1,56 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C3-M23",
+      "guarda": "C0-3 no laço: o código do parecer pedido vale, não a saída",
+      "arquivo": "bin/forge-fechar",
+      "de": "  peds=\"$(\"$check\" parecer pedido \"$1\" 2>/dev/null)\" || return 1",
+      "para": "  peds=\"$(\"$check\" parecer pedido \"$1\" 2>/dev/null)\" || :",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_so_entram_os_aprovados_com_um_pedido_so"
+      ]
+    },
+    {
+      "id": "C3-M24",
+      "guarda": "3b só com a lista fechada na develop do servidor",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"$alvo\" = develop ] && git cat-file -e \"$base_2b:.github/pareceres-lista-fechada.json\" 2>/dev/null; then",
+      "para": "  if [ \"$alvo\" = develop ]; then",
+      "testes": [
+        "tests.test_fechar_agregado.FecharAgregado.test_sem_a_lista_o_passo_nem_roda"
+      ]
+    },
+    {
+      "id": "C3-M25",
+      "guarda": "agregado fora de success para antes do merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "      || die \"parou no passo 3b: o agregado pareceres não ficou success (forge-check parecer agregar); nada foi mesclado\"",
+      "para": "      || :",
+      "testes": [
+        "tests.test_fechar_agregado.FecharAgregado.test_agregado_fora_de_success_para_antes_do_merge"
+      ]
+    },
+    {
+      "id": "C3-M26",
+      "guarda": "com linhas Parecer:, o --body do merge as leva (M15.1)",
+      "arquivo": "bin/forge-fechar",
+      "de": "    if [ -n \"$linhas_parecer\" ]; then",
+      "para": "    if false; then",
+      "testes": [
+        "tests.test_fechar_agregado.FecharAgregado.test_com_a_lista_as_linhas_fecham_o_corpo_do_merge"
+      ]
+    },
+    {
+      "id": "C3-M27",
+      "guarda": "corpo do PR ilegível para antes do merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo 3b: não consegui ler o corpo do PR para a mensagem do merge\"",
+      "para": "|| :",
+      "testes": [
+        "tests.test_fechar_agregado.FecharAgregado.test_corpo_ilegivel_para_antes_do_merge"
+      ]
+    }
+  ]
+}

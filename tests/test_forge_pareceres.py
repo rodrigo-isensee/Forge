@@ -1159,5 +1159,253 @@ class ListaFechada(unittest.TestCase):
                     self.lista()
 
 
+# C3 da F1 parte 2 (v0481 E45.88; desenho em anexo, linha C3): `forge-check parecer agregar` grava no head do PR só o
+# agregado `pareceres` do status vigente de cada exigido do próprio `forge-check` (M13.1) e imprime as linhas `Parecer:`
+# (M15.1); `parecer pedido` tira o pedido da branch só dos briefs (C0-3); o `metricas` acusa o squash da develop sem as
+# linhas depois da virada (M15.2, M16.1).
+class Agregar(GhFalso):
+    URL, publicado, registrar, em, commit = Ler.URL, Ler.publicado, Ler.registrar, Vigentes.em, Vigentes.commit
+
+    def setUp(self):
+        super().setUp()
+        self.a = self.sha
+        self.b = self.commit("b")  # b: filho de a sem mudança
+        (self.repo / "bin").mkdir()
+        (self.repo / "bin" / "x.py").write_text("print(1)\n", encoding="utf-8")
+        for args in (["add", "bin/x.py"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "código"]):
+            subprocess.run(["git", *args], cwd=self.repo, env=self.env, check=True)
+        self.d = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=self.env, capture_output=True, text=True).stdout.strip()
+
+    def agregar(self, head, lista, *publicados, exigidos=("review",), branch=BRANCH):
+        """(rc, stdout, stderr) do `parecer agregar` no `head` do PR #7 (commits a e head), com `lista_fechada` devolvendo `lista`
+        e `exigidos_do_pr` devolvendo `exigidos` (None: o cálculo real do `forge-check`)."""
+        por_commit = {}
+        for sha, s in sorted(publicados, key=lambda x: -x[1]["id"]):
+            por_commit.setdefault(sha, [[]])[0].append(s)
+        self.estado(por_commit=por_commit, prs=[self.estado()["prs"][0] | {"headRefOid": head}],
+                    pr_view={"number": 7, "headRefName": BRANCH, "url": "https://github.com/dono/repo/pull/7",
+                             "commits": [{"oid": self.a}, {"oid": head}]})
+        saida, erro = io.StringIO(), io.StringIO()
+        with contextlib.ExitStack() as pilha:
+            pilha.enter_context(mock.patch.object(fc().modulo_do_bin("forge_pareceres"), "lista_fechada", return_value=lista))
+            if exigidos is not None:
+                pilha.enter_context(mock.patch.object(fc(), "exigidos_do_pr", return_value=(list(exigidos), [])))
+            pilha.enter_context(contextlib.redirect_stdout(saida)), pilha.enter_context(contextlib.redirect_stderr(erro))
+            rc = fc().cmd_parecer_agregar(self.repo, PEDIDO, head, "develop", branch)
+        return rc, saida.getvalue(), erro.getvalue()
+
+    def agregados(self):
+        return [(s["state"], s["description"]) for s in self.estado()["statuses"] if s["context"] == "pareceres"]
+
+    def test_dormente_nada_grava_nem_le(self):
+        """Sem a lista fechada na develop do `origin`: rc 0, nenhuma linha `Parecer:` e o `gh` nem é chamado."""
+        self.assertEqual(self.agregar(self.b, None, self.em(self.a, 1))[:2], (0, ""))
+        self.assertEqual(self.chamadas(), [])
+
+    def test_pr_da_lista_vale_o_arquivo_nada_grava(self):
+        rc, saida, erro = self.agregar(self.b, frozenset({7}), self.em(self.a, 1))
+        self.assertEqual((rc, saida, self.gravou_status()), (0, "", []))
+        self.assertIn("PR da lista fechada, vale o arquivo; nada gravado", erro)
+
+    def test_aprovado_vigente_grava_success_e_imprime_as_linhas(self):
+        """M15.1: a linha traz tipo, veredito, o comentário e a origem do status, lidos de `vigentes`."""
+        rc, saida, _ = self.agregar(self.b, frozenset(), self.em(self.a, 1))
+        self.assertEqual(rc, 0)
+        self.assertEqual(saida, f"Parecer: review aprovado {self.URL.format(601)} origem {self.a}\n")
+        self.assertEqual(self.agregados(), [("success", "todos os exigidos")])
+        self.assertIn(f"/statuses/{self.b}", self.gravou_status()[0][3])  # no head do PR, não na origem
+
+    def test_m13_1_exigido_sem_status_fica_pending(self):
+        """M13.1: os exigidos são os do `forge-check` (review e QA), não os que o portão publicou: só o review aprovado não basta."""
+        rc, saida, erro = self.agregar(self.b, frozenset(), self.em(self.a, 1), exigidos=("review", "qa"))
+        self.assertEqual((rc, saida), (1, ""))
+        self.assertEqual(self.agregados(), [("pending", "1 exigido(s) sem valer")])
+        self.assertIn("sem o status parecer-qa", erro)
+
+    def test_reprovado_vigente_grava_failure(self):
+        rc, saida, _ = self.agregar(self.b, frozenset(), self.em(self.a, 1, state="failure", veredito="reprovado"))
+        self.assertEqual((rc, saida), (1, ""))
+        self.assertEqual(self.agregados(), [("failure", "reprovado: parecer-review")])
+
+    def test_dominio_mexido_depois_da_origem_fica_pending(self):
+        """M11.1 e M12.1: bin/x.py mudou em d depois do status de a; o agregado não fica success."""
+        rc, _, erro = self.agregar(self.d, frozenset(), self.em(self.a, 1))
+        self.assertEqual(rc, 1)
+        self.assertEqual(self.agregados(), [("pending", "1 exigido(s) sem valer")])
+        self.assertIn("commit: desatualizado: bin/x.py", erro)
+
+    def test_status_que_nao_vale_fica_pending(self):
+        self.assertEqual(self.agregar(self.b, frozenset(), self.em(self.a, 1, registro=False))[0], 1)
+        self.assertEqual(self.agregados()[0][0], "pending")
+
+    def test_leitura_recusada_nada_grava(self):
+        self.estado(falha_em="--slurp")
+        rc, saida, erro = self.agregar(self.b, frozenset(), self.em(self.a, 1))
+        self.assertEqual((rc, saida, self.gravou_status()), (1, "", []))
+        self.assertIn("parecer agregar: recusado:", erro)
+
+    def test_sem_pr_aberto_recusa(self):
+        """Sem o PR aberto da branch no head, nada a agregar: Recusa do `pr_aberto`, nada gravado."""
+        rc, _, erro = self.agregar(self.b, frozenset(), self.em(self.a, 1), branch="melhoria/outra")
+        self.assertEqual((rc, self.gravou_status()), (1, []))
+        self.assertIn("recusado", erro)
+
+    def test_branch_de_integracao_ou_head_que_nao_resolve_recusa(self):
+        for head, branch in ((self.b, "develop"), ("f" * 40, BRANCH)):
+            with self.subTest(head=head, branch=branch):
+                self.assertEqual(self.agregar(head, frozenset(), branch=branch)[0], 1)
+        self.assertEqual(self.chamadas(), [])
+
+    def test_dependabot_exigidos_vazio_success_sem_status_de_papel(self):
+        """Risco do desenho (Dependabot): com `exigidos_do_pr` vazio o agregado fica success, com a linha que diz isso."""
+        rc, saida, _ = self.agregar(self.b, frozenset(), exigidos=())
+        self.assertEqual((rc, saida), (0, f"Parecer: nenhum exigido em {self.b}\n"))
+        self.assertEqual(self.agregados(), [("success", "todos os exigidos")])
+
+    def test_dependabot_nao_serve_a_pr_com_codigo(self):
+        """A prova: num PR que muda código (bin/x.py, head e filho de a), o `forge-check` exige parecer; sem status, pending."""
+        arvore = subprocess.run(["git", "rev-parse", f"{self.d}^{{tree}}"], cwd=self.repo, env=self.env, capture_output=True,
+                                text=True).stdout.strip()
+        e = subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", arvore, "-p", self.a, "-m", "e"],
+                           cwd=self.repo, env=self.env, capture_output=True, text=True, check=True).stdout.strip()
+        subprocess.run(["git", "update-ref", "refs/heads/develop", self.a], cwd=self.repo, env=self.env, check=True)
+        self.assertIn("review", fc().exigidos_do_pr(self.repo, PEDIDO, e, "refs/heads/develop")[0])
+        rc, saida, _ = self.agregar(e, frozenset(), exigidos=None)
+        self.assertEqual((rc, saida), (1, ""))
+        self.assertEqual(self.agregados()[0][0], "pending")
+
+
+class PedidoDaBranch(unittest.TestCase):
+    """C0-3: o pedido sai dos briefs da pasta de controle que citam a branch, nunca do parecer que se confere."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(subprocess.run, ["rm", "-rf", str(self.tmp)])
+        self.repo, self.controle = self.tmp / "repo", self.tmp / "controle"
+        (self.controle / "docs" / "briefs").mkdir(parents=True)
+        (self.repo / "docs" / "reviews").mkdir(parents=True)
+        env = sem_manutencao({"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"})
+        subprocess.run(["git", "init", "-q", "-b", "develop"], cwd=self.repo, env=env, check=True)
+        (self.repo / "docs" / "reviews" / "v8.md").write_text(f"---\ntipo: review\npedido: v8\nbranch: {BRANCH}\n---\n", encoding="utf-8")
+
+    def brief(self, nome, pedido, etapa="codigo", branch=BRANCH):
+        (self.controle / "docs" / "briefs" / nome).write_text(
+            f"Agente destino: forge:tech-lead\nPedido: {pedido}\nTipo: codigo\nBranch: {branch}   Base: develop\nEtapa: {etapa}   Cobre: E1\n",
+            encoding="utf-8")
+
+    def pedido(self, branch=BRANCH):
+        saida, erro = io.StringIO(), io.StringIO()
+        with mock.patch.object(fc(), "RAIZES_DE_BRIEF", (self.controle,)), contextlib.redirect_stdout(saida), \
+                contextlib.redirect_stderr(erro):
+            rc = fc().cmd_parecer_pedido(self.repo, branch)
+        return rc, saida.getvalue(), erro.getvalue()
+
+    def test_um_pedido_nos_briefs(self):
+        self.brief("v9-tech-lead-1.md", "v9")
+        self.brief("v9-qa-engineer-2.md", "v9", etapa="qa")
+        self.assertEqual(self.pedido()[:2], (0, "v9\n"))
+
+    def test_so_o_parecer_da_branch_nao_vale(self):
+        """O `pedido: v8` do parecer de review da branch não escolhe nada sem brief (a conferência seria tautológica)."""
+        rc, saida, erro = self.pedido()
+        self.assertEqual((rc, saida), (1, ""))
+        self.assertIn("nenhum escolhido (C0-3)", erro)
+
+    def test_brief_de_outra_branch_nao_conta(self):
+        self.brief("v9-tech-lead-1.md", "v9", branch=BRANCH + "-2")
+        self.assertEqual(self.pedido()[0], 1)
+
+    def test_dois_pedidos_vale_o_do_codigo(self):
+        self.brief("v9-tech-lead-1.md", "v9")
+        self.brief("v7-security-engineer-1.md", "v7", etapa="revisao-seguranca")
+        self.assertEqual(self.pedido()[:2], (0, "v9\n"))
+
+    def test_dois_pedidos_sem_um_so_do_codigo_e_ambiguo(self):
+        self.brief("v9-tech-lead-1.md", "v9")
+        self.brief("v7-tech-lead-1.md", "v7")
+        self.assertEqual(self.pedido()[:2], (1, ""))
+
+
+class SquashSemParecer(unittest.TestCase):
+    """M15.2 e M16.1: o `metricas` acusa o commit da develop depois da virada sem `Parecer:` no bloco final da mensagem."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(subprocess.run, ["rm", "-rf", str(self.tmp)])
+        self.env = sem_manutencao({"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"})
+        self.git("init", "-q", "-b", "develop")
+        self.antes = self.commitar("feat: antes da virada")
+
+    def git(self, *args):
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=self.tmp, env=self.env,
+                              capture_output=True, text=True, check=True).stdout.strip()
+
+    def commitar(self, mensagem, arquivo=None):
+        if arquivo:
+            (self.tmp / arquivo).parent.mkdir(parents=True, exist_ok=True)
+            (self.tmp / arquivo).write_text("[]\n", encoding="utf-8")
+            self.git("add", arquivo)
+        self.git("commit", "-q", "--allow-empty", "-m", mensagem)
+        return self.git("rev-parse", "HEAD")
+
+    def sem(self):
+        return fc().squashes_sem_parecer(self.tmp, "develop")
+
+    def test_antes_da_virada_nada(self):
+        self.assertEqual(self.sem(), [])
+
+    def test_depois_da_virada_so_o_bloco_final_vale(self):
+        self.commitar("feat(ci): a virada (#1)", fc().modulo_do_bin("forge_pareceres").LISTA_FECHADA)
+        bom = self.commitar("feat: com as linhas (#2)\n\ncorpo do PR\n\nParecer: review aprovado https://x origem " + "a" * 40)
+        meio = self.commitar("feat: linha no meio (#3)\n\nParecer: review aprovado https://x\n\nresto do corpo")
+        nenhum = self.commitar("feat: sem as linhas (#4)\n\ncorpo")
+        self.assertNotIn(bom, self.sem())
+        self.assertEqual(self.sem(), [nenhum, meio])
+
+    def test_develop_ausente_nada_e_git_que_falha_none(self):
+        self.assertEqual(fc().squashes_sem_parecer(self.tmp, "origin/develop"), [])
+        self.commitar("feat(ci): a virada (#1)", fc().modulo_do_bin("forge_pareceres").LISTA_FECHADA)
+        for respostas in ([(128, "")], [(0, "x"), (128, "")]):  # o git que falha na busca da virada ou na leitura dos commits
+            with self.subTest(respostas=respostas), mock.patch.object(fc(), "sha_do_commit", return_value="x"), \
+                    mock.patch.object(fc(), "git", side_effect=respostas):
+                self.assertIsNone(fc().squashes_sem_parecer(self.tmp, "develop"))
+
+    def test_metricas_avisa_no_stderr(self):
+        self.commitar("feat(ci): a virada (#1)", fc().modulo_do_bin("forge_pareceres").LISTA_FECHADA)
+        nenhum = self.commitar("feat: sem as linhas (#4)")
+        erro = io.StringIO()
+        with contextlib.redirect_stderr(erro):
+            fc().aviso_de_squash_sem_parecer(self.tmp, "develop")
+        self.assertIn(f"1 commit(s) de \"develop\" depois da virada sem linha `Parecer:` no bloco final (M15.2, M16.1): {nenhum[:7]}",
+                      erro.getvalue())
+
+    def test_aviso_da_leitura_que_falha_e_silencio_sem_squash(self):
+        for sem, esperado in ((None, "não li os commits de \"develop\" depois da virada (git)"), ([], "")):
+            with self.subTest(sem=sem):
+                erro = io.StringIO()
+                with mock.patch.object(fc(), "squashes_sem_parecer", return_value=sem), contextlib.redirect_stderr(erro):
+                    fc().aviso_de_squash_sem_parecer(self.tmp, "develop")
+                self.assertIn(esperado, erro.getvalue()) if esperado else self.assertEqual(erro.getvalue(), "")
+
+    def test_o_subcomando_metricas_chama_o_aviso_e_os_outros_nao(self):
+        modulo = mock.Mock(executar=mock.Mock(return_value=0))
+        for cmd, chamadas in (("metricas", [mock.call(self.tmp, "develop")]), ("regras", [])):
+            with self.subTest(cmd=cmd), mock.patch.object(fc(), "governanca", return_value=modulo), \
+                    mock.patch.object(fc(), "guarda_de_versao", return_value=None), \
+                    mock.patch.object(fc(), "aviso_de_squash_sem_parecer") as aviso:
+                a = mock.Mock(cmd=cmd, raiz_pedidos=None, develop="develop")
+                self.assertEqual(fc().executar(a, self.tmp), 0)
+                self.assertEqual(aviso.call_args_list, chamadas)
+
+    def test_os_subcomandos_agregar_e_pedido_chegam_a_funcao(self):
+        for acao, funcao, args in (("agregar", "cmd_parecer_agregar", (PEDIDO, "HEAD", "develop", BRANCH)),
+                                   ("pedido", "cmd_parecer_pedido", (BRANCH,))):
+            with self.subTest(acao=acao), mock.patch.object(fc(), "guarda_de_versao", return_value=None), \
+                    mock.patch.object(fc(), funcao, return_value=7) as chamada:
+                a = mock.Mock(cmd="parecer", acao=acao, pedido=PEDIDO, ref="HEAD", base="develop", branch=BRANCH)
+                self.assertEqual(fc().executar(a, self.tmp), 7)
+                chamada.assert_called_once_with(self.tmp, *args)
+
+
 if __name__ == "__main__":
     unittest.main()

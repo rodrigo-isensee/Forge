@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C3-M1",
+      "guarda": "branch de integração ou base fora do fluxo: nada gravado",
+      "arquivo": "bin/forge-check",
+      "de": "    if not head or branch in BASES_DO_FLUXO or nome not in BASES_DO_FLUXO:\n        print(f\"parecer agregar: sem head",
+      "para": "    if not head:\n        print(f\"parecer agregar: sem head",
+      "testes": [
+        "tests.test_forge_pareceres.Agregar.test_branch_de_integracao_ou_head_que_nao_resolve_recusa"
+      ]
+    },
+    {
+      "id": "C3-M2",
+      "guarda": "sem a lista fechada: dormente, nada lido nem gravado",
+      "arquivo": "bin/forge-check",
+      "de": "        if (lista := pareceres.lista_fechada(raiz)) is None:\n            print(\"parecer agregar: dormente",
+      "para": "        if (lista := pareceres.lista_fechada(raiz)) is not None:\n            print(\"parecer agregar: dormente",
+      "testes": [
+        "tests.test_forge_pareceres.Agregar.test_dormente_nada_grava_nem_le"
+      ]
+    },
+    {
+      "id": "C3-M3",
+      "guarda": "PR da lista fechada: vale o arquivo, nada gravado (M20.1)",
+      "arquivo": "bin/forge-check",
+      "de": "        if (pr := pareceres.pr_aberto(raiz, branch, head))[\"number\"] in lista:",
+      "para": "        if (pr := pareceres.pr_aberto(raiz, branch, head))[\"number\"] not in lista:",
+      "testes": [
+        "tests.test_forge_pareceres.Agregar.test_pr_da_lista_vale_o_arquivo_nada_grava"
+      ]
+    },
+    {
+      "id": "C3-M4",
+      "guarda": "só o reprovado vigente conta como reprovado",
+      "arquivo": "bin/forge-check",
+      "de": "if publicados[1].get(t, (None,))[0] == \"reprovado\"]",
+      "para": "if publicados[1].get(t, (None,))[0] == \"aprovado\"]",
+      "testes": [
+        "tests.test_forge_pareceres.Agregar.test_reprovado_vigente_grava_failure"
+      ]
+    },
+    {
+      "id": "C3-M5",
+      "guarda": "reprovado vigente vira failure, não pending",
+      "arquivo": "bin/forge-check",
+      "de": "        estado, texto = ((\"failure\", f\"reprovado: {', '.join(reprovados)}\") if reprovados\n",
+      "para": "        estado, texto = ((\"failure\", f\"reprovado: {', '.join(reprovados)}\") if False\n",
+      "testes": [
+        "tests.test_forge_pareceres.Agregar.test_reprovado_vigente_grava_failure"
+      ]
+    },
+    {
+      "id": "C3-M6",
+      "guarda": "exigido que não vale deixa pending (M13.1)",
+      "arquivo": "bin/forge-check",
+      "de": "exigido(s) sem valer\") if faltas else (\"success\"",
+      "para": "exigido(s) sem valer\") if False else (\"success\"",
+      "testes": [
+        "tests.test_forge_pareceres.Agregar.test_m13_1_exigido_sem_status_fica_pending"
+      ]
+    },
+    {
+      "id": "C3-M7",
+      "guarda": "agregado fora de success: rc 1 e nenhuma linha Parecer:",
+      "arquivo": "bin/forge-check",
+      "de": "    if estado != \"success\":\n        return 1",
+      "para": "    if False:\n        return 1",
+      "testes": [
+        "tests.test_forge_pareceres.Agregar.test_m13_1_exigido_sem_status_fica_pending"
+      ]
+    },
+    {
+      "id": "C3-M8",
+      "guarda": "leitura recusada: rc 1, nada gravado (M19.1)",
+      "arquivo": "bin/forge-check",
+      "de": "    except pareceres.Recusa as e:\n        print(f\"parecer agregar: recusado",
+      "para": "    except ZeroDivisionError as e:\n        print(f\"parecer agregar: recusado",
+      "testes": [
+        "tests.test_forge_pareceres.Agregar.test_leitura_recusada_nada_grava"
+      ]
+    }
+  ]
+}

@@ -1340,12 +1340,11 @@ segundos_de() {
   [ -n "$1" ] || return 1
   date -u -d "$1" +%s 2>/dev/null || date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s 2>/dev/null
 }
-# pedido_da_branch <branch>: o único `pedido:` dos pareceres de review do head buscado (refs/remotes/origin/<branch>) com `branch:` igual a ela.
+# pedido_da_branch <branch> (C3, C0-3): o pedido dos briefs da pasta de controle que citam a branch (forge-check parecer pedido), nunca
+# o `pedido:` do parecer ou do comentário que o passo seguinte confere (a conferência ficaria tautológica).
 pedido_da_branch() {
-  local arqs peds
-  arqs="$(git grep -lF -e "branch: $1" "refs/remotes/origin/$1" -- docs/reviews/ 2>/dev/null)"
-  peds="$(while IFS= read -r a; do git show "$a" 2>/dev/null | awk -v b="branch: $1" 'NR == 1 && $0 != "---" {exit} NR > 1 && $0 == "---" {exit}
-    /^pedido: / {p = $2} $0 == b {ok = 1} END {if (ok && p != "") print p}'; done <<<"$arqs" | sort -u)"
+  local peds
+  peds="$("$check" parecer pedido "$1" 2>/dev/null)" || return 1
   # um nome só: vazio e mais de um (a quebra de linha fica fora da classe) não casam
   [[ "$peds" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]] || return 1
   printf '%s' "$peds"
@@ -1370,7 +1369,7 @@ fechar_laco() {
     case "$br" in melhoria/*) ;; *) continue ;; esac
     git check-ref-format --branch "$br" >/dev/null 2>&1 || continue
     if ! git fetch -q --no-tags origin "+refs/heads/$br:refs/remotes/origin/$br" >/dev/null 2>&1; then echo "aviso: PR #$n: não busquei $br; fica para a próxima volta." >&2; continue; fi
-    if ! ped="$(pedido_da_branch "$br")"; then echo "PR #$n ($br): sem um pedido só nos pareceres de review da branch; fica de fora."; continue; fi
+    if ! ped="$(pedido_da_branch "$br")"; then echo "PR #$n ($br): sem um pedido só nos briefs da branch (C0-3); fica de fora."; continue; fi
     if ! "$check" pr "$ped" --ref "refs/remotes/origin/$br" --base "$base" >/dev/null 2>&1; then echo "PR #$n ($br): pareceres do pedido $ped não aprovados no head ($check pr $ped --ref origin/$br); fica de fora."; continue; fi
     aprovados+=("$ped:$br")
   done <<<"$lista"
@@ -1907,6 +1906,19 @@ else
 fi
 
 if [ "$ja_mesclado" = 0 ]; then
+  # C3 (F1 parte 2, M13.1, M15.1): com a lista fechada na develop do servidor (base_2b, lida no 2b pelo ls-remote), o agregado
+  # `pareceres` sai só do status vigente de cada exigido deste forge-check, e as linhas `Parecer:` dele fecham a mensagem do merge.
+  # Sem a lista o passo nem roda: um forge-check sem o `parecer agregar` (o do plugin antes da versão) não para o fechamento dormente.
+  corpo_do_merge=()
+  if [ "$alvo" = develop ] && git cat-file -e "$base_2b:.github/pareceres-lista-fechada.json" 2>/dev/null; then
+    passo "3b" "agregado: $check parecer agregar $pedido --ref $ref_check --base $base --branch $ref"
+    linhas_parecer="$("$check" parecer agregar "$pedido" --ref "$ref_check" --base "$base" --branch "$ref")" \
+      || die "parou no passo 3b: o agregado pareceres não ficou success (forge-check parecer agregar); nada foi mesclado"
+    if [ -n "$linhas_parecer" ]; then
+      corpo_pr="$(ler "$gh" pr view "$pr_n" --json body --jq .body)" || die "parou no passo 3b: não consegui ler o corpo do PR para a mensagem do merge"
+      corpo_do_merge=(--body "$corpo_pr"$'\n\n'"$linhas_parecer")
+    fi
+  fi
   ler_exigidos_do_destino
   inicio=$SECONDS
   apos_rotulo=0
@@ -2035,7 +2047,7 @@ if [ "$ja_mesclado" = 0 ]; then
     fi
     # O merge muda o PR: não se repete sozinho. Se falhou, só se lê o estado: um 502 após o merge feito já deixou o PR MERGED.
     # FECHAR-SEM-AUTO-MERGE: merge direto, preso ao head, só depois de checks_do_head_verdes (nunca --admin; o hook o recusa).
-    if ! mesclar_direto "$metodo" "$remoto_sha"; then
+    if ! mesclar_direto "$metodo" "$remoto_sha" "${corpo_do_merge[@]}"; then
       estado_do_pr || true
       [ "$pr_estado" = MERGED ] || die "parou no passo 6: o merge falhou (ou o head do PR mudou desde o passo 2)"
       echo "o merge devolveu erro, mas o PR consta como MERGED; confiro o head, a base e o commit de merge abaixo."

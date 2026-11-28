@@ -21,9 +21,14 @@ case "$1 $2" in
   *) exit 64 ;;
 esac
 '''
-# forge-check falso: reprova o pedido com $ESTADO/reprova_<pedido>.
+# forge-check falso: reprova o pedido com $ESTADO/reprova_<pedido>; `parecer pedido <branch>` (C0-3) devolve o pedido dos briefs da
+# branch, o conteúdo de $ESTADO/brief_<branch com / trocada por _>, e sem o arquivo sai 1 (nenhum ou dois pedidos nos briefs); com
+# $ESTADO/rc1_<branch>, imprime o nome e sai 1 (o código vale, não a saída).
 CHECK_LACO = r'''#!/usr/bin/env bash
 echo "forge-check $*" >> "$REGISTRO"
+if [ "$1 $2" = "parecer pedido" ]; then
+  f="$ESTADO/brief_${3//\//_}"; { [ "$#" = 3 ] && [ -f "$f" ]; } || exit 1; cat "$f"; [ ! -f "$ESTADO/rc1_${3//\//_}" ]; exit
+fi
 [ ! -f "$ESTADO/reprova_$2" ]
 '''
 # Item falso: anota os argumentos e sai com o código de $ESTADO/rc_<ordem da chamada> (padrão 0).
@@ -49,14 +54,16 @@ class Laco(unittest.TestCase):
             (self.tmp / nome).chmod(0o755)
         # relógio fixo em 2026-01-01T00:00:00Z: antes da meia-noite de hoje (o que o GNU date dá à data vazia) e longe das datas dos testes
         self.env.update(FORGE_FECHAR_ITEM=str(self.tmp / "item"), FORGE_FECHAR_AGORA="1767225600")
-        # branch: (arquivo do diff, pedidos dos pareceres de review com `branch:` igual a ela)
+        # branch: (arquivo do diff, pedidos dos pareceres de review com `branch:` igual a ela); o pedido do laço vem só dos briefs (C0-3):
+        # um brief por branch de um pedido só, nenhum na `so-parecer` (o parecer dela leva `pedido: ps`, que não vale sozinho)
         for br, arquivo, pedidos in (("a", "fa", ["pa"]), ("b", "fb", ["pb"]), ("c", "fc", ["pc"]), ("d", "fa", ["pd"]),
-                                     ("e", "fe", ["pe"]), ("dois", "fg", ["pf", "pg"]), ("sem", "fh", [])):
-            self.ramo(f"melhoria/{br}", arquivo, pedidos)
-        # o parecer de outra branch cujo nome começa por este (como os da develop) não conta: `branch:` só pelo nome inteiro
-        self.ramo("melhoria/pre", "fp", ["pp"], outros={"px": "melhoria/prefixo"})
+                                     ("e", "fe", ["pe"]), ("dois", "fg", ["pf", "pg"]), ("sem", "fh", []), ("so-parecer", "fs", ["ps"])):
+            self.ramo(f"melhoria/{br}", arquivo, pedidos, brief=len(pedidos) == 1 and br != "so-parecer")
+        self.ramo("melhoria/pre", "fp", ["pp"], outros={"px": "melhoria/prefixo"}, brief=True)
 
-    def ramo(self, br, arquivo, pedidos, orfao=False, outros=None):
+    def ramo(self, br, arquivo, pedidos, orfao=False, outros=None, brief=False):
+        if brief:  # o pedido que os briefs da pasta de controle dão à branch (o `forge-check parecer pedido` falso)
+            (self.estado / f"brief_{br.replace('/', '_')}").write_text(pedidos[0])
         self.git("switch", "-q", "--orphan" if orfao else "-c", br, *([] if orfao else ["develop"]))
         (self.proj / arquivo).write_text(br + "\n")
         revs = self.proj / "docs" / "reviews"
@@ -117,19 +124,26 @@ class Laco(unittest.TestCase):
     def test_so_entram_os_aprovados_com_um_pedido_so(self):
         (self.estado / "reprova_pb").write_text("")
         self.lista((31, "melhoria/a", VERDE), (32, "melhoria/b", VERDE), (33, "melhoria/dois", VERDE), (34, "melhoria/sem", VERDE),
-                   (35, "feature/q", VERDE), (36, "melhoria/a:b", VERDE), (37, "melhoria/sumiu", VERDE), (38, "melhoria/pre", VERDE))
+                   (35, "feature/q", VERDE), (36, "melhoria/a:b", VERDE), (37, "melhoria/sumiu", VERDE), (38, "melhoria/pre", VERDE),
+                   (39, "melhoria/so-parecer", VERDE), (40, "melhoria/c", VERDE))
+        (self.estado / "rc1_melhoria_c").write_text("")
         r = self.fechar("--laco")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(self.itens(), [f"--lote pa:melhoria/a pp:melhoria/pre {FIM}"])
         self.assertIn("PR #32 (melhoria/b): pareceres do pedido pb não aprovados no head", r.stdout)
         self.assertIn("PR #33 (melhoria/dois): sem um pedido só", r.stdout)
         self.assertIn("PR #34 (melhoria/sem): sem um pedido só", r.stdout)
+        # C0-3: o `pedido:` do parecer de review da própria branch não vale sem brief que a cite (a conferência seria tautológica)
+        self.assertIn("PR #39 (melhoria/so-parecer): sem um pedido só nos briefs da branch (C0-3); fica de fora.", r.stdout)
+        self.assertIn("PR #40 (melhoria/c): sem um pedido só nos briefs da branch (C0-3)", r.stdout)  # rc 1 com nome impresso
+        self.assertIn("forge-check parecer pedido melhoria/a", self.chamadas())
+        self.assertFalse([c for c in self.chamadas() if c.startswith("forge-check pr ps ")])
         self.assertIn("aviso: PR #37: não busquei melhoria/sumiu", r.stderr)
         self.assertNotIn("PR #35", r.stdout + r.stderr)  # fora de melhoria/*
         self.assertNotIn("PR #36", r.stdout + r.stderr)  # nome inválido nem chega à busca
 
     def test_diff_ilegivel_fica_de_fora_e_o_laco_segue(self):
-        self.ramo("melhoria/orfa", "fo", ["po"], orfao=True)
+        self.ramo("melhoria/orfa", "fo", ["po"], orfao=True, brief=True)
         self.lista((41, "melhoria/orfa", VERDE), (42, "melhoria/a", VERDE))
         r = self.fechar("--laco")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)

@@ -1,0 +1,77 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C3-M9",
+      "guarda": "a linha de nenhum exigido só sem exigidos (Dependabot)",
+      "arquivo": "bin/forge-check",
+      "de": "for t in exigidos]\n                    or [f\"Parecer: nenhum exigido",
+      "para": "for t in exigidos]\n                    and [f\"Parecer: nenhum exigido",
+      "testes": [
+        "tests.test_forge_pareceres.Agregar.test_aprovado_vigente_grava_success_e_imprime_as_linhas",
+        "tests.test_forge_pareceres.Agregar.test_dependabot_exigidos_vazio_success_sem_status_de_papel"
+      ]
+    },
+    {
+      "id": "C3-M10",
+      "guarda": "C0-3: sem um pedido só nos briefs, rc 1",
+      "arquivo": "bin/forge-check",
+      "de": "    if len(ids) != 1:\n        print(f\"parecer pedido:",
+      "para": "    if len(ids) > 1:\n        print(f\"parecer pedido:",
+      "testes": [
+        "tests.test_forge_pareceres.PedidoDaBranch.test_so_o_parecer_da_branch_nao_vale"
+      ]
+    },
+    {
+      "id": "C3-M11",
+      "guarda": "C0-3: com dois pedidos, só o do brief de codigo",
+      "arquivo": "bin/forge-check",
+      "de": "if \"codigo\" in e} if len(etapas) > 1 else set(etapas)\n    if len(ids) != 1:",
+      "para": "if \"codigo\" in e} if False else set(etapas)\n    if len(ids) != 1:",
+      "testes": [
+        "tests.test_forge_pareceres.PedidoDaBranch.test_dois_pedidos_vale_o_do_codigo"
+      ]
+    },
+    {
+      "id": "C3-M12",
+      "guarda": "C0-3: o pedido do brief de codigo, não o de portão",
+      "arquivo": "bin/forge-check",
+      "de": "if \"codigo\" in e} if len(etapas) > 1 else set(etapas)\n    if len(ids) != 1:\n        print(f\"parecer pedido:",
+      "para": "if \"codigo\" not in e} if len(etapas) > 1 else set(etapas)\n    if len(ids) != 1:\n        print(f\"parecer pedido:",
+      "testes": [
+        "tests.test_forge_pareceres.PedidoDaBranch.test_dois_pedidos_vale_o_do_codigo"
+      ]
+    },
+    {
+      "id": "C3-M13",
+      "guarda": "o subcomando parecer agregar chega à função",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"parecer\" and a.acao == \"agregar\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_pareceres.SquashSemParecer.test_os_subcomandos_agregar_e_pedido_chegam_a_funcao"
+      ]
+    },
+    {
+      "id": "C3-M14",
+      "guarda": "o subcomando parecer pedido chega à função",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"parecer\" and a.acao == \"pedido\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_pareceres.SquashSemParecer.test_os_subcomandos_agregar_e_pedido_chegam_a_funcao"
+      ]
+    },
+    {
+      "id": "C3-M15",
+      "guarda": "só o metricas chama o aviso de squash",
+      "arquivo": "bin/forge-check",
+      "de": "        if a.cmd == \"metricas\":\n            aviso_de_squash_sem_parecer",
+      "para": "        if a.cmd != \"metricas\":\n            aviso_de_squash_sem_parecer",
+      "testes": [
+        "tests.test_forge_pareceres.SquashSemParecer.test_o_subcomando_metricas_chama_o_aviso_e_os_outros_nao"
+      ]
+    }
+  ]
+}
