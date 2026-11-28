@@ -1,0 +1,76 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "tirar a entrada ~/.forge-contrib/.forge/run/ da política (as c1b3-*-bloqueia voltam a rc 0)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "{\"caminho\": \"~/.forge-contrib/.forge/run/\", \"quem\": []",
+      "para": "{\"caminho\": \"~/.forge-contrib/.forge/run-x/\", \"quem\": []",
+      "testes": [
+        "tests.test_conformidade_pareceres.PastaDeControleDoForge.test_fixtures_c1b3"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o jarvis no quem da pasta de controle do Forge (c1b3-run-forge-jarvis-write-bloqueia volta a rc 0)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "{\"caminho\": \"~/.forge-contrib/.forge/run/\", \"quem\": []",
+      "para": "{\"caminho\": \"~/.forge-contrib/.forge/run/\", \"quem\": [\"jarvis\"]",
+      "testes": [
+        "tests.test_conformidade_pareceres.PastaDeControleDoForge.test_fixtures_c1b3"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a entrada depois da .forge/run/ relativa, que casa primeiro e a sessão do Forge não aplica (as c1b3-*-bloqueia voltam a rc 0)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "{\"caminho\": \"~/.forge-contrib/.forge/run/\", \"quem\": []",
+      "para": "{\"caminho\": \".forge/run/\", \"quem\": [], \"motivo\": \"estado dos hooks (.forge/run/)\"},\n    {\"caminho\": \"~/.forge-contrib/.forge/run/\", \"quem\": []",
+      "testes": [
+        "tests.test_conformidade_pareceres.PastaDeControleDoForge.test_fixtures_c1b3"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a pasta fora de CAMINHOS_DO_CONTROLE: a GuardaDaProva da sessão do Forge descarta a recusa (as c1b3-*-bloqueia voltam a rc 0)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "CAMINHOS_DO_CONTROLE += (\"~/.forge-contrib/.forge/run/\",)",
+      "para": "CAMINHOS_DO_CONTROLE += (\"~/.forge-contrib/.forge/run-x/\",)",
+      "testes": [
+        "tests.test_conformidade_pareceres.PastaDeControleDoForge.test_fixtures_c1b3"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o contador não completa o ambiente do hook (E45.73: 132 e 133 herdadas voltam a dar trabalho diferente)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "    if _alvo.isdigit():\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_trabalho_nao_muda_com_as_variaveis_de_quem_roda"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o tamanho do ambiente sai do registro (E45.73: o ambiente lido fica 0 e não confere com a medida)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "        if _alvo:\n            _anotar(",
+      "para": "        if False:\n            _anotar(",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_trabalho_nao_muda_com_as_variaveis_de_quem_roda"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "ambiente diferente do da medida deixa de reprovar (E45.73)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "            if trabalho[\"ambiente\"] != MEDIDA_DO_CORPUS[\"variaveis_do_ambiente\"]:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_ambiente_diferente_do_da_medida_reprova"
+      ]
+    }
+  ]
+}
