@@ -37,7 +37,7 @@
       "guarda": "erro de leitura dos pareceres nao isenta a escrita",
       "arquivo": "bin/forge-check",
       "de": "return set() if erro else sondas_do_pedido(pareceres, pedido_id)",
-      "para": "return sondas_do_pedido(pareceres or [], pedido_id) if erro else sondas_do_pedido(pareceres, pedido_id)",
+      "para": "return set() if False else sondas_do_pedido(pareceres, pedido_id)",
       "testes": [
         "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_ref_ilegivel_ou_parecer_fora_da_ref_segue_barrada"
       ]
@@ -48,6 +48,16 @@
       "arquivo": "bin/forge-check",
       "de": "sondas=sondas_conferidas(raiz, texto, pedido_txt, pedido_id, ref, pareceres) if destino else set())",
       "para": "sondas=sondas_conferidas(raiz, texto, pedido_txt, pedido_id, ref, pareceres) if not destino else set())",
+      "testes": [
+        "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_volta_com_a_sonda_do_parecer_nao_barra_a_escrita"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "sem erro no historico os pareceres da volta sao lidos da ref",
+      "arquivo": "bin/forge-check",
+      "de": "pareceres, erro = (None, erro) if erro else pareceres_da_volta(raiz, pedido_id, sha_ref, arquivos, fora)\n    return pareceres, fora, erro",
+      "para": "pareceres, erro = (None, erro) if not erro else pareceres_da_volta(raiz, pedido_id, sha_ref, arquivos, fora)\n    return pareceres, fora, erro",
       "testes": [
         "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_volta_com_a_sonda_do_parecer_nao_barra_a_escrita"
       ]
