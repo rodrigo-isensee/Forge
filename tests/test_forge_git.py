@@ -164,10 +164,13 @@ class Vetores(Base):
         self.verde("show", "HEAD")
         self.verde("diff", "HEAD~1", "HEAD")
         falso = self.tmp / "assina"
-        falso.write_text('#!/bin/sh\necho "[GNUPG:] SIG_CREATED " >&2\necho "-----BEGIN PGP SIGNATURE-----"\n'
-                         'echo x\necho "-----END PGP SIGNATURE-----"\n', encoding="utf-8")
+        # lê a entrada inteira: sem isso o git escreve num cano fechado e a assinatura falha às vezes (corrida)
+        falso.write_text('#!/bin/sh\ncat >/dev/null\necho "[GNUPG:] SIG_CREATED " >&2\n'
+                         'echo "-----BEGIN PGP SIGNATURE-----"\necho x\necho "-----END PGP SIGNATURE-----"\n',
+                         encoding="utf-8")
         falso.chmod(0o755)
-        self.cru("-c", f"gpg.program={falso}", "commit", "-q", "--allow-empty", "-S", "-m", "s")
+        assinado = self.cru("-c", f"gpg.program={falso}", "commit", "-q", "--allow-empty", "-S", "-m", "s")
+        self.assertEqual(assinado.returncode, 0, assinado.stderr)
         self.config("log.showSignature", "true")
         self.config("gpg.program", str(self.x))
         self.vermelho_cru("log", "-1", "--format=%H")
@@ -194,7 +197,7 @@ class Recusas(Base):
                 forge_git.git(self.copia, *args)
 
     def test_ambiente_de_quem_chama_nao_vale(self):
-        """GIT_DIR, GIT_CONFIG_* e XDG_CONFIG_HOME de quem chama ficam fora: o git é o da cópia, com a config do dono."""
+        """GIT_DIR, GIT_CONFIG_* e XDG_CONFIG_HOME de quem chama saem: o git é o da cópia, com a config do dono"""
         outro = self.tmp / "outro"
         self.cru("init", "-q", str(outro), pasta=self.tmp)
         xdg = self.tmp / "xdg"

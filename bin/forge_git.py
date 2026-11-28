@@ -103,7 +103,7 @@ def neutro(objetos_de=None):
     PASTA_NEUTRA.mkdir(parents=True, exist_ok=True, mode=0o700)
     pasta = tempfile.mkdtemp(prefix="git-", dir=PASTA_NEUTRA)
     try:
-        _rodar((*NEUTRO, *SEM_CREDENCIAL), ("init", "-q", "--bare", "--template=", pasta))  # falhou: o git seguinte falha
+        _rodar((*NEUTRO, *SEM_CREDENCIAL), ("init", "-q", "--bare", "--template=", pasta))  # falha: o próximo falha
         if objetos_de is not None:
             alternates = Path(pasta) / "objects" / "info" / "alternates"
             alternates.parent.mkdir(parents=True, exist_ok=True)
