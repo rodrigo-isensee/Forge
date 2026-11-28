@@ -1,0 +1,73 @@
+{
+  "pedido": "v048-afetados-catraca-custo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "a mensagem do nada a rodar segue o modo",
+      "arquivo": "bin/forge-testes",
+      "de": " O CI do PR roda a suíte inteira.\" if args.afetados",
+      "para": " O CI do PR roda a suíte inteira.\" if True",
+      "testes": [
+        "tests.test_testes_tocados.Execucao.test_nada_alterado_nao_roda"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "o nada a rodar sai 0 sem rodar nada",
+      "arquivo": "bin/forge-testes",
+      "de": "              else \"forge-testes: nada alterado; nada a rodar.\")\n        return 0",
+      "para": "              else \"forge-testes: nada alterado; nada a rodar.\")",
+      "testes": [
+        "tests.test_testes_tocados.Execucao.test_nada_alterado_nao_roda"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "o plano mostra a catraca",
+      "arquivo": "bin/forge-testes",
+      "de": "    if catraca:\n        print(",
+      "para": "    if False:\n        print(",
+      "testes": [
+        "tests.test_afetados_catraca_custo.PeloComando.test_listar_mostra_a_catraca_e_o_custo_para_bin"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "sem modulo nao roda o unittest",
+      "arquivo": "bin/forge-testes",
+      "de": "subprocess.run(comando).returncode if modulos else 0",
+      "para": "subprocess.run(comando).returncode if True else 0",
+      "testes": [
+        "tests.test_afetados_catraca_custo.PeloComando.test_sem_teste_afetado_a_catraca_roda_mesmo_assim"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "a catraca roda no modo do diff",
+      "arquivo": "bin/forge-testes",
+      "de": "    if catraca:\n        da_catraca",
+      "para": "    if False:\n        da_catraca",
+      "testes": [
+        "tests.test_afetados_catraca_custo.PeloComando.test_afetados_roda_a_catraca_no_modo_do_diff_e_devolve_a_saida_dela"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "a saida da catraca reprova o comando",
+      "arquivo": "bin/forge-testes",
+      "de": "        codigo = codigo or da_catraca",
+      "para": "        codigo = codigo",
+      "testes": [
+        "tests.test_afetados_catraca_custo.PeloComando.test_afetados_roda_a_catraca_no_modo_do_diff_e_devolve_a_saida_dela"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "not detalhe",
+      "motivo": "o nada a rodar do --afetados passou à condição única depois do plano, que soma a catraca; ela tem o mutante M16"
+    }
+  ]
+}

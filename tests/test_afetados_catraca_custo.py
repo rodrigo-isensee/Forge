@@ -135,6 +135,14 @@ class PeloComando(Brinquedo):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertTrue((self.raiz / "catraca-rodou").exists())
 
+    def test_sem_teste_afetado_a_catraca_roda_mesmo_assim(self):
+        (self.raiz / "tests" / "test_hooks_volta_corpus.py").unlink()
+        (self.raiz / "catraca-saida").write_text("4", encoding="utf-8")
+        r = self.rodar("--afetados", ".githooks/pre-push")
+        self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
+        self.assertNotIn("nada a rodar", r.stdout)
+        self.assertTrue((self.raiz / "catraca-rodou").exists())
+
     def test_custo_vermelho_reprova_mesmo_com_a_catraca_verde(self):
         (self.raiz / "tests" / "test_hooks_volta_corpus.py").write_text(
             CUSTO_DE_BRINQUEDO.replace("pass", "self.fail('custo')"), encoding="utf-8")

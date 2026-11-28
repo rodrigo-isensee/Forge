@@ -1,0 +1,86 @@
+{
+  "pedido": "v048-afetados-catraca-custo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "catraca ausente ou em link nao entra",
+      "arquivo": "bin/forge-testes",
+      "de": "    if not arquivo.is_file() or arquivo.is_symlink():",
+      "para": "    if not arquivo.is_file():",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_catraca_em_link_nao_conta"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "sem a catraca o plano fica como esta",
+      "arquivo": "bin/forge-testes",
+      "de": "        return (), False\n    protegidos = protegidos_da_catraca",
+      "para": "        return (TESTE_DE_CUSTO,), True\n    protegidos = protegidos_da_catraca",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_sem_a_catraca_nada_muda"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "PROTEGIDOS ilegivel (None) conta como tocada",
+      "arquivo": "bin/forge-testes",
+      "de": "protegidos is None or toca_a_catraca(caminho, protegidos)",
+      "para": "toca_a_catraca(caminho, protegidos or ())",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_protegidos_ilegiveis_contam_como_tocados"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "diff sem hook, bin nem protegido fica como esta",
+      "arquivo": "bin/forge-testes",
+      "de": "        return (), False\n    return ((TESTE_DE_CUSTO,)",
+      "para": "        return (TESTE_DE_CUSTO,), True\n    return ((TESTE_DE_CUSTO,)",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_o_resto_fica_como_esta"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "o teste de custo so entra se a raiz o tem",
+      "arquivo": "bin/forge-testes",
+      "de": "if arquivo_do_modulo(TESTE_DE_CUSTO, raiz).is_file() else ()",
+      "para": "if True else ()",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_sem_o_teste_de_custo_so_a_catraca"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "os caminhos pedidos valem sem ler o git",
+      "arquivo": "bin/forge-testes",
+      "de": "            caminhos = pedidos or caminhos_alterados(args.base)",
+      "para": "            caminhos = caminhos_alterados(args.base)",
+      "testes": [
+        "tests.test_afetados_catraca_custo.PeloComando.test_afetados_roda_a_catraca_no_modo_do_diff_e_devolve_a_saida_dela"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "a catraca e o custo entram no plano dirigido",
+      "arquivo": "bin/forge-testes",
+      "de": "    if modo == \"dirigido\":  # E9.1",
+      "para": "    if False:  # E9.1",
+      "testes": [
+        "tests.test_afetados_catraca_custo.PeloComando.test_listar_mostra_a_catraca_e_o_custo_para_bin"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "nada a rodar so sem modulo e sem catraca",
+      "arquivo": "bin/forge-testes",
+      "de": "    if modo == \"dirigido\" and not detalhe and not catraca:",
+      "para": "    if modo == \"dirigido\" and not detalhe:",
+      "testes": [
+        "tests.test_afetados_catraca_custo.PeloComando.test_sem_teste_afetado_a_catraca_roda_mesmo_assim"
+      ]
+    }
+  ]
+}
