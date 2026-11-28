@@ -604,8 +604,7 @@ def git(raiz, *args, bruto=False, entrada=None, ambiente=None):
     `entrada`: o stdin do git (bytes com `bruto`), como o `cat-file --batch` de `textos_da_arvore`."""
     rede = bool(args) and args[0] in GIT_REDE
     env = {k: v for k, v in os.environ.items()
-           if not k.startswith("GIT_") or (rede and GIT_CONFIG_DO_AMBIENTE.fullmatch(k))}
-    env.update(ambiente or {})
+           if not k.startswith("GIT_") or (rede and GIT_CONFIG_DO_AMBIENTE.fullmatch(k))} | (ambiente or {})
     r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=not bruto, env=env,
                        timeout=GIT_TIMEOUT_S, input=entrada)
     return r.returncode, (r.stdout if bruto else r.stdout.strip())

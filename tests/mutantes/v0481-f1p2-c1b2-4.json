@@ -34,67 +34,47 @@
     },
     {
       "id": "C1B2-M28",
-      "guarda": "A3 (0ad43a8): o `cat-file` da lista fechada roda sem transporte, sem a busca preguiçosa do clone parcial; segunda camada sob `SEM_PROTOCOLO` (A5, 0c74349), por isso a troca vem com a do ambiente",
+      "guarda": "A3 (0ad43a8): o `cat-file` da lista fechada roda sem transporte, sem a busca preguiçosa do clone parcial",
       "arquivo": "hooks/conformidade.py",
-      "de": [
-        "git(topo, *SEM_TRANSPORTE, \"cat-file\"",
-        "ambiente=SEM_PROTOCOLO)"
-      ],
-      "para": [
-        "git(topo, \"cat-file\"",
-        "ambiente={})"
-      ],
+      "de": "git(topo, *SEM_TRANSPORTE, \"cat-file\"",
+      "para": "git(topo, \"cat-file\"",
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_uploadpack_da_copia_nao_roda_no_clone_parcial"
-      ]
+      ],
+      "equivalente": "equivalente sob `SEM_PROTOCOLO` (A5, 0c74349): com `GIT_ALLOW_PROTOCOL` no ambiente o git ignora toda chave `protocol.*`, então a `SEM_TRANSPORTE` é só segunda camada; a lista de recusa reprovada no A5 não é mais a defesa, que o C1B2-M32 prova (o S9 morre sem o ambiente)"
     },
     {
       "id": "C1B2-M29",
-      "guarda": "A3 (0ad43a8): a chave por protocolo da cópia, que vence a geral, também fica desligada; segunda camada sob `SEM_PROTOCOLO` (A5, 0c74349), por isso a troca vem com a do ambiente",
+      "guarda": "A3 (0ad43a8): a chave por protocolo da cópia, que vence a geral, também fica desligada",
       "arquivo": "hooks/conformidade.py",
-      "de": [
-        "\"-c\", \"protocol.allow=never\", \"-c\", \"protocol.file.allow=never\", \"-c\"",
-        "ambiente=SEM_PROTOCOLO)"
-      ],
-      "para": [
-        "\"-c\", \"protocol.allow=never\", \"-c\"",
-        "ambiente={})"
-      ],
+      "de": "\"-c\", \"protocol.allow=never\", \"-c\", \"protocol.file.allow=never\", \"-c\"",
+      "para": "\"-c\", \"protocol.allow=never\", \"-c\"",
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_uploadpack_da_copia_nao_roda_no_clone_parcial"
-      ]
+      ],
+      "equivalente": "equivalente sob `SEM_PROTOCOLO` (A5, 0c74349): com `GIT_ALLOW_PROTOCOL` no ambiente o git ignora toda chave `protocol.*`, então a `SEM_TRANSPORTE` é só segunda camada; a lista de recusa reprovada no A5 não é mais a defesa, que o C1B2-M32 prova (o S9 morre sem o ambiente)"
     },
     {
       "id": "C1B2-M30",
-      "guarda": "A4 (29c1bea): o `ftp` da cópia (helper `git-remote-ftp`) fica desligado no `cat-file` da lista; segunda camada sob `SEM_PROTOCOLO` (A5, 0c74349), por isso a troca vem com a do ambiente",
+      "guarda": "A4 (29c1bea): o `ftp` da cópia (helper `git-remote-ftp`) fica desligado no `cat-file` da lista",
       "arquivo": "hooks/conformidade.py",
-      "de": [
-        "\"-c\", \"protocol.ftp.allow=never\", \"-c\", \"protocol.ftps.allow=never\"",
-        "ambiente=SEM_PROTOCOLO)"
-      ],
-      "para": [
-        "\"-c\", \"protocol.ftps.allow=never\"",
-        "ambiente={})"
-      ],
+      "de": "\"-c\", \"protocol.ftp.allow=never\", \"-c\", \"protocol.ftps.allow=never\"",
+      "para": "\"-c\", \"protocol.ftps.allow=never\"",
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_ftp_da_copia_nao_conecta_no_clone_parcial"
-      ]
+      ],
+      "equivalente": "equivalente sob `SEM_PROTOCOLO` (A5, 0c74349): com `GIT_ALLOW_PROTOCOL` no ambiente o git ignora toda chave `protocol.*`, então a `SEM_TRANSPORTE` é só segunda camada; a lista de recusa reprovada no A5 não é mais a defesa, que o C1B2-M32 prova (o S9 morre sem o ambiente)"
     },
     {
       "id": "C1B2-M31",
-      "guarda": "A4 (29c1bea): o `ftps` da cópia (helper `git-remote-ftps`) fica desligado no `cat-file` da lista; segunda camada sob `SEM_PROTOCOLO` (A5, 0c74349), por isso a troca vem com a do ambiente",
+      "guarda": "A4 (29c1bea): o `ftps` da cópia (helper `git-remote-ftps`) fica desligado no `cat-file` da lista",
       "arquivo": "hooks/conformidade.py",
-      "de": [
-        "\"-c\", \"protocol.ftps.allow=never\",",
-        "ambiente=SEM_PROTOCOLO)"
-      ],
-      "para": [
-        "",
-        "ambiente={})"
-      ],
+      "de": "\"-c\", \"protocol.ftps.allow=never\",",
+      "para": "",
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_ftp_da_copia_nao_conecta_no_clone_parcial"
-      ]
+      ],
+      "equivalente": "equivalente sob `SEM_PROTOCOLO` (A5, 0c74349): com `GIT_ALLOW_PROTOCOL` no ambiente o git ignora toda chave `protocol.*`, então a `SEM_TRANSPORTE` é só segunda camada; a lista de recusa reprovada no A5 não é mais a defesa, que o C1B2-M32 prova (o S9 morre sem o ambiente)"
     },
     {
       "id": "C1B2-M32",

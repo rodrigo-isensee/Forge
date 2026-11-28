@@ -6,8 +6,8 @@
       "id": "C1B2-M33",
       "guarda": "A5 (0c74349): o `ambiente` do chamador entra no git depois do filtro dos `GIT_*`",
       "arquivo": "bin/forge-check",
-      "de": "env.update(ambiente or {})",
-      "para": "env.update({})",
+      "de": "(ambiente or {})",
+      "para": "({})",
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_transporte_de_nome_livre_nao_roda_no_clone_parcial"
       ]
