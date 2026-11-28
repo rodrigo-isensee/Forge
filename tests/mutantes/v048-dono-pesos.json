@@ -74,8 +74,8 @@
       "id": "M7",
       "guarda": "execucao que nao e objeto nao quebra",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "execucao.get(\"pull_requests\") if isinstance(execucao, dict) else None",
-      "para": "execucao.get(\"pull_requests\")",
+      "de": "if isinstance(execucao, dict) else None",
+      "para": "if True else None",
       "testes": [
         "tests.test_pesos_do_ci.DepoisDoF6.test_pr_mesclado_na_develop_entra",
         "tests.test_pesos_do_ci.DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra",
