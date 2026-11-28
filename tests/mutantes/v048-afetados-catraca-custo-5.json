@@ -1,0 +1,16 @@
+{
+  "pedido": "v048-afetados-catraca-custo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M32",
+      "guarda": "a contagem só leva os métodos de classe",
+      "arquivo": "bin/forge-testes",
+      "de": "isinstance(classe, ast.ClassDef)",
+      "para": "isinstance(classe, (ast.ClassDef, ast.Module))",
+      "testes": [
+        "tests.test_afetados_catraca_custo.LimiteLocal.test_conta_so_os_metodos_test_das_classes"
+      ]
+    }
+  ]
+}

@@ -97,7 +97,7 @@ class LimiteLocal(Brinquedo):
     """E9.2: a contagem do plano e os testes do arquivo mudado."""
 
     def test_conta_so_os_metodos_test_das_classes(self):
-        (self.raiz / "tests" / "test_a.py").write_text(modulo_com(3), encoding="utf-8")
+        (self.raiz / "tests" / "test_a.py").write_text(modulo_com(3) + "\n\ndef test_solto():\n    pass\n", encoding="utf-8")
         (self.raiz / "tests" / "test_ruim.py").write_text("def (", encoding="utf-8")
         self.assertEqual(self.f.contar_testes(["test_a", "test_ruim", "test_ausente", "test_hooks_volta_corpus"], self.raiz), 4)
 
