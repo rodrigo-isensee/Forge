@@ -3,28 +3,28 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-espera-amarela
-commit: 054d4103ddb0c0364136575a4b36bbd3a2708164
+commit: d38537ee5176cd9cc587a6158fc6662e99dd6bb5
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-27
 ---
-# Review: v0481 (E47.7, #948, espera amarela, revalidação da volta 1)
+# Review: v0481 (E47.14, #948, espera amarela, delta da volta 2)
 
-Delta lido `5d293a8b..054d4103` (1 commit do E47.6, 17 arquivos), no clone de revisão `/root/.forge-contrib/wt/v0481-espera-amarela-tech-lead-3`, head `054d4103`. Delta lido pela ferramenta: `forge-check parecer delta docs/reviews/v0481-espera-amarela.md` · `revalida: sim (desatualizado: .github/workflows/catraca.yml mudou depois do parecer)`; o diff do domínio é o do E47.6. A rodada anterior (E47.2, head `517557ab`, aprovado) fica no histórico do git.
+Delta lido `bc60149c..d38537ee` (commit `d38537ee` do E47.11, mais os pareceres de QA `e3cee390` e `7f3f8242`), no clone de revisão `/root/.forge-contrib/wt/v0481-espera-amarela-tech-lead-5`. Delta lido pela ferramenta: `forge-check parecer delta docs/reviews/v0481-espera-amarela.md` · `revalida: sim (desatualizado: tests/mutantes/v0481-espera-amarela-5.json mudou depois do parecer; ... é do domínio do parecer de review)`. A rodada anterior (E47.7, head `054d4103`, aprovado) fica no histórico do git.
 
 ## CI e ferramentas (citadas, não refeitas)
-- ci: 054d4103ddb0c0364136575a4b36bbd3a2708164 verde
-- `gh pr checks 948`, runs `46083587844` (ci.yml) e `46083666333` (catraca.yml), head `054d4103`: suíte 3.12 (5/5), `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, `teto de pulados (python 3.12)` e `árvore já provada na develop` verdes. Vermelhos que esperam: `bateria (pareceres)` e `bateria` (R-REVIEW: pareceres de review e devops `commit: desatualizado`, log do job) e `catraca (conferência)` com `catraca` (R-CONFORMIDADE sem o rótulo, script da base, sem o rc 3).
-- Testes do diff, à mão: `test_catraca.{EsperaNaoEVermelho,EsperaDoRotuloSoComAApiRespondendo,Workflows}`, `test_ci_local`, `test_forge_pronto.ProvaDoCi`, `test_modelos_projeto.TestPassoAPassoDaProtecao`, `test_pre_envio_brief.ChecksForaDaLinhaDoCi`, `test_suite_partes.FiacaoDoCI` · 138 testes, OK.
-- Mutantes: `bin/forge-mutante --processos 1` nas 4 specs do item · M1 a M25 morreram (M18 por erro do teste declarado, que a ferramenta aceita); `IL-M79` realinhado de `v047-integracao-em-lote-10.json` morreu. `--cobertura --base 517557ab`: as guardas novas e mudadas de `tests/catraca.py` (1927, 2103, 2104, 2161, 2163, 2172, 2291, 2293, 2302, 2304, 2313) cobertas; os workflows a ferramenta não mede, e as guardas mudadas deles (ci.yml 620 e 681, catraca.yml 60 e 70) têm M7, M11, M21 e M22.
-- Teto (H1): acumulado da branch `319a968d..054d4103` em código, 123 linhas (+123 -21 em `.github/workflows/`, `scripts/ci-local` e `tests/catraca.py`, comentários inclusos), abaixo de 150; um comportamento só.
+- ci: d38537ee5176cd9cc587a6158fc6662e99dd6bb5 verde
+- Check-runs do `d38537ee` (runs `46092864476` e `46092944625`): suíte 3.12 (5/5), `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, `teto de pulados (python 3.12)` e `árvore já provada na develop` verdes. Vermelhos que esperam: `bateria (pareceres)` e `bateria` (pareceres) e `catraca (conferência)` com `catraca` (log do job `140817794173`: só R-CONFORMIDADE sem o rótulo `afrouxa-regra` em `catraca.yml`, `ci.yml` e `tests/catraca.py`, script da base sem o rc 3, como na rodada anterior). O head `625750dd` acima dele só traz `docs/security/`.
+- Produção: `git diff --stat bc60149c..d38537ee -- . ':!tests' ':!docs'` vazio, e `tests/catraca.py` fora do diff; nenhuma linha de controle mudou. Teto (H1) segue em 123 linhas.
+- Testes do diff, à mão: `test_catraca.EsperaNaoEVermelho` e `test_ci_local.EsperaAmarelaNosWorkflows` · 19 testes, OK.
+- Mutantes: `bin/forge-mutante --processos 1 tests/mutantes/v0481-espera-amarela-5.json` · M26 (`catraca.py:2149`), M27 (`:2157`), M28 (`:156`), M29 (`catraca.yml:58`) e M30 (`ci.yml:618`) morreram, os Q1, Q2, Q3 e Q5 do QA.
 
 ## Leitura do delta
-1. A1 da rodada anterior (igual ao A1 da segurança) fechado: o sufixo do agregador do ci.yml exige os 5 `needs` em `success` e o da catraca.yml, a conferência em `success`; suíte ou T1 vermelho com a espera dá o vermelho no nome exato. O teste avalia a condição com cada `need` reprovado de cada vez (falha, cancelado, pulado), o que obriga a condição a citar todos. `docs/protecao-de-branch.md:29` corrigido.
-2. A2 da segurança: a espera dos pareceres vira o booleano de `pareceres_e_espera`, e a linha só é espera se o padrão ancorado casa e o caminho separado é o mais longo dos caminhos conhecidos (pastas e pareceres do head) que abre a linha; nome de arquivo com a marca ou com `: commit: desatualizado` cai no vermelho, e parecer não exigido que reprova (`outros`) também. Caminho com espaço ou desconhecido cai no vermelho (falha fechada).
-3. A3 da segurança: execuções `None`, PR sem resposta (`fonte` ou `pr_atual()` em `None`) e git que estoura o prazo entram em `falhas` e tiram a espera do rótulo (rc 1, com a mensagem). `fonte` só é lida quando o bloco anterior a definiu (mesma condição `not custo and not liberado`).
-4. A4 da segurança: o último check do head só vale como espera numa lista fechada (`nenhum`, `failure`, `cancelled`, `timed_out`, `action_required`, `stale`); verde, pulado, neutro, `null` e em andamento ficam vermelhos, nos dois workflows, com teste em subprocesso de cada estado.
-5. Os testes realinhados tiram só o sufixo condicional (`ESPERA`, `pernas` do ci-local) e ainda afirmam o fim exato da expressão; o `pernas` sem matriz agora apaga qualquer `${{ }}` do nome, o que só alcança o sufixo da espera nos jobs de hoje. Commit em Conventional Commits em português, com pedido e etapa; fragmento em `changelog.d/` atualizado.
+1. A1 do QA: os dois testes novos dirigem o CLI `--modo pareceres` em subprocesso; um sem arquivo sensível (ramo `not tocados`) e outro com `hooks/` e review e segurança aprovados e QA reprovado, que chega ao ramo `pedidos and not achados` (a ausência de `R-REVIEW` na saída prova o ramo). Os dois exigem rc 1 e a ausência de `catraca: espera`.
+2. A2 do QA: `sem parecer da branch` sai 3 pelo CLI, e o teste do padrão afirma o caso positivo e três vizinhos (`branchx`, o vazio com espaço duplo que o M28 criaria, e `conferido`), cada um em `subTest`.
+3. A3 do QA: o rc 1 do script agora roda com o `gh` respondendo `nenhum` e `failure`, nos dois workflows, e exige rc 1 sem `espera=`; o caso antigo com o `gh` saindo 9 ficou, então nada perdeu força.
+4. A4 do QA: o desempacotamento por tupla virou `job()`/`agregador()` com `assertIn` e `assertEqual(len(...), 1)`; mesma força, e a base agora reprova por asserção, não por erro. As asserções existentes sobre o nome do agregador, `pernas`, `always()` e o passo da catraca seguem iguais.
+5. Commit em Conventional Commits em português, com pedido e etapa; a spec `-5` tem 5 mutantes, abaixo do teto de 8, um por linha de guarda apontada pelo QA.
 
 ## Parecer
-Aprovado no head `054d4103`. O A1 da rodada anterior fechou, os quatro recomendados da segurança estão fechados com teste de comportamento do ramo de falha, os workflows e o script seguem falhando fechados, o teto acumulado é de 123 linhas e os 25 mutantes do item mais o `IL-M79` realinhado morrem. O A2 da rodada anterior (título corrigido deixa o `catraca` vermelho velho até o rótulo) fica fora do delta e segue como cartão depois do merge.
+Aprovado no `d38537ee`. Os A1 a A4 do QA estão fechados com teste de comportamento que dirige o ramo certo, os mutantes Q1, Q2, Q3 e Q5 morrem, nenhum teste existente perdeu força e nenhuma linha de produção mudou. O vermelho do D2 local em `tests/test_pre_push_trava.py:610` fica fora do delta (corrigido na develop, #949).
