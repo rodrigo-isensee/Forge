@@ -1,5 +1,5 @@
 {
-  "descricao": "Comentário em PR por gh api: não é crítico.",
+  "descricao": "M4.2 da F1 (C1b): comentário em PR por gh api grava pelo terminal o que só o `publicar` grava; o comentário comum vai pelo `gh pr comment`.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -13,6 +13,7 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-REVIEW: gh api que grava status ou comentário no PR pelo terminal (M4.2)"
   }
 }

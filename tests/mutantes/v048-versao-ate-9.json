@@ -1,0 +1,46 @@
+{
+  "pedido": "v048-versao-ate-9",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "VERSAO-PATCH-ATE-9: no contador, o patch 9 já corta para X.(Y+1).0 (limite)",
+      "arquivo": "bin/forge-contador",
+      "de": "    if int(m[3]) >= 9:  # VERSAO-PATCH-ATE-9",
+      "para": "    if int(m[3]) > 9:  # VERSAO-PATCH-ATE-9",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_versao_corta_no_9"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "VERSAO-PATCH-ATE-9: no contador, o corte existe (sem ele, 0.47.19 daria 0.47.20)",
+      "arquivo": "bin/forge-contador",
+      "de": "    if int(m[3]) >= 9:  # VERSAO-PATCH-ATE-9",
+      "para": "    if False:  # VERSAO-PATCH-ATE-9",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_versao_corta_no_9"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "VERSAO-PATCH-ATE-9: na release, patch acima de 9 é recusado sem gravar",
+      "arquivo": "bin/forge-changelog",
+      "de": "    if patch > 9:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_changelog.Release.test_versao_com_patch_acima_de_9_e_recusada_sem_mexer"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "VERSAO-PATCH-ATE-9: na release, o patch 9 ainda é aceito (limite)",
+      "arquivo": "bin/forge-changelog",
+      "de": "    if patch > 9:",
+      "para": "    if patch >= 9:",
+      "testes": [
+        "tests.test_changelog.Release.test_patch_9_ainda_e_aceito"
+      ]
+    }
+  ]
+}

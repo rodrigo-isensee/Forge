@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B-M9",
+      "guarda": "M4.2 (segurança A3): o gh api que muda algo sem endpoint legível na linha barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not endpoint or re.search(r\"[$`]\", bruto):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminalNoForge.test_c21_endpoint_ilegivel_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M10",
+      "guarda": "M4.2: o gh api em statuses e comentários barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if GRAVA_PARECER_POR_API.search(endpoint) or e_graphql(endpoint) and any(",
+      "para": "        if e_graphql(endpoint) and any(",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_api_statuses_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M11",
+      "guarda": "M4.2: a mutação de comentário do GraphQL barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if GRAVA_PARECER_POR_API.search(endpoint) or e_graphql(endpoint) and any(",
+      "para": "        if GRAVA_PARECER_POR_API.search(endpoint) or False and any(",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminalNoForge.test_c21_graphql_de_comentario_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M12",
+      "guarda": "M4.2: só o gh pr|issue comment tem o corpo conferido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if pos[:2] not in ([\"pr\", \"comment\"], [\"issue\", \"comment\"]):",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M13",
+      "guarda": "M4.2: o corpo que o hook não lê barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if ilegivel:\n            self.barrar_parecer(",
+      "para": "        if False:\n            self.barrar_parecer(",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M14",
+      "guarda": "M4.2: o marcador de parecer no corpo barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if MARCADOR_DE_PARECER.search(corpo):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M15",
+      "guarda": "M4.2: o K3 traz o corpo dos heredocs da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if re.fullmatch(r\"\\$\\(cat\\s*\\)\", texto):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M16",
+      "guarda": "M4.2: o $(cat) sem heredoc lê a entrada: ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return bool(re.search(r\"\\$\\(\\s*cat\\s*\\)\", \"\".join(partes) + linha[inicio:]))",
+      "para": "    return bool(re.search(r\"\\$\\(\\s*cat\\s+\\)\", \"\".join(partes) + linha[inicio:]))",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_volta1_corpo_repetido_ou_com_expansao_barrado"
+      ]
+    }
+  ]
+}
