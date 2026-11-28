@@ -1,0 +1,56 @@
+{
+  "pedido": "v048-git-controle-gc1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M34",
+      "guarda": "guarda: branch só com opções de listagem",
+      "arquivo": "bin/forge_git.py",
+      "de": " and (sub != \"branch\" or opcoes <= LEITURA[sub])",
+      "para": "",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_leitura_pela_posicao_da_acao"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "guarda: config e branch exigem a opção de leitura",
+      "arquivo": "bin/forge_git.py",
+      "de": "return bool(opcoes & LEITURA[sub]) and (",
+      "para": "return (",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_subcomando_misto_so_na_leitura"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "guarda: remote sem ação (lista) é leitura",
+      "arquivo": "bin/forge_git.py",
+      "de": "\"remote\": {\"\", \"get-url\"}",
+      "para": "\"remote\": {\"get-url\"}",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_leitura_pela_posicao_da_acao"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "guarda: as chaves de branch do clone principal estão na PERMITIDAS",
+      "arquivo": "bin/forge_git.py",
+      "de": "|merge|vscode-merge-base|github-pr-owner-number)",
+      "para": "|merge)",
+      "testes": [
+        "tests.test_forge_git.Legitimos.test_chaves_do_clone_principal_passam"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "guarda: no branch, o posicional (padrão, revisão do --contains) não conta como opção",
+      "arquivo": "bin/forge_git.py",
+      "de": "opcoes = {arg for arg in resto if arg.startswith(\"-\")}",
+      "para": "opcoes = {arg for arg in resto if True}",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_leitura_pela_posicao_da_acao"
+      ]
+    }
+  ]
+}

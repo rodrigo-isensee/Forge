@@ -1,15 +1,11 @@
 """Forge: ponto único do git de controle (GIT-CONTROLE-CONFIG-DA-COPIA, anexo E3.1, 3.1). Só biblioteca padrão.
 
-Hooks e ferramentas que eles carregam rodam git fora do sandbox, numa cópia cujo `.git/config`, `.git/hooks` e
-`.git/info/attributes` o agente grava. Aqui o git roda sem nada disso executar:
-1. ambiente sem `GIT_*` nem `XDG_CONFIG_HOME` e sem pergunta (a config global e a de sistema são do dono);
-2. `NEUTRO` na linha de comando, antes do subcomando: vence a config local e as `GIT_CONFIG_*` (a chave por protocolo da
-   cópia vence `protocol.allow`, por isso cada protocolo vai por nome);
-3. lista positiva de subcomandos: leitura (`LEITURA`, com a opção que a faz leitura se o subcomando também grava),
-   flags postas aqui (`FLAGS`) e, para o que toca índice ou árvore (`INDICE`), a config local só com chaves de
-   `PERMITIDAS` (o `info/attributes` só executa com um driver dela). Fora da lista: `Recusado`;
-4. `merge_tree` e `rede` num repositório neutro em `PASTA_NEUTRA`, que o sandbox não grava.
-Resíduo (anexo, seção 4): a janela entre a leitura da config e o git; submódulo com config própria.
+Hooks rodam git fora do sandbox, numa cópia cujo `.git/config`, `.git/hooks` e `.git/info/attributes` o agente grava.
+Aqui nada disso executa: 1. ambiente sem `GIT_*`, `XDG_CONFIG_HOME` nem pergunta; 2. `NEUTRO` antes do subcomando vence
+a config local (cada protocolo por nome: o da cópia vence `protocol.allow`); 3. lista positiva: `LEITURA` (ação no 1.º
+posicional de `remote` e `worktree`, só listagem no `branch`, a opção no `config`), `FLAGS` e, no `INDICE`, config só
+com `PERMITIDAS` e sem gitlink (submódulo); `REATIVA`, inteira ou abreviada, e o resto: `Recusado`; 4. `merge_tree` e
+`rede` num neutro que o sandbox não grava. Resíduo (anexo, seção 4): a corrida entre ler a config e o git.
 """
 import contextlib
 import os
@@ -26,23 +22,24 @@ NEUTRO = ("--no-optional-locks", "-c", "core.hooksPath=/dev/null", "-c", "core.f
           "-c", "protocol.allow=never", *(item for p in PROTOCOLOS for item in ("-c", f"protocol.{p}.allow=never")),
           "-c", "diff.external=", "-c", "core.sshCommand=", "-c", "core.gitProxy=", "-c", "core.askPass=",
           "-c", "log.showSignature=false", "-c", "gpg.program=/bin/false", "-c", "gpg.ssh.program=/bin/false",
-          "-c", "gpg.x509.program=/bin/false", "-c", "core.attributesFile=/dev/null",
+          "-c", "gpg.x509.program=/bin/false", "-c", "core.attributesFile=/dev/null", "-c", "core.pager=cat",
           "-c", "maintenance.auto=false", "-c", "gc.auto=0")  # sem manutenção destacada depois do commit
 SEM_CREDENCIAL = ("-c", "credential.helper=")
 LEITURA = {"rev-parse": None, "rev-list": None, "merge-base": None, "cat-file": None, "for-each-ref": None,
            "ls-tree": None, "symbolic-ref": None, "check-ref-format": None, "show-ref": None, "name-rev": None,
            "grep": None, "config": {"--get", "--get-all", "--get-regexp", "--list", "-l"},
-           "remote": {"-v", "get-url"}, "branch": {"--show-current", "-r", "--list", "--contains"},
+           "remote": {"", "get-url"}, "branch": {"--show-current", "-r", "--list", "--contains"},
            "worktree": {"list"}}
 SEM_DIFF_EXTERNO = ("--no-ext-diff", "--no-textconv")
 FLAGS = {"diff": SEM_DIFF_EXTERNO, "diff-tree": SEM_DIFF_EXTERNO, "show": SEM_DIFF_EXTERNO,
          "log": (*SEM_DIFF_EXTERNO, "--no-show-signature"), "hash-object": ("--no-filters",)}
 INDICE = frozenset({"status", "ls-files", "add", "commit", "rm", "mv", "restore", "checkout", "switch", "reset",
                     "diff"})  # o diff da árvore roda o filtro do info/attributes mesmo com --no-textconv (sonda GC1)
-REATIVA = frozenset({"--ext-diff", "--textconv", "--show-signature", "--filters", "--path", "--open-files-in-pager"})
-PERMITIDAS = re.compile(r"core\.(?:repositoryformatversion|filemode|bare|logallrefupdates|ignorecase|precomposeunicode"
-                        r"|symlinks|hookspath)|extensions\.objectformat|remote\.origin\.(?:url|fetch)"
-                        r"|remote\.[^.]+\.tagopt|branch\..+\.(?:remote|merge)|user\.(?:name|email)")
+REATIVA = ("--ext-diff", "--textconv", "--show-signature", "--filters", "--path", "--open-files-in-pager", "--output")
+PERMITIDAS = re.compile(
+    r"core\.(?:repositoryformatversion|filemode|bare|logallrefupdates|ignorecase|precomposeunicode|symlinks|hookspath)"
+    r"|extensions\.objectformat|remote\.origin\.(?:url|fetch)|remote\.[^.]+\.tagopt|user\.(?:name|email)"
+    r"|branch\..+\.(?:remote|merge|vscode-merge-base|github-pr-owner-number)")  # as do clone principal (seg. A4)
 
 
 class Recusado(Exception):
@@ -50,8 +47,7 @@ class Recusado(Exception):
 
 
 def ambiente():
-    fora = ("XDG_CONFIG_HOME",)
-    return {**{k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k not in fora},
+    return {**{k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "XDG_CONFIG_HOME"},
             "GIT_TERMINAL_PROMPT": "0"}
 
 
@@ -76,18 +72,33 @@ def config_permitida(raiz):
     return rc == 0 and all(PERMITIDAS.fullmatch(chave) for chave in chaves)
 
 
+def sem_gitlink(raiz):
+    """Nenhum gitlink (modo 160000) no índice: o git entraria no submódulo, com a config e o attributes dele."""
+    rc, saida = _rodar(("-C", str(raiz), *NEUTRO, *SEM_CREDENCIAL), ("ls-files", "--stage", "-z"), bruto=True)
+    return rc == 0 and not any(item.startswith(b"160000 ") for item in saida.split(b"\0"))
+
+
+def _so_leitura(sub, resto):
+    """remote e worktree: a ação é o 1.º argumento posicional; branch: só opções de listagem; config: a opção."""
+    if sub in ("remote", "worktree"):
+        return next((arg for arg in resto if not arg.startswith("-")), "") in LEITURA[sub]
+    opcoes = {arg for arg in resto if arg.startswith("-")}
+    return bool(opcoes & LEITURA[sub]) and (sub != "branch" or opcoes <= LEITURA[sub])
+
+
 def montar(raiz, args):
     """O comando depois de `git`, ou `Recusado`. O 1.º argumento é o subcomando: quem chama não põe opção global."""
     sub, resto = (args[0], list(args[1:])) if args else ("", [])
-    if any(arg.split("=", 1)[0] in REATIVA or arg.startswith("-O") for arg in resto):
+    nomes = [arg.split("=", 1)[0] for arg in resto if arg.startswith("--") and len(arg) > 2]  # -- é o separador
+    if any(op.startswith(nome) for nome in nomes for op in REATIVA) or any(a.startswith("-O") for a in resto):
         raise Recusado(f"git {sub}: opção que reabre programa externo")
     if sub in LEITURA:
-        if LEITURA[sub] is not None and not LEITURA[sub].intersection(resto):
+        if LEITURA[sub] is not None and not _so_leitura(sub, resto):
             raise Recusado(f"git {sub}: só a leitura ({', '.join(sorted(LEITURA[sub]))})")
     elif sub not in FLAGS and sub not in INDICE:
         raise Recusado(f"git {sub or '(vazio)'}: fora da lista positiva do git de controle")
-    if sub in INDICE and not config_permitida(raiz):
-        raise Recusado(f"git {sub}: a config local de {raiz} tem chave fora da lista positiva")
+    if sub in INDICE and not (config_permitida(raiz) and sem_gitlink(raiz)):
+        raise Recusado(f"git {sub}: {raiz} tem chave de config fora da lista positiva ou gitlink no índice")
     return ["-C", str(raiz), *NEUTRO, *SEM_CREDENCIAL, sub, *FLAGS.get(sub, ()), *resto]
 
 

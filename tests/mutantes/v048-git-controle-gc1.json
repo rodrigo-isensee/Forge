@@ -36,7 +36,7 @@
       "id": "M4",
       "guarda": "guarda: opção que reabre programa externo recusa",
       "arquivo": "bin/forge_git.py",
-      "de": "    if any(arg.split(\"=\", 1)[0] in REATIVA or arg.startswith(\"-O\") for arg in resto):",
+      "de": "    if any(op.startswith(nome) for nome in nomes for op in REATIVA) or any(a.startswith(\"-O\") for a in resto):",
       "para": "    if False:",
       "testes": [
         "tests.test_forge_git.Recusas.test_opcao_que_reabre_programa"
@@ -44,10 +44,10 @@
     },
     {
       "id": "M5",
-      "guarda": "guarda: a opção com = (--path=f) também é reconhecida",
+      "guarda": "guarda: a opção com = (--path=f, --output=x) também é reconhecida",
       "arquivo": "bin/forge_git.py",
-      "de": "arg.split(\"=\", 1)[0] in REATIVA",
-      "para": "arg in REATIVA",
+      "de": "nomes = [arg.split(\"=\", 1)[0] for arg",
+      "para": "nomes = [arg for arg",
       "testes": [
         "tests.test_forge_git.Recusas.test_opcao_que_reabre_programa"
       ]
@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "guarda: -O<programa> do grep recusa",
       "arquivo": "bin/forge_git.py",
-      "de": " or arg.startswith(\"-O\") for arg in resto",
-      "para": " for arg in resto",
+      "de": " or any(a.startswith(\"-O\") for a in resto):",
+      "para": ":",
       "testes": [
         "tests.test_forge_git.Recusas.test_opcao_que_reabre_programa"
       ]
@@ -66,7 +66,7 @@
       "id": "M7",
       "guarda": "guarda: subcomando misto só na leitura",
       "arquivo": "bin/forge_git.py",
-      "de": "        if LEITURA[sub] is not None and not LEITURA[sub].intersection(resto):",
+      "de": "        if LEITURA[sub] is not None and not _so_leitura(sub, resto):",
       "para": "        if False:",
       "testes": [
         "tests.test_forge_git.Recusas.test_subcomando_misto_so_na_leitura"

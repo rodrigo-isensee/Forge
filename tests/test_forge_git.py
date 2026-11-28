@@ -192,11 +192,78 @@ class Recusas(Base):
                 forge_git.git(self.copia, *args)
         self.assertEqual(forge_git.git(self.copia, "branch", "--show-current"), (0, "main"))
 
+    def test_leitura_pela_posicao_da_acao(self):
+        """review A2, seg. A3, QA A1: a palavra de leitura fora da posição da ação não libera a escrita (sonda S3)."""
+        (self.copia / ".git" / "info" / "attributes").write_text("* filter=y\n", encoding="utf-8")
+        self.config("filter.y.smudge", str(self.x))
+        self.vermelho_cru("worktree", "add", str(self.tmp / "cru-list"))
+        for args in (("worktree", "add", "list"), ("remote", "-v", "add", "x", "https://h/r"),
+                     ("branch", "-r", "-D", "lado"), ("branch", "--list", "-m", "lado", "novo")):
+            with self.assertRaisesRegex(forge_git.Recusado, "só a leitura"):
+                forge_git.git(self.copia, *args)
+        self.assertFalse(self.executou())
+        self.assertFalse((self.copia / "list").exists())
+        self.assertEqual(self.cru("branch", "--list", "lado", "novo").stdout.strip(), "lado")
+        self.assertEqual(self.cru("remote").stdout.strip(), "origin")
+        g = forge_git.git
+        self.assertEqual(g(self.copia, "remote"), (0, "origin"))
+        self.assertEqual(g(self.copia, "remote", "-v")[1].count("origin"), 2)
+        self.assertEqual(g(self.copia, "remote", "get-url", "origin"), (0, str(self.origem)))
+        self.assertEqual(g(self.copia, "worktree", "list", "--porcelain")[0], 0)
+        self.assertEqual(g(self.copia, "branch", "--list", "--contains", "main~1", "lado"), (0, "lado"))
+
     def test_opcao_que_reabre_programa(self):
         for args in (("show", "--textconv", "HEAD"), ("log", "--show-signature"), ("hash-object", "--path=f", "f"),
-                     ("grep", "-O/bin/true", "-e", "a", "HEAD")):
+                     ("grep", "-O/bin/true", "-e", "a", "HEAD"), ("log", "-1", f"--output={self.tmp / 'saida'}"),
+                     ("diff", "--out=x"), ("cat-file", "--textc", "HEAD:f"), ("grep", "--e", "-e", "a")):
             with self.assertRaisesRegex(forge_git.Recusado, "reabre"):
                 forge_git.git(self.copia, *args)
+        self.assertFalse((self.tmp / "saida").exists())
+
+    def test_opcao_abreviada_reabre_programa(self):
+        """review A1 e seg. A2: o git aceita o prefixo da opção longa (sondas S1 e S2 do review)."""
+        (self.copia / ".git" / "info" / "attributes").write_text("* filter=y\n", encoding="utf-8")
+        self.config("filter.y.smudge", str(self.x))
+        self.config("core.pager", str(self.x))
+        self.vermelho_cru("cat-file", "--filt", "HEAD:f")
+        self.vermelho_cru("grep", "--open-files", "-e", "c")
+        for args in (("cat-file", "--filt", "HEAD:f"), ("grep", "--open-files", "-e", "b")):
+            with self.assertRaisesRegex(forge_git.Recusado, "reabre"):
+                forge_git.git(self.copia, *args)
+            self.assertFalse(self.executou())
+
+    def test_neutro_fecha_o_pager_da_copia(self):
+        """`core.pager=cat` no NEUTRO: nem o `-O` sem programa (que a montagem já recusa) chega ao pager da cópia."""
+        self.config("core.pager", str(self.x))
+        self.vermelho_cru("grep", "-O", "-e", "c")
+        forge_git._rodar(("-C", str(self.copia), *forge_git.NEUTRO), ("grep", "-O", "-e", "c"))
+        self.assertFalse(self.executou())
+
+    def test_gitlink_no_indice_recusa(self):
+        """seg. A1 (sondas S1 e S2): config de topo limpa, filtro na config do submódulo; todo o INDICE recusa."""
+        sub = self.copia / "sub"
+        self.cru("init", "-q", "-b", "main", str(sub))
+        (sub / "f").write_text("s\n", encoding="utf-8")
+        self.cru("add", "f", pasta=sub)
+        self.cru("commit", "-qm", "s", pasta=sub)
+        (self.copia / ".gitmodules").write_text('[submodule "sub"]\n\tpath = sub\n\tignore = none\n',
+                                                encoding="utf-8")
+        self.cru("add", "sub", ".gitmodules")
+        self.cru("commit", "-qm", "sub")
+        self.cru("config", "filter.mal.clean", str(self.x), pasta=sub)
+        (sub / ".git" / "info").mkdir(exist_ok=True)
+        (sub / ".git" / "info" / "attributes").write_text("* filter=mal\n", encoding="utf-8")
+        (sub / "f").write_text("t\n", encoding="utf-8")  # mesmo tamanho: o status precisa limpar para comparar
+        os.utime(sub / "f", (946684800, 946684800))
+        self.assertTrue(forge_git.config_permitida(self.copia))
+        self.vermelho_cru("status", "--porcelain")
+        self.vermelho_cru("diff")
+        for args in (("status", "--porcelain"), ("diff",), ("checkout", "HEAD"), ("switch", "--detach", "HEAD"),
+                     ("commit", "--dry-run", "--allow-empty"), ("ls-files",), ("add", "f"), ("reset",),
+                     ("restore", "f"), ("rm", "--cached", "f"), ("mv", "f", "g")):
+            with self.assertRaisesRegex(forge_git.Recusado, "gitlink no índice"):
+                forge_git.git(self.copia, *args)
+        self.assertFalse(self.executou())
 
     def test_ambiente_de_quem_chama_nao_vale(self):
         """GIT_DIR, GIT_CONFIG_* e XDG_CONFIG_HOME de quem chama saem: o git é o da cópia, com a config do dono"""
@@ -261,6 +328,17 @@ class Legitimos(Base):
         rc, arvore = forge_git.merge_tree(self.copia, "--write-tree", "main", "lado2")
         self.assertEqual((rc, len(arvore)), (0, 40))
         self.assertEqual(g(self.copia, "cat-file", "-t", arvore), (128, ""))  # a árvore do merge ficou no neutro
+
+    def test_chaves_do_clone_principal_passam(self):
+        """seg. A4: o clone principal grava `vscode-merge-base` e `github-pr-owner-number` nas branches."""
+        for chave, valor in (("core.hooksPath", ".githooks"), ("branch.main.remote", "origin"),
+                             ("branch.main.merge", "refs/heads/main"), ("branch.main.vscode-merge-base", "origin/main"),
+                             ("branch.main.github-pr-owner-number", "dono#repo#1"),
+                             ("branch.melhoria/x.vscode-merge-base", "origin/develop")):
+            self.config(chave, valor)
+        self.assertTrue(forge_git.config_permitida(self.copia))
+        self.assertEqual(forge_git.git(self.copia, "status", "--porcelain")[0], 0)
+        self.assertEqual(forge_git.git(self.copia, "log", "-1", "--format=%s", "--", "f"), (0, "c"))
 
     def test_pasta_neutra_fora_do_tmpdir_do_agente(self):
         self.assertEqual(NEUTRA_REAL.parts[-3:], (".forge", "maquina", "neutro"))

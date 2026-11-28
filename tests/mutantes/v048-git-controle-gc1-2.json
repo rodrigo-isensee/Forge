@@ -6,8 +6,8 @@
       "id": "M9",
       "guarda": "guarda: o que toca índice ou árvore exige a config na lista positiva",
       "arquivo": "bin/forge_git.py",
-      "de": "    if sub in INDICE and not config_permitida(raiz):",
-      "para": "    if False:",
+      "de": "    if sub in INDICE and not (config_permitida(raiz) and sem_gitlink(raiz)):",
+      "para": "    if sub in INDICE and not sem_gitlink(raiz):",
       "testes": [
         "tests.test_forge_git.Vetores.test_driver_por_info_attributes",
         "tests.test_forge_git.Recusas.test_config_com_chave_fora_da_lista_recusa_e_uma_so_basta"

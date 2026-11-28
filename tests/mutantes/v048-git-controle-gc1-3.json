@@ -6,8 +6,8 @@
       "id": "M17",
       "guarda": "guarda: as GIT_* de quem chama (GIT_DIR, GIT_CONFIG_*) ficam fora do ambiente",
       "arquivo": "bin/forge_git.py",
-      "de": "if not k.startswith(\"GIT_\") and k not in fora}",
-      "para": "if k not in fora}",
+      "de": "if not k.startswith(\"GIT_\") and k != \"XDG_CONFIG_HOME\"}",
+      "para": "if k != \"XDG_CONFIG_HOME\"}",
       "testes": [
         "tests.test_forge_git.Recusas.test_ambiente_de_quem_chama_nao_vale"
       ]
@@ -16,7 +16,7 @@
       "id": "M18",
       "guarda": "guarda: o XDG_CONFIG_HOME de quem chama fica fora do ambiente",
       "arquivo": "bin/forge_git.py",
-      "de": "not k.startswith(\"GIT_\") and k not in fora}",
+      "de": "not k.startswith(\"GIT_\") and k != \"XDG_CONFIG_HOME\"}",
       "para": "not k.startswith(\"GIT_\")}",
       "testes": [
         "tests.test_forge_git.Recusas.test_ambiente_de_quem_chama_nao_vale"
