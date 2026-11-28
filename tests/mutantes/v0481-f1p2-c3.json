@@ -16,8 +16,8 @@
       "id": "C3-M2",
       "guarda": "sem a lista fechada: dormente, nada lido nem gravado",
       "arquivo": "bin/forge-check",
-      "de": "        if (lista := pareceres.lista_fechada(raiz)) is None:",
-      "para": "        if (lista := pareceres.lista_fechada(raiz)) is not None:",
+      "de": "        if (lista := pareceres.lista_fechada(raiz)) is None:\n            print(\"parecer agregar: dormente",
+      "para": "        if (lista := pareceres.lista_fechada(raiz)) is not None:\n            print(\"parecer agregar: dormente",
       "testes": [
         "tests.test_forge_pareceres.Agregar.test_dormente_nada_grava_nem_le"
       ]

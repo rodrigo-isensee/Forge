@@ -37,8 +37,8 @@
       "id": "C3-M12",
       "guarda": "C0-3: o pedido do brief de codigo, não o de portão",
       "arquivo": "bin/forge-check",
-      "de": "if \"codigo\" in e} if len(etapas) > 1",
-      "para": "if \"codigo\" not in e} if len(etapas) > 1",
+      "de": "if \"codigo\" in e} if len(etapas) > 1 else set(etapas)\n    if len(ids) != 1:\n        print(f\"parecer pedido:",
+      "para": "if \"codigo\" not in e} if len(etapas) > 1 else set(etapas)\n    if len(ids) != 1:\n        print(f\"parecer pedido:",
       "testes": [
         "tests.test_forge_pareceres.PedidoDaBranch.test_dois_pedidos_vale_o_do_codigo"
       ]
