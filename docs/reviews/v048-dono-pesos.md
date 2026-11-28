@@ -23,7 +23,7 @@ data: 2026-11-28
 
 ## Sondas
 - S1 · gh api 'repos/<dono/repo>/actions/workflows/ci.yml/runs?event=pull_request&status=success&per_page=100' com o tamanho de .pull_requests por execução · espera: execuções com 1 PR associado · obtido: 0 em 100 de 100
-- S2 · gh api repos/<dono/repo>/actions/runs/46148339685 (head b1dbc85, último sha do PR 958 já mesclado na develop) · espera: pull_requests com o PR 958 · obtido: event=pull_request, conclusion=success, pull_requests vazio
+- S2 · gh api repos/<dono/repo>/actions/runs/46148339685 (run do último head do PR 958, já mesclado na develop) · espera: pull_requests com o PR 958 · obtido: event=pull_request, conclusion=success, pull_requests vazio
 
 ## Parecer
 Reprovado por A1. O filtro em si está certo e testado: `execucao_de_pr_valida` exige evento `pull_request`, ci.yml, repositório e head_repository iguais ao `--repo`, `completed`/`success`, PR com `merged_at`, base `develop`, head do mesmo repositório e `head.sha` igual ao da execução; `perna_valida` separa a perna do push da do PR. O dono (tech-lead) e a geração na marca estão em ritmo-e-corte.md (A3 só pede o comando do `--conferir`). Os 6 specs da v047 (M16, M17, M37, M39, M50, M61) só ganharam contexto para ficarem únicos e seguem mutando a mesma guarda de antes (`execucao_valida`, `perna_valida`, anotações e pesos atuais); todos morrem.
