@@ -14,7 +14,9 @@ data: 2026-11-28
 ---
 # QA: v048 (HOOK-PARADA-CONTA-REDIRECAO, E12.3, classe C)
 
-- ci: 101050172f9ce1e6717263a826cde736e4117917 verde (check-runs do commit: suíte 3.12 partes 1 a 5, bateria passos, pareceres, verificações longas, python 3.14, catraca e conferência, todos success)
+- ci: 101050172f9ce1e6717263a826cde736e4117917 verde
+
+Check-runs do commit: suíte 3.12 partes 1 a 5, bateria passos, verificações longas, python 3.14, catraca e conferência, todos success.
 
 Mudança: `_DESCARTE` em `hooks/vigia.py` tira a redireção para /dev/null (N>, >, >>, &>) entre separadores antes de calcular alvo e verbos do contorno. Os commits posteriores ao head só tocam docs/reviews e docs/security.
 
