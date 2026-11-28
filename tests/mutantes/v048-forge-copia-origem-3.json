@@ -42,5 +42,12 @@
         "tests.test_forge_copia_origem.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-copia",
+      "trecho": "git(\"clone\", \"--\", a.origem, real)",
+      "motivo": "condição editada: a.origem virou origem (a saída de origem_real); a condição nova tem o mutante M16 da spec -2"
+    }
   ]
 }
