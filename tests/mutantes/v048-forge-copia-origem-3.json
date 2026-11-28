@@ -9,7 +9,7 @@
       "de": "alvo = [\"--detach\"] if a.d2 else",
       "para": "alvo = [\"--detach\"] if False else",
       "testes": [
-        "tests.test_forge_copia_origem.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
+        "tests.test_forge_copia.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "{a.branch or 'o clone D2'}:",
       "para": "{a.branch}:",
       "testes": [
-        "tests.test_forge_copia_origem.D2.test_d2_sem_a_base_apaga_o_clone"
+        "tests.test_forge_copia.D2.test_d2_sem_a_base_apaga_o_clone"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "{a.branch or 'o clone D2 destacado'}",
       "para": "{a.branch}",
       "testes": [
-        "tests.test_forge_copia_origem.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
+        "tests.test_forge_copia.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
       ]
     }
   ],

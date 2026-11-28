@@ -9,7 +9,7 @@
       "de": "    if not antes and ler(",
       "para": "    if ler(",
       "testes": [
-        "tests.test_forge_copia_origem.Worktree.test_branch_que_ja_existia_fica_quando_a_worktree_falha"
+        "tests.test_forge_copia.Worktree.test_branch_que_ja_existia_fica_quando_a_worktree_falha"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "        if worktree(real, a.branch, a.base):",
       "para": "        if False:",
       "testes": [
-        "tests.test_forge_copia_origem.Worktree.test_worktree_que_falha_apaga_a_branch_que_criou"
+        "tests.test_forge_copia.Worktree.test_worktree_que_falha_apaga_a_branch_que_criou"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "    if a.d2 and (a.modo != \"clone\" or a.branch or a.revisao):",
       "para": "    if False:",
       "testes": [
-        "tests.test_forge_copia_origem.D2.test_d2_com_branch_revisao_ou_worktree_e_recusado"
+        "tests.test_forge_copia.D2.test_d2_com_branch_revisao_ou_worktree_e_recusado"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "    if not a.branch and not a.d2:",
       "para": "    if not a.branch:",
       "testes": [
-        "tests.test_forge_copia_origem.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
+        "tests.test_forge_copia.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
       ]
     },
     {
@@ -49,7 +49,7 @@
       "de": "(\"branch\", a.branch or \"x\")",
       "para": "(\"branch\", a.branch)",
       "testes": [
-        "tests.test_forge_copia_origem.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
+        "tests.test_forge_copia.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "de": "    if a.branch and subprocess.run([\"git\", \"check-ref-format\"",
       "para": "    if subprocess.run([\"git\", \"check-ref-format\"",
       "testes": [
-        "tests.test_forge_copia_origem.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
+        "tests.test_forge_copia.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
       ]
     },
     {
@@ -69,7 +69,7 @@
       "de": "destino_dentro(a.destino, a.branch or \"d2\", a.papel)",
       "para": "destino_dentro(a.destino, a.branch, a.papel)",
       "testes": [
-        "tests.test_forge_copia_origem.D2.test_d2_em_destino_ocupado_sugere_nome_unico"
+        "tests.test_forge_copia.D2.test_d2_em_destino_ocupado_sugere_nome_unico"
       ]
     },
     {
