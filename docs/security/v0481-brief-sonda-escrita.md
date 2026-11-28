@@ -3,37 +3,32 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-brief-sonda-escrita
-commit: 61ab461ec3cbc099baf4c24aa7dc7e7803427dbf
-parecer: reprovado
+commit: 68d498057dfd8d376cc63ac4f326b99293656adb
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-28
 ---
-# Review de segurança: v0481 (BRIEF-SONDA-ESCRITA, #952), 1ª rodada completa
+# Review de segurança: v0481 (BRIEF-SONDA-ESCRITA, #952), delta da volta 1
 
 Gatilhos: controle do Forge (barreira de escrita do `brief selar`, R-BRIEF; analisador de brief)
 
-Escopo lido: o diff inteiro de `b414714c..61ab461e` (`bin/forge-check`, `bin/forge-testes`, `tests/test_brief_sonda_escrita.py`, os dois JSON de mutantes, o fragmento do changelog), mais o entorno que a isenção usa: `SONDA_NO_ENTREGAR` (`bin/forge-check:4183`), `conferir_volta` (`bin/forge-check:4845`), `pareceres_da_volta` (`bin/forge-check:4485`), `avaliar_brief` (`bin/forge-check:9418`) e o argumento `--parecer` do `brief` (`bin/forge-check:11311`).
+Delta lido (`forge-check parecer delta`, `61ab461e..68d49805`): no domínio, só `bin/forge-check` (`pareceres_da_ref`, `sondas_do_pedido`, `sondas_conferidas`, `sem_entrada_de_sonda` com o conjunto conferido, `caminhos_do_entregar`, `conferir_escrita` e `conferir_brief` recebendo `sondas` no lugar do booleano, `avaliar_brief`). Fora do domínio: o teste, os mutantes e o fragmento. A 1ª rodada (`61ab461e`) fica no git.
 
-## Achados
-- A1 (bloqueante) bin/forge-check:4921 · o conjunto `lidas` aceita sonda de parecer de outro pedido: com `--parecer` a `pareceres_da_volta` não filtra `pedido:`, e a entrada dessa sonda sai da barreira de escrita; brief de volta com caminho em .git/hooks sela (S1). Filtrar por `pedido == pedido_id` e sem problemas.
+## Estado dos achados anteriores
+- A1 (bloqueante) · fechado. A isenção só tira da escrita a entrada cuja tripla (tipo, id, entrada) está em `sondas_do_pedido` (`bin/forge-check:4853`), que filtra `pedido == pedido_id` e `not problemas`; `sem_entrada_de_sonda` (`bin/forge-check:9077`) só corta a entrada com a tripla nesse conjunto, então a linha forjada com o prefixo de sonda deixa de sair da barreira mesmo antes de a `conferir_volta` reprovar. `sondas_conferidas` (`bin/forge-check:4859`) devolve conjunto vazio sem `Volta-de:` no formato (`VOLTA_DE`, mais estrito que o `^Volta-de:` anterior), com `--ref` que não é commit ou com erro de leitura. Teste: `tests/test_brief_sonda_escrita.py:59-86`.
 
-## Sondas
-- S1 · harness BriefDeVolta: Entregar com (sonda review <sha> S7) copiando a entrada de docs/reviews/outro.md (pedido: outro-pedido, cita .git/hooks/pre-push); brief --ref melhoria/x --parecer docs/reviews/outro.md · espera: rc=1, escrita barrada · obtido: rc=0, volta: ok
+Sondas rodadas no head `68d49805` (módulo descartável fora da branch, sobre o harness `SondaComCaminhoDeHook`; linha `(sonda review <sha> S7)` com `.git/hooks/pre-push` copiada do parecer `docs/reviews/outro.md`):
+- S1 de novo (`pedido: outro-pedido`, `--parecer docs/reviews/outro.md`): rc=1, `escrita: barrada ".git/hooks/pre-push"`;
+- `--parecer` misto (o do pedido e o de outro): rc=1, a sonda do outro pedido segue barrada;
+- outro pedido sem `--parecer` (seleção padrão): rc=1, barrada;
+- parecer com problema (linha de achado fora do formato): rc=1, barrada, com `volta: parecer ...: linha do bloco ## Achados fora do formato`;
+- ref ilegível (`--ref nada/aqui`): rc=1, barrada, com `volta: --ref "nada/aqui" não é um commit`;
+- `pedido:` forjado em variantes que não batem (maiúsculas, com sufixo, entre aspas, ausente, chave duplicada com o do pedido primeiro): rc=1, barrada;
+- `Volta-de:` fora do formato: rc=1, barrada;
+- `pedido:` igual ao do pedido (ou chave duplicada com o do pedido por último, que o leitor de frontmatter resolve do mesmo jeito em todo o Forge) num parecer commitado na ref: a entrada sai da escrita, como no parecer legítimo. É a confiança de projeto (o parecer na ref da entrega, em pasta de parecer que o hook `conformidade` reserva ao revisor), não regressão: quem já escreve parecer do pedido na branch não ganha nada novo, e o vetor amplo segue com a GIT-CONTROLE (v048).
+- As formas já vistas barradas na 1ª rodada (id sem par, entrada trocada, tipo trocado, caminho no `espera:`, sem `--ref`, sem `Volta-de:`, linha comum com o caminho) seguem cobertas por `tests/test_brief_sonda_escrita.py:27-57`, que rodei no head (7 testes, OK).
 
-## Detalhe dos achados
-**A1.** Evidência: `bin/forge-check:4921` monta `lidas` de todos os `pareceres` devolvidos por `pareceres_da_volta`; no ramo `if arquivos:` (`--parecer`, `bin/forge-check:4490-4500`) o parecer é lido da ref sem conferir `campos["pedido"] == pedido_id` (o ramo padrão, `bin/forge-check:4510`, confere). A conferência da recomendação incluída, logo abaixo (`bin/forge-check:4932`), já faz esse filtro (`pedido`, `tipo` e sem `problemas`); a das sondas não. Caminho de ataque: quem sela o brief (o Jarvis, ou quem rode `forge-check brief selar`) escolhe `--parecer` apontando para qualquer parecer da ref, de qualquer pedido, cuja `## Sondas` cite um caminho protegido; a linha `(sonda ...)` copiada desse parecer passa no par (tipo, id, entrada), a entrada sai de `caminhos_do_entregar` e o `escrita: barrada` some; o brief sela mandando gravar em `.git/hooks/`. Controle (mesma fixture, linha comum com o mesmo caminho): `escrita: barrada ".git/hooks/pre-push"`, rc=1; antes desta mudança a sonda também saía barrada. Exige um parecer já commitado com essa entrada na ref; o vetor amplo (escrever no `.git` pela cópia) segue com a GIT-CONTROLE (v048), como diz o brief. Severidade: média (trava contornável pelo próprio seletor de entrada, sem precisar escrever parecer novo). Correção mínima: em `conferir_volta`, montar `lidas` (e, por coerência, o laço PAR-P1 de `bin/forge-check:4914`) só com os pareceres em que `p["campos"].get("pedido") == pedido_id` e `not p["problemas"]`; teste novo em `tests/test_brief_sonda_escrita.py` com o caso da S1 (parecer de outro pedido via `--parecer`, espera rc=1 e `escrita: barrada`). Esforço: P. Dono: `tech-lead` (autor do E45.53).
-
-Conferido sem achado (as formas pedidas no brief):
-- linha forjada com prefixo de sonda e id que o parecer não tem: rc=1, `volta: sonda S8 de review não está nos pareceres lidos`;
-- sonda com entrada diferente (mesmo id): rc=1 (`difere do parecer` e `não está nos pareceres lidos`), coberto por `tests/test_brief_sonda_escrita.py:46-55`;
-- tipo trocado (`sonda qa` com a entrada do parecer de review): rc=1;
-- caminho no `espera:` da linha de sonda: segue barrado (só o grupo 4 sai);
-- sem `--ref` ou sem `Volta-de:`: a isenção não liga (`bin/forge-check:9141`), coberto por `tests/test_brief_sonda_escrita.py:39-44`;
-- com `--ref` e `Volta-de:`, todo retorno antecipado de `conferir_volta` (Volta-de fora do formato, anterior ilegível ou com outro sha256, ref que não é commit, erro na leitura dos pareceres) reprova: a isenção nunca vale sem o par conferido;
-- `secoes_por` e `blocos_literais` pegam o primeiro cabeçalho de cada nome e quebram linha do mesmo jeito: a linha isenta na escrita é a mesma conferida no par;
-- a linha `- arquivos:` segue lida do texto cru (`bin/forge-check:9068`).
-
-Suíte: as partes 1 a 5 da suíte e a bateria longa do CI do head `61ab461e` passaram; os checks vermelhos (`bateria`, `bateria (pareceres)`, `catraca`) são os portões de parecer, que este parecer e os paralelos alimentam. Rodei só as sondas acima, num módulo descartável fora da branch, sobre o harness `BriefDeVolta`.
+Suíte: CI do head `68d49805` (run 46109255587): partes 1 a 5, verificações longas, passos, instalação e teto de pulados passaram; os vermelhos (`bateria`, `bateria (pareceres)`, `catraca`) são os portões de parecer (R-REVIEW e R-CONFORMIDADE pedindo os pareceres de `bin/forge-check`), que este parecer e os paralelos alimentam.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Revisão estática e sondas locais com a biblioteca padrão; sem varredura de segredo nem de dependência (o diff não toca credencial, dependência nem workflow).
+Nenhum risco aceito. Revisão estática e sondas locais com a biblioteca padrão; sem varredura de segredo nem de dependência (o delta não toca credencial, dependência nem workflow).
