@@ -238,3 +238,6 @@ em ed6e6dbf (o #940 e o #956) mesclada, no teto do "Ambiente fixo" (6081660):
 - medida nova: 6089793 (+8133, 0,138% sobre 5897219); total sobre 5897219: +11181 + 8133 = +19314 passos (0,328%)
 - decisão do dono em 28/11 às 10:06 (opção A, DECISÃO DO DONO no pedido v0481): o #944 sobe o teto só o que o código
   dele mede, dentro de 0,5%. Os subprocessos (4510) seguem abaixo do teto de 4631 e não mudam
+- remedido com a develop em c11e3809 (o #947 e o #957 mesclados), no teto 6081660, log sem edição:
+  `{'execucoes': 557, 'subprocessos': 4510, 'sono': 0, 'interpretador': 6089793, 'ambiente': 256}`, em 556 casos;
+  a mesma medida: o #947 e o #957 não somam passo ao corpus, e o teto segue 6089793
