@@ -1,0 +1,1 @@
+- Dono da geração dos pesos da suíte (v048 E6.1, DONO-DA-GERACAO-DOS-TEMPOS): `scripts/pesos-do-ci.py` lê também o PR mesclado na develop (o push na develop pula a suíte depois do F6) e ganha `--conferir`, que acusa pesos velhos; o passo fica com o tech-lead na marca de versão (`ritmo-e-corte.md`), sem workflow.

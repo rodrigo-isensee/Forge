@@ -14,6 +14,12 @@ O que entra (A2 do parecer de segurança, o mesmo filtro de `scripts/arvore-test
     parte e Python batem com os do nome do job;
   - unidade que existe no plano da árvore atual, no alfabeto `[A-Za-z0-9_.]`, com segundos finitos em [0, TETO_S].
   Anotação fora do formato é descartada inteira. Anotação de PR (ou de fork) nunca entra: o filtro é da execução.
+  - Depois do F6 o push na `develop` costuma pular a suíte (o PR mesclado já provou a árvore) e quase não grava tempo; por isso
+    entra também a execução `pull_request` do ci.yml do PR **mesclado** na `develop`, no último sha dele (`pulls/N` com
+    `merged_at`, base `develop`, `head.sha` igual ao da execução, `head.repo` igual ao `--repo`; fork nunca), com as pernas
+    `suíte (python X.Y, parte K/N)`. Mesmos filtros de anotação e de unidade.
+  - `--conferir`: não gera nada; sai 1 se o arquivo atual tem chave que não é unidade do plano ou mais de 25% das unidades do
+    plano sem peso (pesos velhos). É o passo final da marca de versão (dono: o tech-lead, `ritmo-e-corte.md`).
 Cada unidade vale a média, entre os Pythons, da média das amostras de cada um; a unidade sem amostra mantém o peso do
 arquivo atual (e o script avisa em stderr quais).
 """
@@ -32,10 +38,11 @@ RAIZ = Path(__file__).resolve().parent.parent
 WORKFLOW = ".github/workflows/ci.yml"
 PESOS = RAIZ / "tests" / "pesos-d4.json"
 REPOSITORIO = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
-PERNA = re.compile(r"suíte \(push na develop, python (3\.[0-9]{1,2}), parte ([1-9][0-9]?)/([1-9][0-9]?)\)")
+PERNA = re.compile(r"suíte \((push na develop, )?python (3\.[0-9]{1,2}), parte ([1-9][0-9]?)/([1-9][0-9]?)\)")
 UNIDADE = re.compile(r"[A-Za-z0-9_.]{1,200}")
 TETO_S = 900.0  # o `timeout-minutes` de 15 da perna: unidade acima disto é adulterada ou defeito
 LIMITE_DE_EXECUCOES = 10
+LIMITE_SEM_PESO = 0.25  # fração das unidades do plano sem peso a partir da qual os pesos estão velhos
 PRAZO_DA_API_S = 20
 
 
@@ -54,13 +61,35 @@ def execucao_valida(execucao, repo):
             and all(campo(execucao, k, str) == v for k, v in da_execucao.items()))
 
 
-def perna_valida(job):
-    """(python, K, N) do job de perna da develop em `success`; None para qualquer outro."""
+def execucao_de_pr_valida(execucao, repo, pr):
+    """True só para a execução `pull_request` do ci.yml do próprio repositório, concluída com sucesso, cujo PR (`pulls/N`)
+    foi mesclado na develop, é do próprio repositório (não fork) e tinha como head o sha da execução."""
+    da_execucao = {"event": "pull_request", "path": WORKFLOW, "repository.full_name": repo,
+                   "head_repository.full_name": repo, "status": "completed", "conclusion": "success"}
+    return (campo(execucao, "id", int) is not None and all(campo(execucao, k, str) == v for k, v in da_execucao.items())
+            and campo(pr, "merged_at", str) is not None and campo(pr, "base.ref", str) == "develop"
+            and campo(pr, "head.repo.full_name", str) == repo and campo(pr, "head.sha", str)
+            and campo(pr, "head.sha", str) == campo(execucao, "head_sha", str))
+
+
+def pesos_velhos(atuais, conhecidas, limite=LIMITE_SEM_PESO):
+    """[motivo]: vazio se os pesos servem; chave que não é unidade do plano, ou unidades sem peso acima do `limite`."""
+    motivos = []
+    if fantasmas := sorted(set(atuais) - set(conhecidas)):
+        motivos.append(f"{len(fantasmas)} chave(s) que não é(são) unidade do plano: {', '.join(fantasmas[:5])}")
+    sem_peso = sorted(set(conhecidas) - set(atuais))
+    if conhecidas and len(sem_peso) > limite * len(conhecidas):
+        motivos.append(f"{len(sem_peso)} de {len(conhecidas)} unidades sem peso: {', '.join(sem_peso[:5])}")
+    return motivos
+
+
+def perna_valida(job, de_pr=False):
+    """(python, K, N) do job de perna em `success` (a do push na develop, ou a do PR com `de_pr`); None para qualquer outro."""
     achado = PERNA.fullmatch(campo(job, "name", str) or "")
-    if not achado or campo(job, "conclusion", str) != "success" or campo(job, "id", int) is None:
+    if not achado or bool(achado.group(1)) == de_pr or campo(job, "conclusion", str) != "success" or campo(job, "id", int) is None:
         return None
-    k, n = int(achado.group(2)), int(achado.group(3))
-    return (achado.group(1), k, n) if k <= n else None
+    k, n = int(achado.group(3)), int(achado.group(4))
+    return (achado.group(2), k, n) if k <= n else None
 
 
 def ler_anotacao(anotacao, perna, conhecidas):
@@ -116,13 +145,22 @@ def coletar(repo, ler, conhecidas, limite=LIMITE_DE_EXECUCOES):
     consulta = urllib.parse.urlencode({"event": "push", "branch": "develop", "status": "success", "per_page": 100})
     execucoes = [e for e in campo(ler(f"repos/{repo}/actions/workflows/ci.yml/runs?{consulta}"), "workflow_runs", list)
                  or [] if execucao_valida(e, repo)][:limite]
+    consulta = urllib.parse.urlencode({"event": "pull_request", "status": "success", "per_page": 100})
+    for execucao in campo(ler(f"repos/{repo}/actions/workflows/ci.yml/runs?{consulta}"), "workflow_runs", list) or []:
+        if len(execucoes) >= 2 * limite:
+            break
+        lista = execucao.get("pull_requests") if isinstance(execucao, dict) else None
+        numero = campo(lista[0], "number", int) if isinstance(lista, list) and len(lista) == 1 else None
+        if numero is not None and execucao_de_pr_valida(execucao, repo, ler(f"repos/{repo}/pulls/{numero}")):
+            execucoes.append(execucao)
     amostras, usadas = {}, 0
     for execucao in execucoes:
+        de_pr = campo(execucao, "event", str) == "pull_request"
         run_id = campo(execucao, "id", int)
         jobs = campo(ler(f"repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"), "jobs", list) or []
         do_run = {}
         for job in jobs:
-            perna = perna_valida(job)
+            perna = perna_valida(job, de_pr)
             if perna is None or campo(job, "run_id", int) != run_id:
                 continue
             lista = ler(f"repos/{repo}/check-runs/{campo(job, 'id', int)}/annotations?per_page=100")
@@ -174,6 +212,7 @@ def main(argv=None, env=None, ler=None, conhecidas=None):
     p = argparse.ArgumentParser(prog="pesos-do-ci", description="refaz tests/pesos-d4.json com os tempos do CI")
     p.add_argument("--repo", default=env.get("GITHUB_REPOSITORY", ""), help="DONO/REPO (padrão: GITHUB_REPOSITORY)")
     p.add_argument("--execucoes", type=int, default=LIMITE_DE_EXECUCOES)
+    p.add_argument("--conferir", action="store_true", help="só confere se os pesos atuais estão velhos (rc 1)")
     p.add_argument("--saida", help="arquivo de saída (padrão: stdout); nunca o próprio tests/pesos-d4.json sem querer")
     a = p.parse_args(argv)
     if not REPOSITORIO.fullmatch(a.repo) or not 1 <= a.execucoes <= 30:
@@ -181,6 +220,12 @@ def main(argv=None, env=None, ler=None, conhecidas=None):
         return 2
     try:
         conhecidas = unidades_do_plano() if conhecidas is None else conhecidas
+        if a.conferir:
+            atuais = json.loads(PESOS.read_text(encoding="utf-8"))
+            motivos = pesos_velhos(atuais, conhecidas) if isinstance(atuais, dict) else ["arquivo não é um objeto"]
+            for m in motivos:
+                print(f"pesos-do-ci: pesos velhos: {m}; regere com --saida tests/pesos-d4.json", file=sys.stderr)
+            return 1 if motivos else 0
         amostras, resumo = coletar(a.repo, ler or leitor_da_api(env), conhecidas, a.execucoes)
     except Exception as erro:  # rede, HTTP, JSON, plano: sem detalhe que possa trazer o token
         print(f"pesos-do-ci: erro ao ler a API ({type(erro).__name__})", file=sys.stderr)

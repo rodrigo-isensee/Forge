@@ -235,5 +235,54 @@ class SemEscritaNoRepositorio(unittest.TestCase):
             self.assertNotIn(proibido, texto)
 
 
+class DepoisDoF6(unittest.TestCase):
+    """DONO-DA-GERACAO-DOS-TEMPOS (v048 E6.1): o push na develop pula a suíte (F6); os tempos vêm também do PR mesclado, e
+    pesos velhos são acusados (`--conferir`, passo final da marca de versão do tech-lead)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.p = carregar()
+
+    def api(self, pr, **muda):
+        jobs, notas = api_completa()
+        jobs = {1: [{**j, "name": j["name"].replace("push na develop, ", "")} for j in jobs[1]]}
+        run = execucao(event="pull_request", head_branch="melhoria/x", head_sha="abc", pull_requests=[{"number": 7}], **muda)
+        base = {"merged_at": "2026-11-28T10:00:00Z", "base": {"ref": "develop"}, "head": {"sha": "abc", "repo": {"full_name": REPO}}}
+        api = FalsaApi([run], jobs, notas)
+        chamar = api.__call__
+        return lambda c: {**base, **pr} if "/pulls/7" in c else chamar(c)
+
+    def test_pr_mesclado_na_develop_entra(self):
+        amostras = self.p.coletar(REPO, self.api({}), CONHECIDAS)[0]
+        self.assertEqual(self.p.juntar(amostras), {"test_a": 12.0, "test_b": 5.0})
+
+    def test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra(self):
+        for nome, pr in {"não mesclado": {"merged_at": None}, "outra base": {"base": {"ref": "homolog"}},
+                         "fork": {"head": {"sha": "abc", "repo": {"full_name": "fork/forge"}}},
+                         "sha antigo": {"head": {"sha": "velho", "repo": {"full_name": REPO}}}}.items():
+            with self.subTest(nome):
+                self.assertEqual(self.p.coletar(REPO, self.api(pr), CONHECIDAS)[0], {})
+
+    def test_perna_de_push_nao_vale_em_execucao_de_pr_e_a_de_pr_nao_vale_em_push(self):
+        self.assertIsNone(self.p.perna_valida(job(1), de_pr=True))
+        self.assertIsNone(self.p.perna_valida(job(1, name="suíte (python 3.12, parte 1/2)")))
+        self.assertEqual(self.p.perna_valida(job(1, name="suíte (python 3.12, parte 1/2)"), de_pr=True), ("3.12", 1, 2))
+
+    def test_pesos_velhos_sao_acusados(self):
+        velhos = self.p.pesos_velhos
+        self.assertEqual(velhos({"test_a": 1.0, "test_b": 1.0, "test_b.K": 1.0, "test_c": 2.0}, CONHECIDAS)[0][:7], "1 chave")
+        self.assertIn("unidades sem peso", velhos({"test_a": 1.0}, CONHECIDAS)[0])
+        self.assertEqual(velhos({"test_a": 1.0, "test_b": 1.0, "test_b.K": 1.0}, CONHECIDAS), [])
+
+    def test_conferir_sai_1_com_pesos_velhos_e_0_com_pesos_em_dia(self):
+        p = carregar()
+        for pesos, rc in (({"test_a": 1.0, "test_b": 1.0, "test_b.K": 1.0}, 0), ({"test_a": 1.0, "test_z": 1.0}, 1)):
+            with self.subTest(pesos=pesos), tempfile.TemporaryDirectory() as d:
+                p.PESOS = Path(d) / "pesos.json"
+                p.PESOS.write_text(json.dumps(pesos), encoding="utf-8")
+                with unittest.mock.patch("sys.stderr"):
+                    self.assertEqual(p.main(["--repo", REPO, "--conferir"], env={}, conhecidas=CONHECIDAS), rc)
+
+
 if __name__ == "__main__":
     unittest.main()
