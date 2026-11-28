@@ -1,0 +1,43 @@
+{
+  "descricao": "C1b-2, S9 da segurança (0c74349, A5): no clone parcial com remote.origin.vcs=x/../payload e protocol.x/../payload.allow=always na cópia, o cat-file da lista fechada não roda o ./payload da cópia (GIT_ALLOW_PROTOCOL=none)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "git-remote-x/.keep": "",
+    "payload": "#!/bin/sh\ntouch MARCA9\n"
+  },
+  "executaveis": [
+    "payload"
+  ],
+  "git": [
+    {
+      "config": {
+        "remote.origin.url": ".",
+        "remote.origin.vcs": "x/../payload",
+        "remote.origin.promisor": "true",
+        "extensions.partialClone": "origin",
+        "protocol.x/../payload.allow": "always"
+      }
+    },
+    {
+      "arquivos": {
+        ".git/refs/remotes/origin/develop": "1111111111111111111111111111111111111111\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/docs/reviews/v1.md",
+      "content": "parecer\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_caminho": [
+      "{raiz}/MARCA9"
+    ]
+  }
+}

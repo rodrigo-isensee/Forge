@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B2-M17",
+      "guarda": "M10.1: o caminho do módulo com expansão barra (na dúvida, recusa)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if opaco or real.name",
+      "para": "            if real.name",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M18",
+      "guarda": "M10.1: a expansão só barra no caminho com o nome do módulo (`python3 $S` passa)",
+      "arquivo": "hooks/conformidade.py",
+      "de": " and nome_do_caminho(alvo) == MODULO_DE_PARECER\n",
+      "para": "\n",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M19",
+      "guarda": "M10.1: o módulo fora de cópia de trabalho (a extração da base) passa",
+      "arquivo": "hooks/conformidade.py",
+      "de": " and real.is_file() and self.raiz_git(real.parent) is not None:",
+      "para": " and real.is_file():",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M20",
+      "guarda": "M20.1: o `_modelo.md` não é parecer de item",
+      "arquivo": "hooks/conformidade.py",
+      "de": " or caminho.name == \"_modelo.md\" or len(",
+      "para": " or len(",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_acorda_com_a_lista"
+      ]
+    },
+    {
+      "id": "C1B2-M21",
+      "guarda": "M20.1: só a pasta `docs/` conta (`outros/reviews/` não é parecer)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                or caminho.parts[-3] != \"docs\" or",
+      "para": "                or",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_acorda_com_a_lista"
+      ]
+    },
+    {
+      "id": "C1B2-M22",
+      "guarda": "M20.1: só o `docs/` da raiz da cópia (o modelo de projeto passa)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if topo != caminho.parents[2] or not self.lista_fechada(topo):",
+      "para": "        if not self.lista_fechada(topo):",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_acorda_com_a_lista"
+      ]
+    },
+    {
+      "id": "C1B2-M23",
+      "guarda": "M20.1: a conferência da lista roda uma vez por cópia e grava o resultado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if topo not in self._listas:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_acorda_com_a_lista"
+      ]
+    },
+    {
+      "id": "C1B2-M24",
+      "guarda": "M20.1: o caminho com menos de quatro partes (`/x.md`) não é item e não chega ao `parts[-3]`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "_modelo.md\" or len(caminho.parts) < 4",
+      "para": "_modelo.md\" or False",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_caminho_curto_sem_erro_interno"
+      ]
+    }
+  ]
+}

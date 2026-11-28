@@ -282,9 +282,10 @@ def sessao_vigiada(hook, clone_do_forge=False):
         return True
 
 
-def git(raiz, *args):
-    """O git do forge-check (sem GIT_* herdadas, com limite de tempo): uma função só para hooks e validador."""
-    return forge_check().git(raiz, *args)
+def git(raiz, *args, ambiente=None):
+    """O git do forge-check (sem GIT_* herdadas, com limite de tempo; `ambiente` entra depois do filtro): uma função só
+    para hooks e validador."""
+    return forge_check().git(raiz, *args, ambiente=ambiente)
 
 
 # ADR 0013: o `#` só abre comentário onde se prova que o bash também o abre. A varredura de `comentarios` anda da

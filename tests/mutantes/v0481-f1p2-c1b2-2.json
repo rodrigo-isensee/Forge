@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B2-M9",
+      "guarda": "M20.1: o parecer de item é conferido antes da política, em todo caminho gravado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if achado := self.parecer_de_item(caminho):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_acorda_com_a_lista"
+      ]
+    },
+    {
+      "id": "C1B2-M10",
+      "guarda": "M10.1: o PYTHONPATH do `export` vale para o python seguinte da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"XDG_CONFIG_HOME\", \"PYTHONPATH\", *PATHSPECS_NO_AMBIENTE}",
+      "para": "\"XDG_CONFIG_HOME\", *PATHSPECS_NO_AMBIENTE}",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M11",
+      "guarda": "M10.1: todo python (`python3`, `python3.12`) é conferido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        python = prog.startswith(\"python\")",
+      "para": "        python = prog == \"python\"",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M12",
+      "guarda": "M10.1: o programa por caminho (`bin/forge_pareceres.py`) é conferido mesmo fora do python",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not python and \"/\" not in palavras[0]:",
+      "para": "        if not python:",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M13",
+      "guarda": "M10.1: o programa por caminho entra nos alvos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        alvos = [palavras[0]] if \"/\" in palavras[0] else []",
+      "para": "        alvos = [palavras[0]] if False else []",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M14",
+      "guarda": "M10.1: o python tem script, pasta corrente e PYTHONPATH conferidos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if python:\n            script = script_do_python(args)",
+      "para": "        if False:\n            script = script_do_python(args)",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M15",
+      "guarda": "M10.1: sem script (`-c`, `-m`, `-`), a pasta corrente está no caminho do python",
+      "arquivo": "hooks/conformidade.py",
+      "de": "+ ([] if script else [\".\"])",
+      "para": "+ ([] if True else [\".\"])",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M16",
+      "guarda": "M10.1: o script do python é conferido pelo caminho resolvido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            alvos += [script] if script else []",
+      "para": "            alvos += [script] if False else []",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "descricao": "C1b-2, S3 da segurança (b2e8765): o `..` além da raiz do sistema resolve em /a.md; decide sem erro interno",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "arquivos": {
+        ".github/pareceres-lista-fechada.json": "{\"prs\": [7]}\n"
+      },
+      "commit": "lista fechada"
+    },
+    {
+      "ref": "refs/remotes/origin/develop"
+    },
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/../../../../../../../../../../../../a.md",
+      "content": "parecer\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
