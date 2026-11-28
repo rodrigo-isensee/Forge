@@ -3,11 +3,16 @@
 Projeto: tem .forge/config.json e não tem .claude-plugin/; lá, use clone (a worktree escreve em .git/worktrees, que o sandbox não libera).
 Uso: forge-copia clone    <destino> --branch <nome> --origem <url|caminho> [--base origin/develop] [--papel <papel>] [--instalar]
      forge-copia clone    <destino> --branch <nome> --origem <url|caminho> --revisao   (clone de revisão: a branch do remoto)
+     forge-copia clone    <destino> --origem <url|caminho> --d2 [--base origin/develop]   (clone D2: destacado na base, sem branch)
      forge-copia worktree <destino> --branch <nome> [--base origin/develop] [--papel <papel>]   (rode dentro do clone de origem)
      forge-copia limpar   <destino> [--base origin/develop]
 A branch de trabalho sai da base de integração com --no-track (o .git/config é protegido).
 COPIA-BASE (clone): a base vale como dada ou como origin/<base>; a branch que já existe no remoto parte do head remoto dela; sem
 ponto de partida, o clone é apagado e sai 1 (nunca fica a cópia na branch padrão), com as refs de fato tentadas na mensagem.
+FORGE-COPIA-ORIGEM-LOCAL: --origem que é uma pasta local (o repositório principal, que não faz fetch no sandbox) clona da URL do
+remoto origin dela; pasta sem remoto origin: recusa. A worktree também parte do head remoto da branch que já existe no remoto, e a
+worktree que falha apaga a branch que ela criou (FORGE-COPIA-FALHA-SEM-DESFAZER; a branch que já existia fica).
+FORGE-COPIA-D2 (clone --d2): o clone da conferência D2, destacado na base (sem --branch, sem --revisao); sem a base, apaga o clone e sai 1.
 COPIA-SHA: criado o clone, diz o sha em que a branch nasceu e a ref de onde veio (o head remoto da branch ou a base).
 COPIA-REVISAO (clone --revisao): o clone do revisor (o caminho -rev, -qa ou -sec do brief) nasce no head remoto da branch, sem
 upstream e sem cair na base; branch que não está no remoto: apaga o clone e sai 1. Só no clone (a worktree esbarra no sandbox). No Forge, a pasta liberada é a do
@@ -140,7 +145,7 @@ def ponto_de_partida(copia, branch, base, revisao=False):
     """COPIA-BASE: de onde a branch nasce no clone. A branch que já está no remoto parte do head remoto dela; senão, da base,
     que vale como dada ou como origin/<base> (`--base develop` no clone que nasce na main). None se nenhuma existe.
     COPIA-REVISAO: no clone de revisão, só a branch do remoto vale; sem ela, None."""
-    if existe(copia, f"refs/remotes/origin/{branch}"):
+    if branch and existe(copia, f"refs/remotes/origin/{branch}"):
         print(f"forge-copia: a branch {branch} já existe no remoto; parto do head dela (origin/{branch}), não de {base}", file=sys.stderr)
         return f"refs/remotes/origin/{branch}"
     if revisao:
@@ -155,8 +160,33 @@ def falha_do_ponto(branch, base, ponto, revisao):
     """Por que a branch não foi criada, com as refs de fato tentadas (FORGE-COPIA-MENSAGEM)."""
     if ponto:
         return f"o git switch falhou a partir de {ponto.removeprefix('refs/remotes/')}"
-    tentadas = [f"origin/{branch}", *([] if revisao else candidatas(base))]
+    tentadas = ([f"origin/{branch}"] if branch else []) + ([] if revisao else list(candidatas(base)))
     return f"nenhuma destas refs existe no clone: {', '.join(tentadas)}"
+
+
+def origem_real(origem):
+    """(origem do clone, motivo da recusa): a pasta local vira a URL do remoto origin dela (FORGE-COPIA-ORIGEM-LOCAL)."""
+    if not os.path.isdir(origem):
+        return origem, None
+    rc, url = ler(["git", "-C", origem, "remote", "get-url", "origin"])
+    if rc or not url.strip():
+        return None, f"a origem {origem} é uma pasta local sem remoto origin; passe em --origem a URL do remoto"
+    local = os.path.join(origem, url.strip())  # caminho relativo vale a partir da origem; URL e caminho absoluto ficam como estão
+    url = local if os.path.isdir(local) else url.strip()
+    print(f"forge-copia: a origem {origem} é local; clono do remoto origin dela", file=sys.stderr)
+    return url, None
+
+
+def worktree(real, branch, base):
+    """A worktree nasce como o clone (COPIA-BASE); se o git falha, apaga a branch que ele criou (só a nova). Devolve 0 ou 1."""
+    ponto, antes = ponto_de_partida(".", branch, base), existe(".", f"refs/heads/{branch}")
+    if ponto and git("worktree", "add", "--no-track", "-b", branch, "--", real, ponto) == 0:
+        return 0
+    sha = ler(["git", "rev-parse", "--verify", "-q", f"{ponto}^{{commit}}"])[1].strip() if ponto else ""
+    if not antes and sha and ler(["git", "update-ref", "-d", f"refs/heads/{branch}", sha])[0] == 0:
+        print(f"forge-copia: a worktree falhou; apaguei a branch {branch} que ela criou", file=sys.stderr)
+    print(f"forge-copia: não criei a worktree de {branch}: {falha_do_ponto(branch, base, ponto, False)}", file=sys.stderr)
+    return 1
 
 
 def env_sem_credencial():
@@ -292,23 +322,26 @@ def main(argv=None):
     p.add_argument("--papel", default="", help="papel do agente dono da cópia, para o nome único sugerido")
     p.add_argument("--instalar", action="store_true", help="instala as dependências da stack na cópia nova")
     p.add_argument("--revisao", action="store_true", help="clone de revisão: a branch no head remoto, sem cair na base")
+    p.add_argument("--d2", action="store_true", help="clone D2: destacado na base, sem branch")
     a = p.parse_args(argv)
     if a.base.startswith("-"):
         return recusa("base começa com `-`")
     if a.modo == "limpar":
         return limpar(a.destino, a.base)
-    if not a.branch:
+    if a.d2 and (a.modo != "clone" or a.branch or a.revisao):
+        return recusa("--d2 é só do clone, sem --branch e sem --revisao")
+    if not a.branch and not a.d2:
         return recusa(f"{a.modo} pede --branch")
     if a.revisao and a.modo != "clone":
         return recusa("--revisao é só do clone (a worktree esbarra no sandbox)")
-    for nome, valor in (("branch", a.branch), ("base", a.base), ("origem", a.origem or "x")):
+    for nome, valor in (("branch", a.branch or "x"), ("base", a.base), ("origem", a.origem or "x")):
         if valor.startswith("-"):
             return recusa(f"{nome} começa com `-`")
-    if subprocess.run(["git", "check-ref-format", "--branch", a.branch], capture_output=True).returncode != 0:
+    if a.branch and subprocess.run(["git", "check-ref-format", "--branch", a.branch], capture_output=True).returncode != 0:
         return recusa("nome de branch inválido")
     if a.papel and not re.fullmatch(r"[a-z0-9][a-z0-9-]*", a.papel):
         return recusa("papel inválido (só letras minúsculas, dígitos e `-`)")
-    real, motivo = destino_dentro(a.destino, a.branch, a.papel)
+    real, motivo = destino_dentro(a.destino, a.branch or "d2", a.papel)
     if motivo:
         return recusa(motivo)
     try:
@@ -322,20 +355,25 @@ def main(argv=None):
     if falha:
         return recusa(falha)
     if a.modo == "worktree":
-        if git("worktree", "add", "--no-track", "-b", a.branch, "--", real, a.base):
+        if worktree(real, a.branch, a.base):
             return 1
         return instalar(real) if a.instalar else 0
     if not a.origem:
         return recusa("clone pede --origem")
-    if git("clone", "--", a.origem, real):
+    origem, motivo = origem_real(a.origem)
+    if motivo:
+        return recusa(motivo)
+    if git("clone", "--", origem, real):
         return 1
     ponto = ponto_de_partida(real, a.branch, a.base, a.revisao)
-    if not ponto or git("switch", "--no-track", "-c", a.branch, ponto, cwd=real):
+    alvo = ["--detach"] if a.d2 else ["--no-track", "-c", a.branch]
+    if not ponto or git("switch", *alvo, ponto, cwd=real):
         shutil.rmtree(real, ignore_errors=True)  # COPIA-BASE: sem a branch criada, a cópia não fica (na branch padrão do clone)
-        print(f"forge-copia: não criei {a.branch}: {falha_do_ponto(a.branch, a.base, ponto, a.revisao)}; apaguei a cópia", file=sys.stderr)
+        print(f"forge-copia: não criei {a.branch or 'o clone D2'}: {falha_do_ponto(a.branch, a.base, ponto, a.revisao)}; apaguei a cópia",
+              file=sys.stderr)
         return 1
     sha = ler(["git", "-C", real, "rev-parse", "HEAD"])[1].strip()  # COPIA-SHA: o commit de fato em que a branch nasceu
-    print(f"forge-copia: criei {a.branch} em {sha} (de {ponto.removeprefix('refs/remotes/')})", file=sys.stderr)
+    print(f"forge-copia: criei {a.branch or 'o clone D2 destacado'} em {sha} (de {ponto.removeprefix('refs/remotes/')})", file=sys.stderr)
     return instalar(real) if a.instalar else 0
 
 

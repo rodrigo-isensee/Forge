@@ -1,0 +1,76 @@
+{
+  "pedido": "v048-forge-copia-origem-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "a worktree que falha sai 1",
+      "arquivo": "bin/forge-copia",
+      "de": "        if worktree(real, a.branch, a.base):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_copia_origem.Worktree.test_worktree_que_falha_apaga_a_branch_que_criou"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "--d2 so no clone sem branch nem revisao",
+      "arquivo": "bin/forge-copia",
+      "de": "    if a.d2 and (a.modo != \"clone\" or a.branch or a.revisao):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia_origem.D2.test_d2_com_branch_revisao_ou_worktree_e_recusado"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "--d2 dispensa --branch",
+      "arquivo": "bin/forge-copia",
+      "de": "    if not a.branch and not a.d2:",
+      "para": "    if not a.branch:",
+      "testes": [
+        "tests.test_forge_copia_origem.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a branch ausente do D2 nao quebra a checagem de opcao",
+      "arquivo": "bin/forge-copia",
+      "de": "(\"branch\", a.branch or \"x\")",
+      "para": "(\"branch\", a.branch)",
+      "testes": [
+        "tests.test_forge_copia_origem.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "o formato da branch so com branch",
+      "arquivo": "bin/forge-copia",
+      "de": "    if a.branch and subprocess.run([\"git\", \"check-ref-format\"",
+      "para": "    if subprocess.run([\"git\", \"check-ref-format\"",
+      "testes": [
+        "tests.test_forge_copia_origem.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o nome unico do D2",
+      "arquivo": "bin/forge-copia",
+      "de": "destino_dentro(a.destino, a.branch or \"d2\", a.papel)",
+      "para": "destino_dentro(a.destino, a.branch, a.papel)",
+      "testes": [
+        "tests.test_forge_copia_origem.D2.test_d2_em_destino_ocupado_sugere_nome_unico"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "o D2 fica destacado",
+      "arquivo": "bin/forge-copia",
+      "de": "alvo = [\"--detach\"] if a.d2 else",
+      "para": "alvo = [\"--detach\"] if False else",
+      "testes": [
+        "tests.test_forge_copia_origem.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
+      ]
+    }
+  ]
+}
