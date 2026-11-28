@@ -3,28 +3,28 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-brief-sonda-escrita
-commit: 61ab461ec3cbc099baf4c24aa7dc7e7803427dbf
+commit: 68d498057dfd8d376cc63ac4f326b99293656adb
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-28
 ---
-# Review: v0481, E45.58 (BRIEF-SONDA-ESCRITA, #952), 1.ª rodada completa
+# Review: v0481, E45.61 (BRIEF-SONDA-ESCRITA, #952), delta da volta 1
 
 ## Escopo lido
-Diff `b414714c..61ab461e`: `bin/forge-check` (28 linhas), `bin/forge-testes` (1), `tests/test_brief_sonda_escrita.py`, `tests/mutantes/v0481-brief-sonda-escrita.json`, `tests/mutantes/v0433-integracao-4.json` (I62), `changelog.d/v0481-brief-sonda-escrita.md`.
+Delta lido: `forge-check parecer delta docs/reviews/v0481-brief-sonda-escrita.md`, intervalo `61ab461e..68d49805`, domínio: `bin/forge-check`, `changelog.d/v0481-brief-sonda-escrita.md`, `tests/mutantes/v0433-integracao-4.json`, `tests/mutantes/v0481-brief-sonda-escrita.json`, `tests/mutantes/v0481-brief-sonda-escrita-2.json`, `tests/test_brief_sonda_escrita.py`. Fora dele (pareceres de QA e segurança) nada foi relido.
 
 ## Verificação
-- ci: 61ab461ec3cbc099baf4c24aa7dc7e7803427dbf verde
-- checks lidos em `gh pr checks 952`: suíte 1/5 a 5/5, instalação, passos, verificações longas, teto de pulados e árvore já provada verdes; só `bateria (pareceres)`, `bateria` e `catraca` vermelhos, à espera dos pareceres e do rótulo)
-- teste novo: `python3 -m unittest tests.test_brief_sonda_escrita`: 4 testes, OK.
-- mutantes: `bin/forge-mutante --conferir --base b414714c`: trechos no lugar; M5 e M7 rodados aqui: morreram (o autor registrou M1 a M7 mortos).
-- tamanho (H1): cerca de 21 linhas de código em `bin/forge-check` e 1 em `bin/forge-testes`, um comportamento só; dentro do teto.
+- ci: 68d498057dfd8d376cc63ac4f326b99293656adb verde
+- run CI 46109255587 do `68d49805`: suíte 1/5 a 5/5, teto de pulados, instalação, passos, python 3.14, verificações longas e árvore já provada verdes; só `bateria (pareceres)`, `bateria` e `catraca` vermelhos, à espera dos pareceres.
+- teste do item: `python3 -m unittest tests.test_brief_sonda_escrita`: 7 testes, OK.
+- mutantes: `bin/forge-mutante --conferir --base 61ab461e`: trechos no lugar; `--cobertura --base 61ab461e`: toda condição nova coberta por mutante declarado; M8 e M11 rodados aqui: morreram (bin/forge-check:4856 e 4866).
+- tamanho (H1): o delta tem cerca de 40 linhas novas e 16 trocadas em `bin/forge-check`; o item inteiro fica perto de 60 linhas de código, um comportamento só; dentro do teto.
 
 ## Parecer
 Aprovado.
 
-- Barreira de escrita: `sem_entrada_de_sonda` (bin/forge-check:9055) tira só o grupo 4 de `SONDA_NO_ENTREGAR` (a entrada entre `grave no corpus da branch:` e ` · espera: `); a marca e o resto da linha seguem em `caminhos_do_entregar`, e toda linha fora do formato fica intacta. A exceção só liga com `--ref` e `Volta-de:` (bin/forge-check:9141), a mesma condição em que `avaliar_brief` chama `conferir_volta` (bin/forge-check:9436). O teste da linha comum com `.git/hooks/reference-transaction` prova que a barreira segue para as outras linhas, e o de sem `--ref`/sem `Volta-de:` prova que nada muda fora da volta conferida.
-- Falha fechada: em `conferir_volta`, todo retorno antes do novo laço (Volta-de fora do formato, anterior ilegível ou diferente, `--ref` que não é commit, erro dos pareceres) reprova; o laço novo (bin/forge-check:4921-4924) exige par igual em (tipo, id, entrada) para cada sonda do Entregar, o que fecha o furo da segunda S3 com outra entrada (a conferência por pertença da linha 4917 aceitava). Assim, entrada tirada da escrita sempre é uma entrada lida do parecer da ref.
-- Guardas do diff: cada linha de guarda tem o seu mutante (M1 a M7) e teste de comportamento do ramo de falha; os testes chamam o `forge-check` pelo fixture de `test_volta_por_delta`, sem ler o texto da fonte.
-- Fora da lista do brief: o `bin/forge-testes` (mapa `FORGE_CHECK`, cobrado por `test_testes_tocados`) e o `de`/`para` do I62 (cobrado por `test_forge_mutante.ConferirTodas`, AR-12) são consequência mecânica da mudança; sem eles a suíte fica vermelha. O I62 continua negando o mesmo ramo, só com o argumento novo.
-- O PR traz o critério de reversão e o fragmento do changelog; nenhuma regra protegida é afrouxada.
+- A1 da segurança corrigido: `sondas_do_pedido` (bin/forge-check:4853) só aceita sonda de parecer com `pedido == pedido_id` e sem `problemas`, o mesmo filtro que a conferência da recomendação incluída já usava; o `lidas` da `conferir_volta` (bin/forge-check:4943) e a isenção da escrita usam essa mesma função, então os dois lados não divergem mais.
+- A mudança maior se justifica: com só o `lidas` filtrado, a S1 reprovava pela linha `volta:`, mas a entrada continuava fora da barreira e o `escrita: barrada` sumia, ou seja, a isenção dependia de outra conferência reprovar na mesma execução. Agora a isenção é por linha: só sai da escrita a sonda cujo (tipo, id, entrada) foi relido da `--ref` (bin/forge-check:9082). Isso fecha a isenção por construção, e o teste da S1 afirma as duas linhas (`escrita: barrada` e `volta: ... não está nos pareceres lidos`).
+- Nada afrouxou: a condição antiga (`--ref` e `^Volta-de:` frouxo) virou `VOLTA_DE` no formato estrito mais `sha_do_commit` válido mais leitura sem erro (bin/forge-check:4862-4866); qualquer falha devolve conjunto vazio e a entrada segue barrada (teste de `--ref` sem commit e de `--parecer` fora da ref). A `conferir_volta` segue rodando e reprovando como antes; `pareceres_da_ref` é extração sem mudança de lógica (o I62 só troca o argumento).
+- Guardas do diff: cada linha de guarda nova tem mutante (M1 a M4 e M7 refeitos; M8 a M13 em `-2.json`, já que o primeiro arquivo tem 7) e teste do ramo de falha pelo fixture `BriefDeVolta`, sem ler a fonte.
+- O fragmento do changelog cita a restrição nova.
