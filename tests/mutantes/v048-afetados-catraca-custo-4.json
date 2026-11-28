@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_afetados_catraca_custo.LimiteLocal.test_testes_do_arquivo_mudado"
       ]
+    },
+    {
+      "id": "M31",
+      "guarda": "a regra do MAPA do arquivo mudado entra",
+      "arquivo": "bin/forge-testes",
+      "de": "re.fullmatch(padrao, caminho)), ()))",
+      "para": "False), ()))",
+      "testes": [
+        "tests.test_afetados_catraca_custo.LimiteLocal.test_testes_do_arquivo_mudado"
+      ]
     }
   ]
 }
