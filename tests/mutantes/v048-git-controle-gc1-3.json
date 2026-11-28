@@ -46,8 +46,38 @@
       "id": "M21",
       "guarda": "guarda: o NUL do fim da lista -z não vira chave vazia",
       "arquivo": "bin/forge_git.py",
-      "de": "for item in saida.split(b\"\\0\") if item]",
-      "para": "for item in saida.split(b\"\\0\")]",
+      "de": "saida.split(b\"\\0\") if item]",
+      "para": "saida.split(b\"\\0\") if True]",
+      "testes": [
+        "tests.test_forge_git.Legitimos.test_copia_limpa_passa_em_todos"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "guarda: a saída bruta vem em bytes (a config -z é lida como bytes)",
+      "arquivo": "bin/forge_git.py",
+      "de": "text=not bruto,",
+      "para": "text=bruto,",
+      "testes": [
+        "tests.test_forge_git.Legitimos.test_copia_limpa_passa_em_todos"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "guarda: com entrada, o stdin é a entrada; sem ela, /dev/null",
+      "arquivo": "bin/forge_git.py",
+      "de": "stdin=None if entrada is not None else",
+      "para": "stdin=None if entrada is None else",
+      "testes": [
+        "tests.test_forge_git.Legitimos.test_copia_limpa_passa_em_todos"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "guarda: só a saída de texto perde o espaço do fim",
+      "arquivo": "bin/forge_git.py",
+      "de": "(r.stdout if bruto else r.stdout.strip())",
+      "para": "(r.stdout if not bruto else r.stdout.strip())",
       "testes": [
         "tests.test_forge_git.Legitimos.test_copia_limpa_passa_em_todos"
       ]

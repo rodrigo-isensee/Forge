@@ -1,0 +1,16 @@
+{
+  "pedido": "v048-git-controle-gc1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "guarda: chamada sem subcomando diz (vazio) na recusa",
+      "arquivo": "bin/forge_git.py",
+      "de": "git {sub or '(vazio)'}:",
+      "para": "git {sub}:",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_subcomando_fora_da_lista_e_opcao_global"
+      ]
+    }
+  ]
+}

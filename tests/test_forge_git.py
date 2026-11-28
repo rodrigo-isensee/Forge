@@ -182,6 +182,8 @@ class Recusas(Base):
         for args in (("push", "origin"), ("fetch", "origin"), ("-c", "core.fsmonitor=x", "status"), ()):
             with self.assertRaisesRegex(forge_git.Recusado, "fora da lista positiva"):
                 forge_git.git(self.copia, *args)
+        with self.assertRaisesRegex(forge_git.Recusado, r"git \(vazio\): fora da lista positiva"):
+            forge_git.git(self.copia)
 
     def test_subcomando_misto_so_na_leitura(self):
         for args in (("config", "core.x", "1"), ("branch", "-D", "lado"), ("remote", "add", "o", "x"),
