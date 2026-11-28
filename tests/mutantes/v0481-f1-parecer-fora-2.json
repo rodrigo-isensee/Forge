@@ -76,8 +76,8 @@
       "id": "M16",
       "guarda": "leitura: item da página que não é objeto fica de fora (M19.1)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "lista, lidos = [s for p in paginas for s in p if isinstance(s, dict)], {}",
-      "para": "lista, lidos = [s for p in paginas for s in p if isinstance(s, object)], {}",
+      "de": "return [s for p in paginas for s in p if isinstance(s, dict)]",
+      "para": "return [s for p in paginas for s in p if isinstance(s, object)]",
       "testes": [
         "tests.test_forge_pareceres.Ler.test_item_da_pagina_que_nao_e_objeto_fica_de_fora"
       ]

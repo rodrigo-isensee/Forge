@@ -1,0 +1,2 @@
+### Alterado
+- Skill qa-testing (QA-TESTING-SOB-DEMANDA): os modelos do plano de testes e do relatório de bug, o onde e como e o review do teste-oráculo e as saídas do mutante equivalente e do forge-mutante --cobertura vão para skills/qa-testing/referencia.md, lido sob demanda (a SKILL.md diz quando ler cada seção); nenhuma regra nem invariante sai. O que o qa-engineer carrega cai de 21463 para 20068 caracteres (teto 21480) e de 41 para 34 marcadores (v048 E5.1).

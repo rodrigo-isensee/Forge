@@ -42,6 +42,8 @@ killed, carimbo depois do `desde`), do fim do transcript com teto de bytes e de 
 por silêncio: agente vivo sem resposta para com o TaskStop e sai pela notificação `killed`. O registro de escrita só sai com a
 trava `pesado` livre. Cada liberação vai ao `liberacoes.log` e deixa uma lápide: retomar o id (`SendMessage`) é recusado
 enquanto houver relançamento vigente na mesma branch ou com a mesma descrição.
+AGENTE-PRESO-SEM-BAIXA (v048 E12.2): vale também a notificação do meio do turno (anexo `queued_command`, `nota_na_fila`), e
+`agentes.py --limpar` (`limpar`) aplica as mesmas provas sob demanda, sessão a sessão do registro.
 HOOK-ESTADO-ILEGIVEL-LIBERA (v047, E1.138): estado ilegível nunca vira lista vazia. O `agentes.json` que existe e não é o registro
 (`ler_estado`: JSON inválido ou vazio, raiz que não é objeto, `agentes`, `lapides` ou `interrompidos` que não é lista, link, pasta ou outro tipo,
 erro de leitura, mais de 1 MiB), o erro ao fixar a pasta do estado do clone e o `.forge/config.json` ilegível recusam o disparo
@@ -472,14 +474,28 @@ def transcript_da_sessao(hook):
     return real if real.parent.parent == base and real.name == f"{sessao}.jsonl" else None
 
 
+def nota_na_fila(anexo):
+    """E12.2: o anexo é a notificação de tarefa posta na fila pelo próprio Claude Code (nunca o texto digitado)."""
+    return (anexo.get("type") == "queued_command" and anexo.get("commandMode") == "task-notification"
+            and anexo["origin"]["kind"] == "task-notification")
+
+
 def notificacao_terminal(entrada):
     """C1: (task-id, tool-use-id, carimbo em segundos, status) da entrada do transcript que é a notificação do próprio Claude
     Code (type user, promptSource system, fora de sidechain); None para o resto. O content que não é texto (o tool_result é
     lista), o cabeçalho ou o carimbo que não casam (None.group) e a entrada fora da forma levantam TypeError, KeyError ou
-    AttributeError, que `notificacoes` pula."""
-    if not (entrada.get("type") == "user" and entrada.get("promptSource") == "system" and entrada.get("isSidechain") is False):
+    AttributeError, que `notificacoes` pula.
+    AGENTE-PRESO-SEM-BAIXA (v048 E12.2): a notificação que chega no meio do turno vem como `attachment` `queued_command`
+    com `commandMode` e `origin.kind` `task-notification`; o texto digitado pelo dono no meio do turno é `prompt` e `human`."""
+    if entrada.get("isSidechain") is not False:
         return None
-    cabecalho, quando = NOTIFICACAO.match(entrada["message"]["content"]), CARIMBO.fullmatch(entrada["timestamp"])
+    if entrada.get("type") == "user" and entrada.get("promptSource") == "system":
+        texto = entrada["message"]["content"]
+    elif entrada.get("type") == "attachment" and nota_na_fila(entrada["attachment"]):
+        texto = entrada["attachment"]["prompt"]
+    else:
+        return None
+    cabecalho, quando = NOTIFICACAO.match(texto), CARIMBO.fullmatch(entrada["timestamp"])
     segundos = datetime.fromisoformat(quando.group(1)).replace(tzinfo=timezone.utc).timestamp()
     return cabecalho.group(1), cabecalho.group(2), segundos, cabecalho.group(3)
 
@@ -1474,5 +1490,44 @@ def atualizar_estado(hook, evento, ferramenta, lidos, recusa=None):
 # (PRAZO_DA_LEITURA_S), então o prazo comum de 3 s não basta.
 PRAZO_DO_HOOK_S = 8.0
 
-if __name__ == "__main__":
+# AGENTE-PRESO-SEM-BAIXA (v048 E12.2, ordem do dono 28/11 07:48 item 1): o comando oficial para limpar o registro,
+# `python3 <plugin>/hooks/agentes.py --limpar` na pasta do projeto. Aplica as mesmas provas do hook (prazo, sessão morta e a
+# notificação terminal no transcript de cada sessão do registro) e nada mais: não há baixa por escolha (TRAVA-AGENTE-MORTO).
+LIMPAR = "--limpar"
+
+
+def transcripts_da_sessao(sessao):
+    """Os `~/.claude/projects/*/<sessao>.jsonl` da sessão do registro; o UUID fora da forma não procura nada."""
+    if not (isinstance(sessao, str) and SESSAO_UUID.fullmatch(sessao)):
+        return []
+    return sorted((Path.home() / ".claude" / "projects").glob(f"*/{sessao}.jsonl"))
+
+
+def limpar(pasta):
+    """Dá baixa no que se prova parado e diz quantos registros ficaram; 1 sem projeto ou com o registro ilegível (que não regrava)."""
+    hook = Hook("agentes")
+    raiz = hook.projeto(pasta, clone_do_forge=True)
+    if raiz is None or (e_clone_do_forge(raiz) and not fixar_estado_do_clone(hook, raiz)):
+        print(f"agentes.py {LIMPAR}: fora de um projeto do Forge", file=sys.stderr)
+        return 1
+    arquivo = hook.run() / "agentes.json"
+    try:
+        antes = ler_estado(arquivo).get("agentes", [])
+        sessoes = sorted({a.get("sessao") for a in antes if isinstance(a, dict) and isinstance(a.get("sessao"), str)})
+        for sessao in sessoes or [None]:
+            achados = transcripts_da_sessao(sessao)
+            hook.entrada = {"hook_event_name": "Stop", "cwd": str(pasta), "session_id": sessao,
+                            "transcript_path": str(achados[0]) if len(achados) == 1 else None}  # dois: nenhum vale
+            atualizar_estado(hook, "Stop", None, [])
+        depois = ler_estado(arquivo).get("agentes", [])
+    except EstadoIlegivel as erro:
+        print(f"agentes.py {LIMPAR}: R-TETO {erro}; nada regravado", file=sys.stderr)
+        return 1
+    print(f"agentes.py {LIMPAR}: {len(antes)} registro(s) antes, {len(depois)} depois; a baixa por notificação vai ao liberacoes.log")
+    return 0
+
+
+if __name__ == "__main__" and sys.argv[1:] == [LIMPAR]:
+    sys.exit(limpar(Path.cwd()))
+elif __name__ == "__main__":
     executar("agentes", principal, clone_do_forge=True, regra_do_prazo="R-TETO", prazo_do_hook=PRAZO_DO_HOOK_S)

@@ -1,0 +1,70 @@
+{
+  "pedido": "v048-agente-preso-baixa",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "C1: notificação de sidechain não prova nada (anexo ou user)",
+      "arquivo": "hooks/agentes.py",
+      "de": "if entrada.get(\"isSidechain\") is not False:",
+      "para": "if entrada.get(\"isSidechain\") is None:",
+      "testes": ["tests.test_agente_preso_baixa.NotificacaoNaFila.test_anexo_de_sidechain_nao_libera"]
+    },
+    {
+      "id": "M2",
+      "guarda": "E12.2: só o anexo que é notificação na fila entra",
+      "arquivo": "hooks/agentes.py",
+      "de": "elif entrada.get(\"type\") == \"attachment\" and nota_na_fila(entrada[\"attachment\"]):",
+      "para": "elif entrada.get(\"type\") == \"attachment\":",
+      "testes": ["tests.test_agente_preso_baixa.NotificacaoNaFila.test_texto_digitado_no_meio_do_turno_nao_libera"]
+    },
+    {
+      "id": "M3",
+      "guarda": "E12.2: o anexo tem commandMode task-notification",
+      "arquivo": "hooks/agentes.py",
+      "de": "and anexo.get(\"commandMode\") == \"task-notification\"",
+      "para": "and True",
+      "testes": ["tests.test_agente_preso_baixa.NotificacaoNaFila.test_anexo_com_um_campo_fora_da_forma_nao_libera"]
+    },
+    {
+      "id": "M4",
+      "guarda": "E12.2: o anexo tem origin.kind task-notification (o texto do dono é human)",
+      "arquivo": "hooks/agentes.py",
+      "de": "and anexo[\"origin\"][\"kind\"] == \"task-notification\")",
+      "para": "and True)",
+      "testes": ["tests.test_agente_preso_baixa.NotificacaoNaFila.test_anexo_com_um_campo_fora_da_forma_nao_libera"]
+    },
+    {
+      "id": "M5",
+      "guarda": "E12.2: --limpar só procura transcript de sessão com forma de UUID (sem glob injetado)",
+      "arquivo": "hooks/agentes.py",
+      "de": "if not (isinstance(sessao, str) and SESSAO_UUID.fullmatch(sessao)):",
+      "para": "if not isinstance(sessao, str):",
+      "testes": ["tests.test_agente_preso_baixa.Limpar.test_sessao_fora_da_forma_nao_procura_transcript"]
+    },
+    {
+      "id": "M6",
+      "guarda": "E12.2: --limpar fora de projeto sai 1",
+      "arquivo": "hooks/agentes.py",
+      "de": "if raiz is None or (e_clone_do_forge(raiz) and not fixar_estado_do_clone(hook, raiz)):",
+      "para": "if False:",
+      "testes": ["tests.test_agente_preso_baixa.Limpar.test_fora_de_projeto_sai_1"]
+    },
+    {
+      "id": "M7",
+      "guarda": "E12.2: --limpar com registro ilegível sai 1 sem regravar",
+      "arquivo": "hooks/agentes.py",
+      "de": "    except EstadoIlegivel as erro:\n        print(",
+      "para": "    except ZeroDivisionError as erro:\n        print(",
+      "testes": ["tests.test_agente_preso_baixa.Limpar.test_registro_ilegivel_recusa_sem_regravar"]
+    },
+    {
+      "id": "M8",
+      "guarda": "E12.2: dois transcripts da mesma sessão, nenhum vale",
+      "arquivo": "hooks/agentes.py",
+      "de": "if len(achados) == 1 else None",
+      "para": "if len(achados) >= 1 else None",
+      "testes": ["tests.test_agente_preso_baixa.Limpar.test_dois_transcripts_da_mesma_sessao_nenhum_vale"]
+    }
+  ]
+}

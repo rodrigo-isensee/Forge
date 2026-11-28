@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B2-M1",
+      "guarda": "M10.1: o `-` (entrada) não é script; a pasta corrente entra no caminho do python",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if a == \"-\" or not a.startswith(\"-\"):",
+      "para": "        if not a.startswith(\"-\"):",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M2",
+      "guarda": "M10.1: o `-` devolve sem script",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            return None if a == \"-\" else a",
+      "para": "            return None if False else a",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M3",
+      "guarda": "M10.1: a última palavra também é lida (o script sozinho)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    while i < len(args):\n        a = args[i]\n        if a == \"-\"",
+      "para": "    while i < len(args) - 1:\n        a = args[i]\n        if a == \"-\"",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M4",
+      "guarda": "M10.1: o valor colado (`-Xutf8`) não pula a palavra seguinte",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                i += not a[k + 2:]",
+      "para": "                i += True",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M5",
+      "guarda": "M10.1: o PYTHONPATH da linha entra no caminho do python",
+      "arquivo": "hooks/conformidade.py",
+      "de": "pythonpath.split(\":\") if pythonpath else []",
+      "para": "pythonpath.split(\":\") if False else []",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M6",
+      "guarda": "M10.1: a entrada vazia do PYTHONPATH é a pasta corrente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "{p or '.'}/{MODULO_DE_PARECER}",
+      "para": "{p}/{MODULO_DE_PARECER}",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M7",
+      "guarda": "M10.1: o `-m` não tem script; a pasta corrente entra no caminho",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if letra in \"cm\":",
+      "para": "            if letra in \"c\":",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M8",
+      "guarda": "M10.1: o `-X` leva valor, que não é o script",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if letra in \"XW\":",
+      "para": "            if letra in \"W\":",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    }
+  ]
+}
