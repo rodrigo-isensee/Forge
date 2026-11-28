@@ -43,6 +43,9 @@
      "testes": ["tests.test_validar_yaml_workflow.ValidarYaml.test_cli_sai_1_com_defeito_e_nomeia_arquivo_e_linha", "tests.test_validar_yaml_workflow.ValidarYaml.test_workflows_do_repositorio_passam"]},
     {"id": "M14", "guarda": "E13.6: o script roda como programa", "arquivo": "scripts/validar-yaml-workflow.py",
      "de": "if __name__ == \"__main__\":", "para": "if False:",
-     "testes": ["tests.test_validar_yaml_workflow.ValidarYaml.test_cli_sai_1_com_defeito_e_nomeia_arquivo_e_linha"]}
+     "testes": ["tests.test_validar_yaml_workflow.ValidarYaml.test_cli_sai_1_com_defeito_e_nomeia_arquivo_e_linha"]},
+    {"id": "M15", "guarda": "E13.6: linha sem par nao cala o resto do arquivo", "arquivo": "scripts/validar-yaml-workflow.py",
+     "de": "if not par:\n            continue", "para": "if not par:\n            break",
+     "testes": ["tests.test_validar_yaml_workflow.ValidarYaml.test_defeito_depois_de_linha_sem_par_continua_sendo_achado"]}
   ]
 }

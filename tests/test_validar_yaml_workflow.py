@@ -70,6 +70,9 @@ class ValidarYaml(unittest.TestCase):
     def test_linha_depois_do_bloco_volta_a_ser_conferida(self):
         self.assertTrue(defeitos("run: |\n  um\nname: a: b\n"))
 
+    def test_defeito_depois_de_linha_sem_par_continua_sendo_achado(self):
+        self.assertTrue(any("valor simples" in m for m in defeitos("a:\n  - v1\n  - name: x: y\n")))
+
     def test_corpo_de_bloco_nao_e_conferido(self):
         self.assertEqual(defeitos("run: >-\n  a: b: c\n\tz\nnext: 1\n"), [])
 
