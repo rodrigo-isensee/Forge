@@ -23,7 +23,8 @@ Escopo: pedido v048, etapa E5.6, PR #958, revalidação DELTA no head `2c6b6f81`
 - Commit `2c6b6f81` em Conventional Commits, em português, citando os achados que fecha.
 
 ## CI
-- ci: 2c6b6f8193c1f3c4046cd436bef423193274d079 verde (`gh pr checks 958`, run `46146179731`: suíte 5/5, teto de pulados, instalação, passos, verificações longas, python 3.14, árvore já provada; fora `bateria (pareceres)` e `bateria`, que esperam os pareceres).
+- ci: 2c6b6f8193c1f3c4046cd436bef423193274d079 verde
+- Lido em `gh pr checks 958`, run `46146179731`: suíte 5/5, teto de pulados, instalação, passos, verificações longas, python 3.14, árvore já provada; fora `bateria (pareceres)` e `bateria`, que esperam os pareceres.
 
 ## Parecer
 Aprovado. O bloqueante A1 foi resolvido com o texto literal da `develop`, o recomendado A2 foi atendido, e o delta não traz achado novo.
