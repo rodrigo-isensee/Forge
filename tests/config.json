@@ -194,6 +194,8 @@
       "\\*\\*Autor até o merge \\(H2\\):\\*\\* volta de review, QA, segurança, CI e conflito vai à mesma instância do autor",
       "agente novo apenas se ele travou",
       "\\*\\*Checks em 15 min:\\*\\* depois de cada envio ou PR aberto, você os confere e devolve o vermelho ao autor na hora",
+      "Você não implementa código\\.",
+      "\\*\\*Faço eu\\*\\* \\(conversa, quadro, configuração do time, descrição de PR, renovação de rótulo\\)",
       "skills/briefs-e-conferencia/autor-ate-o-merge\\.md",
       "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez",
       "skills/falar-com-o-dono/nao-trava\\.md",
@@ -764,6 +766,13 @@
       "\\*\\*Arquivos em vigor\\*\\*"
     ],
     "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"],
+    "skills/briefs-e-conferencia/conferencia-da-entrega.md": [
+      "## Descrição do PR e renovação do rótulo \\(JARVIS-DESCRICAO-E-ROTULO\\)",
+      "O código continua só com o time\\.",
+      "o Jarvis a escreve direto, sem brief e sem agente, preenchendo o modelo `\\.github/pull_request_template\\.md`",
+      "Abrir e mesclar o PR seguem com o `tech-lead`",
+      "nas condições do `R-CONTRIB`"
+    ],
     "skills/briefs-e-conferencia/autor-ate-o-merge.md": [
       "\\*\\*O autor fica com o item até o merge:\\*\\*",
       "até 15 minutos depois de cada envio ou abertura de PR, o Jarvis confere ele mesmo os checks no GitHub",
@@ -778,6 +787,7 @@
     ]
   },
   "invariantes_motivo": {
+    "skills/briefs-e-conferencia/conferencia-da-entrega.md": {"regra": "R-LIMITES", "porque": "sem o texto, a descrição do PR e a renovação do rótulo voltam a esperar brief e agente, ou o Jarvis passa a abrir ou mesclar o PR (decisão do dono de 28/11 11:47, B)"},
     "skills/briefs-e-conferencia/autor-ate-o-merge.md": {"regra": "R-BRIEF", "porque": "sem o texto, a volta de review, QA, segurança, CI e conflito vai a um agente novo que relê tudo, e os três portões voltam em rodadas separadas (H2)"},
     "skills/engineering-practices/tamanho-por-item.md": {"regra": "R-REVIEW", "porque": "sem o texto, somem a contagem do teto de 150 linhas de código por item e a única exceção decidida pelo dono (H1)"},
     "templates/projeto/.github/pull_request_template.md": {"regra": "R-REVIEW", "porque": "sem o texto, o PR do projeto volta a contar teste no teto e a passar dele sem o motivo (H1)"},
@@ -889,6 +899,8 @@
       "\\*\\*Autor até o merge \\(H2\\):\\*\\* volta de review, QA, segurança, CI e conflito vai à mesma instância do autor": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis manda a volta de review, QA, segurança, CI ou conflito a um agente novo, que relê tudo (H2)"},
       "agente novo apenas se ele travou": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis abre instância nova com o autor ainda retomável e dobra os agentes por item (H2)"},
       "\\*\\*Checks em 15 min:\\*\\* depois de cada envio ou PR aberto, você os confere e devolve o vermelho ao autor na hora": {"regra": "R-BRIEF", "porque": "sem o texto, o PR fica vermelho sem ninguém olhar até o autor ou o dono relatar (decisão do dono de 28/11 11:47, A: #959 e #960)"},
+      "Você não implementa código\\.": {"regra": "R-CONFORMIDADE", "porque": "sem o texto, o Jarvis passa a escrever código, que é só do time e dos portões (decisão do dono de 28/11 11:47, B)"},
+      "\\*\\*Faço eu\\*\\* \\(conversa, quadro, configuração do time, descrição de PR, renovação de rótulo\\)": {"regra": "R-LIMITES", "porque": "sem o texto, o Jarvis volta a delegar por brief a descrição do PR e a renovação do rótulo, e o PR espera um agente (decisão do dono de 28/11 11:47, B)"},
       "skills/briefs-e-conferencia/autor-ate-o-merge\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o Jarvis perde o detalhe do H2 (quando o autor travou, o aviso do hook e a volta única), movido pelo teto de caracteres (diretriz 25)"},
       "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis segura o time por uma decisão pendente e repete a pergunta ao dono (diretriz 34)"},
       "skills/falar-com-o-dono/nao-trava\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o Jarvis perde o detalhe de não travar e do comando exato no bloqueio de ambiente (diretriz 34)"},
