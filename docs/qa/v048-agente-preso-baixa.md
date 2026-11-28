@@ -20,7 +20,7 @@ Escopo: `hooks/agentes.py` (`nota_na_fila`, `notificacao_terminal` com o anexo `
 
 ## Achados
 - A1 (bloqueante) tests/mutantes/trava-agente-morto.json:46 · M6 (C1, promptSource system) não casa mais com a fonte: a linha hooks/agentes.py:492 terminou em ":"; o teste test_toda_spec_do_forge_confere_com_a_fonte falha e o CI do head fica vermelho. Realinhar o `de` de M6 ou retirá-lo.
-- A2 (recomendado) tests/mutantes/v048-agente-preso-baixa.json:M6 · M6, M7 e M12 morrem por erro (exceção sob o mutante), não por asserção; o comportamento guardado (rc 1 e mensagem, EstadoIlegivel capturado, registro não-objeto pulado) só se prova pela exceção. Afirmar a mensagem de stderr no unitário.
+- A2 (recomendado) hooks/agentes.py:1510 · Mutantes M6, M7 e M12 morrem por erro (exceção sob o mutante), não por asserção; o comportamento guardado (rc 1 e mensagem, EstadoIlegivel capturado, registro não-objeto pulado) só se prova pela exceção. Afirmar a mensagem de stderr no unitário.
 - A3 (recomendado) hooks/agentes.py:481 · No transcript real, 126 de 2801 notificações de agente (id a+16 hex) vêm sem `<tool-use-id>` (agente retomado); C2 as recusa, e esse caso segue sem baixa, no hook e no --limpar. Registrar como limite conhecido.
 
 ## Critério → teste → resultado
