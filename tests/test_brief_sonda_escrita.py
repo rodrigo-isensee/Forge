@@ -56,6 +56,33 @@ class SondaComCaminhoDeHook(vv2.BriefDeVolta):
                 self.assertIn(esperado, saida)
 
 
+    def test_sonda_de_parecer_de_outro_pedido_segue_barrada(self):  # revisao-seguranca A1, sonda S1
+        entrada = "cópia com `.git/hooks/pre-push` executável"
+        outro = self.REVIEW.replace("pedido: pedido-sintetico", "pedido: outro-pedido").format(
+            c=self.c1[:7], p="reprovado", corpo=self.ACHADOS + f"\n## Sondas\n- S7 · {entrada} · espera: barrado · obtido: gravado\n")
+        self.commitar({"docs/reviews/outro.md": outro}, "parecer de outro pedido")
+        linha = f"- (sonda review {self.c1[:7]} S7) grave no corpus da branch: {entrada} · espera: barrado"
+        rc, saida = self.conferir(self.texto.replace(self.linha, self.linha + "\n" + linha), "--parecer", "docs/reviews/outro.md")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('escrita: barrada ".git/hooks/pre-push"', saida)
+        self.assertIn("volta: sonda S7 de review não está nos pareceres lidos", saida)
+
+    def test_sonda_de_parecer_com_problema_segue_barrada(self):  # o parecer que a volta recusa não isenta a escrita
+        self.parecer("reprovado", self.ACHADOS + "- A9 fora do formato\n" + f"\n## Sondas\n- S3 · {ENTRADA} · espera: hook não executado · obtido: executado\n")
+        rc, saida = self.conferir(self.texto)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(BARRADA, saida)
+        self.assertIn("volta: parecer docs/reviews/p1.md:", saida)
+
+    def test_ref_ilegivel_ou_parecer_fora_da_ref_segue_barrada(self):
+        casos = {"--ref sem commit": ((), "nada/aqui"), "--parecer fora da ref": (("--parecer", "docs/reviews/nao-existe.md"), "melhoria/x")}
+        for nome, (extra, ref) in casos.items():
+            with self.subTest(nome):
+                rc, saida = self.conferir(self.texto, *extra, ref=ref)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(BARRADA, saida)
+
+
 for _nome in [n for n in dir(vv2.BriefDeVolta) if n.startswith("test_")]:  # os testes herdados já rodam no módulo deles
     setattr(SondaComCaminhoDeHook, _nome, None)
 
