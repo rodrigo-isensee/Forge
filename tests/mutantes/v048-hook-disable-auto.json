@@ -1,0 +1,86 @@
+{
+  "pedido": "v048-hook-disable-auto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "HOOK-DISABLE-AUTO: o desarme do merge automático sai da análise como leitura",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if \"--disable-auto\" in args and desarma_o_auto(args):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks_desarma_auto.DesarmaAuto.test_desarme_passa_sem_parecer"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "HOOK-DISABLE-AUTO: só a palavra `--disable-auto` entra no desarme (`=true` sozinha segue como merge)",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if \"--disable-auto\" in args and desarma_o_auto(args):",
+      "para": "            if desarma_o_auto(args):",
+      "testes": [
+        "tests.test_hooks_desarma_auto.DesarmaAuto.test_forma_duvidosa_segue_como_merge"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "HOOK-DISABLE-AUTO: `--disable-auto` depois de `--` é posicional e segue como merge",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if \"--\" in args or any(re.match(r\"-[^-].\", a) for a in args):",
+      "para": "    if any(re.match(r\"-[^-].\", a) for a in args):",
+      "testes": [
+        "tests.test_hooks_desarma_auto.DesarmaAuto.test_forma_duvidosa_segue_como_merge"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "HOOK-DISABLE-AUTO: grupo de opções curtas (`-sb --disable-auto`) segue como merge",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if \"--\" in args or any(re.match(r\"-[^-].\", a) for a in args):",
+      "para": "    if \"--\" in args:",
+      "testes": [
+        "tests.test_hooks_desarma_auto.DesarmaAuto.test_forma_duvidosa_segue_como_merge"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "HOOK-DISABLE-AUTO: a recusa da forma duvidosa devolve falso",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if \"--\" in args or any(re.match(r\"-[^-].\", a) for a in args):\n        return False",
+      "para": "    if \"--\" in args or any(re.match(r\"-[^-].\", a) for a in args):\n        pass",
+      "testes": [
+        "tests.test_hooks_desarma_auto.DesarmaAuto.test_forma_duvidosa_segue_como_merge"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "HOOK-DISABLE-AUTO: só `--disable-auto` ligado e fora do valor de outra opção é desarme",
+      "arquivo": "hooks/parecer.py",
+      "de": "    return bandeira(args, MERGE_PR_COM_VALOR, {\"--disable-auto\"}) and not",
+      "para": "    return (\"--disable-auto\" in args) and not",
+      "testes": [
+        "tests.test_hooks_desarma_auto.DesarmaAuto.test_forma_duvidosa_segue_como_merge"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "HOOK-DISABLE-AUTO: desarme com `--admin` segue como merge",
+      "arquivo": "hooks/parecer.py",
+      "de": "{\"--auto\", \"--admin\"})",
+      "para": "{\"--auto\"})",
+      "testes": [
+        "tests.test_hooks_desarma_auto.DesarmaAuto.test_forma_duvidosa_segue_como_merge"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "HOOK-DISABLE-AUTO: desarme com `--auto` segue como merge",
+      "arquivo": "hooks/parecer.py",
+      "de": "{\"--auto\", \"--admin\"})",
+      "para": "{\"--admin\"})",
+      "testes": [
+        "tests.test_hooks_desarma_auto.DesarmaAuto.test_forma_duvidosa_segue_como_merge"
+      ]
+    }
+  ]
+}
