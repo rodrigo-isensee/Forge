@@ -63,6 +63,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` roda em `tests/test_hooks.py` (ADR 
 - `b8-*`
 - `brief-*`
 - `c1b2-*`
+- `c1b3-*`
 - `codigo-*`
 - `comentario-*`
 - `commit-*`

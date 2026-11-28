@@ -169,17 +169,60 @@ segurança), a base e o 0f4facab por `git archive`:
   no corpus; os absolutos daqui diferem dos de antes (233 variáveis), a diferença não: +5478 sobre a base, 0,093% sobre
   5897219 (5478 / 5897219) e sobre 5887957; abaixo de 0,1%, e `MEDIDA_DO_CORPUS` segue a mesma
 
-## E45.44 (v0481, C1b-2, volta 6 do #944)
+## C1b-3 (v0481 E45.13 e E45.19, pasta de controle do Forge com quem vazio)
 
-O head 234217a1 (C1b-2 com a develop a90a7a93 trazida) passou o teto no CI, run 46129091229, `suíte (python 3.12,
-parte 4/5)`, `test_corpus_nos_dois_hooks`: `4958477 interpretador, acima do teto de 4958433 (medida 4958433 mais o
-ruído 0)`; os subprocessos e as execuções ficaram dentro (557). A medida do CI já vem acertada pela profundidade do tmp
-e pelas variáveis do ambiente de lá, e a diferença vale igual sobre a medida de referência: +44 passos.
-- medida local, Python 3.12.3, tmp `/tmp/claude-0`, 237 variáveis, `test_corpus_nos_dois_hooks` com o
-  `excessos_de_trabalho` espiado só para imprimir a contagem, cada árvore num checkout git:
-  - develop a90a7a93: `{'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 5897060, 'ambiente': 237}`
-  - head 234217a1: `{'execucoes': 557, 'subprocessos': 4510, 'sono': 0, 'interpretador': 5905117, 'ambiente': 237}`
-- os absolutos locais não se comparam com a referência (subprocessos 4508 contra 4631 e 237 variáveis; as duas passam
-  aqui); o que sobe o teto é o excesso medido no CI
-- medida nova: `interpretador` 5902697 -> 5902741 (+44); total sobre 5897219: +5522 passos (0,094%), dentro do teto de
-  +0,5% que o dono deixou ao time; decisão técnica do Jarvis no pedido v0481 (histórico de 2026-11-28 06:35)
+A entrada nova da pasta de controle em `hooks/conformidade.json` e a linha em `CAMINHOS_DO_CONTROLE` do
+`hooks/conformidade.py` (PR #940, head 0bad4b32, base develop 50e5b609):
+- CI do #940 (run 46028204382, suíte Python 3.12, parte 4/5): `test_corpus_nos_dois_hooks` reprovou com o
+  `interpretador` 865 passos acima do teto de 5902697 (0,015%); subprocessos e execuções dentro do teto
+- máquina do autor, outra que a das medidas acima (Python 3.12.3, tmp `/tmp/claude-0` a 2 níveis, 237 variáveis, 4508
+  subprocessos; absolutos não comparáveis ao teto), cada árvore por `git archive`, o teste instrumentado só para
+  imprimir a contagem: base 50e5b609 `{'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 5894127, 'ambiente': 237}`;
+  head 0bad4b32 `{'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 5905764, 'ambiente': 237}`
+- medida nova: 5903562 (5902697 + 865, a do CI), ruído 0; total sobre 5897219: +6343 passos (0,108%), acima de 0,1%
+- autorização (v0481 E45.19): o dono autorizou o custo a mais da proteção em 27/11 às 14:11 (+865 passos, acumulado
+  +0,108%; DECISÃO DO DONO no pedido v0481), só para este item e não precedente; a prova do teto novo é o CI do PR no
+  head, com a parte 4/5 verde
+
+## C1b-3 com o #938 (v0481 E45.30)
+
+Com a develop (o #938, 319a968d) mesclada no #940 (head 4f6fd019, E45.29):
+- CI do #940 (run 46049072145, suíte Python 3.12, parte 4/5): `test_corpus_nos_dois_hooks` reprovou com
+  `{'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 4971301, 'ambiente': 133}` contra o teto de
+  4968560 (+2741 passos); subprocessos e execuções dentro do teto
+- medida nova: 5906303 (5903562 + 2741, a do CI), ruído 0; total sobre 5897219: +9084 passos (0,154%)
+- autorização (v0481 E45.30): o dono autorizou o total de 0,154% em 27/11 às 15:39 (DECISÃO DO DONO no pedido v0481)
+  e deu ao time a decisão até 0,5% no total sobre 5897219, registrando cada aumento aqui; acima disso, pergunta ao dono.
+  Cartão para reduzir o custo do hook depois do F1. A prova do teto novo é o CI do PR no head, com a parte 4/5 verde
+
+## C1b-3 com a develop em e950baeb (v0481 E45.68)
+
+Com a develop mesclada no #940 (head e950baeb, sem conflito):
+- CI do #940 (run 46113149896, suíte Python 3.12, parte 4/5): `test_corpus_nos_dois_hooks` reprovou com o
+  `interpretador` em 4962285 contra o teto de 4962039 (+246 passos); subprocessos e execuções dentro do teto
+- medida nova: 5906549 (5906303 + 246, a do CI), ruído 0; total sobre 5897219: +9330 passos (0,158%)
+- decisão do time (v0481 E45.68): abaixo do limite de 0,5% no total que o dono deu ao time em 27/11 às 15:39
+  (DECISÃO DO DONO no pedido v0481). A prova do teto novo é o CI do PR no head, com a parte 4/5 verde
+
+## Ambiente fixo (v0481 E45.73, teto uma vez só para o #940 e o #944)
+
+O run 46134894622 do #940 (head 51815962, CI no merge com a develop 1ced5c09, o #952) reprovou com
+`{'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 4973152, 'ambiente': 133}` contra o teto de
+4971547. O acerto por variável (`PASSOS_POR_VARIAVEL_POR_SUBPROCESSO` x 4631) dava 9262 passos por variável, e a
+inclinação real é 2 x 4508 = 9016 (máquina do autor, mesmo código, 242 e 243 variáveis no teste: 5910356 e 5919372; 252:
+6000516, +90160): o teto andava com o número de variáveis do runner, não com o código.
+- correção: o contador completa o ambiente do hook (só o dele; os filhos herdam) até 256 variáveis
+  (`FORGE_TESTE_TRABALHO_AMBIENTE`), anota esse número, e outro número é excesso; o acerto por variável sai
+- máquina do autor (Python 3.12, tmp `/tmp/claude-0` a 2 níveis), árvore 51815962 com a develop 1ced5c09 mesclada,
+  o lote do corpus com 242, 243 e 137 variáveis no teste (log sem edição):
+  - {'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 6081660, 'ambiente': 256}
+  - {'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 6081660, 'ambiente': 256}
+  - {'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 6081660, 'ambiente': 256}
+- medida nova: 6081660 com 256 variáveis e tmp a 2 níveis; no CI (tmp a 3 níveis, pelo teto de 4971547 do run) o
+  teto é 6082120. Ruído 0
+- aumento do código: o teto anterior (5906549) saiu do run 46113149896 (e950baeb, 132 variáveis, 4962285); o mesmo
+  código com 133 dá 4962285 + 9016 = 4971301, e o run 46134894622 deu 4973152: +1851, o código da develop nova
+  (o #948, a 0.48.0 e o #952) com o #940. Total sobre 5897219: +11181 passos (0,190%)
+- decisão do time (v0481 E45.73): abaixo de 0,5% no total, o limite que o dono deu ao time em 27/11 às 15:39 (DECISÃO
+  DO DONO no pedido v0481); correção única para o #940 e o #944 (ordem do dono 28/11 07:20, item 1). A prova do teto
+  novo é o CI do PR no head, com a parte 4/5 verde
