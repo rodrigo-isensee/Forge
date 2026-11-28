@@ -144,8 +144,16 @@ class Contador(unittest.TestCase):
         lento = self.plugin("import time\ntime.sleep(5)\nprint('1.0.0: 1 de 20')\n")
         antes, E.TETO_DO_CONTADOR_S = E.TETO_DO_CONTADOR_S, 0.3
         self.addCleanup(setattr, E, "TETO_DO_CONTADOR_S", antes)
-        with self.assertRaisesRegex(E.NaoVerificavel, "TimeoutExpired"):
+        with self.assertRaisesRegex(E.NaoVerificavel, "TimeoutExpired: forge-contador passou de 0.3 s lendo a develop"):
             E.contador(ctx(plugin=lento), RAIZ, AGORA)
+
+    def test_falha_do_contador_chega_com_o_motivo(self):
+        # DEVELOP-DO-GITHUB (v048 E14.1): o status diz por que não contou (a develop do origin ilegível), não um número velho
+        corpo = ("import sys\nsys.exit('forge-contador: não li a develop do origin; conte por uma ref local com --ref (git "
+                 "ls-remote --exit-code origin refs/heads/develop: fatal: could not read from remote repository)')\n")
+        with self.assertRaisesRegex(E.NaoVerificavel,
+                                    "^forge-contador: não li a develop do origin; conte por uma ref local com --ref"):
+            E.contador(ctx(plugin=self.plugin(corpo)), RAIZ, AGORA)
 
 
 class Executar(unittest.TestCase):

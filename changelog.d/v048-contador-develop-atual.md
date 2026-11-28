@@ -1,0 +1,2 @@
+### Corrigido
+- forge-contador: sem --ref, conta pela develop do origin agora (git ls-remote; fetch só se o commit faltar), nunca por uma origin/develop local velha, e a linha diz de onde leu ("(develop do origin em <sha>)"; sem remoto origin, "(develop local, sem origin)"); origin ilegível ou fetch que falha sai com 2 e o motivo, sem número. O forge-check status mostra esse motivo, e o contador lento diz o teto (v048 E14.1, CONTADOR-DEVELOP-DESATUALIZADA).

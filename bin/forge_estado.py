@@ -157,10 +157,13 @@ def contador(ctx, raiz, agora):
     try:
         r = subprocess.run([sys.executable, "-I", str(ctx["plugin"] / "bin" / "forge-contador"), "--raiz", str(raiz)],
                            capture_output=True, text=True, timeout=TETO_DO_CONTADOR_S, stdin=subprocess.DEVNULL)
-    except (OSError, subprocess.TimeoutExpired) as erro:
+    except subprocess.TimeoutExpired:  # DEVELOP-DO-GITHUB (v048 E14.1): o contador lê a develop do origin pela rede
+        raise NaoVerificavel(f"TimeoutExpired: forge-contador passou de {TETO_DO_CONTADOR_S} s lendo a develop do "
+                             "origin") from None
+    except OSError as erro:
         raise NaoVerificavel(type(erro).__name__) from None
     if r.returncode != 0 or not r.stdout.strip():
-        raise NaoVerificavel(" ".join((r.stderr or "forge-contador sem saída").split())[:120])
+        raise NaoVerificavel(" ".join((r.stderr or "forge-contador sem saída").split())[:160])
     return r.stdout.strip().splitlines()[0]
 
 

@@ -1,0 +1,87 @@
+{
+  "pedido": "v048-contador-develop-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "DEVELOP-DO-GITHUB: com origin, nunca a develop local (a cópia sem fetch dava o número velho)",
+      "arquivo": "bin/forge-contador",
+      "de": "    if not existe(raiz, \"remote\", \"get-url\", \"origin\"):",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_forge_contador.DevelopDoOrigin.test_origin_develop_atrasada_conta_pela_do_origin"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "DEVELOP-DO-GITHUB: sem origin e sem develop, erro com --ref",
+      "arquivo": "bin/forge-contador",
+      "de": "        if existe(raiz, \"rev-parse\", \"-q\", \"--verify\", \"develop^{commit}\"):",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_forge_contador.DevelopDoOrigin.test_sem_origin_nem_develop_e_erro"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "DEVELOP-DO-GITHUB: origin ilegível é erro claro, com a saída por --ref",
+      "arquivo": "bin/forge-contador",
+      "de": "        raise Erro(f\"não li a develop do origin; conte por uma ref local com --ref ({e})\") from e",
+      "para": "        raise Erro(f\"{e}\") from e",
+      "testes": [
+        "tests.test_forge_contador.DevelopDoOrigin.test_origin_ilegivel_e_erro_claro",
+        "tests.test_forge_contador.DevelopDoOrigin.test_origin_sem_develop_e_erro_claro"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "DEVELOP-DO-GITHUB: commit do origin que falta aqui é trazido (sem fetch, a contagem quebra)",
+      "arquivo": "bin/forge-contador",
+      "de": "    if not existe(raiz, \"cat-file\", \"-e\", sha + \"^{commit}\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_contador.DevelopDoOrigin.test_origin_develop_atrasada_conta_pela_do_origin"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "DEVELOP-DO-GITHUB: commit já presente conta sem fetch (a cópia não muda)",
+      "arquivo": "bin/forge-contador",
+      "de": "    if not existe(raiz, \"cat-file\", \"-e\", sha + \"^{commit}\"):",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_forge_contador.DevelopDoOrigin.test_commit_ja_presente_conta_sem_fetch"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "DEVELOP-DO-GITHUB: fetch que falha é erro claro com o sha do origin",
+      "arquivo": "bin/forge-contador",
+      "de": "            raise Erro(f\"a develop do origin está em {sha[:12]}, que falta aqui, e o fetch falhou; rode git fetch \"",
+      "para": "            raise Erro(f\"{e}\"",
+      "testes": [
+        "tests.test_forge_contador.DevelopDoOrigin.test_fetch_que_falha_e_erro_claro"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "DEVELOP-DO-GITHUB: sem --ref, a linha diz de onde leu",
+      "arquivo": "bin/forge-contador",
+      "de": "                  + (f\" ({fonte})\" if fonte else \"\")]",
+      "para": "                  + \"\"]",
+      "testes": [
+        "tests.test_forge_contador.DevelopDoOrigin.test_origin_develop_atrasada_conta_pela_do_origin"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "DEVELOP-DO-GITHUB: com --ref, a linha fica igual (o forge-fechar a casa até o fim)",
+      "arquivo": "bin/forge-contador",
+      "de": "                  + (f\" ({fonte})\" if fonte else \"\")]",
+      "para": "                  + (f\" ({fonte})\" if True else \"\")]",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_com_ref_nao_diz_a_fonte"
+      ]
+    }
+  ]
+}

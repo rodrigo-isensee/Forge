@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Forge: linha do contador da versão e visão do backlog para o aviso de marco. Só leitura, sem rede; erro sai com 2.
-N: fragmentos changelog.d/*.md da REF sem o README; sem changelog.d/, PRs mesclados (merge ou squash #n) desde a última
-marca vX.Y.Z, ou "sem contagem" se não der para saber. Próxima versão: patch + 1 até 9; depois de X.Y.9, X.(Y+1).0.
+"""Forge: linha do contador da versão e visão do backlog para o aviso de marco. Só leitura; erro sai com 2.
+REF: sem --ref, a develop do origin agora (ls-remote; fetch só se o commit faltar), nunca uma origin/develop local
+velha, e a linha diz de onde leu; sem remoto origin, a develop local. N: fragmentos changelog.d/*.md da REF sem o
+README; sem changelog.d/, PRs mesclados (merge ou squash #n) desde a última marca vX.Y.Z, ou "sem contagem" se não
+der para saber. Próxima versão: patch + 1 até 9; depois de X.Y.9, X.(Y+1).0.
 Teto: teto_versao no config.json do .forge (padrão 20)."""
-import argparse, json, math, re, subprocess, sys
+import argparse, json, math, os, re, subprocess, sys
 import datetime as dt
 from pathlib import Path
 
@@ -18,18 +20,34 @@ class Erro(Exception):
 
 
 def git(raiz, *args):
-    r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=True, errors="replace")
+    r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=True, errors="replace",
+                       stdin=subprocess.DEVNULL, env=os.environ | {"GIT_TERMINAL_PROMPT": "0"})
     if r.returncode != 0:
         raise Erro(f"git {' '.join(args)}: {r.stderr.strip()}")
     return r.stdout
 
 
+def existe(raiz, *args):
+    return subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, stdin=subprocess.DEVNULL).returncode == 0
+
+
 def ref_padrao(raiz):
-    for ref in ("origin/develop", "develop"):
-        if subprocess.run(["git", "-C", str(raiz), "rev-parse", "-q", "--verify", ref + "^{commit}"],
-                          capture_output=True).returncode == 0:
-            return ref
-    raise Erro("nem origin/develop nem develop existem; passe --ref")
+    """(ref, fonte). DEVELOP-DO-GITHUB (v048 E14.1): com origin, o sha da develop lá agora, trazido se faltar aqui."""
+    if not existe(raiz, "remote", "get-url", "origin"):
+        if existe(raiz, "rev-parse", "-q", "--verify", "develop^{commit}"):
+            return "develop", "develop local, sem origin"
+        raise Erro("sem origin e sem develop; passe --ref")
+    try:
+        sha = git(raiz, "ls-remote", "--exit-code", "origin", "refs/heads/develop").partition("\t")[0]
+    except Erro as e:
+        raise Erro(f"não li a develop do origin; conte por uma ref local com --ref ({e})") from e
+    if not existe(raiz, "cat-file", "-e", sha + "^{commit}"):
+        try:
+            git(raiz, "fetch", "-q", "--no-tags", "--no-write-fetch-head", "origin", "develop")
+        except Erro as e:
+            raise Erro(f"a develop do origin está em {sha[:12]}, que falta aqui, e o fetch falhou; rode git fetch "
+                       f"origin develop ou passe --ref ({e})") from e
+    return sha, f"develop do origin em {sha[:12]}"
 
 
 def ultima_marca(raiz, ref):
@@ -130,9 +148,10 @@ def main(argv=None):
     if a.historico and not a.quadro:
         p.error("--historico pede --quadro")
     try:
-        ref = a.ref or ref_padrao(a.raiz)
+        ref, fonte = (a.ref, None) if a.ref else ref_padrao(a.raiz)
         limite = teto(a.raiz)
-        linhas = [f"{versao_seguinte(a.raiz, ref)}: {entregues(a.raiz, ref)} de {limite}"]
+        linhas = [f"{versao_seguinte(a.raiz, ref)}: {entregues(a.raiz, ref)} de {limite}"
+                  + (f" ({fonte})" if fonte else "")]
         if a.quadro:
             colunas = abertos_por_coluna(ler(a.quadro))
             total = sum(colunas.values())

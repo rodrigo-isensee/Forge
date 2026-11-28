@@ -1,0 +1,36 @@
+{
+  "pedido": "v048-contador-develop-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "DEVELOP-DO-GITHUB: no status, o contador lento diz o teto e que lia a develop do origin",
+      "arquivo": "bin/forge_estado.py",
+      "de": "        raise NaoVerificavel(f\"TimeoutExpired: forge-contador passou de {TETO_DO_CONTADOR_S} s lendo a develop do \"",
+      "para": "        raise NaoVerificavel(\"TimeoutExpired\"",
+      "testes": [
+        "tests.test_forge_status_estado.Contador.test_contador_lento_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "DEVELOP-DO-GITHUB: existe() é o código 0 do git (invertido, a cópia com origin cairia na develop local)",
+      "arquivo": "bin/forge-contador",
+      "de": "    return subprocess.run([\"git\", \"-C\", str(raiz), *args], capture_output=True, stdin=subprocess.DEVNULL).returncode == 0",
+      "para": "    return subprocess.run([\"git\", \"-C\", str(raiz), *args], capture_output=True, stdin=subprocess.DEVNULL).returncode != 0",
+      "testes": [
+        "tests.test_forge_contador.DevelopDoOrigin.test_origin_develop_atrasada_conta_pela_do_origin"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "DEVELOP-DO-GITHUB: com --ref, conta pela ref dada e não busca a develop do origin",
+      "arquivo": "bin/forge-contador",
+      "de": "        ref, fonte = (a.ref, None) if a.ref else ref_padrao(a.raiz)",
+      "para": "        ref, fonte = (a.ref, None) if False else ref_padrao(a.raiz)",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_com_ref_nao_diz_a_fonte"
+      ]
+    }
+  ]
+}

@@ -90,7 +90,7 @@ class LinhaDaVersao(Base):
                      "changelog.d/README.md": "r", "changelog.d/a.md": "a", "changelog.d/b.md": "b",
                      "changelog.d/nota.txt": "n"})
         r = self.contador()
-        self.assertEqual((r.returncode, r.stdout), (0, "1.5.0: 2 de 20\n"), r.stderr)
+        self.assertEqual((r.returncode, r.stdout), (0, "1.5.0: 2 de 20 (develop local, sem origin)\n"), r.stderr)
 
     def test_versao_corta_no_9(self):
         # VERSAO-PATCH-ATE-9 (v048 E2.1): depois de X.Y.9 vem X.(Y+1).0; o patch nunca passa de 9
@@ -99,36 +99,36 @@ class LinhaDaVersao(Base):
             with self.subTest(atual=atual):
                 self.commit({".claude-plugin/plugin.json": json.dumps({"version": atual}), "changelog.d/a.md": "a"})
                 r = self.contador()
-                self.assertEqual((r.returncode, r.stdout), (0, f"{seguinte}: 1 de 20\n"), r.stderr)
+                self.assertEqual((r.returncode, r.stdout), (0, f"{seguinte}: 1 de 20 (develop local, sem origin)\n"), r.stderr)
 
     def test_readme_com_caixa_mista_nao_conta(self):
         self.commit({".claude-plugin/plugin.json": json.dumps({"version": "1.4.9"}),
                      "changelog.d/Readme.md": "r", "changelog.d/a.md": "a"})
         r = self.contador()
-        self.assertEqual((r.returncode, r.stdout), (0, "1.5.0: 1 de 20\n"), r.stderr)
+        self.assertEqual((r.returncode, r.stdout), (0, "1.5.0: 1 de 20 (develop local, sem origin)\n"), r.stderr)
 
     def test_le_a_ref_e_nao_a_arvore(self):
         self.commit({".claude-plugin/plugin.json": json.dumps({"version": "0.1.0"}), "changelog.d/a.md": "a"})
         (self.raiz / "changelog.d" / "solto.md").write_text("s", encoding="utf-8")
-        self.assertEqual(self.contador().stdout, "0.1.1: 1 de 20\n")
+        self.assertEqual(self.contador().stdout, "0.1.1: 1 de 20 (develop local, sem origin)\n")
 
     def test_sem_plugin_json_usa_a_ultima_marca(self):
         self.commit({"changelog.d/a.md": "a"})
         self.git("tag", "v2.0.3")
-        self.assertEqual(self.contador().stdout, "2.0.4: 1 de 20\n")
+        self.assertEqual(self.contador().stdout, "2.0.4: 1 de 20 (develop local, sem origin)\n")
 
     def test_sem_plugin_json_nem_marca_parte_de_zero(self):
         self.commit({"changelog.d/a.md": "a"})
-        self.assertEqual(self.contador().stdout, "0.0.1: 1 de 20\n")
+        self.assertEqual(self.contador().stdout, "0.0.1: 1 de 20 (develop local, sem origin)\n")
 
     def test_teto_da_configuracao(self):
         self.commit({".claude-plugin/plugin.json": json.dumps({"version": "0.1.0"}),
                      ".forge/config.json": json.dumps({"teto_versao": 7}), "changelog.d/README.md": "r"})
-        self.assertEqual(self.contador().stdout, "0.1.1: 0 de 7\n")
+        self.assertEqual(self.contador().stdout, "0.1.1: 0 de 7 (develop local, sem origin)\n")
 
     def test_fragmento_com_nome_nao_ascii_conta(self):
         self.commit({"changelog.d/a.md": "a", "changelog.d/ação.md": "b", "changelog.d/çé.md": "c"})
-        self.assertEqual(self.contador().stdout, "0.0.1: 3 de 20\n")
+        self.assertEqual(self.contador().stdout, "0.0.1: 3 de 20 (develop local, sem origin)\n")
 
     def test_plugin_json_ilegivel_e_erro(self):
         for texto in ("{", "[]"):
@@ -169,6 +169,10 @@ class LinhaDaVersao(Base):
         self.assertEqual((r.returncode, r.stdout), (2, ""))
         self.assertIn("git ", r.stderr)
 
+    def test_com_ref_nao_diz_a_fonte(self):
+        self.commit({".claude-plugin/plugin.json": json.dumps({"version": "0.1.0"}), "changelog.d/a.md": "a"})
+        self.assertEqual(self.contador("--ref", "develop").stdout, "0.1.1: 1 de 20\n")
+
     def test_sem_develop_e_erro(self):
         self.commit({"x": "x"})
         self.git("branch", "-m", "outra")
@@ -191,18 +195,81 @@ class SemChangelog(Base):
         self.git("-c", "user.name=t", "-c", "user.email=t@t", "merge", "-q", "--no-ff", "-m",
                  "Merge pull request #3 from x/ramo", "ramo")
         self.commit({"e": "e"}, "fix: outro item (#4)")
-        self.assertEqual(self.contador().stdout, "1.2.1: 3 de 20\n")
+        self.assertEqual(self.contador().stdout, "1.2.1: 3 de 20 (develop local, sem origin)\n")
 
     def test_sem_pr_reconhecivel_diz_sem_contagem(self):
         self.commit({"a": "a"})
         self.git("tag", "v1.2.0")
         self.commit({"b": "b"}, "chore: direto, sem PR")
-        self.assertEqual(self.contador().stdout, "1.2.1: sem contagem de 20\n")
+        self.assertEqual(self.contador().stdout, "1.2.1: sem contagem de 20 (develop local, sem origin)\n")
 
     def test_marca_no_topo_da_zero(self):
         self.commit({"a": "a"}, "chore: direto")
         self.git("tag", "v1.2.0")
-        self.assertEqual(self.contador().stdout, "1.2.1: 0 de 20\n")
+        self.assertEqual(self.contador().stdout, "1.2.1: 0 de 20 (develop local, sem origin)\n")
+
+
+class DevelopDoOrigin(Base):
+    """DEVELOP-DO-GITHUB (v048 E14.1): sem --ref, conta pela develop do origin agora, nunca pela origin/develop local velha."""
+
+    def setUp(self):
+        super().setUp()
+        self.commit({".claude-plugin/plugin.json": json.dumps({"version": "0.1.0"}), "changelog.d/a.md": "a"})
+        self.remoto = self.dir / "remoto.git"
+        self.git("clone", "-q", "--bare", str(self.raiz), str(self.remoto), cwd=self.dir)
+        self.git("remote", "add", "origin", str(self.remoto))
+        self.git("fetch", "-q", "origin")
+        self.velha = self.git("rev-parse", "origin/develop").stdout.strip()
+        outra = self.dir / "outra"  # outra cópia integra dois itens; esta fica com a origin/develop atrasada
+        self.git("clone", "-q", str(self.remoto), str(outra), cwd=self.dir)
+        for nome in ("b", "c"):
+            (outra / "changelog.d" / f"{nome}.md").write_text(nome, encoding="utf-8")
+            self.git("add", "-A", cwd=outra)
+            self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", nome, cwd=outra)
+        self.git("push", "-q", "origin", "develop", cwd=outra)
+        self.nova = self.git("rev-parse", "HEAD", cwd=outra).stdout.strip()
+
+    def test_origin_develop_atrasada_conta_pela_do_origin(self):
+        self.assertEqual(self.contador("--ref", "origin/develop").stdout, "0.1.1: 1 de 20\n")  # o número velho
+        r = self.contador()
+        self.assertEqual((r.returncode, r.stdout), (0, f"0.1.1: 3 de 20 (develop do origin em {self.nova[:12]})\n"),
+                         r.stderr)
+
+    def test_commit_ja_presente_conta_sem_fetch(self):
+        self.git("fetch", "-q", "origin")
+        self.git("update-ref", "refs/remotes/origin/develop", self.velha)  # o commit fica, a ref local volta
+        r = self.contador()
+        self.assertEqual(r.stdout, f"0.1.1: 3 de 20 (develop do origin em {self.nova[:12]})\n", r.stderr)
+        self.assertEqual(self.git("rev-parse", "origin/develop").stdout.strip(), self.velha)
+
+    def test_origin_ilegivel_e_erro_claro(self):
+        self.git("remote", "set-url", "origin", str(self.dir / "nao-existe.git"))
+        r = self.contador()
+        self.assertEqual((r.returncode, r.stdout), (2, ""))
+        self.assertIn("não li a develop do origin", r.stderr)
+        self.assertIn("--ref", r.stderr)
+
+    def test_origin_sem_develop_e_erro_claro(self):
+        self.git("--git-dir", str(self.remoto), "branch", "-m", "develop", "outra")
+        r = self.contador()
+        self.assertEqual((r.returncode, r.stdout), (2, ""))
+        self.assertIn("não li a develop do origin", r.stderr)
+
+    def test_fetch_que_falha_e_erro_claro(self):
+        # packObjectsHook só vale da configuração global: o ls-remote passa, o fetch (que empacota) falha
+        cfg = self.dir / "gitconfig"
+        cfg.write_text("[uploadpack]\n\tpackObjectsHook = false\n", encoding="utf-8")
+        self.env["GIT_CONFIG_GLOBAL"] = str(cfg)
+        r = self.contador()
+        self.assertEqual((r.returncode, r.stdout), (2, ""))
+        self.assertIn(f"a develop do origin está em {self.nova[:12]}, que falta aqui, e o fetch falhou", r.stderr)
+
+    def test_sem_origin_nem_develop_e_erro(self):
+        self.git("remote", "remove", "origin")
+        self.git("branch", "-m", "outra")
+        r = self.contador()
+        self.assertEqual((r.returncode, r.stdout), (2, ""))
+        self.assertIn("sem origin e sem develop", r.stderr)
 
 
 class Backlog(Base):
