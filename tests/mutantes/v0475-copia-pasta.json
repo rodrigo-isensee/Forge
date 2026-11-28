@@ -60,7 +60,8 @@
       "de": "if valor.startswith(\"-\"):",
       "para": "if False:",
       "testes": [
-        "tests.test_forge_copia.Recusa.test_branch_ou_base_com_cara_de_opcao"
+        "tests.test_forge_copia.Recusa.test_branch_ou_base_com_cara_de_opcao",
+        "tests.test_forge_copia.Recusa.test_origem_com_cara_de_opcao"
       ]
     },
     {
