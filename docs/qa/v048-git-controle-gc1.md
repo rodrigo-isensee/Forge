@@ -16,9 +16,6 @@ data: 2026-11-28
 
 - ci: 841c557ea6eb82bddf4eec7bf48c816683b533b0 verde
 
-## Achados
-- A1 (recomendado, tratado na volta 1: `_so_leitura` recusa `branch -r -D x` e `remote -v add`; sem cartão) bin/forge_git.py:81 · LEITURA aceitava `branch -r -D x` e `remote -v add x <url>` (basta uma opção de leitura em `resto`): grava ref e config da cópia, sem executar programa (sonda); cartão depois do merge, R-SEGURANCA.
-
 ## Critério → teste → resultado
 Sem especificação de UX (pedido de controle); a obrigação é cada vetor do anexo E3.1 (seção 2) e cada guarda de 3.1.
 
@@ -28,6 +25,9 @@ Sem especificação de UX (pedido de controle); a obrigação é cada vetor do a
 | Recusa: não-repositório, config ilegível, uma chave fora da lista basta, opção reativa (`--path=f`, `-O`), subcomando fora da lista ou misto, rede só ls-remote/fetch por https | `Recusas.*` (9) | vazio, limite da lista, forma com `=` | passou |
 | Legítimos: cópia limpa passa em todos; pasta neutra fora do TMPDIR do agente | `Legitimos.*` (2) | n/a | passou |
 | Mutação M1-M25 (inclui linhas 59-61, 75, 88 cobradas pela catraca) | specs 1 a 4 | cada linha de guarda | 25/25 morreram |
+
+## Achado da rodada anterior
+A1 (LEITURA aceitava branch -r -D x e remote -v add) foi tratado na volta 1: `_so_leitura` recusa as duas formas (sonda acima); sem achado aberto.
 
 ## Provas de QA
 - CI: `gh pr checks 957` no head 29bdda15: bateria (passos, pareceres, python 3.14, verificações longas), suíte 1/5 a 5/5, catraca, catraca (conferência), instalação e teto de pulados todos `pass`; `bateria (espera parecer)` pass.
