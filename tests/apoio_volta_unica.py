@@ -223,9 +223,9 @@ if _pasta:
 # 4971301 do mesmo código sem a develop nova); total sobre 5897219: +11181 passos, 0,190%. Decisão do time, abaixo de
 # 0,5% no total; prova em tests/provas/v0479-corpus-custo.md, "Ambiente fixo".
 # C1b-2 (v0481 E45.44, o #944 com a develop em ed6e6dbf, o #940 e o #956; remedido igual com a develop em c11e3809, o
-# #947 e o #957): 6081660 -> 6089793 (+8133, medidos na máquina do autor, 256 variáveis, tmp a 2 níveis; total sobre
-# 5897219: +19314 passos, 0,328%). Decisão do dono em 28/11 às 10:06 (opção A): sobe só o medido, dentro de 0,5%; prova
-# em tests/provas/v0479-corpus-custo.md, "C1b-2".
+# #947 e o #957, e em ae194fa9, o #958): 6081660 -> 6089793 (+8133, medidos na máquina do autor, 256 variáveis, tmp
+# a 2 níveis; total sobre 5897219: +19314 passos, 0,328%). Decisão do dono em 28/11 às 10:06 (opção A): sobe só o
+# medido, dentro de 0,5%; prova em tests/provas/v0479-corpus-custo.md, "C1b-2".
 MEDIDA_DO_CORPUS = {"python": "3.12", "profundidade_do_tmp": 2, "variaveis_do_ambiente": 256,
                     "execucoes": 557, "subprocessos": 4631, "interpretador": 6089793}
 PASSOS_POR_NIVEL_DO_TMP = 460

@@ -241,3 +241,6 @@ em ed6e6dbf (o #940 e o #956) mesclada, no teto do "Ambiente fixo" (6081660):
 - remedido com a develop em c11e3809 (o #947 e o #957 mesclados), no teto 6081660, log sem edição:
   `{'execucoes': 557, 'subprocessos': 4510, 'sono': 0, 'interpretador': 6089793, 'ambiente': 256}`, em 556 casos;
   a mesma medida: o #947 e o #957 não somam passo ao corpus, e o teto segue 6089793
+- remedido com a develop em ae194fa9 (o #958 mesclado), no teto 6081660, log sem edição:
+  `{'execucoes': 557, 'subprocessos': 4510, 'sono': 0, 'interpretador': 6089793, 'ambiente': 256}`, em 556 casos;
+  a mesma medida: o #958 não soma passo ao corpus, e o teto segue 6089793 (+19314 sobre 5897219, 0,328%)
