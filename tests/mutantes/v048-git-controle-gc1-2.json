@@ -1,0 +1,88 @@
+{
+  "pedido": "v048-git-controle-gc1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "guarda: o que toca índice ou árvore exige a config na lista positiva",
+      "arquivo": "bin/forge_git.py",
+      "de": "    if sub in INDICE and not config_permitida(raiz):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_git.Vetores.test_driver_por_info_attributes",
+        "tests.test_forge_git.Recusas.test_config_com_chave_fora_da_lista_recusa_e_uma_so_basta"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "guarda: o diff da árvore está no INDICE (filtro do info/attributes)",
+      "arquivo": "bin/forge_git.py",
+      "de": "\"reset\",\n                    \"diff\"})",
+      "para": "\"reset\"})",
+      "testes": [
+        "tests.test_forge_git.Vetores.test_driver_por_info_attributes"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "guarda: só o argumento que não é opção é resolvido na cópia",
+      "arquivo": "bin/forge_git.py",
+      "de": "        if not arg.startswith(\"-\"):",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_forge_git.Legitimos.test_copia_limpa_passa_em_todos"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "guarda: revisão que não existe devolve o rc do rev-parse",
+      "arquivo": "bin/forge_git.py",
+      "de": "            if rc:\n                return rc, \"\"",
+      "para": "            if False:\n                return rc, \"\"",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_merge_tree_com_revisao_que_nao_existe"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "guarda: o neutro lê os objetos da cópia por alternates",
+      "arquivo": "bin/forge_git.py",
+      "de": "        if objetos_de is not None:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_git.Legitimos.test_copia_limpa_passa_em_todos"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "guarda: a rede só faz ls-remote e fetch",
+      "arquivo": "bin/forge_git.py",
+      "de": "    if sub not in (\"ls-remote\", \"fetch\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_rede_so_ls_remote_e_fetch"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "guarda: a rede só vai por https",
+      "arquivo": "bin/forge_git.py",
+      "de": "    if not url.startswith(\"https://\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_git.Vetores.test_uploadpack_com_origin_local",
+        "tests.test_forge_git.Vetores.test_core_sshcommand"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "guarda: a chave por protocolo da cópia é fechada por nome",
+      "arquivo": "bin/forge_git.py",
+      "de": "for p in PROTOCOLOS for item",
+      "para": "for p in () for item",
+      "testes": [
+        "tests.test_forge_git.Vetores.test_insteadof_e_chave_por_protocolo"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+### Adicionado
+- `bin/forge_git.py`: ponto único do git de controle, que roda o git de hooks e ferramentas sem os hooks, a config que aponta programa (fsmonitor, uploadpack, insteadOf, credential.helper, sshCommand, gpg) nem os drivers do `info/attributes` da cópia, com lista positiva de subcomandos e repositório neutro para `merge-tree` e rede; os chamadores passam a ele nos próximos cortes (v048 E3.2, GIT-CONTROLE-CONFIG-DA-COPIA GC1).

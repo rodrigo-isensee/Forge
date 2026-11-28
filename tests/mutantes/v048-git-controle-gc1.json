@@ -1,0 +1,87 @@
+{
+  "pedido": "v048-git-controle-gc1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "guarda: pasta que não é repositório recusa",
+      "arquivo": "bin/forge_git.py",
+      "de": "    if rc:\n        raise Recusado(f\"{raiz}: não é repositório git\")",
+      "para": "    if False:\n        raise Recusado(f\"{raiz}: não é repositório git\")",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_pasta_que_nao_e_repositorio"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "guarda: config que o git não leu recusa (janela de corrida)",
+      "arquivo": "bin/forge_git.py",
+      "de": "    return rc == 0 and all(",
+      "para": "    return all(",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_config_que_o_git_nao_le_recusa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "guarda: uma chave fora da lista positiva basta para recusar",
+      "arquivo": "bin/forge_git.py",
+      "de": "and all(PERMITIDAS.fullmatch(chave)",
+      "para": "and any(PERMITIDAS.fullmatch(chave)",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_config_com_chave_fora_da_lista_recusa_e_uma_so_basta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "guarda: opção que reabre programa externo recusa",
+      "arquivo": "bin/forge_git.py",
+      "de": "    if any(arg.split(\"=\", 1)[0] in REATIVA or arg.startswith(\"-O\") for arg in resto):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_opcao_que_reabre_programa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "guarda: a opção com = (--path=f) também é reconhecida",
+      "arquivo": "bin/forge_git.py",
+      "de": "arg.split(\"=\", 1)[0] in REATIVA",
+      "para": "arg in REATIVA",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_opcao_que_reabre_programa"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "guarda: -O<programa> do grep recusa",
+      "arquivo": "bin/forge_git.py",
+      "de": " or arg.startswith(\"-O\") for arg in resto",
+      "para": " for arg in resto",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_opcao_que_reabre_programa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "guarda: subcomando misto só na leitura",
+      "arquivo": "bin/forge_git.py",
+      "de": "        if LEITURA[sub] is not None and not LEITURA[sub].intersection(resto):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_subcomando_misto_so_na_leitura"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "guarda: subcomando fora da lista positiva recusa",
+      "arquivo": "bin/forge_git.py",
+      "de": "    elif sub not in FLAGS and sub not in INDICE:",
+      "para": "    elif False:",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_subcomando_fora_da_lista_e_opcao_global",
+        "tests.test_forge_git.Vetores.test_uploadpack_com_origin_local"
+      ]
+    }
+  ]
+}
