@@ -6,8 +6,8 @@
       "id": "M50",
       "guarda": "anotacoes que nao sao lista nao quebram",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "isinstance(lista, list)",
-      "para": "True",
+      "de": "lista if isinstance(lista, list) else []",
+      "para": "lista if True else []",
       "testes": [
         "tests.test_ci_rapido_guardas.GerarEColetar.test_api_sem_lista_de_execucoes_ou_de_jobs_ou_de_anotacoes_nao_quebra"
       ]
@@ -116,8 +116,8 @@
       "id": "M61",
       "guarda": "peso atual que nao e objeto vale vazio",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "isinstance(atuais, dict)",
-      "para": "True",
+      "de": "atuais if isinstance(atuais, dict) else {}",
+      "para": "atuais if True else {}",
       "testes": [
         "tests.test_ci_rapido_guardas.PrincipalGuardas.test_peso_atual_que_nao_e_objeto_vale_vazio"
       ]
