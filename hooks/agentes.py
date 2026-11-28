@@ -7,6 +7,8 @@ claude-code-guide, web-fetch, que a conformidade põe no papel só de leitura `l
 e com o sha256 de agora; sem isso, bloqueia (falha fechada). O conferente é opcional e segue com a forma e o hash da mensagem.
 D3 (0.44.0): com o selo em dia, o hook reconfere os campos calculados do brief (`forge-check`, `brief_vencido`) e, se a base andou
 ou as decisões do pedido mudaram, só avisa (`systemMessage` e stderr, código 0); nunca barra por isso.
+HOOK-AGENTE-PEDIDO-GRANDE (v0481, E50.1): esse recálculo pergunta ao git em lote (`GitEmLote`), com as mesmas respostas, e
+cabe no prazo de 8 s com centenas de linhas `conferida` no pedido.
 
 O teto é adaptativo (nproc, load de 1 min e memória lidos de /proc; fallback 3) e `teto_agentes` em
 .forge/config.json o fixa; `teto_maximo` limita o adaptativo. No clone do Forge, a conformidade barra a escrita nesse arquivo
@@ -65,6 +67,7 @@ import math
 import os
 import re
 import stat
+import subprocess
 import sys
 import time
 import unicodedata
@@ -1064,12 +1067,61 @@ def selo_ausente(hook, prompt, tipo, lidos):
     return None
 
 
+SHA_COMPLETO = re.compile(r"[0-9a-f]{40}")
+
+
+class GitEmLote:
+    """HOOK-AGENTE-PEDIDO-GRANDE (E50.1, R-TETO): durante o `brief_vencido`, as perguntas do forge-check ao git com a mesma resposta e
+    sem um processo por pergunta. Com 134 linhas `conferida` no pedido, o `desde_da_branch` fazia 416 chamadas (16 s) e o vigia de
+    8 s recusava o disparo. `e_ancestral(a, b)` com `b` sha40: `a` no `rev-list b` (uma chamada por `b`); fora dele, só o objeto que
+    não é o próprio commit (a tag anotada) volta à chamada de sempre. `sha_do_commit(sha40)`: o `<sha>^{commit}` de um só `cat-file
+    --batch-check` por raiz. Ref que não é sha40 vai às originais (nem `a..b` vira faixa, nem a quebra de linha vira outra pergunta)."""
+
+    def __init__(self, fc):
+        self.fc, self.originais = fc, (fc.e_ancestral, fc.sha_do_commit)
+        self.ancestrais, self.lotes = {}, {}
+
+    def __enter__(self):
+        self.fc.e_ancestral, self.fc.sha_do_commit = self.e_ancestral, self.sha_do_commit
+        return self
+
+    def __exit__(self, *_):
+        self.fc.e_ancestral, self.fc.sha_do_commit = self.originais
+        for lote in self.lotes.values():
+            lote.kill()
+            lote.communicate()  # fecha os tubos e espera
+
+    def e_ancestral(self, raiz, antigo, novo):
+        if not SHA_COMPLETO.fullmatch(str(novo)):
+            return self.originais[0](raiz, antigo, novo)
+        if (raiz, novo) not in self.ancestrais:  # o `rev-list` que falha (objeto ausente) fica vazio: o `--is-ancestor` também diz não
+            self.ancestrais[raiz, novo] = set(self.fc.git(raiz, "rev-list", "--end-of-options", novo)[1].split())
+        if antigo in self.ancestrais[raiz, novo]:
+            return True
+        return self.sha_do_commit(raiz, antigo) not in (antigo, None) and self.originais[0](raiz, antigo, novo)
+
+    def sha_do_commit(self, raiz, ref):
+        if not SHA_COMPLETO.fullmatch(str(ref)):
+            return self.originais[1](raiz, ref)
+        if raiz not in self.lotes:
+            env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}  # como o `git` do forge-check
+            self.lotes[raiz] = subprocess.Popen(["git", "-C", str(raiz), "cat-file", "--batch-check=%(objectname) %(objecttype)"],
+                                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, env=env)
+        lote = self.lotes[raiz]
+        lote.stdin.write(f"{ref}^{{commit}}\n")
+        lote.stdin.flush()
+        achado = lote.stdout.readline().split()
+        return achado[0] if achado[1:] == ["commit"] else None
+
+
 def avisos_de_brief_vencido(hook, lidos):
     """D3 (0.44.0): para cada brief selado (`lidos`, de `selo_ausente`: caminho citado, caminho real e bytes), as correções que o
-    `brief selar` faria hoje (`brief_vencido` do forge-check). Só avisa: qualquer erro registra e devolve [], nunca barra o disparo."""
+    `brief selar` faria hoje (`brief_vencido` do forge-check, com o git em lote: `GitEmLote`). Só avisa: qualquer erro registra e
+    devolve [], nunca barra o disparo."""
     try:
         fc = forge_check()
-        return [f"{caminho}: {linha}" for caminho, real, dados in lidos for linha in fc.brief_vencido(hook.raiz, real, dados)]
+        with GitEmLote(fc):
+            return [f"{caminho}: {linha}" for caminho, real, dados in lidos for linha in fc.brief_vencido(hook.raiz, real, dados)]
     except Exception as erro:  # noqa: BLE001 - o aviso nunca troca o disparo por recusa
         hook.registrar_erro(erro)
         return []
