@@ -1,0 +1,16 @@
+{
+  "pedido": "v0481-hook-agente-prazo-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "HOOK-AGENTE-PEDIDO-GRANDE (E50.1): o cat-file do lote sai sem as variáveis GIT_* herdadas, como o git do forge-check",
+      "arquivo": "hooks/agentes.py",
+      "de": "env = {k: v for k, v in os.environ.items() if not k.startswith(\"GIT_\")}",
+      "para": "env = {k: v for k, v in os.environ.items() if True}",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PedidoGrande.test_o_lote_ignora_o_git_do_ambiente"
+      ]
+    }
+  ]
+}

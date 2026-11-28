@@ -187,6 +187,10 @@ def release(args):
         sys.exit("Uso: forge-changelog release <versão> <data> (ou release --anexar <versão>).")
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.versao):
         sys.exit("Versão no formato X.Y.Z.")
+    maior, menor, patch = (int(n) for n in args.versao.split("."))
+    if patch > 9:
+        sys.exit(f"Versão {args.versao} recusada: o patch vai até 9 (VERSAO-PATCH-ATE-9); depois de {maior}.{menor}.9 "
+                 f"vem {maior}.{menor + 1}.0. Nada foi gravado.")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", args.data):
         sys.exit("Data no formato AAAA-MM-DD.")
     caminho = Path("CHANGELOG.md")
