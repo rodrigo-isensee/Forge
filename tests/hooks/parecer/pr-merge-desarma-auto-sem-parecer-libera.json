@@ -1,0 +1,33 @@
+{
+  "descricao": "HOOK-DISABLE-AUTO: o desarme com a branch, sem parecer, passa: desligar o merge automático não mescla nada.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr merge feature/x --disable-auto"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -350,6 +350,18 @@ def bandeira(args, com_valor, nomes):
     return ligada
 
 
+def desarma_o_auto(args):
+    """O `merge --disable-auto` do `gh pr` só desliga o merge automático (HOOK-DISABLE-AUTO): é leitura para o parecer.
+    Vale só a forma que o hook lê como o gh: a palavra `--disable-auto` (quem chama confere; `--disable-auto=true`
+    sozinha fica fora), ligada e fora do valor de outra opção (`bandeira`), sem `--auto` nem `--admin`, sem `--` e sem
+    grupo de opções curtas (`-sb --disable-auto` dá `--disable-auto` ao `-b`). Na dúvida, segue como merge: o portão
+    fica mais estrito, nunca mais frouxo."""
+    if "--" in args or any(re.match(r"-[^-].", a) for a in args):
+        return False
+    return bandeira(args, MERGE_PR_COM_VALOR, {"--disable-auto"}) and not bandeira(args, MERGE_PR_COM_VALOR,
+                                                                                    {"--auto", "--admin"})
+
+
 def troca_de_branch(args):
     """Branch depois de `git checkout`/`git switch` ("" se HEAD solto ou desconhecida); None se não troca."""
     if "--" in args:
@@ -478,6 +490,8 @@ def analisar(toks):
             alvo = (posicionais(args, READY_COM_VALOR) or [None])[0]
             return ("prready", alvo, bandeira(args, READY_COM_VALOR, {"--undo"}), repo or repo_da_url(alvo))
         if toks[j: j + 1] == ["merge"]:
+            if "--disable-auto" in args and desarma_o_auto(args):  # o `in` antes: sem passo a mais no merge comum
+                return None  # HOOK-DISABLE-AUTO: desligar o merge automático não mescla nada
             alvo = (posicionais(args, MERGE_PR_COM_VALOR) or [None])[0]
             return ("prmerge", repo or repo_da_url(alvo), alvo)
         return None
