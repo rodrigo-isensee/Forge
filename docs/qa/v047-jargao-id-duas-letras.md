@@ -36,7 +36,8 @@ Obrigação (E2.351, sem especificação de UX nova): a medida de jargão conta 
 - Sem bug aberto; PA-7 conferido: AR-1 (lista de mutantes) não se repete, a linha mudada tem mutante.
 
 ## Delta cf59506c..ff6bff06 (E13.12, pedido v048)
-- ci: ff6bff0690d9046d570c5d2b5c04824382bcf9b8 verde (run 46166166392 concluído com sucesso: suítes 1 a 5 de 5, instalação, pareceres, passos, verificações longas, catraca; o run do head atual cc21d7e8 difere só em docs/security/).
+- ci: ff6bff0690d9046d570c5d2b5c04824382bcf9b8 verde
+- Base do ci: run 46166166392 concluído com sucesso: suítes 1 a 5 de 5, instalação, pareceres, passos, verificações longas, catraca; o run do head atual cc21d7e8 difere só em docs/security/.
 - O delta é o merge da develop a1971853 (pais ae25187b e a1971853). `git diff a19718532c ff6bff06` contra a base: 7 arquivos (hooks/meta.py 1 linha, tests/test_meta.py +5, spec de mutantes, fragmento de changelog, 3 pareceres). Nada da develop perdido nem alterado fora do esperado; hooks/meta.py:174 é `R-[A-Z]{2,}`.
 - `python3 -m unittest tests.test_meta` no head: 56 testes, OK.
 - `bin/forge-mutante tests/mutantes/v047-jargao-id-duas-letras.json` (rev=ff6bff0690d9): `M1 · morreu · hooks/meta.py:174`, `M2 · morreu · hooks/meta.py:174`.
