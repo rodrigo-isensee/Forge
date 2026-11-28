@@ -76,7 +76,7 @@
       "id": "M8",
       "guarda": "a worktree que falha nao sai 0",
       "arquivo": "bin/forge-copia",
-      "de": "    if git(\"worktree\", \"add\", \"--no-track\", \"-b\", branch, \"--\", real, ponto) == 0:",
+      "de": "    if git(\"worktree\", \"add\", \"--\", real, branch) == 0:",
       "para": "    if True:",
       "testes": [
         "tests.test_forge_copia.Worktree.test_worktree_que_falha_apaga_a_branch_que_criou"

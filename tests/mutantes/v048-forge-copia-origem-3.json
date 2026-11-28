@@ -41,6 +41,16 @@
       "testes": [
         "tests.test_forge_copia.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
       ]
+    },
+    {
+      "id": "M21",
+      "guarda": "a worktree que falha apaga a branch que criou",
+      "arquivo": "bin/forge-copia",
+      "de": "    if ler([\"git\", \"update-ref\", \"-d\", ref, sha])[0] == 0:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Worktree.test_worktree_que_falha_apaga_a_branch_que_criou"
+      ]
     }
   ],
   "isentas": [

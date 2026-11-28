@@ -4,12 +4,13 @@
   "mutantes": [
     {
       "id": "M9",
-      "guarda": "a branch que ja existia fica",
+      "guarda": "a branch que ja existe (ate criada por outro no meio) fica e a worktree sai 1",
       "arquivo": "bin/forge-copia",
-      "de": "    if not antes and ler(",
-      "para": "    if ler(",
+      "de": "    if ler([\"git\", \"update-ref\", \"-m\", \"forge-copia: worktree\", ref, sha, \"\"])[0]:",
+      "para": "    if False:",
       "testes": [
-        "tests.test_forge_copia.Worktree.test_branch_que_ja_existia_fica_quando_a_worktree_falha"
+        "tests.test_forge_copia.Worktree.test_branch_que_ja_existia_fica_quando_a_worktree_falha",
+        "tests.test_forge_copia.Worktree.test_branch_criada_por_outro_no_meio_fica_e_a_worktree_sai_1"
       ]
     },
     {

@@ -88,8 +88,8 @@
       "id": "M9",
       "guarda": "a worktree nasce sem rastreio",
       "arquivo": "bin/forge-copia",
-      "de": "\"worktree\", \"add\", \"--no-track\", \"-b\"",
-      "para": "\"worktree\", \"add\", \"-b\"",
+      "de": "ler([\"git\", \"update-ref\", \"-m\", \"forge-copia: worktree\", ref, sha, \"\"])",
+      "para": "ler([\"git\", \"branch\", \"--track\", branch, ponto])",
       "testes": [
         "tests.test_forge_copia.Cria.test_worktree_dentro_cria_a_branch"
       ]

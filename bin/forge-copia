@@ -11,7 +11,8 @@ COPIA-BASE (clone): a base vale como dada ou como origin/<base>; a branch que j�
 ponto de partida, o clone é apagado e sai 1 (nunca fica a cópia na branch padrão), com as refs de fato tentadas na mensagem.
 FORGE-COPIA-ORIGEM-LOCAL: --origem que é uma pasta local (o repositório principal, que não faz fetch no sandbox) clona da URL do
 remoto origin dela; pasta sem remoto origin: recusa. A worktree também parte do head remoto da branch que já existe no remoto, e a
-worktree que falha apaga a branch que ela criou (FORGE-COPIA-FALHA-SEM-DESFAZER; a branch que já existia fica).
+worktree cria a branch de forma atômica antes do add e, se falha, apaga a branch que criou (FORGE-COPIA-FALHA-SEM-DESFAZER; a
+branch que já existia, mesmo criada por outro processo no meio, fica e a worktree sai 1).
 FORGE-COPIA-D2 (clone --d2): o clone da conferência D2, destacado na base (sem --branch, sem --revisao); sem a base, apaga o clone e sai 1.
 COPIA-SHA: criado o clone, diz o sha em que a branch nasceu e a ref de onde veio (o head remoto da branch ou a base).
 COPIA-REVISAO (clone --revisao): o clone do revisor (o caminho -rev, -qa ou -sec do brief) nasce no head remoto da branch, sem
@@ -178,16 +179,20 @@ def origem_real(origem):
 
 
 def worktree(real, branch, base):
-    """A worktree nasce como o clone (COPIA-BASE); se o git falha, apaga a branch que ele criou (só a nova). Devolve 0 ou 1."""
-    ponto, antes = ponto_de_partida(".", branch, base), existe(".", f"refs/heads/{branch}")
+    """A worktree nasce como o clone (COPIA-BASE), numa branch criada antes e de forma atômica, sem rastreio: a que já existe
+    (até a que outro processo acabou de criar) fica e sai 1. Se o git falha, apaga a branch que criou, só se não andou. Devolve 0 ou 1."""
+    ponto, ref = ponto_de_partida(".", branch, base), f"refs/heads/{branch}"
     if not ponto:
         print(f"forge-copia: não criei a worktree de {branch}: {falha_do_ponto(branch, base, ponto, False)}", file=sys.stderr)
         return 1
-    if git("worktree", "add", "--no-track", "-b", branch, "--", real, ponto) == 0:
-        return 0
     sha = ler(["git", "rev-parse", "--verify", "-q", f"{ponto}^{{commit}}"])[1].strip()
-    if not antes and ler(["git", "update-ref", "-d", f"refs/heads/{branch}", sha])[0] == 0:
-        print(f"forge-copia: a worktree falhou; apaguei a branch {branch} que ela criou", file=sys.stderr)
+    if ler(["git", "update-ref", "-m", "forge-copia: worktree", ref, sha, ""])[0]:  # valor antigo vazio: falha se ela já existe
+        print(f"forge-copia: não criei a worktree de {branch}: a branch já existe (ou o git recusou criá-la)", file=sys.stderr)
+        return 1
+    if git("worktree", "add", "--", real, branch) == 0:
+        return 0
+    if ler(["git", "update-ref", "-d", ref, sha])[0] == 0:
+        print(f"forge-copia: a worktree falhou; apaguei a branch {branch} que criei para ela", file=sys.stderr)
     return 1
 
 

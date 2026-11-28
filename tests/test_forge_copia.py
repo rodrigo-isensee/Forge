@@ -931,6 +931,23 @@ class Worktree(Comum):
         r = self.copia("worktree", str(self.pasta / "wt" / "w2"), "--branch", "melhoria/w")
         self.assertEqual(r.returncode, 1, r.stderr)
         self.assertTrue(self.tem_ref(self.origem, "refs/heads/melhoria/w"), "só a branch nova sai; a que já existia fica")
+        self.assertIn("não criei a worktree de melhoria/w: a branch já existe", r.stderr)
+
+    def test_branch_criada_por_outro_no_meio_fica_e_a_worktree_sai_1(self):
+        """Outro processo cria a branch logo antes de a worktree criá-la (git de embrulho no PATH): ela fica e nada a apaga."""
+        real = shutil.which("git", path=self.env["PATH"])
+        fal, marca = self.pasta / "fal", self.pasta / "marca"
+        fal.mkdir()
+        (fal / "git").write_text(
+            '#!/bin/sh\ncase " $* " in *" update-ref -m "*|*" worktree add "*)\n'
+            f'  [ -e "{marca}" ] || {{ : > "{marca}"; "{real}" branch melhoria/w develop; }} ;;\nesac\nexec "{real}" "$@"\n')
+        (fal / "git").chmod(0o755)
+        self.env["PATH"] = f"{fal}:{self.env['PATH']}"
+        r = self.copia("worktree", str(self.pasta / "wt" / "w4"), "--branch", "melhoria/w")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertTrue(marca.exists(), "o embrulho não rodou")
+        self.assertTrue(self.tem_ref(self.origem, "refs/heads/melhoria/w"), "a branch do outro processo fica")
+        self.assertNotIn("apaguei", r.stderr)
 
     def test_base_que_nao_existe_sai_1_com_as_refs_tentadas(self):
         r = self.copia("worktree", str(self.pasta / "wt" / "w3"), "--branch", "melhoria/w", "--base", "nada")
