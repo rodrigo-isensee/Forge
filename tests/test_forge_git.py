@@ -221,13 +221,19 @@ class Recusas(Base):
         self.assertFalse((self.tmp / "saida").exists())
 
     def test_opcao_abreviada_reabre_programa(self):
-        """review A1 e seg. A2: o git aceita o prefixo da opção longa (sondas S1 e S2 do review)."""
-        (self.copia / ".git" / "info" / "attributes").write_text("* filter=y\n", encoding="utf-8")
+        """review A1 e seg. A2: o git aceita o prefixo da opção longa (sondas S1 e S2 do review).
+
+        A prova crua usa `--textc`, que nenhum git ambiguiza; `--filt` só abrevia `--filters` até o git 2.49 (o 2.50
+        pôs `--filter=` no cat-file, e no git do CI ele é ambíguo), mas a recusa dele vale em todo git.
+        """
+        (self.copia / ".git" / "info" / "attributes").write_text("* filter=y diff=y\n", encoding="utf-8")
         self.config("filter.y.smudge", str(self.x))
+        self.config("diff.y.textconv", str(self.x))
         self.config("core.pager", str(self.x))
-        self.vermelho_cru("cat-file", "--filt", "HEAD:f")
+        self.vermelho_cru("cat-file", "--textc", "HEAD:f")
         self.vermelho_cru("grep", "--open-files", "-e", "c")
-        for args in (("cat-file", "--filt", "HEAD:f"), ("grep", "--open-files", "-e", "b")):
+        for args in (("cat-file", "--filt", "HEAD:f"), ("cat-file", "--textc", "HEAD:f"),
+                     ("grep", "--open-files", "-e", "b")):
             with self.assertRaisesRegex(forge_git.Recusado, "reabre"):
                 forge_git.git(self.copia, *args)
             self.assertFalse(self.executou())
