@@ -4031,6 +4031,59 @@ def cmd_parecer_publicar(raiz, arquivo):
     return 0
 
 
+def cmd_parecer_agregar(raiz, pedido, ref, base="develop", branch=None):
+    """C3 (F1 parte 2, M13.1, M15.1): grava no head do PR aberto da branch só o agregado `pareceres`, do resultado de `vigentes`
+    (C2a) por tipo de `exigidos_do_pr` deste `forge-check`, nunca da lista de quem publica: `success` com todos aprovados e o domínio
+    intacto desde a origem, `failure` com um `reprovado` vigente, `pending` no resto. Com `success`, imprime no stdout as linhas
+    `Parecer:` que o `forge-fechar` põe no bloco final da mensagem do merge (M15.1). Dormente (sem a lista fechada) ou PR da lista
+    (o arquivo vale, M20.1): nada grava, rc 0 e nenhuma linha. rc 1: leitura recusada, gravação que falha ou agregado fora de `success`."""
+    pareceres, head = modulo_do_bin("forge_pareceres"), sha_do_commit(raiz, ref or "HEAD")
+    branch = branch or branch_da_ref(raiz, ref)
+    nome = (base or "develop").removeprefix("origin/")
+    if not head or not branch or branch in BASES_DO_FLUXO or nome not in BASES_DO_FLUXO:
+        print(f"parecer agregar: sem head, branch de trabalho ou base do fluxo em {nome_seguro(ref or 'HEAD')}; nada gravado", file=sys.stderr)
+        return 1
+    resolvida = base_do_delta(raiz, nome, ref)[0]
+    try:
+        lista = pareceres.lista_fechada(raiz)
+        pr = None if lista is None else pareceres.pr_aberto(raiz, branch, head)
+        if pr is None or pr["number"] in lista:
+            print(f"parecer agregar: {'dormente, sem a lista fechada' if pr is None else 'PR da lista fechada, vale o arquivo'}; "
+                  "nada gravado", file=sys.stderr)
+            return 0
+        publicados = (False, pareceres.vigentes(raiz, pr["number"], head, pedido))
+        exigidos, faltas = exigidos_do_pr(raiz, pedido, ref, resolvida)[0], []
+        for tipo in exigidos:
+            faltas += publicado_no_pr(raiz, pedido, tipo, publicados, ref, resolvida, branch, faltas.append)
+        reprovados = [pareceres.CONTEXTOS[t] for t in exigidos if publicados[1].get(t, (None,))[0] == "reprovado"]
+        estado = "failure" if reprovados else "pending" if faltas else "success"
+        texto = f"reprovado: {', '.join(reprovados)}" if reprovados else f"{len(faltas)} exigido(s) sem valer" if faltas else "todos os exigidos"
+        pareceres.gravar_status(raiz, head, pareceres.AGREGADO, estado, texto[:pareceres.TETO_DA_DESCRICAO])
+    except pareceres.Recusa as e:
+        print(f"parecer agregar: recusado: {e}; nada gravado", file=sys.stderr)
+        return 1
+    print("\n".join([f"parecer agregar: {f}" for f in faltas] + [f"parecer agregar: {pareceres.AGREGADO} {estado} em {head[:7]}"]),
+          file=sys.stderr)
+    if estado != "success":
+        return 1
+    print("\n".join([f"Parecer: {t} {publicados[1][t][0]} {publicados[1][t][1]} origem {publicados[1][t][2]}" for t in exigidos]
+                    or [f"Parecer: nenhum exigido em {head}"]))
+    return 0
+
+
+def cmd_parecer_pedido(raiz, branch):
+    """C3 (C0-3): o pedido da `branch` pela fonte confiável, os briefs da pasta de controle cuja `Branch:` é ela (com dois pedidos,
+    o único com brief de `Etapa: codigo`, como CONFERENCIA-DOIS-PEDIDOS), nunca o parecer nem o comentário que se confere; nenhum
+    ou ambíguo: rc 1, nada no stdout."""
+    etapas = etapas_dos_briefs_da_branch(raiz, branch)
+    ids = {i for i, e in etapas.items() if "codigo" in e} if len(etapas) > 1 else set(etapas)
+    if len(ids) != 1:
+        print(f"parecer pedido: {len(etapas)} pedido(s) nos briefs da branch {nome_seguro(branch)}, nenhum escolhido (C0-3)", file=sys.stderr)
+        return 1
+    print(ids.pop())
+    return 0
+
+
 def documento_sem_parecer(raiz, commit, nome):
     """E3.49: `.md` de `docs/devops/` sem frontmatter em `commit` (runbook, postura; PASTAS_LIVRES) é documento, não parecer: fica no
     delta. O apagado (sem blob) também fica."""
@@ -11497,6 +11550,14 @@ def main():
     pd.add_argument("--base", default="develop", help="develop (padrão) ou homolog: o que veio dela por merge na branch sai do delta (FC-DELTA-APOS-MERGE-BASE)")
     pp = psub.add_parser("publicar", parents=[comum], help="publica o parecer local como comentário do PR e status do commit (G2.1, ADR 0019)")
     pp.add_argument("arquivo", help=".forge/pareceres/<pedido>/<tipo>.md")
+    pg = psub.add_parser("agregar", parents=[comum], help="grava no head do PR só o agregado `pareceres` do status vigente de cada "
+                         "exigido e imprime as linhas `Parecer:` (C3, M13.1, M15.1)")
+    pg.add_argument("pedido")
+    pg.add_argument("--ref", help="a branch ou o head do PR (padrão HEAD)")
+    pg.add_argument("--base", default="develop", help="develop (padrão), homolog ou main, ou origin/<uma delas>")
+    pg.add_argument("--branch", help="a branch do PR quando a --ref é um sha")
+    pe = psub.add_parser("pedido", parents=[comum], help="o pedido da branch pelos briefs da pasta de controle, nunca pelo parecer (C3, C0-3); só leitura")
+    pe.add_argument("branch")
     pn = psub.add_parser("novo", parents=[comum], help="imprime o esqueleto válido do parecer com o `commit:` do sha a revisar (Z7, AQ-5); só leitura")
     pn.add_argument("--tipo", required=True, choices=tuple(TIPO_DO_PARECER_NOVO))
     pn.add_argument("--pedido", required=True)
@@ -11689,6 +11750,30 @@ def main():
         return 2
 
 
+def squashes_sem_parecer(raiz, develop):
+    """C3 (M15.2, M16.1): os commits do primeiro pai da `develop` depois do que criou a lista fechada (a virada, C5a) sem uma linha
+    `Parecer:` no bloco final da mensagem (a linha no meio do corpo do PR não conta); antes da virada ou sem a `develop`, nenhum.
+    Erro do git: None."""
+    if not sha_do_commit(raiz, develop):
+        return []
+    cod, criados = git(raiz, "log", "--format=%H", "--diff-filter=A", develop, "--", modulo_do_bin("forge_pareceres").LISTA_FECHADA)
+    if cod or not criados:
+        return None if cod else []
+    cod, saida = git(raiz, "log", "--first-parent", "--format=%H%x00%B%x1e", f"{criados.split()[-1]}..{develop}")
+    registros = [r.strip("\n").partition("\x00") for r in saida.split("\x1e")]
+    return None if cod else [sha for sha, _, msg in registros if sha and not any(
+        linha.startswith("Parecer: ") for linha in msg.strip().split("\n\n")[-1].splitlines())]
+
+
+def aviso_de_squash_sem_parecer(raiz, develop):
+    sem = squashes_sem_parecer(raiz, develop)
+    if sem is None:
+        print(f"metricas: aviso: não li os commits de {nome_seguro(develop)} depois da virada (git); squash sem `Parecer:` não conferido (M15.2)", file=sys.stderr)
+    elif sem:
+        print(f"metricas: aviso: {len(sem)} commit(s) de {nome_seguro(develop)} depois da virada sem linha `Parecer:` no bloco final "
+              f"(M15.2, M16.1): {' '.join(s[:7] for s in sem)}", file=sys.stderr)
+
+
 def executar(a, raiz):
     bloqueio = guarda_de_versao(a, raiz)
     if bloqueio is not None:
@@ -11698,7 +11783,10 @@ def executar(a, raiz):
         if modulo is None:
             print(f"{a.cmd}: bin/forge_governanca.py ausente ao lado do forge-check; nada medido")
             return 2
-        return modulo.executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
+        rc = modulo.executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
+        if a.cmd == "metricas":
+            aviso_de_squash_sem_parecer(raiz, a.develop)
+        return rc
     if a.cmd in ("pedido", "recado", "pausa") or (a.cmd == "decisoes" and a.resposta is not None):
         modulo = modulo_do_dono()
         if modulo is None:
@@ -11725,6 +11813,10 @@ def executar(a, raiz):
         return cmd_parecer_novo(raiz, a)
     if a.cmd == "parecer" and a.acao == "publicar":
         return cmd_parecer_publicar(raiz, a.arquivo)
+    if a.cmd == "parecer" and a.acao == "agregar":
+        return cmd_parecer_agregar(raiz, a.pedido, a.ref, a.base, a.branch)
+    if a.cmd == "parecer" and a.acao == "pedido":
+        return cmd_parecer_pedido(raiz, a.branch)
     if a.cmd == "parecer" and a.acao == "delta":
         return cmd_parecer_delta(raiz, a.arquivo, a.ate, a.base)
     if a.cmd == "pronto":
