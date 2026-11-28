@@ -14,7 +14,8 @@ data: 2026-11-28
 Diff `b414714c..61ab461e`: `bin/forge-check` (28 linhas), `bin/forge-testes` (1), `tests/test_brief_sonda_escrita.py`, `tests/mutantes/v0481-brief-sonda-escrita.json`, `tests/mutantes/v0433-integracao-4.json` (I62), `changelog.d/v0481-brief-sonda-escrita.md`.
 
 ## Verificação
-- ci: 61ab461ec3cbc099baf4c24aa7dc7e7803427dbf verde (`gh pr checks 952`: suíte 1/5 a 5/5, instalação, passos, verificações longas, teto de pulados e árvore já provada verdes; só `bateria (pareceres)`, `bateria` e `catraca` vermelhos, à espera dos pareceres e do rótulo)
+- ci: 61ab461ec3cbc099baf4c24aa7dc7e7803427dbf verde
+- checks lidos em `gh pr checks 952`: suíte 1/5 a 5/5, instalação, passos, verificações longas, teto de pulados e árvore já provada verdes; só `bateria (pareceres)`, `bateria` e `catraca` vermelhos, à espera dos pareceres e do rótulo)
 - teste novo: `python3 -m unittest tests.test_brief_sonda_escrita`: 4 testes, OK.
 - mutantes: `bin/forge-mutante --conferir --base b414714c`: trechos no lugar; M5 e M7 rodados aqui: morreram (o autor registrou M1 a M7 mortos).
 - tamanho (H1): cerca de 21 linhas de código em `bin/forge-check` e 1 em `bin/forge-testes`, um comportamento só; dentro do teto.
