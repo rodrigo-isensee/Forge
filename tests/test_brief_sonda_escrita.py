@@ -25,7 +25,8 @@ class SondaComCaminhoDeHook(vv2.BriefDeVolta):
         self.assertIn(ENTRADA, self.linha)
 
     def test_volta_com_a_sonda_do_parecer_nao_barra_a_escrita(self):  # o caso do brief tl-443
-        saida = self.conferir(self.texto)[1]
+        rc, saida = self.conferir(self.texto)
+        self.assertEqual(rc, 0, saida)
         self.assertNotIn(BARRADA, saida)
         self.assertNotIn("difere do parecer", saida)
 
