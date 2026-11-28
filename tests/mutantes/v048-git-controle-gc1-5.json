@@ -1,0 +1,87 @@
+{
+  "pedido": "v048-git-controle-gc1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M26",
+      "guarda": "guarda: a opção abreviada (prefixo de uma de REATIVA) recusa",
+      "arquivo": "bin/forge_git.py",
+      "de": "op.startswith(nome) for nome",
+      "para": "op == nome for nome",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_opcao_abreviada_reabre_programa",
+        "tests.test_forge_git.Recusas.test_opcao_que_reabre_programa"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "guarda: o separador -- sozinho não conta como prefixo",
+      "arquivo": "bin/forge_git.py",
+      "de": " and len(arg) > 2]",
+      "para": "]",
+      "testes": [
+        "tests.test_forge_git.Legitimos.test_chaves_do_clone_principal_passam"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "guarda: --output (grava arquivo onde quem chama mandar) está em REATIVA",
+      "arquivo": "bin/forge_git.py",
+      "de": ", \"--open-files-in-pager\", \"--output\")",
+      "para": ", \"--open-files-in-pager\")",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_opcao_que_reabre_programa"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "guarda: o NEUTRO fecha o core.pager da cópia",
+      "arquivo": "bin/forge_git.py",
+      "de": ", \"-c\", \"core.pager=cat\",",
+      "para": ",",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_neutro_fecha_o_pager_da_copia"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "guarda: o que toca índice ou árvore recusa com gitlink no índice",
+      "arquivo": "bin/forge_git.py",
+      "de": "not (config_permitida(raiz) and sem_gitlink(raiz)):",
+      "para": "not config_permitida(raiz):",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_gitlink_no_indice_recusa"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "guarda: gitlink é a entrada de modo 160000",
+      "arquivo": "bin/forge_git.py",
+      "de": "item.startswith(b\"160000 \")",
+      "para": "item.startswith(b\"999999 \")",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_gitlink_no_indice_recusa"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "guarda: remote e worktree: a ação é o 1.º argumento posicional",
+      "arquivo": "bin/forge_git.py",
+      "de": "    if sub in (\"remote\", \"worktree\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_leitura_pela_posicao_da_acao"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "guarda: a opção antes da ação (remote -v) não conta como ação",
+      "arquivo": "bin/forge_git.py",
+      "de": "next((arg for arg in resto if not arg.startswith(\"-\")), \"\")",
+      "para": "next((arg for arg in resto), \"\")",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_leitura_pela_posicao_da_acao"
+      ]
+    }
+  ]
+}
