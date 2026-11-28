@@ -6,7 +6,7 @@
       "id": "M1",
       "guarda": "COPIA-BASE: a branch que já existe no remoto parte do head remoto dela",
       "arquivo": "bin/forge-copia",
-      "de": "    if existe(copia, f\"refs/remotes/origin/{branch}\"):",
+      "de": "    if branch and existe(copia, f\"refs/remotes/origin/{branch}\"):",
       "para": "    if False:",
       "testes": [
         "tests.test_forge_copia.Cria.test_branch_que_ja_existe_no_remoto_parte_do_head_dela"
@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "COPIA-BASE: sem ponto de partida, a cópia é apagada e sai 1",
       "arquivo": "bin/forge-copia",
-      "de": "    if not ponto or git(\"switch\", \"--no-track\", \"-c\", a.branch, ponto, cwd=real):",
-      "para": "    if git(\"switch\", \"--no-track\", \"-c\", a.branch, ponto, cwd=real):",
+      "de": "    if not ponto or git(\"switch\", *alvo, ponto, cwd=real):",
+      "para": "    if git(\"switch\", *alvo, ponto, cwd=real):",
       "testes": [
         "tests.test_forge_copia.Cria.test_clone_com_base_que_nao_existe_falha_com_1"
       ]
@@ -57,7 +57,7 @@
       "id": "M6",
       "guarda": "COPIA-BASE: o clone que falha sai 1 antes de procurar a base",
       "arquivo": "bin/forge-copia",
-      "de": "    if git(\"clone\", \"--\", a.origem, real):",
+      "de": "    if git(\"clone\", \"--\", origem, real):",
       "para": "    if False:",
       "testes": [
         "tests.test_forge_copia.Cria.test_clone_que_falha_sai_1_antes_de_procurar_a_base"

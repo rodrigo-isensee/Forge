@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "FORGE-COPIA-MENSAGEM: na revisão, a mensagem não cita a base",
       "arquivo": "bin/forge-copia",
-      "de": "*([] if revisao else candidatas(base))",
-      "para": "*([] if False else candidatas(base))",
+      "de": "([] if revisao else list(candidatas(base)))",
+      "para": "([] if False else list(candidatas(base)))",
       "testes": [
         "tests.test_forge_copia.Revisao.test_branch_fora_do_remoto_nao_cai_na_base"
       ]

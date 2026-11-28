@@ -97,8 +97,8 @@
       "id": "M10",
       "guarda": "o clone troca para a branch de trabalho sem rastreio",
       "arquivo": "bin/forge-copia",
-      "de": "\"switch\", \"--no-track\", \"-c\"",
-      "para": "\"switch\", \"-c\"",
+      "de": "\"--no-track\", \"-c\", a.branch]",
+      "para": "\"-c\", a.branch]",
       "testes": [
         "tests.test_forge_copia.Cria.test_clone_dentro_cria_branch_a_partir_da_base_sem_rastreio"
       ]
@@ -117,8 +117,8 @@
       "id": "M12",
       "guarda": "destino recusado devolve 2 sem chamar o git",
       "arquivo": "bin/forge-copia",
-      "de": "if motivo:\n        return recusa(motivo)",
-      "para": "if False:\n        return recusa(motivo)",
+      "de": "a.papel)\n    if motivo:\n        return recusa(motivo)",
+      "para": "a.papel)\n    if False:\n        return recusa(motivo)",
       "testes": [
         "tests.test_forge_copia.Recusa.test_fora_da_pasta"
       ]
