@@ -1,0 +1,26 @@
+{
+ "pedido": "v048-validar-yaml-workflow-b",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M1",
+   "guarda": "E13.6: chave sem valor",
+   "arquivo": "scripts/validar-yaml-workflow.py",
+   "de": "(par.group(2) or \"\")",
+   "para": "(par.group(2))",
+   "testes": [
+    "tests.test_validar_yaml_workflow.ValidarYaml.test_workflow_bom_passa"
+   ]
+  },
+  {
+   "id": "M2",
+   "guarda": "E13.6: o script roda como programa",
+   "arquivo": "scripts/validar-yaml-workflow.py",
+   "de": "if __name__ == \"__main__\":",
+   "para": "if False:",
+   "testes": [
+    "tests.test_validar_yaml_workflow.ValidarYaml.test_cli_sai_1_com_defeito_e_nomeia_arquivo_e_linha"
+   ]
+  }
+ ]
+}
