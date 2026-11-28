@@ -19,7 +19,7 @@ Escopo: `bin/forge-copia` (FORGE-COPIA-ORIGEM-LOCAL, falha da worktree sem desfa
 - ci: 6c8fd19ce2675be5c3206cf2fcba6679886ded1d verde
 
 ## Achados
-- A1 (bloqueante) tests/mutantes/v0475-copia-pasta.json:M6 · M6 (`bin/forge-copia:340`, `if valor.startswith("-")` para `if False:`) sobrevive (rc 1), também na base a90a7a93. O teste listado só cobre branch e base, barradas por outras guardas; quem mata é `Recusa.test_origem_com_cara_de_opcao` (rc 1, esperado 2). Listá-lo em `testes`.
+- A1 (bloqueante) bin/forge-copia:340 · o mutante M6 de tests/mutantes/v0475-copia-pasta.json (`if valor.startswith("-")` para `if False:`) sobrevive (rc 1), também na base a90a7a93. O teste listado não o mata; `Recusa.test_origem_com_cara_de_opcao` mata (rc 1, esperado 2). Listá-lo em `testes`.
 - A2 (recomendado) tests/mutantes/v048-forge-copia-origem-2.json:2 · as 3 specs têm `pedido` diferente (`...-origem`, `-2`, `-3`); o forge-mutante recusa a rodada conjunta (rc 2). O padrão pede o mesmo `pedido` e id único no conjunto. Rodei uma a uma.
 - A3 (recomendado) tests/test_forge_copia.py:929 · só 12 dos 13 testes novos provam vermelho; `test_branch_que_ja_existia_fica_quando_a_worktree_falha` passa na base (guarda de regressão, coberto por mutante da spec -2). Corrigir a contagem "13 provam" do pedido.
 
