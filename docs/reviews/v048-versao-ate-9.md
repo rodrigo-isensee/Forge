@@ -13,7 +13,8 @@ data: 2026-11-27
 1ª rodada completa (E2.2) do commit c727c89 sobre a Base-sha b414714.
 
 ## CI
-- ci: c727c89722a5a68b336f7e7e296d02ffa5272cc9 verde (run 46084959115, headSha conferido; suíte 1/5 a 5/5, instalação, passos, verificações longas, python 3.14, teto de pulados e árvore provada verdes; `bateria` e `bateria (pareceres)` esperam os pareceres)
+- ci: c727c89722a5a68b336f7e7e296d02ffa5272cc9 verde
+- Run 46084959115, headSha conferido: suíte 1/5 a 5/5, instalação, passos, verificações longas, python 3.14, teto de pulados e árvore provada verdes; `bateria` e `bateria (pareceres)` esperam os pareceres.
 
 ## Verificações
 - Testes afetados (`tests.test_forge_contador`, `tests.test_changelog`): 119 testes, OK.
