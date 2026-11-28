@@ -305,7 +305,11 @@ class DepoisDoF6(unittest.TestCase):
                     pedidos.append(caminho)
                     return pr if "/pulls/" in caminho else api(caminho)
 
-                self.assertEqual(self.p.coletar(REPO, ler, CONHECIDAS)[0], {})
+                try:
+                    amostras = self.p.coletar(REPO, ler, CONHECIDAS)[0]
+                except Exception as erro:  # a guarda é não quebrar: falha de asserção, não erro do teste
+                    self.fail(f"coletar quebrou com {nome}: {type(erro).__name__}")
+                self.assertEqual(amostras, {})
                 self.assertEqual([c for c in pedidos if "/pulls/" in c], [])
 
     def test_conferir_sai_1_com_pesos_velhos_e_0_com_pesos_em_dia(self):
