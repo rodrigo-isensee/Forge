@@ -12,27 +12,22 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-28
 ---
-# QA: ambiente (DEVCONTAINER-CLAUDE-NO-PATH, E13.5, classe C)
+# QA: ambiente (DEVCONTAINER-CLAUDE-NO-PATH, E13.5, classe C), delta df4b2bf9..75f2e456
 
-Conteúdo aprovado na leitura e nos testes locais; a reprovação é só pelo CI do head (R-QA, PARECER-LE-O-CI).
+Delta de código: uma linha, `# shellcheck disable=SC2016` acima de scripts/preparar-estacao.sh:197, sem mudança de comportamento. Conteúdo aprovado; a reprovação é só pelo CI do head (R-QA, PARECER-LE-O-CI).
 
 ## Achados
-- A1 (bloqueante) .github/workflows:0 · CI do head df4b2bf9 sem verde: `bateria (verificações longas)` falhou (11s) e as 5 partes `suíte (python 3.12)` seguiam pendentes na leitura; sem `ci: verde` o parecer não aprova (PQ-3).
+- A1 (bloqueante) .github/workflows:0 · CI do head 75f2e456 sem verde: `bateria (passos)` falha porque scripts/verificar-contribuicao.sh acusa caminho pessoal no parecer de segurança (docs/security/v0481-ambiente-claude-path.md:28, fora do código); `bateria` e `bateria (pareceres)` seguem vermelhas. A segurança regrava o parecer; o QA regrava a linha ci: no head novo.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Só a linha que põe ~/.local/bin na frente conta no .bashrc | ClaudeNovoPrimeiroNoPath (fim do PATH, sem `:$PATH`, /usr/local/bin antes) e linha já na frente (`$HOME`, `${HOME}`, `/root`) | linha no fim, linha sem PATH, linha já correta (não duplica) | passou |
-| Na sessão nova o claude novo vence o de /usr/local/bin | test_na_sessao_nova_o_claude_do_local_bin_vence_o_antigo | ordem do PATH | passou |
-| postStart para se o mktemp falha | PostStartDoContainer.test_pasta_temporaria_que_falha | mktemp falho: rc 1, ERRO, nenhum git nem preparo | passou |
-| Comando manual do ERRO roda o script da main | test_comando_manual_da_mensagem_de_erro | sem `/workspaces/Forge` no comando e nas chamadas | passou |
-| README e avisos citam /root/.local/bin/claude | test_readme_manda_abrir..., test_avisos_mandam_abrir... | texto exato | passou |
+| A1 anterior: SC2016 do shellcheck na linha 197 | `shellcheck scripts/preparar-estacao.sh` | linha de regex com `\$HOME` literal | passou (sem saída, rc 0) |
+| Comportamento da linha 197 inalterado | `python3 -m unittest tests.test_ambiente_recriacao tests.test_guia_varios_projetos` | linha no fim, já na frente, `$HOME`/`${HOME}`/`/root` | passou (22 testes, OK) |
 
 ## Cenários e resultado real
-- Local: `python3 -m unittest tests.test_ambiente_recriacao tests.test_guia_varios_projetos` · 22 testes, OK.
-- Vermelho (`bin/forge-testes --vermelho --modulos test_ambiente_recriacao,test_guia_varios_projetos`): base=a19718532c83, revertidos .devcontainer/devcontainer.json, README.md, scripts/preparar-estacao.sh; 6 provam por asserção (avisos, bashrc no fim do PATH, sessão nova, ERRO manual, mktemp falho, README); 16 passam na base (guardas pré-existentes, "linha já na frente" e "pasta ok": regressão, não correção).
-- Mutantes: `bin/forge-mutante tests/mutantes/v0481-ambiente-claude-path.json` · rc=0, M1 a M8 `morreu` (devcontainer.json:32 x4, preparar-estacao.sh:197 x2, :487, README.md:47). Um mutante por linha de guarda mudada, conferido à mão contra o diff; `--cobertura` diz `não coberto` para json e shell por não serem Python (esperado).
-- O texto do `cat` em preparar-estacao.sh:663 não tem mutante próprio; coberto por assertIn do texto.
+- Mutantes: `bin/forge-mutante tests/mutantes/v0481-ambiente-claude-path.json` · M1 a M8 `morreu` (devcontainer.json:32 x4, preparar-estacao.sh:198 x2, :488, README.md:47); rc 0. O delta é só comentário: nenhum mutante novo.
+- Vermelho: do delta nada a provar (comentário); o vermelho da rodada anterior segue valendo (base a19718532c83).
 
 ## CI
-- ci: df4b2bf9acc9db23f376b385f50f59ccf42dc467 NÃO verde (leitura de `gh pr checks`: falha em `bateria (verificações longas)`; suítes pendentes). Não gravo `ci: verde`.
+- ci: NÃO verde no 75f2e456414d0cb3e8e6e32c3afd1752798db61d (`gh pr checks`: `bateria`, `bateria (pareceres)` e `bateria (passos)` falham; run 46166972749). Não gravo `ci: verde`.
