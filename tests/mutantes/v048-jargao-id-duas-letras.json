@@ -1,0 +1,26 @@
+{
+  "pedido": "v048-jargao-id-duas-letras",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E2.351: o ID de regra de duas letras (R-QA) conta como jargão",
+      "arquivo": "hooks/meta.py",
+      "de": "R-[A-Z]{2,}(?![\\w-])",
+      "para": "R-[A-Z]{3,}(?![\\w-])",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_regra_de_duas_letras_conta_e_uma_letra_nao"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E2.351: uma letra só depois de R- não é ID de regra",
+      "arquivo": "hooks/meta.py",
+      "de": "R-[A-Z]{2,}(?![\\w-])",
+      "para": "R-[A-Z]{1,}(?![\\w-])",
+      "testes": [
+        "tests.test_meta.JargaoPorClasse.test_regra_de_duas_letras_conta_e_uma_letra_nao"
+      ]
+    }
+  ]
+}
