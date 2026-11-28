@@ -60,8 +60,8 @@
       "id": "M6",
       "guarda": "teto de 5 min no job pareceres (J9)",
       "arquivo": ".github/workflows/ci.yml",
-      "de": "    timeout-minutes: 5\n    permissions:\n      contents: read\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        with:\n          python-version: \"3.12\"\n      - name: Parecer",
-      "para": "    timeout-minutes: 10\n    permissions:\n      contents: read\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        with:\n          python-version: \"3.12\"\n      - name: Parecer",
+      "de": "    timeout-minutes: 5\n    permissions:\n      contents: read\n      checks: read\n    outputs:\n      espera: ${{ steps.pareceres.outputs.espera }}\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        with:\n          python-version: \"3.12\"\n      - name: Parecer",
+      "para": "    timeout-minutes: 10\n    permissions:\n      contents: read\n      checks: read\n    outputs:\n      espera: ${{ steps.pareceres.outputs.espera }}\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        with:\n          python-version: \"3.12\"\n      - name: Parecer",
       "testes": [
         "tests.test_ci_local.LeituraDosWorkflowsTest.test_pareceres_e_job_proprio_obrigatorio_e_fora_do_caminho_da_suite"
       ]
