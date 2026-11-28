@@ -3,35 +3,34 @@ tipo: review
 contrato: 1
 pedido: v048
 branch: melhoria/v048-git-controle-gc1
-commit: 29bdda157d3e984cf5cafd71c9647874b4769f1b
-parecer: reprovado
+commit: 841c557ea6eb82bddf4eec7bf48c816683b533b0
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-28
 ---
-# Review: v048 (E3.3, PR #957, GIT-CONTROLE-CONFIG-DA-COPIA corte GC1)
+# Review: v048 (E3.7, PR #957, GIT-CONTROLE-CONFIG-DA-COPIA corte GC1; delta das voltas 1 e 2)
 
-1ª rodada completa no head `29bdda15` (Base-sha `1ced5c09`, que é o merge-base com a `origin/develop`).
+Delta `29bdda15..841c557e` (voltas 1 `2a13fead` e 2 `841c557e`), lido pelo `forge-check parecer delta docs/reviews/v048-git-controle-gc1.md`, sem o que veio da base: no domínio, `bin/forge_git.py`, `changelog.d/v048-git-controle-gc1.md`, `tests/mutantes/v048-git-controle-gc1.json`, `-2.json`, `-3.json`, `-5.json`, `-6.json` e `tests/test_forge_git.py`. Parecer anterior: reprovado em `29bdda15` (A1, A2). Clone de revisão: `/root/.forge-contrib/wt/v048-git-controle-gc1-tech-lead-4`, no head `841c557e`.
 
-- ci: 29bdda157d3e984cf5cafd71c9647874b4769f1b verde (runs 46136636495 e 46136709586, `headSha` igual ao commit, conclusão success; suíte 5/5, catraca e catraca (conferência) verdes; o teste de custo `tests/test_hooks_volta_corpus.py` roda na suíte do CI)
-- testes do item: `python3 -m unittest tests.test_forge_git` · 19 OK
-- mutantes: `bin/forge-mutante --processos 1 tests/mutantes/v048-git-controle-gc1*.json` · 25/25 mortos; `--cobertura --base 1ced5c09` · toda guarda mudada coberta por mutante declarado
-- tamanho (H1): `bin/forge_git.py` com 139 linhas, docstring incluída, e um comportamento só (o ponto único); dentro do teto
+## CI e ferramentas (citadas, não refeitas)
+- ci: 841c557ea6eb82bddf4eec7bf48c816683b533b0 verde
+- `gh pr checks 957`: runs `46145488828` (tentativa 2, a parte 5/5 rodada de novo por decisão do Jarvis) e `46145488817`, ambos com `headSha` = `841c557e`. Suíte 3.12 partes 1/5 a 5/5 (o teste de custo `tests/test_hooks_volta_corpus.py` roda nela), `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, `árvore já provada na develop`, `catraca` e `catraca (conferência)` verdes. Vermelho só `bateria (pareceres)`, que espera os pareceres.
+- Testes do item: `python3 -m unittest tests.test_forge_git` · 24 testes, OK (git 2.43.0).
+- Mutantes refeitos por mim (os logs do autor não valem, R-PROVA): `bin/forge-mutante --processos 1 tests/mutantes/v048-git-controle-gc1*.json` · rc=0, 38/38 mortos (M1 a M38). `bin/forge-mutante --cobertura --base 29bdda15`: toda guarda mudada de `bin/forge_git.py` (linhas 50, 78, 83, 84, 85, 86, 92, 93, 96, 100) coberta por mutante declarado; o único "não coberto" (`hooks/conformidade.json`) veio da `develop`, fora do delta.
+- Tamanho (H1): `bin/forge_git.py` com 139 linhas no total, um comportamento só; dentro do teto.
 
-## Achados
-- A1 (bloqueante) bin/forge_git.py:82 · REATIVA compara o nome exato, mas o git aceita a abreviação da opção longa: `cat-file --filt` roda o filter.smudge da cópia e `grep --open-files` roda o core.pager dela, sem Recusado (S1, S2). Recuse todo prefixo de opção de REATIVA (e ponha -c core.pager=cat no NEUTRO), com teste.
-- A2 (bloqueante) bin/forge_git.py:85 · a leitura de LEITURA vale se a palavra aparece em qualquer posição: `git(raiz, "worktree", "add", "list")` passa como leitura, cria a worktree `list` e roda o filter.smudge da cópia (S3). Confira o subcomando na posição dele (worktree, remote) e teste o caso.
-
-## Sondas
-- S1 · forge_git.git(copia, "cat-file", "--filt", "HEAD:f"), com info/attributes `* filter=y` e filter.y.smudge=<marcador> na config da cópia · espera: Recusado, marcador ausente · obtido: rc=0, marcador gravado (git 2.43.0)
-- S2 · forge_git.git(copia, "grep", "--open-files", "-e", "b"), com core.pager=<marcador> na config da cópia · espera: Recusado, marcador ausente · obtido: rc=0, marcador gravado; "--open-files-in-pager" inteiro é recusado
-- S3 · forge_git.git(copia, "worktree", "add", "list"), com info/attributes `* filter=y` e filter.y.smudge=<marcador> · espera: Recusado ("só a leitura") · obtido: rc=0, worktree criada e marcador gravado
+## Sondas da 1.ª rodada, refeitas no head
+Mesmo cenário da 1.ª rodada (filtro, textconv e pager da cópia apontando um marcador), por `python3 -I` com ambiente limpo e HOME temporário:
+- S1 `cat-file --filt HEAD:f` (e `--textc`, `--filters --path=f`): `Recusado` ("reabre programa externo"), marcador ausente. A1 fechado.
+- S2 `grep --open-files -e b` (e o nome inteiro): `Recusado`, marcador ausente; `core.pager=cat` agora no `NEUTRO` (`bin/forge_git.py:25`). A1 fechado.
+- S3 `worktree add list`: `Recusado` ("só a leitura"), sem worktree nem marcador. A2 fechado.
+- Sondas novas no delta, todas fechadas: `worktree --porcelain add list`, `remote -v add list x` e `branch --list -m novo` recusados; `log -p --ext`, `log --show-sig`, `show --textcon` e `grep --textc` recusados; `branch -r novo` dá rc=128 e `branch --contains HEAD novo` rc=0, sem branch criada; `status` e `ls-files --recurse-submodules` com submódulo recusados. Leituras legítimas (`worktree list`, `remote -v`, `branch --show-current`, `config --get`) passam.
 
 ## Parecer
-Reprovado, por dois defeitos provados nas guardas do próprio ponto único; o resto da entrega está bom.
+Aprovado. Os dois bloqueantes da 1.ª rodada estão fechados e provados por sonda, teste e mutante.
 
-O desenho cumpre a E3.2: ambiente sem `GIT_*` nem `XDG_CONFIG_HOME`, `NEUTRO` na linha de comando antes do subcomando, chave por protocolo fechada por nome, lista positiva com a config local conferida para o que toca índice ou árvore, e `merge-tree` e rede num neutro fora do `TMPDIR`. Os testes têm duas metades (o cru executa o vetor, o `forge_git` não), em repositório descartável com HOME temporário, e cada guarda tem mutante que morre. O changelog e o `docs/indice-forge.md` estão atualizados. Sem chamador neste corte: os próximos cortes passam a depender destas guardas, e por isso as duas brechas bloqueiam já.
+- A1 · a montagem (`bin/forge_git.py:92-93`) recusa todo argumento `--x` (antes do `=`) que seja prefixo de um item de `REATIVA`, com o `--` separador fora; o custo é recusar também `--text` e `--filter` inteiros, uma falha fechada aceitável no ponto único. `--output` entrou em `REATIVA` (grava arquivo fora da árvore). Teste do ramo de falha em `test_opcao_abreviada_reabre_programa`, com a prova crua por `--textc`, que o git do runner aceita; mutantes M26 e M27.
+- A2 · `_so_leitura` (`bin/forge_git.py:81-86`) confere a ação no 1.º posicional de `remote` e `worktree` (o `""` representa o `git remote` sem ação), só opções de listagem no `branch` e a opção no `config`. Teste em `test_leitura_pela_posicao_da_acao`, com os casos de escrita recusados e as leituras legítimas passando; mutantes M32 a M35 e M38.
+- O resto do delta, vindo da segurança (gitlink no `INDICE`, chaves do VS Code em `PERMITIDAS`), lido no domínio do código: `sem_gitlink` falha fechado (rc diferente de 0 recusa), tem teste com o submódulo de config própria e mutantes M30 e M31; o changelog descreve a mudança. O mérito de segurança é do `security-engineer`.
 
-- A1 · `bin/forge_git.py:82` · `REATIVA` é uma lista de nomes inteiros, mas o parse-options do git aceita a abreviação única da opção longa. `cat-file` e `grep` estão em `LEITURA` e não passam pela `config_permitida`, então a abreviação reabre o programa da cópia (S1, S2). Sugestão: recusar o argumento `--x` (antes do `=`) que seja prefixo de algum item de `REATIVA`; para o pager, `-c core.pager=cat` no `NEUTRO` fecha também o caminho pelo nome inteiro. Teste do ramo de falha com a abreviação e mutante da nova condição. Severidade: bloqueia (defeito provado).
-- A2 · `bin/forge_git.py:85` · `LEITURA[sub].intersection(resto)` aceita a palavra de leitura em qualquer posição. Em `worktree` e `remote`, ela é o subcomando, e um argumento posicional igual a `list` ou `get-url` libera `add` (S3). O `test_subcomando_misto_so_na_leitura` (`tests/test_forge_git.py:188`) cobre `worktree add w`, mas não esse caso. Sugestão: para os subcomandos com sub-subcomando, exigir que o primeiro argumento que não é opção seja o de leitura; para `config` e `branch`, manter a opção, com teste do caso posicional. Severidade: bloqueia (defeito provado).
-
-Revalidação: na volta, leio só o delta (`forge-check parecer delta docs/reviews/v048-git-controle-gc1.md`) e as sondas S1 a S3 de novo.
+Revalidação: nenhum bloqueante novo; numa próxima volta, leio só o delta a partir de `841c557e`.
