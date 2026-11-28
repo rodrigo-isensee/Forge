@@ -4031,33 +4031,31 @@ def cmd_parecer_publicar(raiz, arquivo):
     return 0
 
 
-def cmd_parecer_agregar(raiz, pedido, ref, base="develop", branch=None):
+def cmd_parecer_agregar(raiz, pedido, ref, base, branch):
     """C3 (F1 parte 2, M13.1, M15.1): grava no head do PR aberto da branch só o agregado `pareceres`, do resultado de `vigentes`
     (C2a) por tipo de `exigidos_do_pr` deste `forge-check`, nunca da lista de quem publica: `success` com todos aprovados e o domínio
     intacto desde a origem, `failure` com um `reprovado` vigente, `pending` no resto. Com `success`, imprime no stdout as linhas
     `Parecer:` que o `forge-fechar` põe no bloco final da mensagem do merge (M15.1). Dormente (sem a lista fechada) ou PR da lista
     (o arquivo vale, M20.1): nada grava, rc 0 e nenhuma linha. rc 1: leitura recusada, gravação que falha ou agregado fora de `success`."""
-    pareceres, head = modulo_do_bin("forge_pareceres"), sha_do_commit(raiz, ref or "HEAD")
-    branch = branch or branch_da_ref(raiz, ref)
-    nome = (base or "develop").removeprefix("origin/")
-    if not head or not branch or branch in BASES_DO_FLUXO or nome not in BASES_DO_FLUXO:
-        print(f"parecer agregar: sem head, branch de trabalho ou base do fluxo em {nome_seguro(ref or 'HEAD')}; nada gravado", file=sys.stderr)
+    pareceres, head, nome = modulo_do_bin("forge_pareceres"), sha_do_commit(raiz, ref), base.removeprefix("origin/")
+    if not head or branch in BASES_DO_FLUXO or nome not in BASES_DO_FLUXO:
+        print(f"parecer agregar: sem head, branch de trabalho ou base do fluxo em {nome_seguro(ref)}; nada gravado", file=sys.stderr)
         return 1
     resolvida = base_do_delta(raiz, nome, ref)[0]
     try:
-        lista = pareceres.lista_fechada(raiz)
-        pr = None if lista is None else pareceres.pr_aberto(raiz, branch, head)
-        if pr is None or pr["number"] in lista:
-            print(f"parecer agregar: {'dormente, sem a lista fechada' if pr is None else 'PR da lista fechada, vale o arquivo'}; "
-                  "nada gravado", file=sys.stderr)
+        if (lista := pareceres.lista_fechada(raiz)) is None:
+            print("parecer agregar: dormente, sem a lista fechada; nada gravado", file=sys.stderr)
+            return 0
+        if (pr := pareceres.pr_aberto(raiz, branch, head))["number"] in lista:
+            print("parecer agregar: PR da lista fechada, vale o arquivo; nada gravado", file=sys.stderr)
             return 0
         publicados = (False, pareceres.vigentes(raiz, pr["number"], head, pedido))
         exigidos, faltas = exigidos_do_pr(raiz, pedido, ref, resolvida)[0], []
         for tipo in exigidos:
             faltas += publicado_no_pr(raiz, pedido, tipo, publicados, ref, resolvida, branch, faltas.append)
         reprovados = [pareceres.CONTEXTOS[t] for t in exigidos if publicados[1].get(t, (None,))[0] == "reprovado"]
-        estado = "failure" if reprovados else "pending" if faltas else "success"
-        texto = f"reprovado: {', '.join(reprovados)}" if reprovados else f"{len(faltas)} exigido(s) sem valer" if faltas else "todos os exigidos"
+        estado, texto = (("failure", f"reprovado: {', '.join(reprovados)}") if reprovados
+                         else ("pending", f"{len(faltas)} exigido(s) sem valer") if faltas else ("success", "todos os exigidos"))
         pareceres.gravar_status(raiz, head, pareceres.AGREGADO, estado, texto[:pareceres.TETO_DA_DESCRICAO])
     except pareceres.Recusa as e:
         print(f"parecer agregar: recusado: {e}; nada gravado", file=sys.stderr)
@@ -11553,9 +11551,9 @@ def main():
     pg = psub.add_parser("agregar", parents=[comum], help="grava no head do PR só o agregado `pareceres` do status vigente de cada "
                          "exigido e imprime as linhas `Parecer:` (C3, M13.1, M15.1)")
     pg.add_argument("pedido")
-    pg.add_argument("--ref", help="a branch ou o head do PR (padrão HEAD)")
+    pg.add_argument("--ref", default="HEAD", help="a branch ou o head do PR (padrão HEAD)")
     pg.add_argument("--base", default="develop", help="develop (padrão), homolog ou main, ou origin/<uma delas>")
-    pg.add_argument("--branch", help="a branch do PR quando a --ref é um sha")
+    pg.add_argument("--branch", required=True, help="a branch do PR (a --ref pode ser o sha)")
     pe = psub.add_parser("pedido", parents=[comum], help="o pedido da branch pelos briefs da pasta de controle, nunca pelo parecer (C3, C0-3); só leitura")
     pe.add_argument("branch")
     pn = psub.add_parser("novo", parents=[comum], help="imprime o esqueleto válido do parecer com o `commit:` do sha a revisar (Z7, AQ-5); só leitura")

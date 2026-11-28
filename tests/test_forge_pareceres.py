@@ -1365,9 +1365,10 @@ class SquashSemParecer(unittest.TestCase):
     def test_develop_ausente_nada_e_git_que_falha_none(self):
         self.assertEqual(fc().squashes_sem_parecer(self.tmp, "origin/develop"), [])
         self.commitar("feat(ci): a virada (#1)", fc().modulo_do_bin("forge_pareceres").LISTA_FECHADA)
-        with mock.patch.object(fc(), "sha_do_commit", return_value="x"), \
-                mock.patch.object(fc(), "git", side_effect=[(0, "x"), (128, "")]):
-            self.assertIsNone(fc().squashes_sem_parecer(self.tmp, "develop"))
+        for respostas in ([(128, "")], [(0, "x"), (128, "")]):  # o git que falha na busca da virada ou na leitura dos commits
+            with self.subTest(respostas=respostas), mock.patch.object(fc(), "sha_do_commit", return_value="x"), \
+                    mock.patch.object(fc(), "git", side_effect=respostas):
+                self.assertIsNone(fc().squashes_sem_parecer(self.tmp, "develop"))
 
     def test_metricas_avisa_no_stderr(self):
         self.commitar("feat(ci): a virada (#1)", fc().modulo_do_bin("forge_pareceres").LISTA_FECHADA)
@@ -1395,6 +1396,16 @@ class SquashSemParecer(unittest.TestCase):
                 a = mock.Mock(cmd=cmd, raiz_pedidos=None, develop="develop")
                 self.assertEqual(fc().executar(a, self.tmp), 0)
                 self.assertEqual(aviso.call_args_list, chamadas)
+
+    def test_os_subcomandos_agregar_e_pedido_chegam_a_funcao(self):
+        for acao, funcao, args in (("agregar", "cmd_parecer_agregar", (PEDIDO, "HEAD", "develop", BRANCH)),
+                                   ("pedido", "cmd_parecer_pedido", (BRANCH,))):
+            with self.subTest(acao=acao), mock.patch.object(fc(), "guarda_de_versao", return_value=None), \
+                    mock.patch.object(fc(), funcao, return_value=7) as chamada:
+                a = mock.Mock(cmd="parecer", acao=acao, pedido=PEDIDO, ref="HEAD", base="develop", branch=BRANCH)
+                self.assertEqual(fc().executar(a, self.tmp), 7)
+                chamada.assert_called_once_with(self.tmp, *args)
+
 
 if __name__ == "__main__":
     unittest.main()
