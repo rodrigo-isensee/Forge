@@ -1,0 +1,22 @@
+{
+  "pedido": "v048-agente-preso-baixa",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "E12.2: --limpar só no argumento exato; o resto é o hook pelo stdin",
+      "arquivo": "hooks/agentes.py",
+      "de": "if __name__ == \"__main__\" and sys.argv[1:] == [LIMPAR]:",
+      "para": "if __name__ == \"__main__\" and False:",
+      "testes": ["tests.test_agente_preso_baixa.ComandoLimpar.test_fora_de_projeto_pela_linha_de_comando"]
+    },
+    {
+      "id": "M10",
+      "guarda": "E12.2: o vigia lê o registro com a prova da notificação terminal",
+      "arquivo": "hooks/vigia.py",
+      "de": "hook.expira_s(), agentes.Liberacao(leitor, agora))",
+      "para": "hook.expira_s())",
+      "testes": ["tests.test_agente_preso_baixa.VigiaSemOParado.test_parado_pela_notificacao_nao_roda"]
+    }
+  ]
+}
