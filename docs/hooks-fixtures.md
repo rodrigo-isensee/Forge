@@ -294,6 +294,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` roda em `tests/test_hooks.py` (ADR 
 - `contorno-*`
 - `corrigir-*`
 - `d-*`
+- `descarte-*`
 - `e51-*`
 - `em-*`
 - `entrada-*`

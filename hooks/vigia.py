@@ -62,6 +62,10 @@ REGRAS_DE_CONTORNO = {"R-CONFORMIDADE", "R-MAIN"}  # só nelas o próprio alvo �
 SUBCOMANDOS_DE_ESCRITA = {"push", "merge", "rebase", "cherry-pick", "reset", "commit", "create"}
 _ESCRITA = re.compile(r"(?<![\w.-])(?:tee|cp|mv|install|ln|rm|touch|dd|truncate|sed\s+-\S*i|perl|python3?|ruby|node|"
                       r"sh|bash|zsh|eval|source)(?![\w.-])|>|<<")
+# Redireção de descritor para /dev/null (`2>/dev/null`, `> /dev/null`, `&>>/dev/null`) entre separadores do shell: descarta a
+# saída, não grava arquivo; sai do comando antes do alvo e dos verbos (HOOK-PARADA-CONTA-REDIRECAO). Colada a outra grafia
+# (`>/dev/null'x'`, `>/dev/null.x`) fica, e segue contando como escrita.
+_DESCARTE = re.compile(r"(?<![^\s;&|(])(?:\d*|&)>>?[ \t]*/dev/null(?=[\s;&|)]|$)")
 PODADOS = {".git", "node_modules"}  # nunca se desce neles
 # Gravidade: só o contorno acusa (violação); arquivo em vigor mudado pode ser o usuário ou o `forge-upgrade` (mudança).
 GRAVIDADE = {"contorno": (0, "violação(ões)"), "versao-sumiu": (0, "violação(ões)"), "erro-hook": (1, "aviso(s)"), "em-vigor": (2, "mudança(s)"), "git": (2, "mudança(s)"),
@@ -162,6 +166,7 @@ def perfil_da_chamada(nome, entrada, raiz):
     comando = entrada.get("command")
     if nome != "Bash" or not isinstance(comando, str):
         return vazio
+    comando = _DESCARTE.sub(" ", comando)
     try:
         palavras = shlex.split(comando, comments=False)
     except ValueError:
