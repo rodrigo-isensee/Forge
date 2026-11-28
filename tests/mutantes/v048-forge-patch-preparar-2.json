@@ -1,0 +1,87 @@
+{
+  "pedido": "v048-forge-patch-preparar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "forge-patch preparar: parecer, pedido e o resto do NUNCA_PATCH_DO_DONO nunca vão por patch",
+      "arquivo": "bin/forge_patch.py",
+      "de": "nome.startswith(fc.NUNCA_PATCH_DO_DONO + (\"docs/autorizacoes/\", \".forge/autorizacoes/\"))",
+      "para": "False",
+      "testes": [
+        "tests.test_forge_patch.Patch.test_parecer_e_pedido_nunca_vao_por_patch"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "forge-patch preparar: caminho com curinga ou branco recusa",
+      "arquivo": "bin/forge_patch.py",
+      "de": "                or CAMINHO_TORTO.search(nome) or any(",
+      "para": "                or any(",
+      "testes": [
+        "tests.test_forge_patch.Patch.test_caminho_travado_com_curinga_recusa"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "forge-patch preparar: arquivo livre (não travado pela política) recusa",
+      "arquivo": "bin/forge_patch.py",
+      "de": "        if barrada is None or barrada[3:]",
+      "para": "        if barrada[3:]",
+      "testes": [
+        "tests.test_forge_patch.Patch.test_arquivo_livre_recusa"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "forge-patch preparar: patch que não aplica limpo no head recusa",
+      "arquivo": "bin/forge_patch.py",
+      "de": "    if git(copia, \"apply\", \"--check\", \"-\", entrada=patch)[0] != 0:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_patch.Patch.test_patch_que_nao_aplica_recusa"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "forge-patch preparar: id fora de [a-z0-9-]{1,40} recusa",
+      "arquivo": "bin/forge_patch.py",
+      "de": "    if not re.fullmatch(r\"[a-z0-9-]{1,40}\", ident):",
+      "para": "    if not re.fullmatch(r\"[A-Za-z0-9_-]{1,40}\", ident):",
+      "testes": [
+        "tests.test_forge_patch.Ficha.test_id_torto_recusa"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "forge-patch preparar: fora da cópia vigente não imprime o comando",
+      "arquivo": "bin/forge_patch.py",
+      "de": "    if not vigente():",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_patch.Ficha.test_fora_da_copia_vigente_nao_imprime_o_comando",
+        "tests.test_forge_patch.LinhaDeComando.test_rodado_fora_da_copia_vigente_sai_1_sem_imprimir_comando"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "forge-patch preparar: motivo vazio recusa",
+      "arquivo": "bin/forge_patch.py",
+      "de": "    if not motivo.strip() or fc.com_controle(motivo)",
+      "para": "    if fc.com_controle(motivo)",
+      "testes": [
+        "tests.test_forge_patch.Ficha.test_motivo_vazio_ou_pedido_sem_arquivo_recusa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "forge-patch preparar: pedido sem docs/pedidos/<id>.md recusa",
+      "arquivo": "bin/forge_patch.py",
+      "de": "or fc.pedido_para_anotar(copia, pedido) is None:",
+      "para": "or False:",
+      "testes": [
+        "tests.test_forge_patch.Ficha.test_motivo_vazio_ou_pedido_sem_arquivo_recusa"
+      ]
+    }
+  ]
+}

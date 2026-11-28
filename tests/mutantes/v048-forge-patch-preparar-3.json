@@ -1,0 +1,86 @@
+{
+  "pedido": "v048-forge-patch-preparar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "forge-patch preparar: patch por link recusa",
+      "arquivo": "bin/forge_patch.py",
+      "de": " or origem.is_symlink() or ",
+      "para": " or ",
+      "testes": [
+        "tests.test_forge_patch.Ficha.test_patch_por_link_recusa"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "forge-patch preparar: patch acima de 256 KiB recusa antes de ler",
+      "arquivo": "bin/forge_patch.py",
+      "de": " or origem.stat().st_size > TETO_DA_FICHA:",
+      "para": ":",
+      "testes": [
+        "tests.test_forge_patch.Ficha.test_patch_acima_de_256_kib_recusa"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "forge-patch preparar: ficha inteira acima do teto recusa",
+      "arquivo": "bin/forge_patch.py",
+      "de": "    if len(ficha) > TETO_DA_FICHA:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_patch.Ficha.test_ficha_inteira_acima_do_teto_recusa"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "forge-patch preparar: ficha aberta com x: a existente não se sobrescreve",
+      "arquivo": "bin/forge_patch.py",
+      "de": "\"xb\") as saida:",
+      "para": "\"wb\") as saida:",
+      "testes": [
+        "tests.test_forge_patch.Grava.test_ficha_existente_nao_e_sobrescrita"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "forge-patch preparar: ficha existente sai com 1 e a mensagem, sem exceção",
+      "arquivo": "bin/forge_patch.py",
+      "de": "    except (Recusa, FileExistsError) as erro:",
+      "para": "    except Recusa as erro:",
+      "testes": [
+        "tests.test_forge_patch.Grava.test_ficha_existente_nao_e_sobrescrita"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "forge-patch preparar: vigente é só o cache de plugins ou o clone do jarvis-forge",
+      "arquivo": "bin/forge_patch.py",
+      "de": "(\".claude/plugins\", \".local/share/forge/vigente\")",
+      "para": "(\".claude/plugins\", \".local/share/forge/vigente\", \".forge-contrib\")",
+      "testes": [
+        "tests.test_forge_patch.Ficha.test_vigente_e_so_o_cache_de_plugins_ou_o_clone_do_jarvis_forge"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "forge-patch preparar: sessão com pasta que não é texto fica fora sem derrubar as outras",
+      "arquivo": "bin/forge_patch.py",
+      "de": "for s in sessoes.values() if isinstance(s.get(\"pasta\"), str)]",
+      "para": "for s in sessoes.values() if True]",
+      "testes": [
+        "tests.test_forge_patch.Copia.test_sessao_registrada_vira_raiz_e_a_torta_nao_derruba_as_outras"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "forge-patch preparar: o registro vazio do fim do numstat -z não conta como arquivo",
+      "arquivo": "bin/forge_patch.py",
+      "de": "numstat.split(\"\\0\") if r]",
+      "para": "numstat.split(\"\\0\") if True]",
+      "testes": [
+        "tests.test_forge_patch.Grava.test_patch_protegido_grava_a_ficha_e_imprime_o_comando_com_o_sha256"
+      ]
+    }
+  ]
+}

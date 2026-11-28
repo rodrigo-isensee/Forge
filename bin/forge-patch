@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+"""Forge: o agente prepara a mudança em arquivo travado e o dono a aplica com um comando (ARQUIVO-TRAVADO-APROVA-COM-COMANDO).
+Uso: forge-patch preparar <id> --copia <pasta> --pedido <id> --motivo <texto> --arquivos <caminho>... Saída 0 feito, 1 recusado."""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import forge_patch
+sys.exit(forge_patch.main())

@@ -1,0 +1,86 @@
+{
+  "pedido": "v048-forge-patch-preparar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "forge-patch preparar: cópia por link recusa (realpath diferente do caminho dado)",
+      "arquivo": "bin/forge_patch.py",
+      "de": "    if real != Path(os.path.abspath(copia)) or not any(",
+      "para": "    if not any(",
+      "testes": [
+        "tests.test_forge_patch.Copia.test_copia_por_link_recusa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "forge-patch preparar: cópia fora das raízes conhecidas recusa",
+      "arquivo": "bin/forge_patch.py",
+      "de": "or not any(real.is_relative_to(r) for r in raizes()):",
+      "para": "or False:",
+      "testes": [
+        "tests.test_forge_patch.Copia.test_copia_fora_das_raizes_recusa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "forge-patch preparar: a cópia é a raiz do repositório, não uma subpasta",
+      "arquivo": "bin/forge_patch.py",
+      "de": "    if rc != 0 or Path(os.path.realpath(topo.strip())) != real:",
+      "para": "    if rc != 0:",
+      "testes": [
+        "tests.test_forge_patch.Copia.test_subpasta_de_outro_repositorio_recusa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "forge-patch preparar: ramo de integração recusa (R-MAIN, R-FLUXO)",
+      "arquivo": "bin/forge_patch.py",
+      "de": "ramo.strip() in {\"main\", \"master\", \"develop\", \"homolog\"}",
+      "para": "ramo.strip() in {\"main\", \"master\", \"homolog\"}",
+      "testes": [
+        "tests.test_forge_patch.Copia.test_ramo_de_integracao_recusa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "forge-patch preparar: árvore ou índice sujo recusa",
+      "arquivo": "bin/forge_patch.py",
+      "de": "    if rc != 0 or sujo.strip():",
+      "para": "    if rc != 0:",
+      "testes": [
+        "tests.test_forge_patch.Copia.test_arvore_suja_recusa"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "forge-patch preparar: binário recusa pelo numstat",
+      "arquivo": "bin/forge_patch.py",
+      "de": "any(not re.fullmatch(r\"\\d+\\t\\d+\\t[^\\t]+\", r) for r in registros)",
+      "para": "False",
+      "testes": [
+        "tests.test_forge_patch.Patch.test_binario_recusa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "forge-patch preparar: arquivos do patch exatamente os de --arquivos",
+      "arquivo": "bin/forge_patch.py",
+      "de": "    if sorted(r.split(\"\\t\", 2)[2] for r in registros) != sorted(arquivos):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_patch.Patch.test_arquivo_fora_da_lista_recusa"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "forge-patch preparar: renomeação, cópia, link, submódulo ou modo recusa pelo sumário",
+      "arquivo": "bin/forge_patch.py",
+      "de": "any(not SUMARIO_ACEITO.fullmatch(linha) for linha in sumario.splitlines())",
+      "para": "False",
+      "testes": [
+        "tests.test_forge_patch.Patch.test_mudanca_de_modo_recusa"
+      ]
+    }
+  ]
+}

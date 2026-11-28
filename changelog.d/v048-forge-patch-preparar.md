@@ -1,0 +1,2 @@
+### Adicionado
+- forge-patch preparar (ARQUIVO-TRAVADO-APROVA-COM-COMANDO, corte C1): confere o patch do agente para arquivo travado e a cópia de trabalho em modo seco (arquivos exatos e travados pela política vigente, fora dos que nunca isentam, só arquivo comum, aplica limpo no head; cópia nas raízes conhecidas, sem link, fora da integração e limpa), grava a ficha com x (cabeçalho mais o patch byte a byte) e imprime o comando único do dono com o forge-patch da cópia vigente e o sha256 da ficha; recusa imprimir quando roda de outra cópia. O aplicar vem no C2 (v048 E13.31).

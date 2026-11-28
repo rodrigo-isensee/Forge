@@ -22,6 +22,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge-init` | prepara um projeto para ser desenvolvido pela fábrica. |
 | `forge-mutante` | mutantes declarados do pedido (OK-14 e M-1). Só biblioteca padrão. |
 | `forge-novo-projeto` | cria um projeto novo e abre o Jarvis nele. Rode no terminal, antes do Claude (use: forge novo-projeto). |
+| `forge-patch` | o agente prepara a mudança em arquivo travado e o dono a aplica com um comando (ARQUIVO-TRAVADO-APROVA-COM-COMANDO). |
 | `forge-pesado` | quem tem a vez da bateria pesada e a espera pela vez com teto (M12, R-TETO). Só biblioteca padrão. |
 | `forge-placar` | placar de qualidade do processo e portão de evolução (0.43.1, frente I). Só leitura, sem rede, biblioteca padrão. |
 | `forge-ritmo` | ritmo do time no projeto (0.45.7, E3). Rode no terminal, dentro do projeto. Só biblioteca padrão. |
@@ -49,6 +50,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge_meta.py` | arma o objetivo que o hook de Stop (hooks/meta.py) confere (S4, 0.44.2). Só biblioteca padrão. |
 | `forge_onde.py` | `forge-check onde <alvo>` (AE1.1, v0478 E58.1): onde está uma versão, um PR, um commit, uma branch ou um cartão, lido |
 | `forge_pareceres.py` | G2.1 (pedido v0481, ADR 0019): a escrita do parecer de portão como comentário do PR e status do commit, pelo `gh` da sessão |
+| `forge_patch.py` | módulo do `forge-patch` (ARQUIVO-TRAVADO-APROVA-COM-COMANDO; C1 é só o `preparar`, o `aplicar` vem no C2). |
 | `forge_pronto.py` | `forge-check pronto`, o portão de entrega do autor (D2-PORTAO-ENTREGA-AUTOR, v0481 E11.1; estudo determinístico de 24/11). |
 | `forge_provas.py` | o arquivo de provas da branch, gerado do brief pela lista do script que o CI roda (M15 E5a1; FILA-31 F6, 0.45.5). |
 | `forge_quarentena.py` | a quarentena de teste instável (BP1 Q1, pedido v0478). Só biblioteca padrão; só leitura. |
