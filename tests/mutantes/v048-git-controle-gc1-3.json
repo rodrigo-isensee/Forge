@@ -1,0 +1,86 @@
+{
+  "pedido": "v048-git-controle-gc1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "guarda: as GIT_* de quem chama (GIT_DIR, GIT_CONFIG_*) ficam fora do ambiente",
+      "arquivo": "bin/forge_git.py",
+      "de": "if not k.startswith(\"GIT_\") and k != \"XDG_CONFIG_HOME\"}",
+      "para": "if k != \"XDG_CONFIG_HOME\"}",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_ambiente_de_quem_chama_nao_vale"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "guarda: o XDG_CONFIG_HOME de quem chama fica fora do ambiente",
+      "arquivo": "bin/forge_git.py",
+      "de": "not k.startswith(\"GIT_\") and k != \"XDG_CONFIG_HOME\"}",
+      "para": "not k.startswith(\"GIT_\")}",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_ambiente_de_quem_chama_nao_vale"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "guarda: subcomando de leitura passa pela regra da leitura",
+      "arquivo": "bin/forge_git.py",
+      "de": "    if sub in LEITURA:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_subcomando_misto_so_na_leitura"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "guarda: chamada sem subcomando recusa (sem IndexError)",
+      "arquivo": "bin/forge_git.py",
+      "de": "if args else (\"\", [])",
+      "para": "if True else (\"\", [])",
+      "testes": [
+        "tests.test_forge_git.Recusas.test_subcomando_fora_da_lista_e_opcao_global"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "guarda: o NUL do fim da lista -z não vira chave vazia",
+      "arquivo": "bin/forge_git.py",
+      "de": "saida.split(b\"\\0\") if item]",
+      "para": "saida.split(b\"\\0\") if True]",
+      "testes": [
+        "tests.test_forge_git.Legitimos.test_copia_limpa_passa_em_todos"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "guarda: a saída bruta vem em bytes (a config -z é lida como bytes)",
+      "arquivo": "bin/forge_git.py",
+      "de": "text=not bruto,",
+      "para": "text=bruto,",
+      "testes": [
+        "tests.test_forge_git.Legitimos.test_copia_limpa_passa_em_todos"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "guarda: com entrada, o stdin é a entrada; sem ela, /dev/null",
+      "arquivo": "bin/forge_git.py",
+      "de": "stdin=None if entrada is not None else",
+      "para": "stdin=None if entrada is None else",
+      "testes": [
+        "tests.test_forge_git.Legitimos.test_copia_limpa_passa_em_todos"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "guarda: só a saída de texto perde o espaço do fim",
+      "arquivo": "bin/forge_git.py",
+      "de": "(r.stdout if bruto else r.stdout.strip())",
+      "para": "(r.stdout if not bruto else r.stdout.strip())",
+      "testes": [
+        "tests.test_forge_git.Legitimos.test_copia_limpa_passa_em_todos"
+      ]
+    }
+  ]
+}

@@ -67,8 +67,8 @@
       "id": "M7",
       "guarda": "pr_da_cli sem --base repassa previo ao cmd_pr",
       "arquivo": "bin/forge-check",
-      "de": "return cmd_pr(raiz, pedido, ref, None, branch, previo, suite) + (",
-      "para": "return cmd_pr(raiz, pedido, ref, None, branch, False, suite) + (",
+      "de": "return cmd_pr(raiz, pedido, ref, None, branch, previo, suite, True) + (",
+      "para": "return cmd_pr(raiz, pedido, ref, None, branch, False, suite, True) + (",
       "testes": [
         "tests.test_revisor_wt.PrPrevio.test_ausente_sem_base_e_sem_develop_o_diff_literal_leva_o_previo"
       ]
@@ -77,8 +77,8 @@
       "id": "M8",
       "guarda": "pr_da_cli com --base repassa previo ao cmd_pr",
       "arquivo": "bin/forge-check",
-      "de": "return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite) + (",
-      "para": "return cmd_pr(raiz, pedido, ref, resolvida, branch, False, suite) + (",
+      "de": "return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite, True) + (",
+      "para": "return cmd_pr(raiz, pedido, ref, resolvida, branch, False, suite, True) + (",
       "testes": [
         "tests.test_revisor_wt.PrPrevio.test_ausente_com_base_como_o_pre_voo_chama"
       ]
