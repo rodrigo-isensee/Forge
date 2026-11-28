@@ -31,6 +31,26 @@
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_lista_so_na_origin_develop_acorda"
       ]
+    },
+    {
+      "id": "C1B2-M28",
+      "guarda": "A3 (0ad43a8): o `cat-file` da lista fechada roda sem transporte, sem a busca preguiçosa do clone parcial",
+      "arquivo": "hooks/conformidade.py",
+      "de": "git(topo, *SEM_TRANSPORTE, \"cat-file\"",
+      "para": "git(topo, \"cat-file\"",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_uploadpack_da_copia_nao_roda_no_clone_parcial"
+      ]
+    },
+    {
+      "id": "C1B2-M29",
+      "guarda": "A3 (0ad43a8): a chave por protocolo da cópia, que vence a geral, também fica desligada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for p in (\"\", *(f\"{n}.\" for n in (\"file\", \"ext\", \"git\", \"ssh\", \"http\", \"https\")))",
+      "para": "for p in (\"\",)",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_uploadpack_da_copia_nao_roda_no_clone_parcial"
+      ]
     }
   ]
 }

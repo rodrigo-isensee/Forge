@@ -418,6 +418,28 @@ class ParecerDeItem(NoTerminal):
         self.libera_write(self.ITENS[:1])
         self.assertFalse(marca.exists(), "o hook rodou a configuração da cópia")
 
+    def test_uploadpack_da_copia_nao_roda_no_clone_parcial(self):
+        """Sonda S4 da segurança (0ad43a8): no clone parcial, o `cat-file -e` de um ref para objeto ausente busca do
+        promisor e rodaria o `uploadpack`, também com a chave por protocolo da cópia, que vence a geral."""
+        marca = self.tmp / "MARCA"
+        self.armar(f"touch {marca}")
+        self.git("config", "extensions.partialClone", "origin")
+        self.git("config", "remote.origin.promisor", "true")
+        for nome in ("file", "ext", "git", "ssh", "http", "https"):
+            self.git("config", f"protocol.{nome}.allow", "always")
+        ausente = "1" * 40 + "\n"
+        (self.repo / ".git" / "refs/remotes/origin/develop").write_text(ausente, encoding="utf-8")
+        with self.subTest(ref="refs/remotes/origin/develop"):
+            self.libera_write(self.ITENS[:1])
+            self.assertFalse(marca.exists(), "o hook rodou a configuração da cópia pela busca preguiçosa")
+        marca.unlink(missing_ok=True)
+        self.git("update-ref", "refs/remotes/origin/develop", "HEAD")
+        (self.repo / ".git" / "refs/heads/ausente").write_text(ausente, encoding="utf-8")
+        self.git("symbolic-ref", "HEAD", "refs/heads/ausente")
+        with self.subTest(ref="HEAD"):
+            self.libera_write(self.ITENS[:1])
+            self.assertFalse(marca.exists(), "o hook rodou a configuração da cópia pela busca preguiçosa")
+
     def test_remoto_lento_nao_recusa_o_parecer_dormente(self):
         self.armar("sleep 4")
         entrada = {"tool_name": "Write", "tool_input": {"file_path": str(self.repo / "docs/security/v1.md"), "content": "x\n"},

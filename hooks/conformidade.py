@@ -297,6 +297,10 @@ switch symbolic-ref tag unpack-objects update-index update-ref upload-pack var v
 version whatchanged worktree write-tree""".split())
 ALIAS_QUE_MESCLA = {"merge", "pull"}
 PROFUNDIDADE_DO_ALIAS = 8
+# A3 da segurança (0ad43a8): o `cat-file` do objeto ausente no clone parcial busca do promisor pelo transporte, que roda a
+# configuração da cópia (`remote.origin.uploadpack`, `core.sshCommand`); a chave por protocolo vence a geral, então todas.
+SEM_TRANSPORTE = tuple(a for p in ("", *(f"{n}." for n in ("file", "ext", "git", "ssh", "http", "https")))
+                       for a in ("-c", f"protocol.{p}allow=never"))
 CONFIG_NO_AMBIENTE = re.compile(r"^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+|PARAMETERS)$")
 REFSPEC_NA_CONFIG = re.compile(r"remote\..+\.(fetch|push)", re.I)
 # IMPL-FURO-HOOK-N, N5 (L22, C-22-1): na branch de integração a única entrada é o `git merge` com parecer; o que grava
@@ -2779,11 +2783,12 @@ class Guarda:
 
     def lista_fechada(self, topo):
         """A lista existe na `origin/develop` local da cópia ou no `HEAD` (a branch aberta depois da virada a traz). Só refs
-        locais: sem rede no hook (ADR 0003 item 2) e sem rodar a configuração da cópia (`remote.origin.uploadpack`). O ref
+        locais e sem transporte (`SEM_TRANSPORTE`): sem rede no hook (ADR 0003 item 2) e sem rodar a configuração da cópia
+        (`remote.origin.uploadpack`), nem pela busca preguiçosa do clone parcial. O ref
         recuado à mão esconde a lista: aceito, quem decide é o servidor (C5a)."""
         if topo not in self._listas:
             refs = ("refs/remotes/origin/develop", "HEAD")
-            self._listas[topo] = any(git(topo, "cat-file", "-e", f"{r}:{LISTA_FECHADA}")[0] == 0 for r in refs)
+            self._listas[topo] = any(git(topo, *SEM_TRANSPORTE, "cat-file", "-e", f"{r}:{LISTA_FECHADA}")[0] == 0 for r in refs)
         return self._listas[topo]
 
     def barrar_parecer(self, o_que, corrigir=CORRIGIR_PUBLICAR):
