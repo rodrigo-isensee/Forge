@@ -3,33 +3,29 @@ tipo: qa
 contrato: 1
 pedido: v048
 branch: melhoria/v048-qa-testing-sob-demanda
-commit: 87575570ef9ac5b24f09ab56e9f7354dab3a2987
+commit: 2c6b6f8193c1f3c4046cd436bef423193274d079
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-28
 ---
-# QA: v048 (qa-testing sob demanda, PR #958)
+# QA: v048 (qa-testing sob demanda, PR #958), volta 1 (delta)
 
-- ci: 87575570ef9ac5b24f09ab56e9f7354dab3a2987 verde
+- ci: 2c6b6f8193c1f3c4046cd436bef423193274d079 verde
 
-Mudança só de texto: `skills/qa-testing/SKILL.md` encurtada, texto movido para `skills/qa-testing/referencia.md`, mais um fragmento de changelog. O diff não toca `hooks/`, `bin/`, `.githooks/` nem `tests/catraca.py`; por isso não há mutante a declarar nem vermelho-antes-do-verde (nenhum teste novo, nenhuma regra de código mudada).
-
-## Achados
-- A1 (recomendado) skills/qa-testing/referencia.md:46 · o trecho do `--cobertura` não é idêntico ao original: "lista a condição ... (\"declarado, não provado\"; ...)" virou "sai \"declarado, não provado\"; ..." (some "lista", entra "sai"). Sentido igual; o brief pede o texto movido sem mudar palavra.
+Delta do 87575570 ao 2c6b6f81 (`forge-check parecer delta`): 2 arquivos de texto, +4 -4. Não toca `hooks/`, `bin/`, `.githooks/` nem `tests/catraca.py`: sem mutante a declarar, sem vermelho-antes-do-verde (nenhum teste novo nem regra de código mudada).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Nenhuma regra com ID saiu da SKILL.md | comparação dos IDs (R-, EXT-, G3-, AR-) de develop x head: conjunto perdido vazio | n/a | passou |
-| Invariantes de `tests/config.json` presentes | `re.search` dos 12 padrões da SKILL.md e dos 8 de `agents/qa-engineer.md` no head: nenhum ausente | n/a | passou |
-| Texto movido idêntico | blocos markdown (plano e bug) presentes byte a byte em referencia.md; "Onde e como", "Review" e "equivalente" idênticos após normalizar espaço | texto removido da SKILL.md | passou, exceto A1 |
-| SKILL.md diz quando ler cada seção | linhas 22, 35 e 81 trazem o gatilho ("ao abrir o plano", "ao escrever o oráculo", "ao abrir o relatório"); linhas 70 e 73 (equivalente e `--cobertura`) só apontam `referencia.md`, e o gatilho de leitura está na própria referência ("Leia ao declarar um mutante equivalente ou ao ler a saída do `--cobertura`") | 5 de 5 seções com ponteiro, 3 com gatilho na SKILL.md | passou |
-| Orçamento do qa-engineer (teto 21480) | `python3 -m unittest tests.test_orcamento_instrucao`: 8 testes, OK | teto de 21480 caracteres | passou |
-| Catraca e teste de custo (ordem do dono 28/11) | diff sem hook, bin/ nem arquivo protegido; check-runs `catraca` e `catraca (conferência)` pass; suíte 5/5 pass (inclui os testes de custo) | n/a | passou |
+| A1 da 1ª rodada: frase do `--cobertura` literal | `skills/qa-testing/referencia.md:45-47` lido palavra por palavra contra `skills/qa-testing/SKILL.md:91` da develop: "lista a condição Python mudada sem mutante declarado ("declarado, não provado"; shell e outros saem `não coberto: <arquivo>`; as `isentas` da spec, até 8, saem `isenta · arq:L · motivo`, e a que não cruza, `isenta velha`, rc 1)" idêntica; `bin/forge-mutante:715` ("declarado, não provado"), `:717` (`isenta ·`), `:880` (`não coberto:`) e `:895` (rc 1 em `isenta velha`) conferem | texto movido sem mudar palavra | passou, A1 resolvido |
+| Ponteiro do oráculo cobre também revisar | `SKILL.md:35` traz "ao escrever o oráculo ou ao revisar um"; a seção "review do oráculo" está em `referencia.md` | gatilho de leitura na SKILL.md | passou |
+| Invariantes de `tests/config.json` | padrões de qa na SKILL.md e `agents/qa-engineer.md`: nenhum ausente | n/a | passou |
+| Orçamento do qa-engineer | `python3 -m unittest tests.test_orcamento_instrucao`: 8 testes, OK | teto 21480 | passou |
+| Catraca e teste de custo (ordem do dono 28/11) | diff sem hook, bin/ nem arquivo protegido; `catraca` e `catraca (conferência)` pass; suíte 1/5 a 5/5 pass | n/a | passou |
 
 ## Cenários e resultado real
-CI do head: `gh run view 46142076201` tem `headSha` igual ao Revisar-sha; todos os check-runs concluídos e verdes (bateria, pareceres, passos, python 3.14, verificações longas, instalação, suíte 1/5 a 5/5, teto de pulados, árvore já provada, catraca, catraca (conferência)). Não rerrodei a suíte. `forge-check docs --base develop`: `docs: ok`, rc=0.
+CI do head: `gh run view 46146179731` com `headSha` igual ao Revisar-sha; verdes: passos, python 3.14, verificações longas, instalação, suíte 1/5 a 5/5, teto de pulados, árvore já provada, catraca, catraca (conferência). `bateria` e `bateria (pareceres)` falham só por esperar os pareceres (excluídos por G3). Suíte não rerrodada. `forge-check docs --base develop`: `docs: ok`, rc=0.
