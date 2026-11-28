@@ -46,8 +46,8 @@
       "id": "M6",
       "guarda": "C1: só a entrada com promptSource system (a notificação do Claude Code, não o usuário)",
       "arquivo": "hooks/agentes.py",
-      "de": "entrada.get(\"promptSource\") == \"system\" and ",
-      "para": "True and ",
+      "de": "entrada.get(\"promptSource\") == \"system\":",
+      "para": "True:",
       "testes": ["tests.test_trava_agente_morto.C1NotificacaoDoClaudeCode.test_mensagem_do_usuario_nao_libera"]
     },
     {
