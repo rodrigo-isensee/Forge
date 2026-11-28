@@ -226,3 +226,15 @@ inclinação real é 2 x 4508 = 9016 (máquina do autor, mesmo código, 242 e 24
 - decisão do time (v0481 E45.73): abaixo de 0,5% no total, o limite que o dono deu ao time em 27/11 às 15:39 (DECISÃO
   DO DONO no pedido v0481); correção única para o #940 e o #944 (ordem do dono 28/11 07:20, item 1). A prova do teto
   novo é o CI do PR no head, com a parte 4/5 verde
+
+## C1b-2 (v0481 E45.44, o #944 com a develop em ed6e6dbf)
+
+O código do #944 (C1b-2: `bin/forge_pareceres.py` pela cópia e a guarda dormente do parecer de item) com a develop
+em ed6e6dbf (o #940 e o #956) mesclada, no teto do "Ambiente fixo" (6081660):
+- máquina do autor (Python 3.12, tmp a 2 níveis), `python3 -m unittest tests.test_hooks_volta_corpus`, log sem edição:
+  - `'6089793 interpretador, acima do teto de 6081660 (medida 6081660 mais o ruído 0)'`
+  - `{'execucoes': 557, 'subprocessos': 4510, 'sono': 0, 'interpretador': 6089793, 'ambiente': 256}`, em 556 casos
+- a mesma contagem (+8133) que o autor mediu às 09:3x do mesmo dia: o contador é determinístico
+- medida nova: 6089793 (+8133, 0,138% sobre 5897219); total sobre 5897219: +11181 + 8133 = +19314 passos (0,328%)
+- decisão do dono em 28/11 às 10:06 (opção A, DECISÃO DO DONO no pedido v0481): o #944 sobe o teto só o que o código
+  dele mede, dentro de 0,5%. Os subprocessos (4510) seguem abaixo do teto de 4631 e não mudam
