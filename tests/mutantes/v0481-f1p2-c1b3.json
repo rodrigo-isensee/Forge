@@ -41,6 +41,36 @@
       "testes": [
         "tests.test_conformidade_pareceres.PastaDeControleDoForge.test_fixtures_c1b3"
       ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o contador não completa o ambiente do hook (E45.73: 132 e 133 herdadas voltam a dar trabalho diferente)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "    if _alvo.isdigit():\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_trabalho_nao_muda_com_as_variaveis_de_quem_roda"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o tamanho do ambiente sai do registro (E45.73: o ambiente lido fica 0 e não confere com a medida)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "        if _alvo:\n            _anotar(",
+      "para": "        if False:\n            _anotar(",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_trabalho_nao_muda_com_as_variaveis_de_quem_roda"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "ambiente diferente do da medida deixa de reprovar (E45.73)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "            if trabalho[\"ambiente\"] != MEDIDA_DO_CORPUS[\"variaveis_do_ambiente\"]:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_ambiente_diferente_do_da_medida_reprova"
+      ]
     }
   ]
 }

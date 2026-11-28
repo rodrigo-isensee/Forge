@@ -138,6 +138,10 @@ import os, sys, time
 _pasta = os.environ.get("FORGE_TESTE_TRABALHO")
 if _pasta:
     _registro, _dormir = os.path.join(_pasta, str(os.getpid())), time.sleep
+    _alvo = os.environ.pop("FORGE_TESTE_TRABALHO_AMBIENTE", "")  # só o hook o recebe; os filhos herdam o ambiente cheio
+    if _alvo.isdigit():
+        for _i in range(int(_alvo) - len(os.environ)):
+            os.environ[f"ENCHIMENTO_DO_CONTADOR_{_i}"] = ""
     def _anotar(linha):
         fd = os.open(_registro, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
         try:
@@ -177,7 +181,8 @@ if _pasta:
         _monitor.register_callback(_ferramenta, _eventos.PY_START, _inicio)
         _monitor.register_callback(_ferramenta, _eventos.JUMP, _salto)
         _monitor.set_events(_ferramenta, _eventos.CALL | _eventos.PY_START | _eventos.JUMP)
-        _anotar(f"ambiente {len(os.environ)}")
+        if _alvo:
+            _anotar(f"ambiente {len(os.environ)}")
         atexit.register(lambda: _anotar(f"interpretador {_passos[0]}"))
 """
 # A medida (v0478 E41.5): 10 rodadas do lote sob carga de 12 laços, no Python 3.12, com o tmp a 2 níveis da raiz
@@ -186,7 +191,7 @@ if _pasta:
 # registro das rodadas está em tests/provas/v0479-corpus-custo.md). Os passos crescem 460 por nível a mais do tmp (o
 # hook sobe as pastas-mãe do caminho do caso): 1 e 4 níveis a mais deram 5860581 e 5861961. E crescem 2 por variável
 # do ambiente do hook a cada subprocesso (o `git` do `forge-check` copia o ambiente, variável por variável): 1 variável a
-# mais deu 5869383, 9262 a mais (2 x 4631). O teto é a medida mais o ruído, sem folga: corpus novo, hook mudado ou outro
+# mais deu 5869383, 9262 a mais (2 x 4631); desde o E45.73 o ambiente do hook é fixo (abaixo). O teto é a medida mais o ruído, sem folga: corpus novo, hook mudado ou outro
 # custo pedem medida nova (a mensagem do teste traz a contagem). Medida nova (v0478 E41.10): a develop em cf097822
 # mudou o `hooks/_comum.py`, o `hooks/agentes.py` e o `forge-check`, e os passos foram de 5860121 a 5893967, nas mesmas
 # condições (registro em tests/provas/v0479-corpus-custo.md). Medida nova (v0478 E50.25): o `hooks/conformidade.py` e o
@@ -210,10 +215,16 @@ if _pasta:
 # C1b-3 com a develop em e950baeb (v0481 E45.68): 5906303 -> 5906549 (+246, medidos no CI do #940, run 46113149896;
 # total sobre 5897219: +9330 passos, 0,158%). Decisão do time, abaixo de 0,5% no total; prova em
 # tests/provas/v0479-corpus-custo.md, "C1b-3 com a develop em e950baeb".
-MEDIDA_DO_CORPUS = {"python": "3.12", "profundidade_do_tmp": 2, "variaveis_do_ambiente": 234,
-                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5906549}
+# Ambiente fixo (v0481 E45.73): o acerto de 2 x 4631 passos por variável errava a inclinação (a real é 2 x 4508, os
+# subprocessos do corpus hoje), e o teto mudava com as variáveis do runner (132 ou 133). O contador completa o ambiente
+# do hook até 256 variáveis (`FORGE_TESTE_TRABALHO_AMBIENTE`), e o número de variáveis de quem roda sai da conta: 137,
+# 242 e 243 herdadas deram os mesmos 6081660 passos (tmp a 2 níveis), a nova medida, sem folga. O código do #940 com a
+# develop em 1ced5c09 (o #952) custa +1851 sobre o teto anterior (run 46134894622: 4973152 com 133 variáveis contra os
+# 4971301 do mesmo código sem a develop nova); total sobre 5897219: +11181 passos, 0,190%. Decisão do time, abaixo de
+# 0,5% no total; prova em tests/provas/v0479-corpus-custo.md, "Ambiente fixo".
+MEDIDA_DO_CORPUS = {"python": "3.12", "profundidade_do_tmp": 2, "variaveis_do_ambiente": 256,
+                    "execucoes": 557, "subprocessos": 4631, "interpretador": 6081660}
 PASSOS_POR_NIVEL_DO_TMP = 460
-PASSOS_POR_VARIAVEL_POR_SUBPROCESSO = 2
 RUIDO_DO_CORPUS = {"subprocessos": 0, "interpretador": 0}
 
 
@@ -232,7 +243,8 @@ class ContadorDeTrabalho:
     def ambiente(self, interpretador=True):
         """`interpretador=False`: sem os passos do interpretador, para a decisão que vai até o prazo de produção (o
         quanto ela anda antes do prazo depende da velocidade da máquina; o prazo é o teto dela, conferido no caso)."""
-        ambiente = {"PYTHONPATH": str(self.site), "FORGE_TESTE_TRABALHO": str(self.registros), "HOME": str(self.casa)}
+        ambiente = {"PYTHONPATH": str(self.site), "FORGE_TESTE_TRABALHO": str(self.registros), "HOME": str(self.casa),
+                    "FORGE_TESTE_TRABALHO_AMBIENTE": str(MEDIDA_DO_CORPUS["variaveis_do_ambiente"])}
         return {**ambiente, "FORGE_TESTE_TRABALHO_CODIGO": str(RAIZ)} if interpretador else ambiente
 
     def ler(self):
@@ -258,8 +270,8 @@ def excessos_de_trabalho(trabalho, execucoes, python=None, profundidade=None):
     (o driver que roda um caso duas vezes, ou pula um), corpus diferente do medido, subprocessos e passos do
     interpretador acima da medida mais o ruído (`MEDIDA_DO_CORPUS`, `RUIDO_DO_CORPUS`) e qualquer sono pedido. Os passos
     do interpretador só se conferem no Python da medida (`python`, por padrão o que roda), com a medida acertada pela
-    `profundidade` do tmp (por padrão a de quem roda) e pelo número de variáveis do ambiente que o hook viu
-    (`trabalho["ambiente"]`). Lista vazia: dentro do custo."""
+    `profundidade` do tmp (por padrão a de quem roda). O hook roda com o ambiente completado até as variáveis da medida
+    (`ContadorDeTrabalho.ambiente`); outro número em `trabalho["ambiente"]` é excesso. Lista vazia: dentro do custo."""
     python = python or "{}.{}".format(*sys.version_info[:2])
     profundidade = profundidade_do_tmp() if profundidade is None else profundidade
     excessos = []
@@ -274,8 +286,9 @@ def excessos_de_trabalho(trabalho, execucoes, python=None, profundidade=None):
         medida = MEDIDA_DO_CORPUS[nome]
         if nome == "interpretador":
             medida += PASSOS_POR_NIVEL_DO_TMP * (profundidade - MEDIDA_DO_CORPUS["profundidade_do_tmp"])
-            medida += (PASSOS_POR_VARIAVEL_POR_SUBPROCESSO * MEDIDA_DO_CORPUS["subprocessos"]
-                       * (trabalho["ambiente"] - MEDIDA_DO_CORPUS["variaveis_do_ambiente"]))
+            if trabalho["ambiente"] != MEDIDA_DO_CORPUS["variaveis_do_ambiente"]:
+                excessos.append(f"o hook viu {trabalho['ambiente']} variáveis no ambiente, e a medida é com "
+                                f"{MEDIDA_DO_CORPUS['variaveis_do_ambiente']}: o ambiente de quem roda passa delas")
         teto = medida + ruido
         if trabalho[nome] > teto:
             excessos.append(f"{trabalho[nome]} {nome}, acima do teto de {teto} (medida {medida} mais o ruído {ruido})")

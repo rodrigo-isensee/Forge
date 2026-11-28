@@ -203,3 +203,26 @@ Com a develop mesclada no #940 (head e950baeb, sem conflito):
 - medida nova: 5906549 (5906303 + 246, a do CI), ruído 0; total sobre 5897219: +9330 passos (0,158%)
 - decisão do time (v0481 E45.68): abaixo do limite de 0,5% no total que o dono deu ao time em 27/11 às 15:39
   (DECISÃO DO DONO no pedido v0481). A prova do teto novo é o CI do PR no head, com a parte 4/5 verde
+
+## Ambiente fixo (v0481 E45.73, teto uma vez só para o #940 e o #944)
+
+O run 46134894622 do #940 (head 51815962, CI no merge com a develop 1ced5c09, o #952) reprovou com
+`{'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 4973152, 'ambiente': 133}` contra o teto de
+4971547. O acerto por variável (`PASSOS_POR_VARIAVEL_POR_SUBPROCESSO` x 4631) dava 9262 passos por variável, e a
+inclinação real é 2 x 4508 = 9016 (máquina do autor, mesmo código, 242 e 243 variáveis no teste: 5910356 e 5919372; 252:
+6000516, +90160): o teto andava com o número de variáveis do runner, não com o código.
+- correção: o contador completa o ambiente do hook (só o dele; os filhos herdam) até 256 variáveis
+  (`FORGE_TESTE_TRABALHO_AMBIENTE`), anota esse número, e outro número é excesso; o acerto por variável sai
+- máquina do autor (Python 3.12, tmp `/tmp/claude-0` a 2 níveis), árvore 51815962 com a develop 1ced5c09 mesclada,
+  o lote do corpus com 242, 243 e 137 variáveis no teste (log sem edição):
+  - {'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 6081660, 'ambiente': 256}
+  - {'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 6081660, 'ambiente': 256}
+  - {'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 6081660, 'ambiente': 256}
+- medida nova: 6081660 com 256 variáveis e tmp a 2 níveis; no CI (tmp a 3 níveis, pelo teto de 4971547 do run) o
+  teto é 6082120. Ruído 0
+- aumento do código: o teto anterior (5906549) saiu do run 46113149896 (e950baeb, 132 variáveis, 4962285); o mesmo
+  código com 133 dá 4962285 + 9016 = 4971301, e o run 46134894622 deu 4973152: +1851, o código da develop nova
+  (o #948, a 0.48.0 e o #952) com o #940. Total sobre 5897219: +11181 passos (0,190%)
+- decisão do time (v0481 E45.73): abaixo de 0,5% no total, o limite que o dono deu ao time em 27/11 às 15:39 (DECISÃO
+  DO DONO no pedido v0481); correção única para o #940 e o #944 (ordem do dono 28/11 07:20, item 1). A prova do teto
+  novo é o CI do PR no head, com a parte 4/5 verde
