@@ -1,0 +1,33 @@
+{
+  "descricao": "C1b-3 (v0481 E45.13; A4 da segurança e A2 do review do #938, A1 da segurança do #937; M4.1): a pasta de controle do Forge (~/.forge-contrib/.forge/run/) tem quem vazio; dev: a leitura (cat) do registro é legítima.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "repos": {
+    "home/.forge-contrib": {
+      "arquivos": {
+        ".forge/run/pareceres-publicados.jsonl": "{\"pedido\": \"v1\"}\n",
+        "docs/briefs/b1.md": "b\n"
+      }
+    }
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat ~/.forge-contrib/.forge/run/pareceres-publicados.jsonl"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge-python:python-backend"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
