@@ -17,6 +17,9 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "bin"))
 import forge_git  # noqa: E402
 
+sys.path.insert(0, str(RAIZ / "tests"))
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+
 NEUTRA_REAL = forge_git.PASTA_NEUTRA  # antes do patch de cada teste
 
 AMBIENTE_LIMPO = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LANG": "C", "TMPDIR": tempfile.gettempdir()}
@@ -31,7 +34,7 @@ class Base(unittest.TestCase):
         home = self.tmp / "home"
         home.mkdir()
         (home / ".gitconfig").write_text("[user]\n\tname = t\n\temail = t@t\n", encoding="utf-8")
-        self.env = {**AMBIENTE_LIMPO, "HOME": str(home)}
+        self.env = sem_manutencao({**AMBIENTE_LIMPO, "HOME": str(home)})
         patcher = mock.patch.dict(os.environ, self.env, clear=True)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -45,6 +48,7 @@ class Base(unittest.TestCase):
         self.origem = self.tmp / "origem.git"
         self.copia = self.tmp / "copia"
         self.cru("init", "-q", "--bare", "-b", "main", str(self.origem), pasta=self.tmp)
+        remoto_sem_manutencao(self.origem)
         self.cru("init", "-q", "-b", "main", str(self.copia), pasta=self.tmp)
         for passo in (("commit", "a"), ("switch", "-qc", "lado"), ("commit", "b"), ("switch", "-q", "main"),
                       ("commit", "c")):
@@ -188,6 +192,18 @@ class Recusas(Base):
                      ("grep", "-O/bin/true", "-e", "a", "HEAD")):
             with self.assertRaisesRegex(forge_git.Recusado, "reabre"):
                 forge_git.git(self.copia, *args)
+
+    def test_ambiente_de_quem_chama_nao_vale(self):
+        """GIT_DIR, GIT_CONFIG_* e XDG_CONFIG_HOME de quem chama ficam fora: o git é o da cópia, com a config do dono."""
+        outro = self.tmp / "outro"
+        self.cru("init", "-q", str(outro), pasta=self.tmp)
+        xdg = self.tmp / "xdg"
+        (xdg / "git").mkdir(parents=True)
+        (xdg / "git" / "config").write_text("[forge]\n\tteste = xdg\n", encoding="utf-8")
+        with mock.patch.dict(os.environ, {"GIT_DIR": str(outro / ".git"), "XDG_CONFIG_HOME": str(xdg)}):
+            self.assertEqual(forge_git.git(self.copia, "rev-parse", "--absolute-git-dir"),
+                             (0, str(self.copia / ".git")))
+            self.assertEqual(forge_git.git(self.copia, "config", "--get", "forge.teste"), (1, ""))
 
     def test_pasta_que_nao_e_repositorio(self):
         with self.assertRaisesRegex(forge_git.Recusado, "não é repositório"):

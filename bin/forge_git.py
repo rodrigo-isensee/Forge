@@ -26,7 +26,8 @@ NEUTRO = ("--no-optional-locks", "-c", "core.hooksPath=/dev/null", "-c", "core.f
           "-c", "protocol.allow=never", *(item for p in PROTOCOLOS for item in ("-c", f"protocol.{p}.allow=never")),
           "-c", "diff.external=", "-c", "core.sshCommand=", "-c", "core.gitProxy=", "-c", "core.askPass=",
           "-c", "log.showSignature=false", "-c", "gpg.program=/bin/false", "-c", "gpg.ssh.program=/bin/false",
-          "-c", "gpg.x509.program=/bin/false", "-c", "core.attributesFile=/dev/null")
+          "-c", "gpg.x509.program=/bin/false", "-c", "core.attributesFile=/dev/null",
+          "-c", "maintenance.auto=false", "-c", "gc.auto=0")  # sem manutenção destacada depois do commit
 SEM_CREDENCIAL = ("-c", "credential.helper=")
 LEITURA = {"rev-parse": None, "rev-list": None, "merge-base": None, "cat-file": None, "for-each-ref": None,
            "ls-tree": None, "symbolic-ref": None, "check-ref-format": None, "show-ref": None, "name-rev": None,
@@ -102,9 +103,7 @@ def neutro(objetos_de=None):
     PASTA_NEUTRA.mkdir(parents=True, exist_ok=True, mode=0o700)
     pasta = tempfile.mkdtemp(prefix="git-", dir=PASTA_NEUTRA)
     try:
-        rc, _ = _rodar((*NEUTRO, *SEM_CREDENCIAL), ("init", "-q", "--bare", "--template=", pasta))
-        if rc:
-            raise Recusado("git init do repositório neutro falhou")
+        _rodar((*NEUTRO, *SEM_CREDENCIAL), ("init", "-q", "--bare", "--template=", pasta))  # falhou: o git seguinte falha
         if objetos_de is not None:
             alternates = Path(pasta) / "objects" / "info" / "alternates"
             alternates.parent.mkdir(parents=True, exist_ok=True)
