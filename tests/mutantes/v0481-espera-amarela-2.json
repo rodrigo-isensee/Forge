@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481-espera-amarela",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "E47.1: na catraca.yml, rc diferente de 3 sai com o próprio rc",
+      "arquivo": ".github/workflows/catraca.yml",
+      "de": "          [ \"$rc\" = 3 ] || exit \"$rc\"",
+      "para": "          [ \"$rc\" = 3 ] || exit 0",
+      "testes": [
+        "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_espera_grava_o_sufixo_e_defeito_ou_verde_velho_fica_vermelho"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "E47.1: na catraca.yml, a API que falha deixa vermelho (falha fechada)",
+      "arquivo": ".github/workflows/catraca.yml",
+      "de": "check catraca do head; vermelho (falha fechada)\"; exit 1; }",
+      "para": "check catraca do head; vermelho (falha fechada)\"; exit 0; }",
+      "testes": [
+        "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_espera_grava_o_sufixo_e_defeito_ou_verde_velho_fica_vermelho"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "E47.6: na catraca.yml, só a lista fechada de estados do último catraca do head vale como espera",
+      "arquivo": ".github/workflows/catraca.yml",
+      "de": "stale) ;; *) echo \"espera: o último catraca do head",
+      "para": "stale|null|skipped|neutral) ;; *) echo \"espera: o último catraca do head",
+      "testes": [
+        "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_espera_grava_o_sufixo_e_defeito_ou_verde_velho_fica_vermelho"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "E47.6: a linha de espera casa o caminho inteiro do parecer, ancorada (S2)",
+      "arquivo": "tests/catraca.py",
+      "de": "|(docs/[a-z]+/[^:\\s]+\\.md): commit: desatualizado)\")",
+      "para": "|(.*?): commit: desatualizado)\")",
+      "testes": [
+        "tests.test_catraca.EsperaNaoEVermelho.test_sonda_s2_parecer_com_nome_de_desatualizado_sai_1"
+      ]
+    }
+  ]
+}
