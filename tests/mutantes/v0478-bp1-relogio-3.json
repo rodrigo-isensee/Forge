@@ -1,0 +1,146 @@
+{
+  "pedido": "v0478-bp1-relogio-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N4",
+      "guarda": "o import só vale se vem de `_comum`",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "isinstance(no, ast.ImportFrom) and no.module == \"_comum\":",
+      "para": "isinstance(no, ast.ImportFrom):",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_chamada_com_apelido_do_import_e_pega_com_relogio"
+      ]
+    },
+    {
+      "id": "N5",
+      "guarda": "só o nome `executar` importado de `_comum` vira apelido",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if a.name == \"executar\"}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_chamada_de_outro_nome_do_comum_nao_e_do_executar"
+      ]
+    },
+    {
+      "id": "N6",
+      "guarda": "o `import _comum as c` é lido no nó `Import`",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "elif isinstance(no, ast.Import):",
+      "para": "elif isinstance(no, ast.ImportFrom):",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_chamada_com_apelido_do_import_e_pega_com_relogio"
+      ]
+    },
+    {
+      "id": "N7",
+      "guarda": "só o módulo `_comum` importado vira nome de módulo",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if a.name == \"_comum\"}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_chamada_de_outro_nome_do_comum_nao_e_do_executar"
+      ]
+    },
+    {
+      "id": "N8",
+      "guarda": "a chamada pelo nome vale só para os apelidos do `executar`",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "isinstance(n.func, ast.Name) and n.func.id in apelidos",
+      "para": "isinstance(n.func, ast.Name)",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_chamada_com_apelido_do_import_e_pega_com_relogio"
+      ]
+    },
+    {
+      "id": "N9",
+      "guarda": "a chamada pelo atributo vale só para `.executar`",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "isinstance(n.func, ast.Attribute) and n.func.attr == \"executar\"\n",
+      "para": "isinstance(n.func, ast.Attribute)\n",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_chamada_de_outro_nome_do_comum_nao_e_do_executar"
+      ]
+    },
+    {
+      "id": "N10",
+      "guarda": "só os nós `Call` são chamadas",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if isinstance(n, ast.Call)\n",
+      "para": "if True\n",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_chamada_com_apelido_do_import_e_pega_com_relogio"
+      ]
+    },
+    {
+      "id": "N11",
+      "guarda": "a chamada direta não é referência fora de chamada",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if id(no) in diretas:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_referencia_ao_executar_fora_de_chamada_e_achada"
+      ]
+    },
+    {
+      "id": "N12",
+      "guarda": "só o nome ou apelido do `executar` conta como referência",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "isinstance(no, ast.Name) and no.id in apelidos:",
+      "para": "isinstance(no, ast.Name):",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_referencia_ao_executar_fora_de_chamada_e_achada"
+      ]
+    },
+    {
+      "id": "N13",
+      "guarda": "só o atributo `.executar` conta como referência",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "isinstance(no, ast.Attribute) and no.attr == \"executar\":",
+      "para": "isinstance(no, ast.Attribute):",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_referencia_ao_executar_fora_de_chamada_e_achada"
+      ]
+    },
+    {
+      "id": "N14",
+      "guarda": "só a cadeia `\"executar\"` conta como referência",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "isinstance(no, ast.Constant) and no.value == \"executar\":",
+      "para": "isinstance(no, ast.Constant):",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_referencia_ao_executar_fora_de_chamada_e_achada"
+      ]
+    },
+    {
+      "id": "N15",
+      "guarda": "o nome ou apelido solto do `executar` é referência (reatribuição, `partial`)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "isinstance(no, ast.Name) and no.id in apelidos:",
+      "para": "False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_referencia_ao_executar_fora_de_chamada_e_achada"
+      ]
+    },
+    {
+      "id": "N16",
+      "guarda": "o atributo `.executar` fora de chamada é referência (`import_module`)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "isinstance(no, ast.Attribute) and no.attr == \"executar\":",
+      "para": "False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_referencia_ao_executar_fora_de_chamada_e_achada"
+      ]
+    },
+    {
+      "id": "N17",
+      "guarda": "a cadeia `\"executar\"` é referência (`getattr`)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "isinstance(no, ast.Constant) and no.value == \"executar\":",
+      "para": "False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_referencia_ao_executar_fora_de_chamada_e_achada"
+      ]
+    }
+  ]
+}

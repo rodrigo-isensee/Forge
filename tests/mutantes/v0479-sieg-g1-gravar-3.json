@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "G1.2 (item 6): termo de validade fora do mapa nasce pendente",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(bool(DATA_OU_HORA.search(resto) or {\"amanha\", \"noite\", \"fim\", *DIAS} & set(re.findall(r\"[a-z]+\", resto))),",
+      "para": "(False,",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_recorte_ou_ressalva_nasce_pendente_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "G1.2 e PV-A2 (item 5): palavra fora do vocabulário (negação, condição, ressalva) nasce pendente",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(bool(fora), f\"palavra fora do vocabulário",
+      "para": "(False, f\"palavra fora do vocabulário",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_toda_marca_de_negacao_ou_condicao_manda_a_pendencia"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "G1.2 (item 6): termo fora do mapa vale uso único",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "fim = \"\" if None in fins or \"termo de validade fora do mapa\" in motivos else",
+      "para": "fim = \"\" if None in fins else",
+      "testes": [
+        "tests.test_autorizacao_gravar.Validade.test_conflito_nasce_pendente_e_vale_o_fim_mais_cedo"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "G1.2 (item 5): com motivo, nasce pendente-confirmacao",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "\"Estado-inicial\": \"pendente-confirmacao\" if motivos else \"ativa\"",
+      "para": "\"Estado-inicial\": \"pendente-confirmacao\" if [] else \"ativa\"",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_recorte_ou_ressalva_nasce_pendente_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "PV-A2 (E1): Ramo sem parecer de review não tem Commit",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "curto = curtos[0] if curtos else \"\"",
+      "para": "curto = curtos[0] if True else \"\"",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_ramo_sem_pareceres_ou_sem_ramo_recusa"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "PV-A2 (E1): commit do parecer que não é sha não vira ref nem opção do git",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": ".strip() if valido else \"\"",
+      "para": ".strip() if True else \"\"",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_commit_do_parecer_que_nao_e_sha_ou_nao_existe_nao_vira_ref"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "G1.2 (item 1): --mensagem fora da forma de uuid recusa antes de ler (nome do marcador M-)",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if not re.fullmatch(r\"[0-9a-f]+(?:-[0-9a-f]+)*\", a.mensagem):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_mensagem_fora_da_forma_de_uuid_recusa_antes_de_ler"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "PV-A2 (E1): o alvo item: lê o Commit e o Ramo",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if item:\n        campos.update(",
+      "para": "    if False:\n        campos.update(",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_head_com_os_pareceres_grava_o_commit_inteiro_e_nasce_ativa"
+      ]
+    }
+  ]
+}

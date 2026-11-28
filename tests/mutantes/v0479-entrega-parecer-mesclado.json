@@ -1,0 +1,91 @@
+{
+  "pedido": "v0479-entrega-parecer-mesclado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a regra só vale na volta (Desde de conferida ou Revisar-sha), nunca na 1.a entrega",
+      "arquivo": "bin/forge-check",
+      "de": "and valido and tipo and not com_controle(nome) and parecer_mesclado_na_volta(  # E50.1\n                raiz, base_sha, valido,",
+      "para": "and tipo and not com_controle(nome) and parecer_mesclado_na_volta(  # E50.1\n                raiz, base_sha, valido or base_sha,",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_sem_conferida_a_regra_nao_vale",
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_sem_conferida_o_parecer_com_commit_no_base_sha_segue_fora"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o merge que muda o parecer é lido como merge (a versão de um dos pais)",
+      "arquivo": "bin/forge-check",
+      "de": "    if len(pais) > 1:\n        blob = blob_de(raiz, sha, nome)\n",
+      "para": "    if False:\n        blob = blob_de(raiz, sha, nome)\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_caso_real_parecer_mesclado_e_commitado_antes_da_volta_e_anexo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "merge com o parecer resolvido à mão é do autor",
+      "arquivo": "bin/forge-check",
+      "de": "        return bool(blob) and blob in {blob_de(raiz, pai, nome) for pai in pais}\n",
+      "para": "        return True\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_merge_com_o_parecer_resolvido_a_mao_segue_fora"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "commit que toca o parecer e outro arquivo é do autor; diff-tree que falha também",
+      "arquivo": "bin/forge-check",
+      "de": "    return bool(nomes) and all(n.startswith(f\"{pasta}/\") and not n.startswith(ACEITES_DO_USUARIO) for n in nomes)\n",
+      "para": "    return True\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_autor_que_edita_o_parecer_no_commit_do_codigo_segue_fora",
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_git_que_falha_conta_como_commit_do_autor"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "frontmatter com o tipo da pasta, a branch conferida e veredito",
+      "arquivo": "bin/forge-check",
+      "de": "    if fm.get(\"tipo\") != tipo or fm.get(\"branch\") != branch or fm.get(\"parecer\") not in (\"aprovado\", \"reprovado\"):\n        return False\n    if fm.get(\"pedido\") not in (pedido_id, slug):\n",
+      "para": "    if False:\n        return False\n    if fm.get(\"pedido\") not in (pedido_id, slug):\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_frontmatter_de_outra_branch_pedido_tipo_ou_sem_veredito_segue_fora"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o pedido do frontmatter é o da entrega (id ou slug)",
+      "arquivo": "bin/forge-check",
+      "de": "    if fm.get(\"pedido\") not in (pedido_id, slug):\n        return False\n    revisado =",
+      "para": "    if False:\n        return False\n    revisado =",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_frontmatter_de_outra_branch_pedido_tipo_ou_sem_veredito_segue_fora"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o commit: do parecer é o Desde da volta, nunca outro commit do intervalo (E50.5, A1)",
+      "arquivo": "bin/forge-check",
+      "de": "    if revisado != de:  # E50.5 A1",
+      "para": "    if False:  # E50.5 A1",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_commit_fora_do_intervalo_ou_abreviado_segue_fora",
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_autor_que_forja_aprovado_citando_o_proprio_codigo_segue_fora",
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_reprovado_do_portao_trocado_por_aprovado_com_outro_commit_segue_fora"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "todo commit do intervalo que muda o parecer é só de parecer ou merge sem resolução; rev-list que falha recusa",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod or not all(commit_so_de_parecer(raiz, sha, nome, pasta) for sha in shas.split()):\n",
+      "para": "    if cod:\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_autor_que_edita_o_parecer_no_commit_do_codigo_segue_fora",
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_merge_com_o_parecer_resolvido_a_mao_segue_fora"
+      ]
+    }
+  ]
+}

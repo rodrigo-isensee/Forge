@@ -1,0 +1,83 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O74",
+      "guarda": "U4: o que o hook não sabe, sozinho no componente, não é o .git; colado, é curinga",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"_\" if c == SEM_VALOR else c.replace(SEM_VALOR, \"*\")",
+      "para": "c.replace(SEM_VALOR, \"*\")",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O75",
+      "guarda": "A2 (E1.232): o resto colado sem barra vale pelo U4",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if expandido[fim:fim + 1] not in (\"\", \"/\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O76",
+      "guarda": "U4: libera só o valor calculado fora do .git",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if valores is not None and not valor_no_git(valores):",
+      "para": "        if valores is not None:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O77",
+      "guarda": "A1 (E1.232): sem resto, o que o U1 e o U2 não recusam vai ao U4",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            return self.valor_calculado(self.expandir(caminho, pasta))",
+      "para": "            return",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O78",
+      "guarda": "U4: `--short` e `--abbrev-ref` na lista positiva",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|git\\s+rev-parse\\s+(?:--short(?:=\\d+)?|--abbrev-ref)(?:\\s+[\\w./@^~-]+)?|true|false|:\")",
+      "para": "|true|false|:\")",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O79",
+      "guarda": "U4: `true`, `false` e `:` (saída vazia) na lista positiva",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(?:\\s+[\\w./@^~-]+)?|true|false|:\")",
+      "para": "(?:\\s+[\\w./@^~-]+)?\")",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O80",
+      "guarda": "U4: profundidade de função que chama a si mesma",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not palavras or fundo > 4:",
+      "para": "    if not palavras:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "sem_substituicao or not inteira",
+      "motivo": "crase partida dentro de argumento do `echo` já recusa pelo U2 (corpo aninhado) antes do U4: mutante equivalente"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "pedido": "v0474-mp6-disco",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "clone com worktree ligada fica",
+      "arquivo": "bin/forge-fechar",
+      "de": "    if [ \"$(\"${g[@]}\" worktree list --porcelain 2>/dev/null | grep -c '^worktree ' || true)\" != 1 ] \\",
+      "para": "    if false \\",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_clone_com_worktree_ligada_fica"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "commit so em tag local fica (rev-list --all)",
+      "arquivo": "bin/forge-fechar",
+      "de": "rev-list --exclude='refs/tags/arquivo/*' --all --not --remotes",
+      "para": "rev-list --exclude='refs/tags/arquivo/*' --branches --not --remotes",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_commit_so_em_tag_local_fica"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "git do clone sem fsmonitor",
+      "arquivo": "bin/forge-fechar",
+      "de": "    g=(git --no-optional-locks -c core.fsmonitor= -C \"$d\")",
+      "para": "    g=(git -C \"$d\")",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_fsmonitor_do_clone_nao_roda"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "E69.3 versão vista nova recomeça a contagem; a mesma a mantém",
+      "arquivo": "hooks/doutor.py",
+      "de": "            if novo.get(\"versao\") != main:",
+      "para": "            if True:",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_p2_sem_o_atalho_manda_abrir_pelo_jarvis_ou_forge_atualizar"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "E69.3 a partir de 2 dias",
+      "arquivo": "hooks/doutor.py",
+      "de": "if dias >= PARADO_AVISA_A_PARTIR_DE else",
+      "para": "if dias > PARADO_AVISA_A_PARTIR_DE else",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_p2_sem_o_atalho_manda_abrir_pelo_jarvis_ou_forge_atualizar"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "E69.3 um por dia, outro só se a causa mudar",
+      "arquivo": "hooks/doutor.py",
+      "de": "(novo.get(\"avisada_em\"), novo.get(\"causa\")) != (hoje(), causa)",
+      "para": "novo.get(\"avisada_em\") != hoje()",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_causa_que_muda_no_mesmo_dia_avisa_de_novo"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "E69.3 data guardada só na forma AAAA-MM-DD",
+      "arquivo": "hooks/doutor.py",
+      "de": "if data != hoje() and re.fullmatch(r\"\\d{4}-\\d{2}-\\d{2}\", data):",
+      "para": "if data != hoje():",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_data_guardada_fora_da_forma_nao_vai_ao_texto"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "E69.3 o estado é gravado quando muda",
+      "arquivo": "hooks/doutor.py",
+      "de": "        if novo != estado:\n            gravar_json(hook.run() / \"versao-parada\", novo)",
+      "para": "        if False:\n            gravar_json(hook.run() / \"versao-parada\", novo)",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_p2_sem_o_atalho_manda_abrir_pelo_jarvis_ou_forge_atualizar"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "E69.3 avisos da ferramenta sem a pasta própria",
+      "arquivo": "hooks/doutor.py",
+      "de": "    pasta = pasta_do_sempre_atual()\n    if pasta is None:\n        return []",
+      "para": "    pasta = pasta_do_sempre_atual()\n    if False:\n        return []",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_p2_sem_o_atalho_manda_abrir_pelo_jarvis_ou_forge_atualizar"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "E69.3 sem aviso de parada, nada entra na linha",
+      "arquivo": "hooks/doutor.py",
+      "de": "    if parada:\n        partes.append(parada)",
+      "para": "    if True:\n        partes.append(parada)",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_antes_de_2_dias_fica_em_silencio"
+      ]
+    }
+  ]
+}

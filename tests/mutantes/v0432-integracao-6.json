@@ -66,8 +66,8 @@
       "id": "I87",
       "guarda": "scripts/suite-paralela.py:676 veredito (negada)",
       "arquivo": "scripts/suite-paralela.py",
-      "de": "        veredito, codigo = (veredito, 1) if veredito else (fechar_verde(relatorios, hash_arvore, pulados), 0)",
-      "para": "        veredito, codigo = (veredito, 1) if not (veredito) else (fechar_verde(relatorios, hash_arvore, pulados), 0)",
+      "de": "return (veredito, 1) if veredito else (fechar_verde",
+      "para": "return (veredito, 1) if not (veredito) else (fechar_verde",
       "testes": [
         "tests.test_suite_paralela"
       ]
@@ -150,16 +150,6 @@
       "para": "        print(f\"suite-paralela: pulados {pulados} (teto {'ilegível' if not (teto is None) else teto}; só reprova no CI).\",",
       "testes": [
         "tests.test_suite_paralela"
-      ]
-    },
-    {
-      "id": "I96",
-      "guarda": "scripts/suite-partes.py:115 k == nome or k.startswith(nome + '.') (negada)",
-      "arquivo": "scripts/suite-partes.py",
-      "de": "        partes = [v for k, v in pesos.items() if k == nome or k.startswith(nome + \".\")]",
-      "para": "        partes = [v for k, v in pesos.items() if not (k == nome or k.startswith(nome + \".\"))]",
-      "testes": [
-        "tests.test_suite_partes"
       ]
     }
   ]

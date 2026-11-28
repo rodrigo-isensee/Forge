@@ -1,0 +1,56 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1",
+      "guarda": "a recusa do pedido e do brief da pasta de controle vale na GuardaDaProva (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "               for e in self.pol[\"caminhos\"] if e[\"caminho\"] in CAMINHOS_DO_CONTROLE):\n            return True  # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS\n",
+      "para": "               for e in self.pol[\"caminhos\"] if False):\n            return True  # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "C2",
+      "guarda": "a construção que o hook não modela, numa linha que cita o controle, recusa (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if \"o hook não modela\" in o_que and isinstance(linha, str) and self.controle_no_texto(linha):\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "C3",
+      "guarda": "a linha que cita o controle é crítica na GuardaDaProva (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        self.controle, self.critico = ((None, CRITICO.search) if papel == \"jarvis\"\n",
+      "para": "        self.controle, self.critico = ((None, CRITICO.search) if True\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "C4",
+      "guarda": "o jarvis, dono, segue livre no texto do controle (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self.controle is None:\n            return False\n",
+      "para": "        if self.controle is None:\n            return True\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "C5",
+      "guarda": "a linha acima do teto que cita o controle recusa (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if guarda.no_clone and isinstance(alvo, str) and guarda.controle_no_texto(alvo):\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    }
+  ]
+}

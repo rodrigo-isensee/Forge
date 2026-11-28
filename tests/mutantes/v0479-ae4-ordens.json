@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-ae4-ordens",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "anotar: --cartao só com --tipo ordem e no formato <ID|E<n>> (AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "    if (tipo == \"ordem\") != (cartao is not None) or (cartao is not None and not re.fullmatch(APONTADOR, cartao)):",
+      "para": "    if (tipo == \"ordem\") != (cartao is not None):",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_cartao_fora_do_formato_e_recusado"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "anotar: a ordem passa pela conferência do apontador (AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "    if tipo == \"ordem\":\n        recusa = recusa_do_apontador(",
+      "para": "    if False:\n        recusa = recusa_do_apontador(",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_cartao_inventado_e_recusado"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "anotar: a ordem grava a marca `· cartão:` (AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "        if tipo == \"ordem\":\n            nova += f\" · cartão: {cartao}\"",
+      "para": "        if False:\n            nova += f\" · cartão: {cartao}\"",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_cartao_aberto_grava_a_marca_e_a_listagem_a_conta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "recusa_do_apontador: E<n> vai às etapas, não ao quadro (AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "    if re.fullmatch(ETAPA_APONTADA, alvo):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_etapa_e_item_do_pedido_valem"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "recusa_do_apontador: etapa fora do pedido é recusada (AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "return None if e_etapa_do_pedido(alvo, ids_de_etapa(ler_pedido_brief(pedido_txt))) else",
+      "para": "return None if True else",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_etapa_inventada_e_recusada"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "recusa_do_apontador: o KANBAN.md é lido uma vez, sem seguir link nem travar em FIFO (A1, AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "texto, erro = _ler_regular(Path(raiz_pedido) / \"KANBAN.md\")",
+      "para": "texto, erro = (Path(raiz_pedido) / \"KANBAN.md\").read_text(encoding=\"utf-8\"), None",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_quadro_por_link_nao_confere"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "recusa_do_apontador: quadro que não se lê recusa sem exceção (AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "    if texto is None:\n        return f\"--cartao: KANBAN.md {erro}",
+      "para": "    if False:\n        return f\"--cartao: KANBAN.md {erro}",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_sem_quadro_so_a_etapa_vale"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "recusa_do_apontador: só o cartão de ID igual dá a coluna (AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "if c[0].casefold() == alvo.casefold()]",
+      "para": "if c[0].casefold() != alvo.casefold()]",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_cartao_aberto_grava_a_marca_e_a_listagem_a_conta"
+      ]
+    }
+  ]
+}

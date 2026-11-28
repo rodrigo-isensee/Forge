@@ -1,0 +1,86 @@
+{
+  "pedido": "v0474-merge-checks",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "os pares do Forge valem so no Forge (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "if e_o_forge(Path(raiz)) else set()",
+      "para": "if True else set()",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_no_projeto_o_fallback_do_forge_nao_vale"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "destino fora do padrao nao vai a api (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "if not re.fullmatch(r\"[A-Za-z0-9._/-]{1,200}\", destino or \"\"):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_destino_fora_do_padrao_nao_vai_a_api"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o par do Forge confere o workflow (C-6, E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "and wf in (\"*\", c.get(\"workflow\"))]",
+      "para": "]",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_no_forge_o_par_de_outro_workflow_nao_conta"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "so a regra required_status_checks conta (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "if r.get(\"type\") == \"required_status_checks\" for c",
+      "para": "if True for c",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_so_a_regra_de_checks_exigidos_conta"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "sem saida, o stderr volta para o no checks reported (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "json.loads(r.stdout) if r.stdout.strip() else None",
+      "para": "json.loads(r.stdout) if True else None",
+      "testes": [
+        "tests.test_forge_check_pr.GhJson.test_sem_saida_devolve_o_stderr"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o contexto do ruleset vale de qualquer workflow (E3.45)",
+      "arquivo": "bin/forge-fechar",
+      "de": "{ [ \"$wf_ex\" != \"*\" ] && [ \"$wf_ck\" != \"$wf_ex\" ]; }",
+      "para": "[ \"$wf_ck\" != \"$wf_ex\" ]",
+      "testes": [
+        "tests.test_forge_fechar.FecharExigidosDoDestino.test_exigido_do_ruleset_de_qualquer_workflow_em_pass_mescla"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "leitura do ruleset que falha nao acrescenta (E3.45)",
+      "arquivo": "bin/forge-fechar",
+      "de": ".parameters.required_status_checks[].context' 2>/dev/null)\"; then",
+      "para": ".parameters.required_status_checks[].context' 2>/dev/null)\"; true; then",
+      "testes": [
+        "tests.test_forge_fechar.FecharExigidosDoDestino.test_ruleset_ilegivel_nao_acrescenta_e_a_protecao_vale"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "leitura da protecao que falha nao acrescenta (E3.45)",
+      "arquivo": "bin/forge-fechar",
+      "de": "--jq '.contexts[]' 2>/dev/null)\"; then",
+      "para": "--jq '.contexts[]' 2>/dev/null)\"; true; then",
+      "testes": [
+        "tests.test_forge_fechar.FecharExigidosDoDestino.test_exigido_do_ruleset_de_qualquer_workflow_em_pass_mescla"
+      ]
+    }
+  ]
+}

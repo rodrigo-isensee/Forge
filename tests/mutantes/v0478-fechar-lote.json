@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-fechar-lote",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FL-M1",
+      "guarda": "--help imprime o uso e sai 0",
+      "arquivo": "bin/forge-fechar",
+      "de": "    -h|--help) sed -n",
+      "para": "    -h|--ajuda-x) sed -n",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_help_imprime_o_uso_e_sai_0_sem_log"
+      ]
+    },
+    {
+      "id": "FL-M2",
+      "guarda": "a árvore de $ref que é a principal do repositório (clone) não vira worktree",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ -n \"$arvore\" ] && [ -d \"$arvore\" ] && [ \"$(cd \"$arvore\" && pwd -P)/.git\" =",
+      "para": "  if false && [ \"$(cd \"$arvore\" && pwd -P)/.git\" =",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_o_clone_que_roda_o_fechamento_nao_se_apaga_e_diz_o_que_ficou"
+      ]
+    },
+    {
+      "id": "FL-M3",
+      "guarda": "a branch que a cópia principal usa não entra no branch -D",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ -n \"$sha_local\" ] && [ -z \"$propria\" ]; then",
+      "para": "  if [ -n \"$sha_local\" ]; then",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_o_clone_que_roda_o_fechamento_nao_se_apaga_e_diz_o_que_ficou"
+      ]
+    },
+    {
+      "id": "FL-M4",
+      "guarda": "cópia principal com commit sem merge só recebe a leitura",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"$sem_merge\" = 1 ]; then\n    echo \"aviso: a branch local $ref ($sha_local) tem commit que não foi mesclado; confira",
+      "para": "  if false; then\n    echo \"aviso: a branch local $ref ($sha_local) tem commit que não foi mesclado; confira",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_clone_com_commit_sem_merge_so_da_a_leitura"
+      ]
+    },
+    {
+      "id": "FL-M5",
+      "guarda": "clone em ~/.forge-contrib/wt sai pelo --limpar de outra cópia",
+      "arquivo": "bin/forge-fechar",
+      "de": "  elif [ \"$(dirname \"$raiz_copia\")\" = \"$(cd \"${HOME:-}/.forge-contrib/wt\" 2>/dev/null && pwd -P)\" ]; then",
+      "para": "  elif [ \"$(dirname \"$raiz_copia\")\" = \"${HOME:-}/.forge-contrib/wt\" ]; then",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_clone_por_caminho_com_link_ainda_e_de_wt"
+      ]
+    },
+    {
+      "id": "FL-M6",
+      "guarda": "cópia fora de wt troca de branch (não o --limpar de outra cópia)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  elif [ \"$(dirname \"$raiz_copia\")\" = ",
+      "para": "  elif true || [ \"$(dirname \"$raiz_copia\")\" = ",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_copia_principal_fora_de_wt_troca_de_branch_e_repete"
+      ]
+    },
+    {
+      "id": "FL-M7",
+      "guarda": "a cópia principal não apaga a remota (o limpar_clones da outra cópia veria commit fora da origem)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ -n \"$propria\" ]; then\n    copia_propria \"$propria\"",
+      "para": "  if false; then\n    copia_propria \"$propria\"",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_o_limpar_de_outra_copia_apaga_o_clone_e_depois_a_remota"
+      ]
+    },
+    {
+      "id": "FL-M8",
+      "guarda": "a remota da cópia principal fica sem o comando que apaga",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"$rem_st\" = ok ] || [ -n \"$propria\" ]; then",
+      "para": "  if [ \"$rem_st\" = ok ]; then",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_o_clone_que_roda_o_fechamento_nao_se_apaga_e_diz_o_que_ficou"
+      ]
+    }
+  ]
+}

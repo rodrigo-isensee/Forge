@@ -1,0 +1,22 @@
+{
+  "descricao": "V0481-PUBLICAR: sessão de projeto, --raiz no clone do Forge e uma --raiz= depois do --, que o argparse toma como o arquivo: barra (A1 do E6.22, sonda S1 da segurança E6.24).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check --raiz ~/.forge-contrib/proj parecer publicar -- --raiz=x/.forge/pareceres/v1/review.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: forge-check parecer publicar"
+  }
+}

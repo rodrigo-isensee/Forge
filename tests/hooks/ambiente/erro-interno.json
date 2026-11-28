@@ -1,0 +1,17 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA: erro ao decidir se a sessão está no container: o ambiente sai 0, não escreve no contexto e registra em erros.log.",
+  "forcar": {
+    "onde": "no_container",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "SessionStart",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "source": "startup"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "ambiente RuntimeError"
+  }
+}

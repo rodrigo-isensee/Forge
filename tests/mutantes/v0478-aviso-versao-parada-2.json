@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "E69.3 causa P1 só com a instalada acima da carregada",
+      "arquivo": "hooks/doutor.py",
+      "de": "fv.versao_de(instalada) > fv.versao_de(carregada)",
+      "para": "fv.versao_de(instalada) >= fv.versao_de(carregada)",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_p2_sem_o_atalho_manda_abrir_pelo_jarvis_ou_forge_atualizar"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "E69.3 sem a pasta da ferramenta: abertura sem o atalho",
+      "arquivo": "hooks/doutor.py",
+      "de": "    pasta = pasta_do_sempre_atual()\n    if pasta is None:\n        return \"sem-atalho\"",
+      "para": "    pasta = pasta_do_sempre_atual()\n    if False:\n        return \"sem-atalho\"",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_p2_sem_o_atalho_manda_abrir_pelo_jarvis_ou_forge_atualizar"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "E69.3 registro ausente vale vazio",
+      "arquivo": "hooks/doutor.py",
+      "de": "(fv._ler_limitado(pasta / \"registro.log\", 4 * LIMITE_ESTADO) or \"\")",
+      "para": "(fv._ler_limitado(pasta / \"registro.log\", 4 * LIMITE_ESTADO))",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_p3_adiamento_repetido_diz_quantas_vezes"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "E69.3 registro vazio não tem última linha",
+      "arquivo": "hooks/doutor.py",
+      "de": ".split(\":\") if registro else [\"\"]",
+      "para": ".split(\":\") if True else [\"\"]",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_p3_adiamento_repetido_diz_quantas_vezes"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "E69.3 causa P4 só com a última linha falhou",
+      "arquivo": "hooks/doutor.py",
+      "de": "    if resultado[0] == \"falhou\":",
+      "para": "    if resultado[0] != \"falhou\":",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_p4_falha_da_ferramenta_diz_a_etapa_e_o_comando"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "E69.3 falha sem etapa não quebra",
+      "arquivo": "hooks/doutor.py",
+      "de": "etapa = resultado[1] if len(resultado) > 1 else \"\"",
+      "para": "etapa = resultado[1] if True else \"\"",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_falha_sem_etapa_ou_com_etapa_estranha_nao_vai_ao_texto"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "E69.3 etapa só [a-z0-9-] vai ao texto",
+      "arquivo": "hooks/doutor.py",
+      "de": "etapa if re.fullmatch(r\"[a-z0-9-]{1,32}\", etapa) else \"?\"",
+      "para": "etapa if True else \"?\"",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_falha_sem_etapa_ou_com_etapa_estranha_nao_vai_ao_texto"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "E69.3 estado ausente vale vazio",
+      "arquivo": "hooks/doutor.py",
+      "de": "(fv._ler_limitado(pasta / \"estado.json\", LIMITE_ESTADO) or \"{}\")",
+      "para": "(fv._ler_limitado(pasta / \"estado.json\", LIMITE_ESTADO))",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_registro_que_terminou_bem_nao_e_falha"
+      ]
+    }
+  ]
+}

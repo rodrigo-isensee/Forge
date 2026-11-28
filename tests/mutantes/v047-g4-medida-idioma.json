@@ -1,0 +1,87 @@
+{
+  "pedido": "v047-g4-medida-idioma",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "SIEG-G4: idioma sem o mínimo de palavras fica sem idioma",
+      "arquivo": "hooks/meta.py",
+      "de": "if maior < MINIMO_DO_IDIOMA or maior == segundo:",
+      "para": "if maior < 0 or maior == segundo:",
+      "testes": [
+        "tests.test_meta.IdiomaDoDono.test_mensagem_curta_mista_ou_em_codigo_fica_sem_idioma_e_nao_e_acusada"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "SIEG-G4: empate entre idiomas fica sem idioma",
+      "arquivo": "hooks/meta.py",
+      "de": "if maior < MINIMO_DO_IDIOMA or maior == segundo:",
+      "para": "if maior < MINIMO_DO_IDIOMA:",
+      "testes": [
+        "tests.test_meta.IdiomaDoDono.test_mensagem_curta_mista_ou_em_codigo_fica_sem_idioma_e_nao_e_acusada"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "SIEG-G4: a raiz do projeto é lida para o idioma do dono",
+      "arquivo": "hooks/meta.py",
+      "de": "if raiz is not None else {}",
+      "para": "if False else {}",
+      "testes": [
+        "tests.test_meta.IdiomaDoDono.test_idioma_vem_da_configuracao_do_projeto"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "SIEG-G4: config sem a chave idioma_do_dono vale o padrão",
+      "arquivo": "hooks/meta.py",
+      "de": "    if valor is None:\n        return IDIOMA_PADRAO",
+      "para": "    if False:\n        return IDIOMA_PADRAO",
+      "testes": [
+        "tests.test_meta.IdiomaDoDono.test_sem_configuracao_o_dono_fala_portugues_e_ingles_e_acusado"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "SIEG-G4: código de idioma sem lista não mede",
+      "arquivo": "hooks/meta.py",
+      "de": "return valor if isinstance(valor, str) and valor in PALAVRAS_DO_IDIOMA else None",
+      "para": "return valor if isinstance(valor, str) or valor in PALAVRAS_DO_IDIOMA else None",
+      "testes": [
+        "tests.test_meta.IdiomaDoDono.test_idioma_sem_lista_nao_mede_nem_acusa"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "SIEG-G4: outro_idioma só com idioma e dono conhecidos",
+      "arquivo": "hooks/meta.py",
+      "de": "or (idioma is not None and dono is not None and idioma != dono)",
+      "para": "or (idioma != dono)",
+      "testes": [
+        "tests.test_meta.IdiomaDoDono.test_idioma_sem_lista_nao_mede_nem_acusa",
+        "tests.test_meta.IdiomaDoDono.test_mensagem_curta_mista_ou_em_codigo_fica_sem_idioma_e_nao_e_acusada"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "SIEG-G4: só config objeto dá o idioma do dono",
+      "arquivo": "hooks/meta.py",
+      "de": "if isinstance(config, dict) else None",
+      "para": "if not isinstance(config, dict) else None",
+      "testes": [
+        "tests.test_meta.IdiomaDoDono.test_idioma_vem_da_configuracao_do_projeto"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "SIEG-G4: só palavra da lista conta para o idioma",
+      "arquivo": "hooks/meta.py",
+      "de": "sum(p in lista for p in palavras)",
+      "para": "sum(p not in lista for p in palavras)",
+      "testes": [
+        "tests.test_meta.IdiomaDoDono.test_sem_configuracao_o_dono_fala_portugues_e_ingles_e_acusado"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO, U3 (QA E1.281 A1, mata o O18): `mv --target-directory=` não passa pelo destino do U4; a variável de duas atribuições fica fora da lista positiva e a origem de nome do git recusa.",
+  "arquivos": {
+    "x": "x\n",
+    "config": "c\n",
+    "pre-push": "p\n",
+    "lugar.txt": "docs\n",
+    "docs/a.md": "a\n",
+    "hooks/pre-push": "p\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "out=$(mktemp); out=$(date); mv config --target-directory=\"$out\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "origem `config` (nome do git ou de hook)"
+  }
+}

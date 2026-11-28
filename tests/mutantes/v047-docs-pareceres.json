@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "v047 E1.252: release-X.Y.Z vale como pedido",
+      "arquivo": "bin/forge-check",
+      "de": "    if not pedido or RELEASE_COMO_PEDIDO.fullmatch(pedido):\n        return None",
+      "para": "    if not pedido:\n        return None",
+      "testes": [
+        "tests.test_forge.DocsPareceresPedidoECaminho.test_pedido_registrado_release_e_branch_que_e_pedido_valem"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "v047 E1.252: sem docs/pedidos/ em nenhuma raiz, nada a conferir",
+      "arquivo": "bin/forge-check",
+      "de": "    if not any(p.is_dir() for p in pastas):\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_forge.DocsPareceresPedidoECaminho.test_pedido_da_raiz_de_pedidos_vale_e_sem_pasta_de_pedidos_nada_a_conferir"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "v047 E1.252: só id sem barra procura docs/pedidos/<id>.md (travessia recusada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if ID_DE_PEDIDO.fullmatch(pedido) and any(",
+      "para": "    if any(",
+      "testes": [
+        "tests.test_forge.DocsPareceresPedidoECaminho.test_pedido_inexistente_e_nome_da_branch_sao_recusados_com_o_id_na_mensagem"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "v047 E1.252: o sufixo da branch também é o nome da branch",
+      "arquivo": "bin/forge-check",
+      "de": "if pedido in (branch, branch.partition(\"/\")[2]) else",
+      "para": "if pedido == branch else",
+      "testes": [
+        "tests.test_forge.DocsPareceresPedidoECaminho.test_pedido_inexistente_e_nome_da_branch_sao_recusados_com_o_id_na_mensagem"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "v047 E1.252: só .md regular é lido",
+      "arquivo": "bin/forge-check",
+      "de": "if real.suffix == \".md\" and real.is_file() else None",
+      "para": "if real.is_file() else None",
+      "testes": [
+        "tests.test_forge.DocsPareceresPedidoECaminho.test_arquivo_ausente_ou_que_nao_e_md_e_recusado"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "v047 E1.252: arquivo não lido é recusado, nunca validado",
+      "arquivo": "bin/forge-check",
+      "de": "        if texto is None:\n            saida.append(f\"{caminho_impresso(arquivo)}: arquivo: não lido",
+      "para": "        if False:\n            saida.append(f\"{caminho_impresso(arquivo)}: arquivo: não lido",
+      "testes": [
+        "tests.test_forge.DocsPareceresPedidoECaminho.test_arquivo_ausente_ou_que_nao_e_md_e_recusado"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "v047 E1.252: dentro da raiz vale o caminho real (pasta errada recusada)",
+      "arquivo": "bin/forge-check",
+      "de": "        if real.is_relative_to(base):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge.DocsPareceresPedidoECaminho.test_dentro_da_raiz_a_pasta_errada_segue_recusada_e_tipo_desconhecido_fora_tambem"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "v047 E1.252: fora da raiz, tipo desconhecido fica com o nome (sem pasta)",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo in CONTRATOS else nome",
+      "para": "if True else nome",
+      "testes": [
+        "tests.test_forge.DocsPareceresPedidoECaminho.test_dentro_da_raiz_a_pasta_errada_segue_recusada_e_tipo_desconhecido_fora_tambem"
+      ]
+    }
+  ]
+}

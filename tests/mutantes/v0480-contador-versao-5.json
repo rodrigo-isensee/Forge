@@ -1,0 +1,47 @@
+{
+  "pedido": "v0480-contador-versao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "quadro fora de UTF-8 é erro curto (saída 2), sem traceback",
+      "arquivo": "bin/forge-contador",
+      "de": "    except (OSError, UnicodeDecodeError) as e:\n",
+      "para": "    except OSError as e:\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_quadro_fora_de_utf8_e_erro"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "a contagem de PRs parte da última marca, não do início",
+      "arquivo": "bin/forge-contador",
+      "de": "f\"{marca}..{ref}\" if marca else ref",
+      "para": "f\"{marca}..{ref}\" if None else ref",
+      "testes": [
+        "tests.test_forge_contador.SemChangelog.test_conta_merges_e_squashes_desde_a_marca"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "erro de leitura sem strerror (UTF-8) diz não é UTF-8",
+      "arquivo": "bin/forge-contador",
+      "de": "getattr(e, 'strerror', None) or 'não é UTF-8'",
+      "para": "getattr(e, 'strerror', None) and 'não é UTF-8'",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_quadro_fora_de_utf8_e_erro"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "o README de changelog.d sai da contagem sem diferença de caixa",
+      "arquivo": "bin/forge-contador",
+      "de": "Path(n).name.lower() != \"readme.md\"",
+      "para": "Path(n).name != \"readme.md\"",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_conta_fragmentos_sem_readme_e_sobe_o_patch",
+        "tests.test_forge_contador.LinhaDaVersao.test_readme_com_caixa_mista_nao_conta"
+      ]
+    }
+  ]
+}

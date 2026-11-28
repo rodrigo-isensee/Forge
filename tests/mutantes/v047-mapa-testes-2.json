@@ -6,8 +6,8 @@
       "id": "M9",
       "guarda": "os afetados do pre-push levam o fecho do hook",
       "arquivo": "bin/forge-testes",
-      "de": "quem_importa(caminho, raiz, regra or ())",
-      "para": "quem_importa(caminho, raiz, ())",
+      "de": "quem_importa(caminho, raiz, (*(regra or ()), *oraculos(raiz)))",
+      "para": "quem_importa(caminho, raiz, (*oraculos(raiz),))",
       "testes": [
         "tests.test_testes_tocados.QuemImporta.test_hook_leva_a_quem_o_importa_pelo_fecho_no_plano_e_nos_afetados"
       ]

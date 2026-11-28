@@ -1,0 +1,41 @@
+{
+  "descricao": "GH-API-ARQUIVO-TROCADO (A4 da E3.4): só o cd antes do gh não troca arquivo: a consulta de leitura passa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "l.graphql": "query { viewer { login } }\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop",
+        "remote.origin.url": "git@github.com:dono/forge.git"
+      }
+    }
+  ],
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}",
+    "tool_input": {
+      "command": "cd {tmp}/proj && gh api graphql -F query=@l.graphql"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "pedido": "v0479-placar-fases",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "sem --git, a pasta atual",
+      "arquivo": "bin/forge-placar",
+      "de": "args.git or \".\"",
+      "para": "\".\" or args.git",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "item sem parecer fica fora da primeira rodada",
+      "arquivo": "bin/forge-placar",
+      "de": "if i[\"primeira_rodada\"] is not None]",
+      "para": "if True]",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_item_sem_parecer_e_assunto_sem_branch"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "dia sem item tem media None",
+      "arquivo": "bin/forge-placar",
+      "de": "for i in itens]) if itens else dict.fromkeys(",
+      "para": "for i in itens]) if True else dict.fromkeys(",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_dia_sem_item"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "--json imprime o JSON das fases",
+      "arquivo": "bin/forge-placar",
+      "de": "    if args.json:\n        print(json.dumps(dados",
+      "para": "    if False:\n        print(json.dumps(dados",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "dia sem item diz nenhum item mesclado",
+      "arquivo": "bin/forge-placar",
+      "de": "    if not itens:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_dia_sem_item"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "total zero nao divide por zero",
+      "arquivo": "bin/forge-placar",
+      "de": "total = sum(soma.values()) or 1",
+      "para": "total = sum(soma.values()) or 0",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_item_de_total_zero_nao_divide_por_zero"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "o subcomando fases",
+      "arquivo": "bin/forge-placar",
+      "de": "if argv[:1] == [\"fases\"]:",
+      "para": "if argv[:1] == [\"fase\"]:",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    }
+  ]
+}

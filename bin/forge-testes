@@ -4,6 +4,9 @@
 Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO ...] [CAMINHO ...]
      forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]   (M: test_<nome> ou tests.test_<nome>)
      forge-testes --texto
+     forge-testes --registros [--base REF]
+     forge-testes --regerar [--base REF]
+     forge-testes --versoes [--base REF]
   (sem opção)   lê o que mudou desde o ancestral comum com REF (padrão origin/develop), mais os arquivos
                 não commitados e os novos, e roda só os módulos de teste que cobrem esses caminhos
   CAMINHO       planeja só para estes caminhos (relativos ao diretório atual ou absolutos, dentro do repositório) e
@@ -16,17 +19,40 @@ Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO .
                 os arquivos de controle), nunca a suíte completa; o que nenhum teste lê fica para o CI, com aviso
   --texto      o pré-envio de texto (PRE-ENVIO-RAPIDO, mp1311): o mapa de testes e os testes de tamanho de texto
                 (`TESTES_DE_TEXTO`), num `unittest` só, com o código de saída dele e uma linha de resumo; não combina com nada
+  --registros  a conferência de registros (PR-VERDE B1), só leitura e em segundos: roda, em paralelo, os mesmos testes do CI
+                para o teto dos agentes, o índice do Forge, as specs de mutante (AR-12), o mapa deste script e os pesos da
+                suíte (`REGISTROS`), mais o `forge-changelog conferir --base REF`. Módulo de teste novo sem peso em
+                tests/pesos-d4.json não reprova: vale a mediana até a marca de versão regerar os pesos (E19.1). Busca a
+                `origin/<ramo>` de REF antes (sem rede, aviso: o CI confere). Saída 0 = em dia, 1 = algum registro
+                desatualizado (uma linha `registro desatualizado:` por item), 2 = sem veredito (git); não combina com
+                nada além de --base
+  --regerar    o regerador (PR-VERDE B2), rodado pelo autor antes da entrega: busca a base como o --registros e chama os
+                geradores que já existem só para o derivado cuja fonte o diff tocou, numa lista fechada (`DERIVADOS`): o
+                índice do Forge (`scripts/indice-forge.py`, quando bin/, hooks/ ou scripts/ mudou); os pesos da suíte
+                ficam fora (só a marca de versão os regera; escrevê-los aqui sai 2). Não segue link e nunca escreve arquivo de controle (a
+                escrita fora da lista, versionada, nova ou ignorada pelo git, sai 2; só o __pycache__ fica de fora); mostra
+                o diff para o autor commitar. Saída 0 = regerado ou nada a regerar, 1 = gerador vermelho, 2 = sem veredito,
+                link no derivado ou escrita fora da lista; não combina com nada além de --base
+  --versoes    os afetados (PR-VERDE D1), rodado pelo autor antes da entrega com a árvore commitada: o plano do --afetados
+                roda uma vez por versão de Python do CI (`python-version` de .github/workflows/ci.yml, nunca a do
+                ambiente), em série, cada uma com o `python<X.Y>` do PATH que se diz dessa versão, e grava
+                .forge/run/afetados-<X.Y>.log (`head=<sha40>` na 1.ª linha, `rc=` na última). Saída 0 = verde em todas,
+                1 = alguma vermelha ou sem o intérprete (aviso, `rc=ausente`: não é verde), 2 = sem veredito (sem versão
+                na configuração, mudança não commitada ou git ilegível); não combina com nada além de --base
 Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o mecanismo do `suite-paralela`, em até
 4 processos, com a guarda de completude); com `-k`, ou sem os dois scripts, em série no `unittest`.
   --vermelho    prova que algum teste do diff derruba o defeito: roda os módulos em duas cópias commitadas em
                 $TMPDIR (o HEAD, e o HEAD com a produção do diff devolvida à base) e classifica cada teste.
                 Nunca escreve na árvore de trabalho, que precisa estar limpa. Saída 0 = há prova e nada cai no HEAD;
                 1 = sem prova ou com falha no HEAD; 2 = uso inválido, erro do git ou sem veredito.
+                Progresso no stderr, na hora: o teto (módulos x 2 cópias x prazo) e uma linha por módulo, com o tempo de
+                cada cópia; os módulos de teste do diff rodam primeiro.
 
 Convenção (O2, 0.44.1): sem regra no mapa, bin/forge-x leva a tests/test_forge_x.py, hooks/x.py e scripts/x.py a
 tests/test_x.py (se o arquivo existe); o mapa fica para as exceções. Sem as duas (E14.1): bin/forge-x leva a tests/test_x.py,
 test_forge e quem cita forge-x; bin/forge_x.py, a quem cita forge_x e test_forge; tests/mutantes/<spec>.json, aos módulos
-do campo `testes` da spec. O hook leva também a quem o importa, direto ou por outro hook, apoio ou módulo de teste (E1.253).
+do campo `testes` da spec e ao test_forge_mutante. O hook leva também a quem o importa, direto ou por outro hook, apoio
+ou módulo de teste (E1.253).
 Falha fechada: qualquer caminho sem entrada no mapa nem teste pela convenção, `tests/config.json`, este script (que contém o mapa),
 um módulo mapeado que não existe, um erro ao ler o git e todo módulo de teste no diff (alterado, novo ou apagado:
 ele pode importar outro, ler todos os de tests/ ou carregá-los pelo nome) fazem rodar a suíte completa. O `--vermelho`
@@ -60,6 +86,7 @@ import sys
 import tempfile
 import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -81,6 +108,28 @@ PRAZO_PADRAO = 600
 TESTES_DE_TEXTO = ("tests.test_testes_tocados", "tests.test_forge.Orcamento", "tests.test_jarvis_nucleo",
                    "tests.test_metricas_texto", "tests.test_orcamento_instrucao")
 PRAZO_MAXIMO = 3600
+# PR-VERDE B1 (v0478 E57.2, decisão do dono de 20/11): os registros que o CI reprova e o envio esquecia. Cada grupo é um
+# `unittest` dos testes do próprio CI (nunca cópia da regra), para a conferência não aprovar o que o CI reprova.
+# Os grupos rodam em paralelo, em até `PROCESSOS_DOS_REGISTROS`, do mais lento ao mais rápido (medida do item: o mapa
+# inteiro num processo passava de 40 s; separado, o envio espera o mais lento).
+_MAPA = "tests.test_testes_tocados."
+REGISTROS = (
+    ("mapa do forge-testes: importação e varredura", (_MAPA + "MapaCobreImportacaoEVarredura",)),
+    ("specs de mutante (AR-12)",
+     ("tests.test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes",)),
+    ("mapa do forge-testes: o que os testes leem", (_MAPA + "MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo",)),
+    ("mapa do forge-testes: quem importa o hook",
+     (_MAPA + "QuemImporta.test_no_repositorio_o_plano_do_hook_traz_todo_teste_que_importa_um_modulo_do_plano",)),
+    ("índice do Forge", ("tests.test_indice_forge",)),
+    ("mapa do forge-testes: módulos e forge-check", (_MAPA + "Mapa.test_todo_modulo_do_mapa_existe",
+                                                     _MAPA + "Convencao.test_o_mapa_nao_repete_o_que_a_convencao_ja_acha",
+                                                     _MAPA + "MapaDoForgeCheck.test_mapa_lista_todo_modulo_que_usa_o_forge_check")),
+    ("teto dos agentes e orçamentos", ("tests.test_orcamento_instrucao", "tests.test_forge.Orcamento")),
+    ("pesos da suíte", ("tests.test_forge.PesosDaSuite",)),
+)
+CHANGELOG = ("bin/forge-changelog", "conferir", "--base")
+PROCESSOS_DOS_REGISTROS = 4
+RAMO_BUSCAVEL = re.compile(r"[A-Za-z0-9._/-]+")  # o ramo de `--base` que vai ao `git fetch` (nunca opção nem refspec)
 # O que o `--vermelho` mantém no HEAD nas duas cópias: módulos de teste e dados de teste. Falha fechada: todo o
 # resto (inclusive `tests/catraca.py`, `tests/neutralidade.py` e os apoios de `tests/`) é produção e volta à base.
 # `tests/config.json` fica no HEAD porque guarda os invariantes que provam o texto (a saída lista os mantidos).
@@ -101,27 +150,30 @@ NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 # Os módulos que saíram de `test_hooks` (HOOKS-CORPUS-RAPIDO) rodam onde `test_hooks` roda e executam o `bin/forge-check`
 # pelo apoio `tests/apoio_volta_unica.py` (`test_doutor_relogio` o copia pelo apoio `tests/apoio_versao_defasada.py`).
 VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades")
-FORGE_CHECK = ("test_anotar", "test_conferida_por_branch", "test_forge_check_base_igual", "test_forge_check_versao_livre", "test_pre_push_link_apoio", "test_v0441_review", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
+FORGE_CHECK = ("test_anotar", "test_comando_pronto", "test_promocao_por_marca", "test_fc_pr_parecer_forjado", "test_filtros_l08_g2_ancora", "test_forge_check_pr", "test_forge_tamanho", "test_forge_pronto", "test_forge_pareceres", "test_conformidade_pareceres", "test_conferida_por_branch", "test_forge_check_base_igual", "test_forge_check_versao_livre", "test_pre_push_link_apoio", "test_v0441_review", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
                "test_conf_escopo", "test_conferencia_registrar", "test_decisao_aprovacao", "test_decisao_aprovacao_raiz", "test_erros_no_brief", "test_hook_ansi_c", "test_citacao_p2",
-               "test_entrega_git_falha", "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hook_erro_libera", "test_hooks_parecer_pasta",
+               "test_entrega_git_falha", "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hook_erro_libera", "test_estado_ilegivel", "test_hooks_parecer_pasta",
                "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_forge_medidas", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
-               "test_testes_tocados", "test_pre_envio_brief", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
-               "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
-               "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo", "test_git_rede_config",
-               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
+               "test_testes_tocados", "test_pre_envio_brief", "test_brief_tamanho", "test_trilha_forge_check", "test_volta_por_delta", "test_brief_sonda_escrita", "test_volta_alinhada", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
+               "test_decisoes", "test_ordens", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
+               "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo", "test_git_rede_config", "test_criterios",
+               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_hooks_parecer_repo", "test_hooks_parecer_matriz", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_hook_destino_opaco", "test_conformidade_opaco", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica", "test_autorizacao", "test_autorizacao_gravar", "test_conformidade_verde", "test_hooks_agentes_autor", "test_parecer_delta", "test_revisar_sha", "test_maquina", "test_maquina_teto", "test_meta85_entrega", "test_meta85_revalida", "test_meta85_item_arquivos", "test_conformidade_vscode_container", "test_forge_onde", "test_retro_pendentes", "test_comparar", "test_parecer_fora_do_delta", "test_forge_copia", "test_forge_status_estado", "test_hook_ordens_teto") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # E1.120 (v047): quem reaproveita `Hooks.executar_em_lote` sem herdar de `Hooks` (git grep; os VOLTA_UNICA pela base de
 # `tests/apoio_volta_unica.py`) quebra quando o test_hooks muda o lote; pedir tests/test_hooks.py pelo caminho os roda junto.
-REAPROVEITAM_O_LOTE = ("test_esperar_estado", "test_hook_ansi_c", "test_hook_git_comum", "test_hooks_fila27",
-                       "test_hooks_parecer_pasta", "test_hook_erro_libera") + VOLTA_UNICA
+REAPROVEITAM_O_LOTE = ("test_esperar_estado", "test_hook_ansi_c", "test_hook_git_comum", "test_hooks_fila27", "test_hooks_parecer_repo",
+                       "test_hooks_parecer_pasta", "test_hook_destino_opaco", "test_hook_erro_libera",
+                       "test_estado_ilegivel", "test_hooks_agentes_autor", "test_conformidade_vscode_container",
+                       "test_conformidade_pareceres") + VOLTA_UNICA
 JUNTO_DO_MODULO = {"test_hooks": REAPROVEITAM_O_LOTE}
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
-LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
+LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief", "test_modelo_ci",
                      "test_forge_mutante", "test_jarvis_nucleo", "test_modelos_projeto", "test_stack_prereq_sistema",
                      "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta",
                      "test_orcamento_instrucao", "test_metricas_texto", "test_aq1_texto", "test_textos_034",
                      "test_achado_teto_doc", "test_medidas_m14b",
-                     "test_ambiente_sem_auto_update", "test_sessao_automatica")  # EST-M4: a guarda C-2 lê agents/ e skills/
+                     "test_ambiente_sem_auto_update", "test_sessao_automatica",
+                     "test_frontmatter_agentes", "test_guia_varios_projetos", "test_retro_pendentes")  # EST-M4: a guarda C-2 lê agents/ e skills/; E2.363: agents/ e stacks/*/agents/
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
             "test_modelos_citados") + LEITORES_DE_TEXTO
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
@@ -129,63 +181,90 @@ CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_no
 PUBLICADO = CONTEUDO + ("test_atualizar",)
 # Módulo em subpasta de tests/ (pacote com __init__.py) entra pelo nome com ponto: `evals.test_x` é tests/evals/test_x.py.
 EVALS_DE_FORMA = ("evals.test_regressao_forma", "evals.test_erros_por_papel")  # 0.43.1, frente I, e E23 (0.43.3): os erros já cometidos contra a ferramenta
+# A regra larga de hooks/ (EST-M4, guarda C-2), também a base das regras de um hook só.
+RODAM_OS_HOOKS = (("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
+                   "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
+                   "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta", "test_selo_e_entrega",
+                   "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia", "test_trava_agente_morto", "test_pr_hook_prazo",
+                   "test_hook_destino_opaco", "test_conformidade_opaco", "test_pr_hook_rapido", "test_forge_pareceres", "test_conformidade_pareceres",
+                   "test_pre_push_patch", "test_ambiente_hook", "test_estado_ilegivel", "test_maquina") + VOLTA_UNICA  # v047 E2.567: test_pre_push_patch lê hooks/_comum.py
+                  + EVALS_DE_FORMA)
 MAPA = [
+    (r"templates/projeto/\.devcontainer/(preparar-ambiente\.sh|devcontainer\.json)", PUBLICADO + ("test_ambiente_recriacao",)),  # v0478 E119.1: o teste roda o preparo e lê o postStart do modelo
     (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge", "test_pre_push_afetados") + EVALS_DE_FORMA),  # PREPUSH-BARATAS
     (r"bin/forge-check", FORGE_CHECK + EVALS_DE_FORMA),
     (r"bin/forge_(governanca|decisor|run|meta|provas|dora)\.py", FORGE_CHECK),  # o forge-check importa o módulo ao montar os subcomandos (0.43.1 H)
     (r"bin/forge_medidas\.py", ("test_forge_medidas", "test_medidas_m14b", "test_forge")),  # E5.6: o módulo da medida e do escape
-    (r"bin/forge-placar", ("evals.test_placar", "test_forge")),  # 0.43.1, frente I
+    (r"bin/forge-placar", ("evals.test_placar", "test_forge", "test_json_raso", "test_placar_prometido")),  # 0.43.1, frente I; v0478 E44.1: a cópia do teto; E110.5
     # MAPA-FORGE-DOUTOR (v046 E22.1): + os módulos que rodam o script pela base de test_doutor (test_qa_doutor_034 roda o hook)
     (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge", "test_novo_projeto", "test_medidas_m14b",
                            "test_doutor_custo", "test_doutor_protecao_gh", "test_doutor_relogio", "test_qa_doutor_f8", "test_doutor_branch_atrasada")),
     (r"bin/forge-adotar", ("test_adotar", "test_stack_python", "test_forge")),  # 0.45.0: adoção de projeto existente
-    (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_salvar_desfazer", "test_adotar", "test_stack_python")),  # EST-M4: guarda C-2; GREP-UGREP
+    (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_prepush_k152", "test_salvar_desfazer", "test_adotar", "test_stack_python", "test_modelo_ci", "test_sandbox_controle", "test_varredura_divida")),  # EST-M4: guarda C-2; GREP-UGREP; K152: o forge-init grava o comando de instalar; E95.1: a varredura roda num projeto do forge-init
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
-    (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor")),
+    (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor", "test_sempre_atual")),  # v0474: o test_sempre_atual roda o forge-upgrade de verdade (review A1)
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
+    (r"bin/forge-mutante", ("test_forge_mutante", "test_forge", "test_pre_push_patch")),  # v0478 E94.5: o test_pre_push_patch roda a cópia
+    (r"bin/forge-status", ("test_forge_status", "test_maquina", "test_forge")),  # MP2: o --maquina
+    (r"bin/forge-contador", ("test_forge_contador", "test_forge_status_estado", "test_forge")),  # S1a (v0481 E20.1): o status roda o contador
+    (r"bin/forge-copia", ("test_forge_copia", "test_forge_copia_nome", "test_forge")),  # v0478 E111.13: o test_forge_copia_nome roda o script (CLONE-NOME-UNICO)
     # MAPA-FORGE-FECHAR (mp1311 E1.38): todos os test_fechar_* (a convenção só achava os que citam forge-fechar pelo nome; ficavam de fora
     # sha_conferido, ref_por_nome, log_check, aviso_rotulo, corrida_rotulo, espera_catraca, pr_numero, tmp e vars_vazias) e os outros módulos que rodam o script
-    (r"bin/forge-fechar", ("test_fechar", "test_fechar_auto_merge", "test_fechar_base_andou", "test_fechar_checks_exigidos", "test_fechar_config",
-                           "test_fechar_faixas", "test_fechar_forge_check_real", "test_fechar_log_check", "test_fechar_longas", "test_fechar_medir",
+    (r"bin/forge-fechar", ("test_fechar", "test_forge_fechar", "test_forge_check_pr", "test_fechar_auto_merge", "test_fechar_base_andou", "test_fechar_checks_exigidos", "test_fechar_config",
+                           "test_fechar_faixas", "test_fechar_forge_check_real", "test_fechar_log_check", "test_fechar_longas", "test_fechar_laco", "test_fechar_medir",
                            "test_fechar_move_cartao", "test_fechar_orfao", "test_fechar_prune_sandbox", "test_fechar_r1_worktree",
                            "test_fechar_rascunho", "test_fechar_ref_por_nome", "test_fechar_sha_arvore", "test_fechar_sha_conferido",
                            "test_fechar_sinal", "test_fechar_aviso_rotulo", "test_fechar_corrida_rotulo", "test_fechar_espera_catraca",
-                           "test_fechar_pr_numero", "test_fechar_tmp", "test_fechar_vars_vazias", "test_conf_escopo", "test_entrega_git_falha", "test_erros_no_brief", "test_forge", "test_hooks",
+                           "test_fechar_pr_numero", "test_fechar_busca_pareceres", "test_fechar_limpar_clone", "test_fechar_sem_auto", "test_fechar_tmp", "test_fechar_vars_vazias", "test_conf_escopo", "test_entrega_git_falha", "test_erros_no_brief", "test_forge", "test_hooks",
                            "test_pre_push_afetados", "test_qa_lote_l08", "test_revisor_wt")),
     # E14.1: o módulo comum é carregado pelo forge-testes e pelo forge-mutante, e os testes do forge-mutante não o citam
     (r"bin/forge_apoio_testes\.py", ("test_testes_tocados", "test_forge_mutante", "test_pre_push_afetados",
                                      "test_pre_push_parecer_curto", "test_forge", "test_pre_push_link_apoio")),
-    (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar")),
+    # v047 E6.4: o núcleo do FORGE-SEMPRE-ATUAL; o oráculo do QA o roda como processo e lê o código dele (RD11)
+    (r"bin/(forge-sempre-atual|forge_sempre_atual\.py)", ("test_sempre_atual", "test_oraculo_sempre_atual", "test_forge")),
+    (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar", "test_sempre_atual")),  # v047 E2.532: test_sempre_atual roda o trampolim ~/.local/bin/forge
     (r"hooks/doutor\.py", ("test_atualizar", "test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor") + VOLTA_UNICA),
+    (r"hooks/(decisao\.py|estado\.py|hooks\.json)", RODAM_OS_HOOKS + ("test_hook_decisao", "test_hook_estado")),  # v0478 E172.15 e v0481 E20.11: os testes rodam o hook e leem o hooks.json
+    (r"hooks/(ordens|ordens_teto)\.py", RODAM_OS_HOOKS + ("test_hook_ordens_teto",)),  # v0481 E20.11: o ordens_teto conta pelo ordens
     # hooks/agentes.py e hooks/_comum.py: o teto de agentes (R-TETO), o hash do brief (R-BRIEF) e a liberação do agente morto
     # (test_trava_agente_morto) rodam o script nos testes abaixo;
     # hooks/vigia.py: test_textos_dono_f10 lê o texto. O resto de hooks/ é coberto pela regra larga seguinte.
-    (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
-                   "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
-                   "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta", "test_selo_e_entrega",
-                   "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia", "test_trava_agente_morto", "test_pr_hook_prazo",
-                   "test_pr_hook_rapido") + VOLTA_UNICA
-     + EVALS_DE_FORMA),  # EST-M4: guarda C-2
-    (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados", "test_sessao_automatica")),
-    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve", "test_sessao_automatica")),  # v046 E19.3 (A4): o teste lê e grava o script
+    (r"hooks/.*", RODAM_OS_HOOKS),  # EST-M4: guarda C-2
+    # v047 E6.5: as entradas do FORGE-SEMPRE-ATUAL (atalhos, trampolins, preparo do container) rodam nos testes do núcleo e no oráculo do QA
+    (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados", "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica")),
+    (r"scripts/indice-fixtures\.py", ("test_indice_fixtures", "test_forge", "test_testes_tocados", "test_prepush_unico")),  # v0478 E94.1 e E174.9: o teste roda o script na cópia
+    (r"scripts/preparar-estacao\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve",
+                                       "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica", "test_ferramentas_portoes",
+                                       "test_ambiente_recriacao")),  # v047 E6.5: o postStart chama a ferramenta e refaz os atalhos
+    (r"scripts/(validar-plugin|configurar-ambiente-local|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve", "test_sessao_automatica")),  # v046 E19.3 (A4): o teste lê e grava o script
     (r"stacks/.*", CONTEUDO + ("test_hooks", "test_adotar", "test_stack_python") + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks", "test_stack_python") + VOLTA_UNICA),
     (r"templates/projeto/docs/(reviews|qa|security|devops)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo
     (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs", "test_caminhos_extra_pre_push", "test_prepush_refs")),
+    (r"templates/projeto/\.githooks/pre-push\.local", PUBLICADO + ("test_prepush_k152",)),  # v0478 E81.1: o teste gera e roda o pre-push.local
     (r"templates/projeto/\.forge/config\.json", PUBLICADO + ("test_ritmo",)),  # v0457 E3.9: test_ritmo lê o modelo do config
+    (r"templates/projeto/(docs/devops/pos-release\.(md|passos)|scripts/pos-release)", PUBLICADO + ("test_pos_release",)),  # v047 E2.394: o teste lê os três
+    (r"templates/projeto/\.claude/settings\.json", PUBLICADO + ("test_sandbox_controle",)),  # v0478 E29.1: o teste lê o denyWrite do modelo
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
-    (r"docs/hooks-fixtures\.md", CONTEUDO + ("test_indice_fixtures",)),  # Fase C: o índice gerado confere em dia
+    (r"docs/hooks-fixtures\.md", CONTEUDO + ("test_indice_fixtures", "test_prepush_unico")),  # Fase C: o índice gerado confere em dia; v0478 E94.1 e E174.9: o envio leve o confere
+    (r"docs/indice-forge\.md", CONTEUDO + ("test_indice_forge",)),  # H7 (v0478 E8.1): o índice gerado confere em dia
     (r"docs/(security|devops)/_modelo\.md", CONTEUDO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),
-    (r"skills/esperar-estado/.*|agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
+    (r"skills/esperar-estado/.*", CONTEUDO + ("test_esperar_estado", "test_comando_pronto")),  # v0478 E96.1: os dois leem a skill
+    (r"agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
+    (r"skills/(briefs-e-conferencia|fluxo-do-pedido|trabalho-em-paralelo|qa-testing)/.*", CONTEUDO + ("test_comando_pronto",)),  # v0478 E66.1 e E96.1: o teste lê as cinco
     (r"skills/(produto-criterios|observabilidade-incidentes|explicar-para-o-leigo|modo-iniciante)/.*|agents/(jarvis|devops-engineer)\.md", CONTEUDO + ("test_skills_v0442",)),
+    (r"docs/devops/pp1-pre-push\.patch", CONTEUDO + ("test_pre_push_patch",)),  # v047 E2.567: o teste aplica o patch
+    (r"docs/engineering/v0479-sandbox-controle\.patch", CONTEUDO + ("test_sandbox_controle",)),  # v0478 E29.1: o teste aplica o patch
+    (r"docs/propostas/k152-pre-push\.md", CONTEUDO + ("test_prepush_k152",)),  # v0478 E81.1: o teste aplica o diff da proposta
     (r"(agents|skills|docs)/.*", CONTEUDO),
-    (r"README\.md", ("test_forge", "test_doutor")),  # PY-MINIMO: test_doutor confere o Python mínimo no README
+    (r"README\.md", ("test_forge", "test_doutor", "test_guia_varios_projetos")),  # PY-MINIMO: test_doutor confere o Python mínimo no README
     (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),
     (r"(CHANGELOG\.md|changelog\.d/.*)", ("test_forge", "test_changelog")),
     (r"tests/comportamento/.*", ("test_comportamento",)),
+    (r"\.devcontainer/devcontainer\.json", ("test_forge", "test_ambiente_recriacao")),  # v0478 E119.1: o teste lê o postStart
     (r"\.devcontainer/.*", ("test_forge",)),  # 0.43.1, frente A
 ]
 # Sem regra (de propósito), por exemplo: .github/, .githooks/, tests/config.json, tests/catraca.py e os outros
@@ -201,6 +280,10 @@ ALTERA_O_MAPA = {"bin/forge-testes", "tests/config.json"}
 # arquivo lido por outros testes, nome que não segue a convenção e o que a decisão manda à suíte completa (SEM_CONVENCAO).
 CONVENCAO = re.compile(r"(bin|hooks|scripts)/([a-z][a-z0-9_-]*)(?:\.py)?")
 VARREM_A_PASTA = {"bin": ("test_forge",), "hooks": ("test_forge",), "scripts": ("test_forge", "test_testes_tocados")}
+# v0478 (review A2): todo arquivo do primeiro nível das três pastas, com regra no MAPA ou pela convenção, leva o teste do
+# docs/indice-forge.md, se a raiz o tem; arquivo novo ou doc mudada vence o índice, e o plano dirigido o mostra antes do CI.
+INDICE_DAS_PASTAS = re.compile(r"(bin|hooks|scripts)/[^/]+")
+TESTE_DO_INDICE = "test_indice_forge"
 SEM_CONVENCAO = frozenset({"scripts/promover-homolog.py",  # decisão 7 do dono (MP-1): segue na suíte completa
                            "scripts/suite-partes.py", "scripts/suite-paralela.py",  # rodam a própria suíte: mudá-los roda todos
                            "scripts/conferir-release.py", "scripts/reexecutar-provas.py"})  # lidos por outros testes: completa, como antes
@@ -228,7 +311,7 @@ ORACULO = re.compile(r"test_oraculo_[a-z0-9_]+")
 # E14.1 (FORGE-TESTES-MAPA): o que entra novo sem regra no MAPA nem teste pela convenção O2 deixa de cair na suíte completa.
 SUBCOMANDO = re.compile(r"bin/forge-([a-z][a-z0-9-]*)")  # bin/forge-x -> tests/test_x.py, test_forge e quem cita forge-x
 MODULO_DO_BIN = re.compile(r"bin/(forge_[a-z][a-z0-9_]*)\.py")  # bin/forge_x.py -> quem cita forge_x (o importa), e test_forge
-SPEC_DE_MUTANTES = re.compile(r"tests/mutantes/[a-z0-9][a-z0-9_.-]*\.json")  # -> os módulos do campo `testes` da spec
+SPEC_DE_MUTANTES = re.compile(r"tests/mutantes/[a-z0-9][a-z0-9_.-]*\.json")  # -> o campo `testes` e test_forge_mutante
 TESTE_DA_SPEC = re.compile(r"tests\.((?:[a-z0-9_]+\.)*?test_[a-z0-9_]+)(?:\.[A-Za-z0-9_]+)*")
 # E1.253 (v047, TESTE-RITMO-SEM-MAPA): quem importa um hook sai do texto dos testes (`quem_importa`), sem lista à mão.
 HOOK = re.compile(r"hooks/([a-z_][a-z0-9_]*)\.py")
@@ -279,13 +362,22 @@ def planejar(caminhos, raiz=Path(".")):
         casou = casou or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz)
         if casou is None:
             return "completo", [f"{caminho} sem mapa"]
-        modulos.update(casou, quem_importa(caminho, raiz, casou))
+        # o oráculo entra em todo plano dirigido; quem o importa (o test_sempre_atual) vem junto (v047 E2.532)
+        modulos.update(casou, teste_do_indice(caminho, raiz), quem_importa(caminho, raiz, (*casou, *oraculos(raiz))))
     ausentes = sorted(m for m in modulos if not arquivo_do_modulo(m, raiz).is_file())
     if ausentes:
         return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
     if modulos:
         modulos.update(oraculos(raiz))
     return "dirigido", sorted(modulos)
+
+
+def teste_do_indice(caminho, raiz=Path(".")):
+    """v0478 (review A2): {TESTE_DO_INDICE} para arquivo do primeiro nível de bin/, hooks/ e scripts/, se a raiz tem o
+    módulo; vazio fora delas ou sem ele (projeto, raiz de teste)."""
+    if INDICE_DAS_PASTAS.fullmatch(caminho) and arquivo_do_modulo(TESTE_DO_INDICE, raiz).is_file():
+        return {TESTE_DO_INDICE}
+    return set()
 
 
 def modulos_da_convencao(caminho, raiz=Path(".")):
@@ -312,8 +404,9 @@ def modulos_do_novo(caminho, raiz=Path(".")):
     do_bin = MODULO_DO_BIN.fullmatch(caminho)
     if do_bin:
         return tuple(sorted({"test_forge"} | leitores(do_bin.group(1), raiz)))
-    if SPEC_DE_MUTANTES.fullmatch(caminho):
-        return modulos_da_spec(raiz / caminho)
+    if SPEC_DE_MUTANTES.fullmatch(caminho):  # e o test_forge_mutante, que confere toda spec contra a fonte (--todas, AR-12)
+        da_spec = modulos_da_spec(raiz / caminho)
+        return tuple(sorted({*da_spec, "test_forge_mutante"})) if da_spec else None
     return None
 
 
@@ -419,7 +512,8 @@ def planejar_afetados(caminhos, raiz=Path(".")):
         regra = (next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), None)
                  or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz))
         achados.update(regra or ())
-        achados |= quem_importa(caminho, raiz, regra or ())
+        achados |= teste_do_indice(caminho, raiz)
+        achados |= quem_importa(caminho, raiz, (*(regra or ()), *oraculos(raiz)))  # v047 E2.532: quem importa o oráculo
         for padrao, agulhas in EXERCITAM:
             if re.fullmatch(padrao, caminho):
                 achados |= citam(textos, agulhas)
@@ -717,6 +811,11 @@ def estado_da_arvore():
     return git("status", "--porcelain")
 
 
+def progresso(texto):
+    """VERMELHO-COM-PROGRESSO: uma linha no stderr, na hora, enquanto a prova roda; a saída (stdout) não muda."""
+    print(f"vermelho: {texto}", file=sys.stderr, flush=True)
+
+
 def vermelho(base_pedida, modulos_pedidos, prazo):
     raiz = Path.cwd()
     base = resolver(base_pedida)
@@ -773,11 +872,18 @@ def vermelho(base_pedida, modulos_pedidos, prazo):
         montar_copia(raiz, base_dir, cabeca)
         devolver_producao(base_dir, ancora, producao)
         linhas, contagem, sem_veredito, falhou = [], {}, False, False
-        for modulo in modulos:
-            lados = {}
+        progresso(f"{len(modulos)} módulos em duas cópias, em série; prazo de {prazo} s por módulo e cópia "
+                  f"(teto {2 * len(modulos) * prazo} s)")
+        # VERMELHO-COM-PROGRESSO (v0478 E18.1): os módulos de teste do diff, os que provam, rodam primeiro
+        for numero, modulo in enumerate(sorted(modulos, key=lambda m: (m not in modificados, m)), 1):
+            lados, segundos = {}, {}
             for lado, copia in (("H", cabeca_dir), ("B", base_dir)):
                 registro = trabalho / f"{lado}-{modulo}.jsonl"
+                comeco = time.monotonic()
                 lados[lado] = ler_registro(registro) if rodar_modulo(copia, modulo, registro, prazo) else None
+                segundos[lado] = time.monotonic() - comeco
+            progresso(f"[{numero}/{len(modulos)}] {modulo} H {segundos['H']:.1f} s, B {segundos['B']:.1f} s; "
+                      f"{time.monotonic() - inicio:.0f} s no total")
             if lados["H"] is None or lados["B"] is None:
                 quem = ",".join(l for l in lados if lados[l] is None)
                 linhas.append(f"{modulo} · sem veredito (prazo, sinal ou executor sem registro em {quem})")
@@ -831,6 +937,183 @@ def texto():
     return codigo
 
 
+# --- `--registros` (PR-VERDE B1): só leitura; nada grava na árvore (sem bytecode, sem log); sem `GIT_*` herdado nos
+# testes dos grupos e no changelog; a busca e o `git()` usam o ambiente da sessão ------------------------------------
+def buscar_base(base):
+    """Atualiza a `origin/<ramo>` de `base` antes de comparar: a base local velha esconde o que o CI vê. Devolve o aviso
+    quando a busca falha (sem rede: o CI confere), ou None. Com o ambiente da sessão, como o `git()` que compara: o
+    `GIT_CONFIG_*` herdado traz o proxy e a credencial da busca."""
+    remoto, _, ramo = base.partition("/")
+    if remoto != "origin" or not ramo:
+        return None
+    if not RAMO_BUSCAVEL.fullmatch(ramo) or ramo.startswith("-") or ".." in ramo:
+        return f"ramo inválido em {base} (só [A-Za-z0-9._/-], sem - no início nem ..); não busquei"
+    try:
+        r = subprocess.run(["git", "fetch", "-q", "--end-of-options", "origin", ramo], capture_output=True, text=True,
+                           timeout=60)
+    except subprocess.TimeoutExpired:
+        return f"não busquei {base} em 60 s; conferi contra a base local (o CI confere)"
+    if r.returncode:
+        return f"não busquei {base} ({r.stderr.strip()[:200]}); conferi contra a base local (o CI confere)"
+    return None
+
+
+def registros(base):
+    """`--registros`: 0 em dia, 1 registro desatualizado, 2 sem veredito."""
+    inicio = time.monotonic()
+    aviso = buscar_base(base)
+    if aviso:
+        print(f"forge-testes: aviso: {aviso}", file=sys.stderr)
+    try:
+        git("merge-base", base, "HEAD")  # a base que não resolve não dá veredito
+    except RuntimeError as erro:
+        print(f"forge-testes: registros sem veredito ({erro})", file=sys.stderr)
+        return 2
+    env = ambiente_da_copia()
+    comandos = [(nome, [sys.executable, "-m", "unittest", "-q", *testes]) for nome, testes in REGISTROS]
+    comandos.append(("changelog", [sys.executable, "-I", *CHANGELOG, base]))
+    with ThreadPoolExecutor(PROCESSOS_DOS_REGISTROS) as fila:
+        feitos = list(fila.map(lambda c: (c[0], subprocess.run(c[1], env=env, stdin=subprocess.DEVNULL,
+                                                               capture_output=True, text=True)), comandos))
+    falhas = [(nome, r) for nome, r in feitos if r.returncode]
+    for nome, r in falhas:
+        print(f"forge-testes: registro desatualizado: {nome} (rc={r.returncode})", file=sys.stderr)
+        print("\n".join((r.stdout + r.stderr).strip().splitlines()[-15:]), file=sys.stderr)
+    codigo = 1 if falhas else 0
+    print(f"forge-testes: registros rc={codigo} em {time.monotonic() - inicio:.0f} s ({len(comandos)} conferências)")
+    return codigo
+
+
+# --- `--regerar` (PR-VERDE B2): chama os geradores que já existem só para o derivado cuja fonte o diff tocou. Lista fechada:
+# o índice do Forge (fonte: bin/, hooks/, scripts/); nunca arquivo de controle (tests/config.json, docs/regras/) nem os
+# pesos da suíte, que só a marca de versão regera (E19.1: o PR comum não edita tests/pesos-d4.json, sem conflito). O mapa deste script é código, sem gerador: o `--registros` o confere.
+INDICE_DO_FORGE = Path("docs/indice-forge.md")
+GERA_O_INDICE = ("scripts/indice-forge.py",)
+DERIVADOS = (INDICE_DO_FORGE,)
+LIMPO = "limpo"  # o caminho fora do `git status`
+SEM_BYTECODE = ":(exclude,glob)**/__pycache__/**"  # pathspec: o bytecode não entra na fotografia
+
+
+def link_no_caminho(caminho):
+    """O primeiro link simbólico no derivado ou numa pasta dele (relativo à raiz), ou None: o regerador não segue link."""
+    for parte in (caminho, *caminho.parents[:-1]):
+        if parte.is_symlink():
+            return parte
+    return None
+
+
+def fotografia():
+    """{caminho: conteúdo ou None} de todo caminho que o `git status` mostra, inclusive o ignorado arquivo a arquivo
+    (`.forge/`, `.claude/hooks`: o `matching` listaria só a pasta), fora o cache de bytecode, que o teste filho com
+    ambiente limpo regrava; o que não aparece vale `LIMPO`."""
+    nomes = git("status", "--porcelain", "-z", "--untracked-files=all", "--no-renames", "--ignored=traditional",
+                "--", SEM_BYTECODE).split("\0")[:-1]  # termina em \0
+    return {n[3:]: Path(n[3:]).read_bytes() if Path(n[3:]).is_file() else None for n in nomes}
+
+
+def regerar(base):
+    """`--regerar`: 0 regerado (ou nada a regerar), 1 gerador vermelho, 2 sem veredito ou escrita fora da lista fechada."""
+    falha_da_busca = buscar_base(base)
+    if falha_da_busca:
+        print(f"forge-testes: aviso: {falha_da_busca}", file=sys.stderr)
+    try:
+        alterados, antes = caminhos_alterados(base), fotografia()
+    except (OSError, RuntimeError) as erro:
+        print(f"forge-testes: regerar sem veredito ({erro})", file=sys.stderr)
+        return 2
+    tarefas = [("índice do Forge", INDICE_DO_FORGE, GERA_O_INDICE)] if any(map(INDICE_DAS_PASTAS.fullmatch, alterados)) else []
+    links = sorted({str(link) for _, destino, _ in tarefas if (link := link_no_caminho(destino))})
+    if links:
+        print(f"forge-testes: regerar recusado: link simbólico em {', '.join(links)} (não sigo link)", file=sys.stderr)
+        return 2
+    env = ambiente_da_copia()
+    vermelhos = [nome for nome, _, gerador in tarefas
+                 if subprocess.run([sys.executable, "-I", *gerador], env=env, stdin=subprocess.DEVNULL).returncode]
+    try:
+        depois = fotografia()
+    except (RuntimeError, OSError) as erro:
+        print(f"forge-testes: regerar sem veredito depois dos geradores ({erro})", file=sys.stderr)
+        return 2
+    mudados = (c for c in antes.keys() | depois.keys() if antes.get(c, LIMPO) != depois.get(c, LIMPO))
+    fora = sorted(c for c in mudados if Path(c) not in DERIVADOS)
+    if fora:
+        print(f"forge-testes: regerar escreveu fora da lista fechada ({', '.join(fora)}); desfaça e confira o gerador",
+              file=sys.stderr)
+        return 2
+    for nome in vermelhos:
+        print(f"forge-testes: gerador vermelho: {nome}", file=sys.stderr)
+    subprocess.run(["git", "--no-pager", "diff", "--stat", "--", *map(str, DERIVADOS)])
+    codigo = 1 if vermelhos else 0
+    feitos = ", ".join(nome for nome, _, _ in tarefas) or "nada a regerar"
+    print(f"forge-testes: regerar rc={codigo} ({feitos}); confira com `git diff` e commite os derivados")
+    return codigo
+
+
+# --- `--versoes` (PR-VERDE D1): os afetados em cada versão de Python que o CI roda, em série, um log por versão ---
+# A versão vem da configuração (o `python-version` do ci.yml, a mesma fonte do CI), nunca do ambiente; o intérprete do
+# PATH só vale se ele se diz da versão pedida. Intérprete ausente é aviso e não é verde (`rc=ausente` no log, saída 1).
+# O log, na forma META85 (`head=<sha40>` na 1.ª linha, `rc=` na última), é o que a entrega cobra (D2).
+CONFIG_DAS_VERSOES = Path(".github/workflows/ci.yml")
+VERSAO_DO_CI = re.compile(r'^\s*python-version:\s*"(\d+\.\d+)"\s*$', re.M)
+DIZ_A_VERSAO = "import sys; print('%d.%d' % sys.version_info[:2])"
+
+
+def versoes_da_configuracao(raiz=Path(".")):
+    """As versões de Python do CI, sem repetição, em ordem numérica; [] se o arquivo não se lê."""
+    try:
+        texto = (raiz / CONFIG_DAS_VERSOES).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+    return sorted(set(VERSAO_DO_CI.findall(texto)), key=lambda v: tuple(map(int, v.split("."))))
+
+
+def interprete(versao):
+    """O `python<versao>` do PATH, se ele se diz dessa versão; senão None."""
+    caminho = shutil.which(f"python{versao}")
+    if not caminho:
+        return None
+    r = subprocess.run([caminho, "-I", "-c", DIZ_A_VERSAO], capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    return caminho if r.returncode == 0 and r.stdout.strip() == versao else None
+
+
+def versoes(base):
+    """`--versoes`: 0 = afetados verdes em todas as versões; 1 = vermelho ou intérprete ausente; 2 = sem veredito."""
+    lista = versoes_da_configuracao()
+    if not lista:
+        print(f"forge-testes: nenhuma `python-version` em {CONFIG_DAS_VERSOES}; sem veredito.", file=sys.stderr)
+        return 2
+    try:
+        if git("status", "--porcelain", "--untracked-files=all").strip():
+            print("forge-testes: há mudança não commitada; commite antes (o log prende o head).", file=sys.stderr)
+            return 2
+        head = git("rev-parse", "HEAD").strip()
+        modulos, notas = planejar_afetados(caminhos_alterados(base))
+    except (RuntimeError, ValueError) as erro:
+        print(f"forge-testes: sem veredito ({erro})", file=sys.stderr)
+        return 2
+    for nota in notas:
+        print(f"forge-testes: {nota}", file=sys.stderr)
+    codigo = 0
+    for versao in lista:
+        caminho = interprete(versao)
+        if caminho is None:
+            print(f"forge-testes: aviso: sem o intérprete python{versao}; a versão fica sem verde.", file=sys.stderr)
+            rc, saida = "ausente", f"sem o intérprete python{versao}\n"
+        elif not modulos:
+            rc, saida = 0, "nada a rodar (nenhum teste afetado)\n"
+        else:
+            comando = [caminho, *comando_dirigido(modulos, [])[1:]]
+            r = subprocess.run(comando, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+            rc, saida = r.returncode, r.stdout + r.stderr
+        registro = LOG.parent / f"afetados-{versao}.log"
+        registro.parent.mkdir(parents=True, exist_ok=True)
+        registro.write_text(f"head={head}\n{saida.rstrip()}\nrc={rc}\n", encoding="utf-8")
+        print(f"forge-testes: python{versao} rc={rc} ({registro})")
+        if rc != 0:
+            codigo = 1
+    return codigo
+
+
 def suite_na_trava(raiz, pedida):
     """`execv` de `pre-push --suite`; sem recuo para o `discover`. A completa que vem do plano só com o `--status` em 1
     (livre): com a suíte rodando, sai 2 na hora em vez de entrar na fila; a pedida (`--completa`) entra na fila."""
@@ -863,6 +1146,9 @@ def main(argv=None):
                    help="só os testes cujo nome contém PADRAO (como `unittest -k`; repita para somar)")
     p.add_argument("--vermelho", nargs="?", const=True, default=None, metavar="BASE")
     p.add_argument("--texto", action="store_true", help="o mapa de testes e os testes de tamanho de texto (pré-envio)")
+    p.add_argument("--registros", action="store_true", help="a conferência de registros do envio (PR-VERDE B1), só leitura")
+    p.add_argument("--regerar", action="store_true", help="regera os derivados que o diff desatualizou (PR-VERDE B2)")
+    p.add_argument("--versoes", action="store_true", help="os afetados em cada versão de Python do CI (PR-VERDE D1)")
     p.add_argument("--modulos", metavar="M[,M...]")
     p.add_argument("--prazo", type=int, metavar="SEGUNDOS", help=f"por módulo, em segundos (padrão {PRAZO_PADRAO})")
     p.add_argument("--executar", help=argparse.SUPPRESS)  # interno: o executor por teste do `--vermelho`
@@ -873,6 +1159,16 @@ def main(argv=None):
     if args.texto and (args.caminhos or args.completa or args.listar or args.afetados or args.filtros or args.vermelho is not None
                        or args.modulos is not None or args.prazo is not None):
         p.error("--texto não combina com outras opções")
+    if args.regerar and (args.registros or args.texto or args.caminhos or args.completa or args.listar or args.afetados
+                         or args.filtros or args.vermelho is not None or args.prazo is not None or args.modulos is not None):
+        p.error("--regerar só combina com --base")
+    if args.registros and (args.texto or args.caminhos or args.completa or args.listar or args.afetados or args.filtros
+                           or args.vermelho is not None or args.prazo is not None or args.modulos is not None):
+        p.error("--registros só combina com --base")
+    if args.versoes and (args.registros or args.regerar or args.texto or args.caminhos or args.completa or args.listar
+                         or args.afetados or args.filtros or args.vermelho is not None or args.prazo is not None
+                         or args.modulos is not None):
+        p.error("--versoes só combina com --base")
     if args.vermelho is None and args.modulos is not None:
         p.error("--modulos só vale com --vermelho")
     if args.vermelho is not None and (args.completa or args.listar or args.afetados):
@@ -904,6 +1200,12 @@ def main(argv=None):
         sys.exit(f"forge-testes: fora de um repositório git ({erro})")
     if args.texto:
         return texto()
+    if args.registros:
+        return registros(args.base)
+    if args.regerar:
+        return regerar(args.base)
+    if args.versoes:
+        return versoes(args.base)
     try:
         oraculos()
         pedidos = caminhos_pedidos(args.caminhos, origem, raiz) if args.caminhos else []

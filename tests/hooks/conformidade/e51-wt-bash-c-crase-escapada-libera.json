@@ -1,0 +1,25 @@
+{
+  "descricao": "E51.10 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge em wt/*: a crase escapada no texto do `bash -c` é a do bash de dentro: o `gh pr edit` nela não chega a uma trava e passa, como na base (A2 do QA E51.9).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "bash -c \"echo \\`gh pr edit 70 --title x\\`\""
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

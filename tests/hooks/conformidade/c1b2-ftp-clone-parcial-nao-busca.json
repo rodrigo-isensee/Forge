@@ -1,0 +1,35 @@
+{
+  "descricao": "C1b-2, S5 da segurança (29c1bea, A4): no clone parcial com url ftp:// e protocol.ftp.allow=always na cópia (vence a geral), o cat-file da lista fechada não usa o transporte e o parecer dormente passa; a contagem de conexões (zero) é do teste test_ftp_da_copia_nao_conecta_no_clone_parcial, com o servidor local",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "config": {
+        "remote.origin.url": "ftp://127.0.0.1:9/x",
+        "remote.origin.promisor": "true",
+        "extensions.partialClone": "origin",
+        "protocol.ftp.allow": "always",
+        "protocol.ftps.allow": "always"
+      }
+    },
+    {
+      "arquivos": {
+        ".git/refs/remotes/origin/develop": "1111111111111111111111111111111111111111\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/docs/reviews/v1.md",
+      "content": "parecer\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

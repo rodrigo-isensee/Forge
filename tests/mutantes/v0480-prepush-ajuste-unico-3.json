@@ -1,0 +1,46 @@
+{
+  "pedido": "v0480-prepush-ajuste-unico",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "pre-push (patch): INDICE-E-PULOS: arquivo que não existe na âncora não conta",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "+            if texto is None:\n+                continue",
+      "para": "+            if False:\n+                continue",
+      "testes": [
+        "tests.test_prepush_unico.IndiceEPulos.test_pulo_so_citado_em_texto_ou_com_erro_de_sintaxe_nao_conta"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "pre-push (patch): INDICE-E-PULOS: teste com erro de sintaxe não derruba a conta",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "+            except SyntaxError:\n+                pass",
+      "para": "+            except SyntaxError:\n+                raise",
+      "testes": [
+        "tests.test_prepush_unico.IndiceEPulos.test_pulo_so_citado_em_texto_ou_com_erro_de_sintaxe_nao_conta"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "pre-push (patch): INDICE-E-PULOS: catraca ilegível na conta é saída 2",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "+    antes, depois = pulos(sys.argv[1]), pulos(\"HEAD\")\n+except Exception:\n+    sys.exit(2)",
+      "para": "+    antes, depois = pulos(sys.argv[1]), pulos(\"HEAD\")\n+except Exception:\n+    sys.exit(0)",
+      "testes": [
+        "tests.test_prepush_unico.IndiceEPulos.test_catraca_ilegivel_e_so_aviso"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "pre-push (patch): INDICE-E-PULOS: conta que não roda vira aviso",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "+      elif [ \"$rc\" -ne 0 ]; then\n+        echo \"pre-push: aviso: a contagem de testes pulados",
+      "para": "+      elif [ \"$rc\" -ne 2 ]; then\n+        echo \"pre-push: aviso: a contagem de testes pulados",
+      "testes": [
+        "tests.test_prepush_unico.IndiceEPulos.test_catraca_ilegivel_e_so_aviso"
+      ]
+    }
+  ]
+}

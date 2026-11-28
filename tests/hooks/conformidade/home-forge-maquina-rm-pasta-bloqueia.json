@@ -1,0 +1,29 @@
+{
+  "descricao": "Segurança A1 (MP4): rm -rf ~/.forge/maquina apaga a fila pesada da máquina.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/home/.forge/maquina/pesado.json": "{}\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "rm -rf {tmp}/home/.forge/maquina"
+    },
+    "agent_type": "forge:backend-developer",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "~/.forge/maquina/"
+  }
+}

@@ -7,17 +7,21 @@ claude-code-guide, web-fetch, que a conformidade põe no papel só de leitura `l
 e com o sha256 de agora; sem isso, bloqueia (falha fechada). O conferente é opcional e segue com a forma e o hash da mensagem.
 D3 (0.44.0): com o selo em dia, o hook reconfere os campos calculados do brief (`forge-check`, `brief_vencido`) e, se a base andou
 ou as decisões do pedido mudaram, só avisa (`systemMessage` e stderr, código 0); nunca barra por isso.
+HOOK-AGENTE-PEDIDO-GRANDE (v0481, E50.1): esse recálculo pergunta ao git em lote (`GitEmLote`), com as mesmas respostas, e
+cabe no prazo de 8 s com centenas de linhas `conferida` no pedido.
 
 O teto é adaptativo (nproc, load de 1 min e memória lidos de /proc; fallback 3) e `teto_agentes` em
-.forge/config.json o fixa; `teto_maximo` limita o adaptativo.
+.forge/config.json o fixa; `teto_maximo` limita o adaptativo. No clone do Forge, a conformidade barra a escrita nesse arquivo
+da raiz da sessão para todo papel (CONFIG-TETO-SEM-GUARDA, v0478), e o hook lê o dessa raiz, não o da
+worktree da pasta corrente (A1 da segurança, `pasta_da_config`): o agente não sobe o próprio teto.
 PreToolUse (Agent/Task): bloqueia qualquer disparo com MemAvailable <= o piso de memória (padrão 2 GB; `piso_memoria_gb` em
 .forge/config.json o muda), sem trava por load (R-TETO, decisão do dono R-TETO-DISPONIBILIDADE de 2026-11-06 14:26);
 bloqueia também se já há o teto de agentes ativos ou um ativo com o mesmo tipo e descrição;
 senão reserva a vaga. `FORGE_CARGA_LIVRE=1` no ambiente do processo (só o dono) pula só a trava de memória
-(teto e duplicado seguem; o uso fica no erros.log). SubagentStart confirma a reserva com o agent_id; SubagentStop libera a vaga.
+(teto e duplicado seguem; o uso fica no erros.log), só com um projeto ativo (MP5). SubagentStart confirma a reserva com o agent_id; SubagentStop libera a vaga.
 Estado em .forge/run/agentes.json; no clone do Forge e nas worktrees dele (onde `.forge` é um arquivo, não uma pasta),
-em <diretório comum do git>/forge/run/agentes.json: protegido pela conformidade só nas sessões de projeto, no Forge sem guarda
-de escrita; `hooks_desligados` não vale no clone. Registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
+em <diretório comum do git>/forge/run/agentes.json: protegido pela conformidade nas sessões de projeto e, no clone, para todo
+papel (AGENTES-JSON-SEM-GUARDA, v0478: a `GuardaDaProva` deixa valer a recusa de `.git/forge/`); `hooks_desligados` não vale no clone. Registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
 O registro leva o PID da sessão do Claude Code, o namespace de PID e o session_id: com a sessão morta (PID inexistente, no mesmo
 namespace) a vaga sai na hora, sem esperar o prazo. Qualquer dúvida (tipo, faixa, namespace, erro) mantém o registro.
 AG-1a (E10): a reserva grava em `branches` as `Branch:` do cabeçalho dos briefs citados no prompt.
@@ -38,6 +42,26 @@ killed, carimbo depois do `desde`), do fim do transcript com teto de bytes e de 
 por silêncio: agente vivo sem resposta para com o TaskStop e sai pela notificação `killed`. O registro de escrita só sai com a
 trava `pesado` livre. Cada liberação vai ao `liberacoes.log` e deixa uma lápide: retomar o id (`SendMessage`) é recusado
 enquanto houver relançamento vigente na mesma branch ou com a mesma descrição.
+AGENTE-PRESO-SEM-BAIXA (v048 E12.2): vale também a notificação do meio do turno (anexo `queued_command`, `nota_na_fila`), e
+`agentes.py --limpar` (`limpar`) aplica as mesmas provas sob demanda, sessão a sessão do registro.
+HOOK-ESTADO-ILEGIVEL-LIBERA (v047, E1.138): estado ilegível nunca vira lista vazia. O `agentes.json` que existe e não é o registro
+(`ler_estado`: JSON inválido ou vazio, raiz que não é objeto, `agentes`, `lapides` ou `interrompidos` que não é lista, link, pasta ou outro tipo,
+erro de leitura, mais de 1 MiB), o erro ao fixar a pasta do estado do clone e o `.forge/config.json` ilegível recusam o disparo
+e a retomada com R-TETO; `SubagentStart` e `SubagentStop` saem com 0. Nenhum evento regrava o arquivo ilegível; o erro vai ao
+erros.log. O R-BRIEF segue antes e independente.
+H2-AUTOR-FICA-ATE-O-MERGE (v047, E2.10): o `SubagentStop` de um agente de escrita grava em `autores` o id dele e as branches que
+escrevia. Um disparo de escrita numa dessas branches, dentro de expiracao_horas, avisa (R-TETO, código 0) que o autor pode ser
+retomado por `SendMessage`; o aviso some se o id tem lápide (liberado como morto: a desistência registrada), se está ativo ou se
+passou do prazo. Nunca recusa: `autores` ilegível vale vazio.
+H2-RESERVA-DA-RETOMADA-PRAZO (v0478, E87.1): o prazo de cada registro sai de `prazo_do_registro` (expiração e hora da recusa);
+o retomado cujo `SubagentStart` chega depois de RESERVA_S reserva de novo as branches do id dele em `autores`.
+H2-RETOMADO-CONFLITO (v0478, E92.1): ele mantém todas as branches, mesmo a que outra reserva de escrita viva tomou; o conflito vai ao erros.log.
+MP3 (diretriz 35, dono 17/11 21:11): com um projeto ativo na máquina (registro do MP2, `_maquina`), o teto de sempre. Com dois ou
+mais, depois do teto do projeto (`teto_agentes` fixo vira só o máximo dele), a parte garantida de cada um sai do teto adaptativo
+da máquina dividido pelos pesos (`peso` em .forge/config.json, padrão 1); a vaga parada de um vai a outro, e o dono da vaga que
+achou a máquina cheia tem a próxima, antes de um disparo novo de quem está acima da parte (sem interromper agente). O uso de cada
+projeto fica em `~/.forge/maquina/agentes.json`, pela pasta da cópia principal (`_maquina.identidade`, a mesma do registro); projeto
+que fecha ou para de bater sai da conta na hora. Registro ilegível recusa e nomeia o arquivo, que o usuário pode apagar.
 """
 import hashlib
 import json
@@ -45,6 +69,7 @@ import math
 import os
 import re
 import stat
+import subprocess
 import sys
 import time
 import unicodedata
@@ -52,7 +77,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from _comum import (LIMITE_LOG, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check,
-                    gravar_json, ler_json, mensagem)
+                    gravar_json, ler_json, ler_projetos_ativos, ler_trava, mensagem, raiz_declarada)
+import _maquina
+from _json_raso import TETO_ANINHAMENTO, fundo_demais
 from pesado import CASCAS, TRAVA_S, pid_da_sessao, pid_vivo
 
 FERRAMENTAS = {"Agent", "Task"}
@@ -139,6 +166,26 @@ def ritmo_valido(valor):
     return chave if chave in RITMOS else None
 
 
+def pasta_da_config(hook):
+    """A1 da segurança (v0478): no clone do Forge, a configuração (teto, piso, ritmo, peso) vem da raiz da sessão, o
+    `.forge/config.json` que a conformidade guarda; o da pasta corrente, que um subagente escreve, não vale. Basta a sessão
+    no clone (volta 2, S9): a pasta corrente vira projeto com um `.forge/versao` que o subagente grava na worktree."""
+    declarada = raiz_declarada()
+    if declarada is None or os.path.realpath(declarada) == os.path.realpath(hook.raiz):
+        return hook.raiz  # a mesma pasta: nada a decidir (e o erro de `e_clone_do_forge` fica com quem fixa o estado, C7)
+    return declarada if e_clone_do_forge(declarada) else hook.raiz
+
+
+def ler_config(hook):
+    """`hook.config()` lido de `pasta_da_config`; o `hook.raiz` (estado e briefs) não muda. O cache sai antes da troca
+    (A1 da volta 2): o `hook.projeto` já pode ter lido o config da worktree, e o cache que fica é o da raiz lida."""
+    raiz, hook.raiz, hook._config = hook.raiz, pasta_da_config(hook), None
+    try:
+        return hook.config()
+    finally:
+        hook.raiz = raiz
+
+
 def ritmo_do_projeto(raiz):
     """`ritmo` do .forge/config.json da raiz; ausente, inválido ou ilegível, o padrão `equilibrado` (o teto de antes)."""
     try:
@@ -168,6 +215,99 @@ def calcular_teto(config, proc=None, ritmo=RITMO_PADRAO):
         teto = TETO_DO_RITMO[ritmo]
         origem += f", ritmo {ritmo}: {teto} agente por vez (`forge ritmo equilibrado` muda)"
     return teto, origem
+
+
+USO_DA_MAQUINA = "agentes.json"  # MP3: {pasta do projeto: {"uso", "peso", "espera"}} na pasta da máquina (`_maquina`)
+PESO_MAXIMO = 10  # `peso` em .forge/config.json, de 0 (exclusive) a 10; fora disso, 1
+
+
+class Ilegivel(ValueError):
+    """MP3: arquivo `nome` da pasta da máquina ilegível ou fora da forma; a recusa o nomeia (segurança A3)."""
+
+    def __init__(self, nome):
+        super().__init__(f"{_maquina.PASTA}/{nome}")
+
+
+def ler_da_maquina(nome):
+    """MP3: o objeto `nome` da pasta da máquina; sem o arquivo, {}; ilegível ou fora da forma, levanta (falha fechada)."""
+    try:
+        dados = json.loads(_maquina.ler_regular(_maquina.pasta() / nome, _maquina.TETO_DE_BYTES))
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError, RecursionError) as erro:
+        raise Ilegivel(nome) from erro
+    if not isinstance(dados, dict):
+        raise Ilegivel(nome)
+    return dados
+
+
+def projetos_ativos(proprio, agora):
+    """MP3: as pastas dos projetos com sessão viva no registro do MP2, mais a própria; o que fecha ou para de bater sai na hora."""
+    sessoes = ler_da_maquina(_maquina.ATIVOS).get("sessoes", {})
+    if not isinstance(sessoes, dict):
+        raise Ilegivel(_maquina.ATIVOS)
+    vivas = _maquina.vivas(sessoes, agora, pid_vivo).values()
+    return {s["pasta"] for s in vivas if isinstance(s.get("pasta"), str)} | {proprio}
+
+
+def peso_valido(valor):
+    return float(valor) if isinstance(valor, (int, float)) and not isinstance(valor, bool) and 0 < valor <= PESO_MAXIMO else 1.0
+
+
+def uso_de(entrada):
+    """(uso, peso, espera) da entrada de um projeto no USO_DA_MAQUINA; fora da forma, levanta (falha fechada)."""
+    if not isinstance(entrada, dict):
+        raise Ilegivel(USO_DA_MAQUINA)
+    uso, espera = entrada.get("uso", 0), entrada.get("espera")
+    if isinstance(uso, bool) or not isinstance(uso, int) or uso < 0 or not (espera is None or isinstance(espera, (int, float))):
+        raise Ilegivel(USO_DA_MAQUINA)
+    return uso, peso_valido(entrada.get("peso")), espera
+
+
+class Maquina:
+    """MP3 (diretriz 35, dono 17/11 21:11): com um projeto ativo, o teto de sempre; com dois ou mais, cada um tem a parte
+    garantida (`total` x peso ÷ soma dos pesos, no mínimo 1), a vaga parada de um vai a outro, e quem está dentro da
+    parte e achou a máquina cheia deixa `espera`: até RESERVA_S, o disparo novo de quem está acima da parte é recusado."""
+
+    def __init__(self, hook, agora):
+        (self.nome, self.proprio), self.agora = _maquina.identidade(hook), agora
+        try:
+            dados = json.loads((Path(pasta_da_config(hook)) / ".forge" / "config.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            dados = {}
+        self.peso = peso_valido(dados.get("peso") if isinstance(dados, dict) else None)
+
+    def gravar(self, usos, ativos, uso, espera):
+        outros = {p: e for p, e in usos.items() if p in ativos and p != self.proprio}  # quem fechou devolve a parte
+        _maquina.gravar(USO_DA_MAQUINA, {**outros, self.proprio: {"uso": uso, "peso": self.peso, "espera": espera}})
+
+    def anotar(self, uso):
+        """O uso deste projeto depois do evento, mantida a espera dele."""
+        with _maquina.trava():
+            usos = ler_da_maquina(USO_DA_MAQUINA)
+            self.gravar(usos, projetos_ativos(self.proprio, self.agora), uso, uso_de(usos.get(self.proprio, {}))[2])
+
+    def recusa(self, meu, total):
+        """None se o disparo cabe (e o uso já sai anotado com ele), ou o texto da recusa com a parte e o uso."""
+        with _maquina.trava():
+            ativos, usos = projetos_ativos(self.proprio, self.agora), ler_da_maquina(USO_DA_MAQUINA)
+            outros = {p: uso_de(usos.get(p, {})) for p in ativos - {self.proprio}}
+            soma = self.peso + sum(peso for _, peso, _ in outros.values())
+            parte = {p: max(1, math.floor(total * peso / soma)) for p, (_, peso, _) in outros.items()}
+            minha = max(1, math.floor(total * self.peso / soma))
+            ocupadas = meu + sum(uso for uso, _, _ in outros.values())
+            credores = sorted(p for p, (uso, _, espera) in outros.items()
+                              if espera is not None and 0 <= self.agora - espera < RESERVA_S and uso < parte[p])
+            espera = texto = None
+            if outros and ocupadas >= total:
+                espera = self.agora if meu < minha else None
+                texto = (f"máquina cheia: {ocupadas} de {total} vagas com {len(ativos)} projetos ativos; parte de "
+                         f"{self.nome} {minha}, uso {meu}" + ("; a próxima vaga livre é sua" if espera else ""))
+            elif outros and meu >= minha and credores:
+                nomes = ", ".join(Path(p).name for p in credores)
+                texto = f"parte de {self.nome} {minha}, uso {meu}: a vaga emprestada volta a {nomes}, que espera a parte dele"
+            self.gravar(usos, ativos, meu if texto else meu + 1, espera)
+            return texto
 
 
 PID_MAX_PADRAO = 4194304  # teto do Linux de 64 bits, quando /proc/sys/kernel/pid_max não pode ser lido
@@ -226,6 +366,18 @@ def nenhum_morto(_registro):
     return False
 
 
+def prazo_do_registro(registro, expira_s):
+    """H2-RESERVA-DA-RETOMADA-PRAZO: o prazo único do registro, o mesmo para a expiração e para a hora da recusa: a reserva
+    sem início e a de `RETOMADA` valem RESERVA_S; o agente iniciado, expiracao_horas."""
+    return expira_s if registro.get("id") and registro.get("tipo") != RETOMADA else min(RESERVA_S, expira_s)
+
+
+def dentro_do_prazo(registro, agora, expira_s):
+    """O registro é um objeto com `desde` numérico dentro do prazo (`prazo_do_registro`)."""
+    return (isinstance(registro, dict) and isinstance(registro.get("desde"), (int, float))
+            and agora - registro["desde"] < prazo_do_registro(registro, expira_s))
+
+
 def vigentes(agentes, agora, expira_s, morto=nenhum_morto):
     """Registros dentro do prazo e de sessão que não está provadamente morta. Cada registro é avaliado à parte: o erro
     num deles mantém o registro e nunca derruba o hook (a exceção liberaria o lançamento sem reserva). `morto` (C5,
@@ -233,8 +385,7 @@ def vigentes(agentes, agora, expira_s, morto=nenhum_morto):
     saida = []
     for a in agentes:
         try:
-            if not (isinstance(a, dict) and isinstance(a.get("desde"), (int, float))
-                    and agora - a["desde"] < (expira_s if a.get("id") else min(RESERVA_S, expira_s))):
+            if not dentro_do_prazo(a, agora, expira_s):
                 continue
             if sessao_morta(a) or morto(a):
                 continue
@@ -247,6 +398,7 @@ def vigentes(agentes, agora, expira_s, morto=nenhum_morto):
 # TRAVA-AGENTE-MORTO (E23.60): a notificação terminal do Claude Code no transcript da sessão-mãe (C1 a C4, C9).
 ID_DE_AGENTE = re.compile(r"a[0-9a-f]{16}")
 ID_CITADO = re.compile(r"(?<![0-9A-Za-z])a[0-9a-f]{16}(?![0-9A-Za-z])")
+USO_DE_AGENTE = re.compile(r"toolu_[0-9A-Za-z]{1,64}")
 SESSAO_UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 # C1: só o cabeçalho, do início; nada depois do status (o `<result>` traz texto do agente).
 NOTIFICACAO = re.compile(r"<task-notification>\n<task-id>(a[0-9a-f]{16})</task-id>\n<tool-use-id>(toolu_[0-9A-Za-z]{1,64})"
@@ -256,6 +408,45 @@ LIMITE_DO_TRANSCRIPT = 2 * 1024 * 1024  # C4: bytes lidos do fim do transcript
 PRAZO_DA_LEITURA_S = 2.0  # C4: tempo da leitura; estourou, o registro fica
 LIMITE_DO_META = 64 * 1024
 LAPIDES_MAX = 64
+AUTORES_MAX = 64  # H2: teto da lista `autores`, independente do das lápides
+LIMITE_DO_ESTADO = 1024 * 1024  # HOOK-ESTADO-ILEGIVEL-LIBERA: o agentes.json real tem poucos KB
+
+
+class EstadoIlegivel(Exception):
+    """HOOK-ESTADO-ILEGIVEL-LIBERA (R-TETO): o `agentes.json` existe e não é o registro; quem lê recusa, nunca usa lista vazia."""
+
+
+def ler_estado(arquivo):
+    """O registro de `arquivo`, ou `{"agentes": []}` se ele não existe (o começo legítimo). Lança `EstadoIlegivel` se não é arquivo
+    regular (aberto sem seguir link nem esperar FIFO), não abre, passa de LIMITE_DO_ESTADO, não é JSON, a raiz não é objeto ou
+    `agentes` ou `lapides` (quando existem) não são listas, se aninha acima de TETO_ANINHAMENTO níveis (o 3.14 aceita o que o
+    3.12 recusava com RecursionError) ou se o leitor falha de qualquer outro jeito. Nunca devolve estado vazio no lugar do ilegível."""
+    if not os.path.lexists(arquivo):
+        return {"agentes": []}
+    try:
+        fd = os.open(arquivo, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as entrada:
+            if not stat.S_ISREG(os.fstat(entrada.fileno()).st_mode):
+                raise EstadoIlegivel(f"{arquivo}: não é arquivo regular")
+            dados = entrada.read(LIMITE_DO_ESTADO + 1)
+        if len(dados) > LIMITE_DO_ESTADO:
+            raise EstadoIlegivel(f"{arquivo}: passa de {LIMITE_DO_ESTADO} bytes")
+        if fundo_demais(dados):
+            raise EstadoIlegivel(f"{arquivo}: aninhado acima de {TETO_ANINHAMENTO} níveis")
+        estado = json.loads(dados)
+    except EstadoIlegivel:
+        raise
+    except Exception as erro:  # noqa: BLE001 - qualquer erro do leitor (OSError, JSON inválido, RecursionError do aninhado) é ilegível
+        raise EstadoIlegivel(f"{arquivo}: {type(erro).__name__}: {erro}") from erro
+    if not isinstance(estado, dict):
+        raise EstadoIlegivel(f"{arquivo}: a raiz não é objeto")
+    if not isinstance(estado.get("agentes", []), list):
+        raise EstadoIlegivel(f"{arquivo}: `agentes` não é lista")
+    if not isinstance(estado.get("lapides", []), list):
+        raise EstadoIlegivel(f"{arquivo}: `lapides` não é lista")
+    if not isinstance(estado.get("interrompidos", []), list):
+        raise EstadoIlegivel(f"{arquivo}: `interrompidos` não é lista")
+    return estado
 
 
 def ler_o_fim(caminho, limite):
@@ -283,14 +474,28 @@ def transcript_da_sessao(hook):
     return real if real.parent.parent == base and real.name == f"{sessao}.jsonl" else None
 
 
+def nota_na_fila(anexo):
+    """E12.2: o anexo é a notificação de tarefa posta na fila pelo próprio Claude Code (nunca o texto digitado)."""
+    return (anexo.get("type") == "queued_command" and anexo.get("commandMode") == "task-notification"
+            and anexo["origin"]["kind"] == "task-notification")
+
+
 def notificacao_terminal(entrada):
     """C1: (task-id, tool-use-id, carimbo em segundos, status) da entrada do transcript que é a notificação do próprio Claude
     Code (type user, promptSource system, fora de sidechain); None para o resto. O content que não é texto (o tool_result é
     lista), o cabeçalho ou o carimbo que não casam (None.group) e a entrada fora da forma levantam TypeError, KeyError ou
-    AttributeError, que `notificacoes` pula."""
-    if not (entrada.get("type") == "user" and entrada.get("promptSource") == "system" and entrada.get("isSidechain") is False):
+    AttributeError, que `notificacoes` pula.
+    AGENTE-PRESO-SEM-BAIXA (v048 E12.2): a notificação que chega no meio do turno vem como `attachment` `queued_command`
+    com `commandMode` e `origin.kind` `task-notification`; o texto digitado pelo dono no meio do turno é `prompt` e `human`."""
+    if entrada.get("isSidechain") is not False:
         return None
-    cabecalho, quando = NOTIFICACAO.match(entrada["message"]["content"]), CARIMBO.fullmatch(entrada["timestamp"])
+    if entrada.get("type") == "user" and entrada.get("promptSource") == "system":
+        texto = entrada["message"]["content"]
+    elif entrada.get("type") == "attachment" and nota_na_fila(entrada["attachment"]):
+        texto = entrada["attachment"]["prompt"]
+    else:
+        return None
+    cabecalho, quando = NOTIFICACAO.match(texto), CARIMBO.fullmatch(entrada["timestamp"])
     segundos = datetime.fromisoformat(quando.group(1)).replace(tzinfo=timezone.utc).timestamp()
     return cabecalho.group(1), cabecalho.group(2), segundos, cabecalho.group(3)
 
@@ -324,7 +529,8 @@ def tool_use_do_meta(real, aid):
 def pesado_livre(hook, agora):
     """C9: a trava `pesado` da pasta do estado está livre: sem arquivo, ou com dono morto ou vencido (o critério do `pesado`).
     Trava que não é objeto levanta AttributeError (`.get`): o registro fica."""
-    trava = ler_json(hook.run() / "pesado.json", {})
+    trava = ler_trava(hook.run() / "pesado.json")
+    trava = {} if trava is None else trava
     desde = trava.get("desde")
     return not (isinstance(desde, (int, float)) and agora - desde < TRAVA_S and pid_vivo(trava.get("pid"), trava.get("inicio")))
 
@@ -385,8 +591,14 @@ def lapide(registro, agora):
 def lapides_vigentes(estado, agora, expira_s):
     """C8: as lápides gravadas, dentro do prazo do registro (expiracao_horas)."""
     lista = estado.get("lapides")
-    return [l for l in (lista if isinstance(lista, list) else [])
-            if isinstance(l, dict) and isinstance(l.get("desde"), (int, float)) and agora - l["desde"] < expira_s]
+    validas = []
+    for l in (lista if isinstance(lista, list) else []):
+        if not isinstance(l, dict) or not isinstance(l.get("desde"), (int, float)):
+            continue
+        if not caiu_em_finito(l["desde"]):
+            raise EstadoIlegivel("`lapides`: `desde` não é número finito")
+        validas.append(l)
+    return [l for l in validas if agora - l["desde"] < expira_s]
 
 
 def relancado(morto, agentes):
@@ -395,6 +607,144 @@ def relancado(morto, agentes):
     return any(a.get("id") != morto.get("id") and ((morto.get("descricao") and a.get("descricao") == morto["descricao"])
                                                   or ramos & set(textos(a.get("branches"))))
                for a in agentes)
+
+
+INTERROMPIDOS_MAX = 64  # BP3-S3: teto da lista `interrompidos`, como o das lápides
+BRIEF_GRAVAVEL = re.compile(r"docs/briefs/[A-Za-z0-9][A-Za-z0-9._-]{0,150}\.md")
+HASH_GRAVAVEL = re.compile(r"[0-9a-f]{64}")
+
+
+def briefs_da_reserva(lidos):
+    """BP3-S3: `[{"caminho", "sha256"}]` dos briefs selados lidos (`lidos`: citado, real, bytes). Só o caminho de `docs/briefs/`
+    em diante, de caracteres seguros (sem `..`, sem controle) e o hash dos bytes lidos; o que não tem essa forma fica fora. Nunca
+    texto do prompt."""
+    saida = []
+    for _citado, real, dados in lidos:
+        achado = BRIEF_GRAVAVEL.fullmatch("docs/briefs/" + str(real).rpartition("/docs/briefs/")[2])
+        if achado and ".." not in achado.group(0):
+            item = {"caminho": achado.group(0), "sha256": hashlib.sha256(dados).hexdigest()}
+            if item not in saida:
+                saida.append(item)
+    return saida
+
+
+def briefs_validos(registro):
+    """Os itens de `briefs` de um registro que têm a forma gravada: caminho de `docs/briefs/` e sha256 de 64 hex."""
+    lista = registro.get("briefs")
+    return [b for b in (lista if isinstance(lista, list) else [])
+            if isinstance(b, dict) and isinstance(b.get("caminho"), str) and BRIEF_GRAVAVEL.fullmatch(b["caminho"])
+            and isinstance(b.get("sha256"), str) and HASH_GRAVAVEL.fullmatch(b["sha256"])]
+
+
+def caminhos_dos_briefs(registro):
+    """Os caminhos de `briefs_validos`."""
+    return [b["caminho"] for b in briefs_validos(registro)]
+
+
+def interrompido(registro, agora):
+    """BP3-S3: o que fica do registro de sessão morta: tipo, descrição, branches, escrita, briefs, sessão, `desde` e `caiu_em`; o
+    PID não (a sessão morreu). Só campos de forma conhecida: o resto do registro não passa."""
+    aid = registro.get("id")
+    sessao = registro.get("sessao")
+    return {"id": aid if isinstance(aid, str) and ID_DE_AGENTE.fullmatch(aid) else None, "tipo": str(registro.get("tipo") or ""),
+            "descricao": str(registro.get("descricao") or ""), "branches": sorted(set(textos(registro.get("branches")))),
+            "escrita": sorted(set(textos(escritas_do_registro(registro)))), "briefs": [{"caminho": b["caminho"], "sha256": b["sha256"]} for b in briefs_validos(registro)],
+            "sessao": sessao if isinstance(sessao, str) else None, "desde": registro["desde"], "caiu_em": agora}
+
+
+def caidos_da_sessao(agentes, agora, expira_s):
+    """BP3-S3: os registros dentro do prazo, de sessão provadamente morta (`sessao_morta`, a mesma prova do `vigentes`) e com
+    `briefs`, prontos para `interrompidos`. Cada registro à parte: o erro num deles o deixa fora (o `vigentes` o trata como sempre)."""
+    saida = []
+    for a in agentes:
+        try:
+            if dentro_do_prazo(a, agora, expira_s) and sessao_morta(a) and caminhos_dos_briefs(a):
+                saida.append(interrompido(a, agora))
+        except Exception:  # noqa: BLE001 - sem prova, nada vira interrompido; o registro segue o caminho de sempre
+            pass
+    return saida
+
+
+def caiu_em_finito(valor):
+    """BP3-S3 (segurança A1): `valor` é número finito. O inteiro enorme (10**400) não vira float: OverflowError conta como não finito."""
+    try:
+        return isinstance(valor, (int, float)) and math.isfinite(float(valor))
+    except OverflowError:
+        return False
+
+
+def interrompidos_vigentes(estado, agora, expira_s):
+    """BP3-S3: (os interrompidos gravados dentro do prazo, os vencidos). O item que não é registro de `caiu_em` numérico some;
+    o `caiu_em` numérico e não finito (inf, nan, inteiro enorme) deixa o estado ilegível (`EstadoIlegivel`, o disparo recusa): a
+    subtração nunca levanta fora da recusa."""
+    lista = estado.get("interrompidos")
+    validos = []
+    for i in (lista if isinstance(lista, list) else []):
+        if not isinstance(i, dict) or not isinstance(i.get("caiu_em"), (int, float)):
+            continue
+        if not caiu_em_finito(i["caiu_em"]):
+            raise EstadoIlegivel("`interrompidos`: `caiu_em` não é número finito")
+        validos.append(i)
+    return [i for i in validos if agora - i["caiu_em"] < expira_s], [i for i in validos if agora - i["caiu_em"] >= expira_s]
+
+
+def fechar_por_relancamento(interrompidos, reserva):
+    """BP3-S3: o relançamento do mesmo `tipo` com um brief de mesmo caminho (o hash pode ter mudado) tira o item."""
+    caminhos = set(caminhos_dos_briefs(reserva))
+    return [i for i in interrompidos if not (caminhos and i.get("tipo") == reserva.get("tipo") and caminhos & set(caminhos_dos_briefs(i)))]
+
+
+def fechar_por_retomada(interrompidos, alvo):
+    """BP3-S3: a retomada por `SendMessage` do mesmo `id` tira o item."""
+    return [i for i in interrompidos if not (isinstance(alvo, str) and alvo and i.get("id") == alvo)]
+
+
+def autores_vigentes(estado, agora, expira_s):
+    """H2: os autores gravados no `SubagentStop`, com id de agente e dentro do prazo do registro (expiracao_horas). Só alimenta
+    um aviso: o que não é lista ou registro vale vazio, sem recusa; o `desde` numérico e não finito (inf, nan, inteiro enorme)
+    deixa o estado ilegível (`EstadoIlegivel`, o disparo recusa): a subtração nunca levanta fora da recusa."""
+    lista = estado.get("autores")
+    validos = []
+    for a in (lista if isinstance(lista, list) else []):
+        if not (isinstance(a, dict) and isinstance(a.get("id"), str) and ID_DE_AGENTE.fullmatch(a["id"])
+                and isinstance(a.get("desde"), (int, float))):
+            continue
+        if not caiu_em_finito(a["desde"]):
+            raise EstadoIlegivel("`autores`: `desde` não é número finito")
+        validos.append(a)
+    return [a for a in validos if agora - a["desde"] < expira_s]
+
+
+def guardar_autores(autores, parados, agora):
+    """H2: cada agente de escrita parado vira o autor das branches dele (a retomada, sem `escrita` própria, herda as do
+    registro anterior do mesmo id); o autor anterior perde só essas branches e sai quando não sobra nenhuma."""
+    for r in parados:
+        escrita = set(textos(escritas_do_registro(r)))
+        escrita |= {b for a in autores if a["id"] == r.get("id") for b in textos(a.get("escrita"))}
+        if not (isinstance(r.get("id"), str) and ID_DE_AGENTE.fullmatch(r["id"]) and escrita):
+            continue
+        restantes = []
+        for a in autores:
+            sobra = [b for b in textos(a.get("escrita")) if b not in escrita]
+            if sobra:
+                restantes.append({**a, "escrita": sobra})
+        autores = restantes + [{"id": r["id"], "desde": agora, "escrita": sorted(escrita)}]
+    return autores[-AUTORES_MAX:]
+
+
+def autores_retomaveis(autores, agentes, lapides, escrita):
+    """H2: `branch: id` de cada autor de uma das branches de `escrita` que pode ser retomado: sem lápide e fora dos ativos."""
+    fora = {i for i in [l.get("id") for l in lapides] + [a.get("id") for a in agentes] if isinstance(i, str)}
+    return [f"{sem_controle(b)[:CORTE_DO_NOME]}: {a['id']}" for a in autores if a["id"] not in fora
+            for b in sorted(escrita & set(textos(a.get("escrita"))))]
+
+
+def aviso_de_autor(retomaveis):
+    """H2 (R-TETO, só aviso): o texto que pede retomar o autor em vez de lançar agente novo, ou None."""
+    if retomaveis:
+        return mensagem("R-TETO", f"aviso: autor retomável ({'; '.join(retomaveis)}): retome-o por `SendMessage` (to: <id>), "
+                                  "não com agente novo (relê tudo); novo só se ele travou. O disparo segue.")
+    return None
 
 
 def recusar_retomada(hook, agentes, lapides):
@@ -409,6 +759,27 @@ def recusar_retomada(hook, agentes, lapides):
     if presos:
         bloquear("R-TETO", f"o agente {presos[0]} foi liberado como morto e tem relançamento vigente (mesma branch ou "
                            "descrição); não o retome: espere o relançamento terminar.")
+
+
+def escrita_do_autor(autores, aid):
+    """H2: as branches que o autor `aid` escrevia, em ordem."""
+    return sorted({b for a in autores if a["id"] == aid for b in textos(a.get("escrita"))})
+
+
+def reservar_retomada(hook, agentes, autores, agora):
+    """H2 e Z10 (R-TETO): retomar por `SendMessage` o autor parado é uma delegação de escrita. Recusa se outra reserva escreve
+    uma das branches dele; senão, reserva-as com o id dele, que o `SubagentStop` dele solta. A reserva vale o prazo curto
+    (RESERVA_S) até o `SubagentStart` do retomado: SendMessage negado ou falho não prende a branch. Alvo ativo ou sem branch: nada."""
+    entrada = hook.campo("tool_input")
+    alvo = entrada.get("to") if isinstance(entrada, dict) else None
+    if any(a.get("id") == alvo for a in agentes):
+        return
+    escrita = escrita_do_autor(autores, alvo)
+    if not escrita:
+        return
+    recusar_branch_ocupada(hook, agentes, escrita)
+    agentes.append({"id": alvo, "tipo": RETOMADA, "descricao": "", "desde": agora, "branches": escrita, "escrita": escrita,
+                    **da_sessao(hook)})
 
 
 def pasta_de_estado_do_clone(raiz):
@@ -640,7 +1011,7 @@ def recusar_branch_ocupada(hook, agentes, branches):
         ocupadas = escritas_do_registro(a)
         for branch in branches:
             if branch in ocupadas:
-                prazo = hook.expira_s() if a.get("id") else min(RESERVA_S, hook.expira_s())
+                prazo = prazo_do_registro(a, hook.expira_s())
                 try:
                     hora = time.strftime("%H:%M", time.localtime(a["desde"] + prazo))
                 except (OverflowError, ValueError, OSError, TypeError):  # `desde` absurdo: a recusa sai do mesmo jeito
@@ -712,24 +1083,80 @@ def selo_ausente(hook, prompt, tipo, lidos):
     return None
 
 
+SHA_COMPLETO = re.compile(r"[0-9a-f]{40}")
+
+
+class GitEmLote:
+    """HOOK-AGENTE-PEDIDO-GRANDE (E50.1, R-TETO): durante o `brief_vencido`, as perguntas do forge-check ao git com a mesma resposta e
+    sem um processo por pergunta. Com 134 linhas `conferida` no pedido, o `desde_da_branch` fazia 416 chamadas (16 s) e o vigia de
+    8 s recusava o disparo. `e_ancestral(a, b)` com `b` sha40: `a` no `rev-list b` (uma chamada por `b`); fora dele, só o objeto que
+    não é o próprio commit (a tag anotada) volta à chamada de sempre. `sha_do_commit(sha40)`: o `<sha>^{commit}` de um só `cat-file
+    --batch-check` por raiz. Ref que não é sha40 vai às originais (nem `a..b` vira faixa, nem a quebra de linha vira outra pergunta)."""
+
+    def __init__(self, fc):
+        self.fc, self.originais = fc, (fc.e_ancestral, fc.sha_do_commit)
+        self.ancestrais, self.lotes = {}, {}
+
+    def __enter__(self):
+        self.fc.e_ancestral, self.fc.sha_do_commit = self.e_ancestral, self.sha_do_commit
+        return self
+
+    def __exit__(self, *_):
+        self.fc.e_ancestral, self.fc.sha_do_commit = self.originais
+        for lote in self.lotes.values():
+            lote.kill()
+            lote.communicate()  # fecha os tubos e espera
+
+    def e_ancestral(self, raiz, antigo, novo):
+        if not SHA_COMPLETO.fullmatch(str(novo)):
+            return self.originais[0](raiz, antigo, novo)
+        if (raiz, novo) not in self.ancestrais:  # o `rev-list` que falha (objeto ausente) fica vazio: o `--is-ancestor` também diz não
+            self.ancestrais[raiz, novo] = set(self.fc.git(raiz, "rev-list", "--end-of-options", novo)[1].split())
+        if antigo in self.ancestrais[raiz, novo]:
+            return True
+        return self.sha_do_commit(raiz, antigo) not in (antigo, None) and self.originais[0](raiz, antigo, novo)
+
+    def sha_do_commit(self, raiz, ref):
+        if not SHA_COMPLETO.fullmatch(str(ref)):
+            return self.originais[1](raiz, ref)
+        if raiz not in self.lotes:
+            env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}  # como o `git` do forge-check
+            self.lotes[raiz] = subprocess.Popen(["git", "-C", str(raiz), "cat-file", "--batch-check=%(objectname) %(objecttype)"],
+                                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, env=env)
+        lote = self.lotes[raiz]
+        lote.stdin.write(f"{ref}^{{commit}}\n")
+        lote.stdin.flush()
+        achado = lote.stdout.readline().split()
+        return achado[0] if achado[1:] == ["commit"] else None
+
+
 def avisos_de_brief_vencido(hook, lidos):
     """D3 (0.44.0): para cada brief selado (`lidos`, de `selo_ausente`: caminho citado, caminho real e bytes), as correções que o
-    `brief selar` faria hoje (`brief_vencido` do forge-check). Só avisa: qualquer erro registra e devolve [], nunca barra o disparo."""
+    `brief selar` faria hoje (`brief_vencido` do forge-check, com o git em lote: `GitEmLote`). Só avisa: qualquer erro registra e
+    devolve [], nunca barra o disparo."""
     try:
         fc = forge_check()
-        return [f"{caminho}: {linha}" for caminho, real, dados in lidos for linha in fc.brief_vencido(hook.raiz, real, dados)]
+        with GitEmLote(fc):
+            return [f"{caminho}: {linha}" for caminho, real, dados in lidos for linha in fc.brief_vencido(hook.raiz, real, dados)]
     except Exception as erro:  # noqa: BLE001 - o aviso nunca troca o disparo por recusa
         hook.registrar_erro(erro)
         return []
 
 
-def avisar_brief_vencido(avisos):
-    """D3: uma linha `R-BRIEF: aviso` no stderr e no `systemMessage` (código 0), com o caminho de volta: selar de novo."""
+def aviso_de_brief_vencido(avisos):
+    """D3: a linha `R-BRIEF: aviso` com o caminho de volta (selar de novo), ou None."""
     if avisos:
-        texto = mensagem("R-BRIEF", f"aviso: brief vencido depois do selo ({sem_controle('; '.join(avisos))}); o disparo segue. "
-                                    "Rode `forge-check brief selar` de novo para o especialista ler a base e as decisões de agora.")
-        print(texto, file=sys.stderr)
-        print(json.dumps({"systemMessage": texto}, ensure_ascii=False))
+        return mensagem("R-BRIEF", f"aviso: brief vencido depois do selo ({sem_controle('; '.join(avisos))}); o disparo segue. "
+                                   "Rode `forge-check brief selar` de novo para o especialista ler a base e as decisões de agora.")
+    return None
+
+
+def avisar(textos_do_aviso):
+    """D3 e H2: cada aviso numa linha do stderr e todos num só `systemMessage` (código 0); um JSON só no stdout."""
+    linhas = [t for t in textos_do_aviso if t]
+    if linhas:
+        print("\n".join(linhas), file=sys.stderr)
+        print(json.dumps({"systemMessage": " ".join(linhas)}, ensure_ascii=False))
 
 
 MOTIVOS_DA_RECUSA = frozenset({"memoria", "teto", "duplicado", "pesado"})  # conjunto fechado: nunca texto do disparo
@@ -758,13 +1185,22 @@ def anexar_ao_log(hook, nome, linha):
         os.close(fd)
 
 
-def registrar_liberacao(hook, aid, status):
+def registrar_liberacao(hook, aid, status, motivo="notificacao"):
     """C11: a liberação vira uma linha em `liberacoes.log`: hora, id, status e motivo, nunca a descrição. Cala a falha."""
     try:
         anexar_ao_log(hook, "liberacoes.log", f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {hook.nome} R-TETO id={aid} "
-                                              f"status={status} motivo=notificacao\n")
+                                              f"status={status} motivo={motivo}\n")
     except Exception:  # noqa: BLE001 - o log nunca devolve o registro nem barra o hook
         pass
+
+
+def registrar_vencidos(hook, vencidos):
+    """BP3-S3: cada interrompido que passou de expiracao_horas sem retomada vira uma linha no `liberacoes.log` (id só se tem a
+    forma de agente, senão `-`; nunca a descrição)."""
+    for item in vencidos:
+        ident = item.get("id")
+        registrar_liberacao(hook, ident if isinstance(ident, str) and ID_DE_AGENTE.fullmatch(ident) else "-", "interrompido",
+                            "interrompido_vencido")
 
 
 def registrar_recusa(hook, motivo, campos=None):
@@ -787,6 +1223,18 @@ def entrada_e_tipo(hook):
     """A entrada do disparo (objeto vazio sem ela) e o tipo do agente (`general-purpose` sem ele)."""
     entrada = hook.campo("tool_input") or {}
     return entrada, str(entrada.get("subagent_type") or "general-purpose")
+
+
+ESTADO_ILEGIVEL = "registro de agentes ilegível (agentes.json da pasta do estado)"
+# o try da A3 cobre o `hook.projeto` e o `hook.config()`: a mensagem cita os dois, sem dizer qual falhou (o erros.log diz)
+CONFIG_ILEGIVEL = "configuração ilegível ou projeto não localizado (.forge/config.json ou a raiz; erro no erros.log)"
+
+
+def recusar_ilegivel(evento, onde):
+    """HOOK-ESTADO-ILEGIVEL-LIBERA: no PreToolUse (disparo e retomada), recusa com R-TETO, sem o conteúdo do arquivo; no
+    SubagentStart e no SubagentStop, volta (saída 0, não há o que impedir), sem gravar nada. Quem chama já registrou o erro."""
+    if evento == "PreToolUse":
+        bloquear("R-TETO", f"{onde}; nenhum disparo até o dono conferir o arquivo no terminal (R-DECISAO).")
 
 
 COMO_SELAR = ("sele o brief com `forge-check brief selar --arquivo <brief> --pedido <id>` e cite o caminho dele no prompt (o selo "
@@ -820,7 +1268,32 @@ def conferir_brief(hook):
     return lidos, (f"{sem_selo}; {COMO_SELAR}" if sem_selo else None)
 
 
+def recusar_pela_maquina(hook, agentes, agora, medida):
+    """MP3: a parte da máquina, por último (a vaga que a recusa conta já é do disparo); ilegível recusa (falha fechada)."""
+    carga, memoria, total, nproc = medida
+    cauda = "espere um agente terminar antes de lançar outro"
+    try:
+        vez = Maquina(hook, agora).recusa(len(agentes), teto_adaptativo(carga, memoria, total, nproc))
+    except Ilegivel as erro:
+        hook.registrar_erro(erro)
+        vez, cauda = f"registro da máquina ilegível: {erro}", "o usuário pode apagá-lo; o uso se refaz no próximo evento"
+    except Exception as erro:  # noqa: BLE001 - sem ler a máquina, o disparo não sai
+        hook.registrar_erro(erro)
+        vez = f"registro da máquina ilegível ({_maquina.PASTA}; registrado no erros.log)"
+    if vez:
+        registrar_recusa(hook, "teto", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
+        bloquear("R-TETO", f"{vez}; {cauda}.")
+
+
+def uso_do_disparo(hook):
+    """RESERVA-NAO-CAI-NO-FIM: o `tool_use_id` do PreToolUse, que o `SubagentStart` e o `SubagentStop` casam com o meta do agente."""
+    uso = hook.campo("tool_use_id")
+    return {"tool_use_id": uso} if isinstance(uso, str) and USO_DE_AGENTE.fullmatch(uso) else {}
+
+
 def lancar(hook, agentes, agora, lidos):
+    """Recusa (duplicado, memória, teto, branch ocupada) ou reserva o disparo; devolve o que os avisos pedem (brief vencido e
+    branches de escrita), emitidos só depois do estado gravado (o erro do aviso não leva a reserva)."""
     entrada, tipo = entrada_e_tipo(hook)
     vencido = avisos_de_brief_vencido(hook, lidos) if exige_selo(tipo) else []
     descricao = " ".join(str(entrada.get("description") or "").split())
@@ -836,13 +1309,19 @@ def lancar(hook, agentes, agora, lidos):
             hook.registrar_escape(f"{variavel}={os.environ[variavel]} substitui a medida real do teto de agentes")
     piso = piso_de_memoria(hook.config())
     if carga_alta(carga, memoria, total, nproc, piso):  # vale para qualquer teto: teto_agentes e teto_maximo não desligam
-        if os.environ.get("FORGE_CARGA_LIVRE") == "1":  # escape só do dono: pula só a trava de memória
+        livre = os.environ.get("FORGE_CARGA_LIVRE") == "1"  # escape só do dono: pula só a trava de memória
+        projetos = ler_projetos_ativos() if livre else []  # MP5: o escape só vale com um projeto ativo
+        if livre and projetos is not None and len(projetos) < 2:
             hook.registrar_escape(f"FORGE_CARGA_LIVRE=1 liberou o disparo com memória baixa ({memoria:.1f} GB disponíveis, piso {piso:.1f} GB)")
         else:
             registrar_recusa(hook, "memoria", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
+            if livre:  # MP5: a recusa diz o motivo e a saída, dentro do LIMITE_MENSAGEM
+                motivo = "registro de projetos ilegível" if projetos is None else f"{len(projetos)} projetos ativos"
+                bloquear("R-TETO", f"memória baixa ({memoria:.1f} GB; piso {piso:.1f} GB); FORGE_CARGA_LIVRE=1 recusado: {motivo} "
+                                   "(MP5: só vale com um projeto ativo); feche a sessão de outro projeto ou espere memória liberar.")
             bloquear("R-TETO", f"memória baixa ({memoria:.1f} GB disponíveis; piso {piso:.1f} GB, `piso_memoria_gb` em .forge/config.json): "
                                "nenhum agente novo; espere memória liberar; só o dono: FORGE_CARGA_LIVRE=1.")
-    teto, motivo = calcular_teto(hook.config(), ritmo=ritmo_do_projeto(hook.raiz))
+    teto, motivo = calcular_teto(hook.config(), ritmo=ritmo_do_projeto(pasta_da_config(hook)))
     if len(agentes) >= teto:
         registrar_recusa(hook, "teto", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
         bloquear("R-TETO", f"{len(agentes)} agentes ativos, teto {teto} ({motivo}); "
@@ -854,20 +1333,56 @@ def lancar(hook, agentes, agora, lidos):
         hook.registrar_erro(erro)
         branches, escrita, a_conferir = [], set(), set()
     recusar_branch_ocupada(hook, agentes, sorted(a_conferir))  # Z10: fora do try, sobre a lista pronta
+    recusar_pela_maquina(hook, agentes, agora, (carga, memoria, total, nproc))  # depois da branch: a vaga só conta se sai
     agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora, "branches": branches,
-                    "escrita": sorted(escrita), **da_sessao(hook)})
-    avisar_brief_vencido(vencido)
+                    "escrita": sorted(escrita), "briefs": briefs_da_reserva(lidos), **da_sessao(hook), **uso_do_disparo(hook)})
+    return vencido, escrita
 
 
-def iniciar(hook, agentes, agora):
+def uso_do_agente(hook, aid):
+    """RESERVA-NAO-CAI-NO-FIM: o `toolUseId` que lançou o agente `aid` (o meta do subagente, ao lado do transcript da sessão); None
+    quando não se prova (sem transcript, sem meta, id fora da forma): aí vale o casamento por id de antes."""
+    try:
+        real = transcript_da_sessao(hook)
+        uso = tool_use_do_meta(real, aid) if real and isinstance(aid, str) and ID_DE_AGENTE.fullmatch(aid) else None
+    except Exception:  # noqa: BLE001 - sem prova, o casamento por id de antes (nunca derruba o evento)
+        return None
+    return uso if isinstance(uso, str) and USO_DE_AGENTE.fullmatch(uso) else None
+
+
+def e_do_agente(registro, aid, uso):
+    """O registro foi gravado pelo agente `aid`? O `tool_use_id` do disparo, quando os dois lados o têm, vale mais que o id:
+    agentes do mesmo tipo disparados juntos podem ter trocado o id na reserva; sem ele, o id."""
+    if uso and registro.get("tool_use_id"):
+        return registro["tool_use_id"] == uso
+    return registro.get("id") == aid
+
+
+def iniciar(hook, agentes, autores, agora):
     aid, tipo = hook.campo("agent_id"), str(hook.campo("agent_type") or "")
+    retomado = next((a for a in agentes if aid and a.get("id") == aid and a.get("tipo") == RETOMADA), None)
+    if retomado is not None:  # H2: o sinal do retomado; a reserva curta da retomada vira a do agente (expiracao_horas)
+        retomado.update(tipo=tipo, desde=agora)
+        return
     if not aid or any(a.get("id") == aid for a in agentes):
         return
     dono = da_sessao(hook)
+    escrita = escrita_do_autor(autores, aid)
+    if escrita:  # H2-RESERVA-DA-RETOMADA-PRAZO: o retomado que começa depois do prazo curto reserva de novo as branches dele
+        ocupadas = {b for a in agentes for b in escritas_do_registro(a)}
+        tomadas = [b for b in escrita if b in ocupadas]
+        if tomadas:  # H2-RETOMADO-CONFLITO: o retomado roda de qualquer jeito; o conflito vai ao erros.log, que o vigia mostra no Stop
+            hook.registrar_erro(RuntimeError(f"H2-RETOMADO-CONFLITO R-TETO: retomado {aid} segue com "
+                                             f"{sem_controle(', '.join(tomadas))[:CORTE_DO_NOME]} (outra reserva de escrita viva)"))
+        agentes.append({"id": aid, "tipo": tipo, "descricao": "", "desde": agora, "branches": escrita, "escrita": escrita, **dono})
+        return
     # Com sessão provada, só a reserva da mesma sessão (ou a antiga, sem sessão) casa: o agente de outra sessão não herda o
     # pid dela. Sem sessão provada, casa como antes, mas o registro perde o pid (abaixo).
     reservas = sorted((a for a in agentes if not a.get("id") and (not dono or not a.get("sessao") or a["sessao"] == dono["sessao"])),
                       key=lambda a: a["desde"])
+    uso = uso_do_agente(hook, aid)
+    if uso:  # primeiro a reserva do próprio disparo; só sem ela, a antiga (sem `tool_use_id`); a de outro `tool_use_id` não casa por tipo
+        reservas = [a for a in reservas if a.get("tool_use_id") == uso] or [a for a in reservas if not a.get("tool_use_id")]
     # O tipo informado pode vir com ou sem o prefixo do plugin; na dúvida, a reserva mais antiga.
     par = next((a for a in reservas if str(a.get("tipo")) == tipo), None) \
         or next((a for a in reservas if str(a.get("tipo")).split(":")[-1] == tipo.split(":")[-1]), None) \
@@ -885,20 +1400,34 @@ def principal(hook):
     evento, ferramenta = hook.campo("hook_event_name"), hook.campo("tool_name")
     if evento not in EVENTOS or (evento == "PreToolUse" and ferramenta not in FERRAMENTAS | {RETOMADA}):
         return
-    raiz = hook.projeto(hook.cwd(), clone_do_forge=True)
+    try:  # A3 (R5): a configuração ilegível (o `hooks_desligados` e o teto saem dela) não desliga o teto
+        raiz = hook.projeto(hook.cwd(), clone_do_forge=True)
+        if raiz is not None:
+            ler_config(hook)
+    except Exception as erro:  # noqa: BLE001 - HOOK-ESTADO-ILEGIVEL-LIBERA: sem a configuração, o disparo não sai
+        hook.registrar_erro(erro)
+        recusar_ilegivel(evento, CONFIG_ILEGIVEL)
+        return
     if raiz is None:
         return
-    try:  # a pasta do estado do clone (só o erros.log dela vale aqui): o erro dela não leva o R-BRIEF junto (C7)
+    pasta_ilegivel = False
+    try:  # a pasta do estado do clone: o erro dela não leva o R-BRIEF junto (C7)
         sem_estado = e_clone_do_forge(raiz) and not fixar_estado_do_clone(hook, raiz)
-    except Exception as erro:  # noqa: BLE001 - registra; o disparo ainda passa pelo R-BRIEF
+    except Exception as erro:  # noqa: BLE001 - A2 (R4): a pasta que não se fixa é estado ilegível, depois do R-BRIEF
         hook.registrar_erro(erro)
-        sem_estado = True
+        sem_estado = pasta_ilegivel = True
     lidos, recusa = conferir_brief(hook) if evento == "PreToolUse" and ferramenta != RETOMADA else ([], None)  # C7: antes do estado
     if sem_estado:
         recusa and bloquear("R-BRIEF", recusa)
+        if pasta_ilegivel:
+            recusar_ilegivel(evento, ESTADO_ILEGIVEL)
         return
     if recusa is None:
-        atualizar_estado(hook, evento, ferramenta, lidos)
+        try:
+            atualizar_estado(hook, evento, ferramenta, lidos)
+        except EstadoIlegivel as erro:  # A1: nenhum evento regrava o arquivo ilegível; o disparo recusa
+            hook.registrar_erro(erro)
+            recusar_ilegivel(evento, ESTADO_ILEGIVEL)
         return
     try:  # C7: a recusa não depende do estado; a liberação de agente morto se grava antes dela (TRAVA-AGENTE-MORTO, C5)
         atualizar_estado(hook, evento, ferramenta, lidos, recusa)
@@ -913,27 +1442,92 @@ def atualizar_estado(hook, evento, ferramenta, lidos, recusa=None):
     with hook.trava():
         arquivo = hook.run() / "agentes.json"
         agora = time.time()
-        estado = ler_json(arquivo, {"agentes": []})
+        estado = ler_estado(arquivo)  # HOOK-ESTADO-ILEGIVEL-LIBERA: o ilegível lança, nunca vira lista vazia
         liberacao = Liberacao(hook, agora)
         agentes = vigentes(estado.get("agentes", []), agora, hook.expira_s(), liberacao)
         lapides = (lapides_vigentes(estado, agora, hook.expira_s()) + [lapide(r, agora) for r, _ in liberacao.soltos])[-LAPIDES_MAX:]
+        autores = autores_vigentes(estado, agora, hook.expira_s())  # H2
+        interrompidos, vencidos = interrompidos_vigentes(estado, agora, hook.expira_s())  # BP3-S3
+        interrompidos = (interrompidos + caidos_da_sessao(estado.get("agentes", []), agora, hook.expira_s()))[-INTERROMPIDOS_MAX:]
+        pendente = None
         if liberacao.soltos:  # C5: a liberação se grava antes de qualquer recusa abaixo
-            gravar_json(arquivo, {"agentes": agentes, "lapides": lapides})
+            gravar_json(arquivo, {"agentes": agentes, "lapides": lapides, "autores": autores, "interrompidos": interrompidos})
             for registro, status in liberacao.soltos:
                 registrar_liberacao(hook, registro["id"], status)
+            registrar_vencidos(hook, vencidos)
+            vencidos = []
         if recusa:
             bloquear("R-BRIEF", recusa)
         if evento == "PreToolUse" and ferramenta == RETOMADA:
             recusar_retomada(hook, agentes, lapides)
+            reservar_retomada(hook, agentes, autores, agora)
+            entrada = hook.campo("tool_input")
+            interrompidos = fechar_por_retomada(interrompidos, entrada.get("to") if isinstance(entrada, dict) else None)
         elif evento == "PreToolUse":
-            lancar(hook, agentes, agora, lidos)
+            pendente = lancar(hook, agentes, agora, lidos)
+            interrompidos = fechar_por_relancamento(interrompidos, agentes[-1])  # só chega aqui com a reserva feita
         elif evento == "SubagentStart":
-            iniciar(hook, agentes, agora)
+            iniciar(hook, agentes, autores, agora)
         else:
             aid = hook.campo("agent_id")
-            agentes = [a for a in agentes if not aid or a.get("id") != aid]
-        gravar_json(arquivo, {"agentes": agentes, "lapides": lapides})
+            uso = uso_do_agente(hook, aid) if aid else None  # RESERVA-NAO-CAI-NO-FIM: cai a reserva que este agente gravou
+            parados = [a for a in agentes if aid and e_do_agente(a, aid, uso)]
+            autores = guardar_autores(autores, parados, agora)
+            agentes = [a for a in agentes if not any(a is p for p in parados)]
+        gravar_json(arquivo, {"agentes": agentes, "lapides": lapides, "autores": autores, "interrompidos": interrompidos})
+        registrar_vencidos(hook, vencidos)  # BP3-S3: depois do estado gravado
+        try:  # MP3: o uso deste projeto na máquina depois do evento; o erro não muda o evento
+            Maquina(hook, agora).anotar(len(agentes))
+        except Exception as erro:  # noqa: BLE001 - o ilegível segue recusando o próximo disparo
+            hook.registrar_erro(erro)
+    if pendente:  # H2: depois de gravar a reserva; o aviso só informa
+        vencido, escrita = pendente
+        avisar([aviso_de_brief_vencido(vencido), aviso_de_autor(autores_retomaveis(autores, agentes, lapides, escrita))])
 
 
-if __name__ == "__main__":
-    executar("agentes", principal)
+# VIGIA-AGENTES-PESADO (decisão do dono, 24/11): o vigia de prazo do `_comum` recusa o disparo e a retomada que não decidem
+# até aqui (R-TETO), em vez de o timeout de 10 s do hooks.json liberá-los; só a leitura do transcript tem 2 s
+# (PRAZO_DA_LEITURA_S), então o prazo comum de 3 s não basta.
+PRAZO_DO_HOOK_S = 8.0
+
+# AGENTE-PRESO-SEM-BAIXA (v048 E12.2, ordem do dono 28/11 07:48 item 1): o comando oficial para limpar o registro,
+# `python3 <plugin>/hooks/agentes.py --limpar` na pasta do projeto. Aplica as mesmas provas do hook (prazo, sessão morta e a
+# notificação terminal no transcript de cada sessão do registro) e nada mais: não há baixa por escolha (TRAVA-AGENTE-MORTO).
+LIMPAR = "--limpar"
+
+
+def transcripts_da_sessao(sessao):
+    """Os `~/.claude/projects/*/<sessao>.jsonl` da sessão do registro; o UUID fora da forma não procura nada."""
+    if not (isinstance(sessao, str) and SESSAO_UUID.fullmatch(sessao)):
+        return []
+    return sorted((Path.home() / ".claude" / "projects").glob(f"*/{sessao}.jsonl"))
+
+
+def limpar(pasta):
+    """Dá baixa no que se prova parado e diz quantos registros ficaram; 1 sem projeto ou com o registro ilegível (que não regrava)."""
+    hook = Hook("agentes")
+    raiz = hook.projeto(pasta, clone_do_forge=True)
+    if raiz is None or (e_clone_do_forge(raiz) and not fixar_estado_do_clone(hook, raiz)):
+        print(f"agentes.py {LIMPAR}: fora de um projeto do Forge", file=sys.stderr)
+        return 1
+    arquivo = hook.run() / "agentes.json"
+    try:
+        antes = ler_estado(arquivo).get("agentes", [])
+        sessoes = sorted({a.get("sessao") for a in antes if isinstance(a, dict) and isinstance(a.get("sessao"), str)})
+        for sessao in sessoes or [None]:
+            achados = transcripts_da_sessao(sessao)
+            hook.entrada = {"hook_event_name": "Stop", "cwd": str(pasta), "session_id": sessao,
+                            "transcript_path": str(achados[0]) if len(achados) == 1 else None}  # dois: nenhum vale
+            atualizar_estado(hook, "Stop", None, [])
+        depois = ler_estado(arquivo).get("agentes", [])
+    except EstadoIlegivel as erro:
+        print(f"agentes.py {LIMPAR}: R-TETO {erro}; nada regravado", file=sys.stderr)
+        return 1
+    print(f"agentes.py {LIMPAR}: {len(antes)} registro(s) antes, {len(depois)} depois; a baixa por notificação vai ao liberacoes.log")
+    return 0
+
+
+if __name__ == "__main__" and sys.argv[1:] == [LIMPAR]:
+    sys.exit(limpar(Path.cwd()))
+elif __name__ == "__main__":
+    executar("agentes", principal, clone_do_forge=True, regra_do_prazo="R-TETO", prazo_do_hook=PRAZO_DO_HOOK_S)

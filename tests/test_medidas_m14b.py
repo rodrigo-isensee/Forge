@@ -101,6 +101,92 @@ class CustoCasaOPedidoComOsCartoes(Raiz):
         self.assertFalse(any("\x1b" in l for l in linhas), linhas)
 
 
+class CustoMediaPorAgente(Raiz):
+    """CUSTO-MEDIA-POR-AGENTE (v047 E2.312): `transcricao custo --media-por-agente` dá a faixa e a média de tokens por agente lidas
+    de docs/kanban/entregas.md (a lógica mora em bin/forge_transcricao.py), só disco local."""
+
+    FORGE = ("| data | entrega | agente | tokens | rodadas | voltas | nota |\n|---|---|---|---|---|---|---|\n"
+             "| 2026-10-16 | a | jarvis (principal) | 100 | — | — | |\n| 2026-10-16 | a | forge:qa-engineer | 50 | — | — | |\n"
+             "| 2026-10-17 | b | jarvis (principal) | 301 | — | — | |\n| 2026-10-17 | b | forge:qa-engineer | — | — | — | sem medida |\n")
+    MODELO = ("\nNota fora da tabela.\n\n| Data | Entrega | Agente | Tokens | Duração |\n|---|---|---|---|---|\n"
+              "| 2026-10-18 | c | forge:qa-engineer | 150 | 3 min |\n")
+
+    def rodar(self, *args, home=None):
+        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(home or self.tmp / "home"), "LANG": "C.UTF-8"}
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), *args], capture_output=True, text=True, env=env)
+        self.assertNotIn("Traceback", r.stderr)
+        return r.returncode, r.stdout.splitlines(), r.stderr
+
+    def media(self, *args):
+        return self.rodar("transcricao", "custo", "--media-por-agente", *args)[:2]
+
+    def test_faixa_e_media_por_agente_nas_duas_formas_de_tabela(self):
+        self.gravar("docs/kanban/entregas.md", "# Custo\n\n" + self.FORGE + self.MODELO)
+        cod, linhas = self.media()
+        self.assertEqual(cod, 0, linhas)
+        self.assertEqual(linhas, ["custo: agente forge:qa-engineer: entregas=2 min=50 media=100 max=150",
+                                  "custo: agente jarvis (principal): entregas=2 min=100 media=200 max=301",
+                                  "custo: media-por-agente: agentes=2 linhas=4 ignoradas=1"])
+
+    def test_linha_de_tabela_sem_cabecalho_de_agente_e_tokens_nao_conta(self):
+        self.gravar("docs/kanban/entregas.md", self.FORGE + "\nfim da tabela\n| x | y | forge:qa-engineer | 999 |\n"
+                    "\n| Cartão | Agente | Valor |\n|---|---|---|\n| y | forge:qa-engineer | 7 |\n")
+        cod, linhas = self.media()
+        self.assertEqual(cod, 0, linhas)
+        self.assertIn("custo: agente forge:qa-engineer: entregas=1 min=50 media=50 max=50", linhas)
+
+    def test_linha_curta_conta_como_ignorada(self):  # 3 células: a coluna tokens (índice 3) fica fora
+        self.gravar("docs/kanban/entregas.md", self.FORGE + "| 2026-10-19 | d | forge:qa-engineer |\n")
+        self.assertIn("custo: media-por-agente: agentes=2 linhas=3 ignoradas=2", self.media()[1])
+
+    def test_agente_vazio_sai_como_traco(self):
+        self.gravar("docs/kanban/entregas.md", self.FORGE + "| 2026-10-19 | d |  | 9 | | | |\n")
+        self.assertIn("custo: agente -: entregas=1 min=9 media=9 max=9", self.media()[1])
+
+    def test_controle_no_nome_do_agente_nao_sai_na_linha(self):
+        self.gravar("docs/kanban/entregas.md", self.FORGE.replace("forge:qa-engineer | 50", "forge:\x1b[31mqa | 50"))
+        cod, linhas = self.media()
+        self.assertIn("custo: agente forge: [31mqa: entregas=1 min=50 media=50 max=50", linhas)
+        self.assertFalse(any("\x1b" in l for l in linhas), linhas)
+
+    def test_le_da_raiz_pedidos_quando_dada(self):
+        self.gravar("contrib/docs/kanban/entregas.md", self.FORGE)
+        cod, linhas = self.media("--raiz-pedidos", str(self.tmp / "contrib"))
+        self.assertEqual(cod, 0, linhas)
+        self.assertIn("custo: media-por-agente: agentes=2 linhas=3 ignoradas=1", linhas)
+
+    def test_sem_arquivo_sai_1_sem_medida(self):
+        cod, linhas = self.media()
+        self.assertEqual((cod, linhas), (1, ["custo: --media-por-agente: docs/kanban/entregas.md ausente, link simbólico ou maior que 2 MB; nada medido"]))
+
+    def test_link_simbolico_sai_1(self):
+        self.gravar("fora.md", self.FORGE)
+        (self.tmp / "docs" / "kanban").mkdir(parents=True)
+        (self.tmp / "docs" / "kanban" / "entregas.md").symlink_to(self.tmp / "fora.md")
+        self.assertEqual(self.media()[0], 1)
+
+    def test_maior_que_o_teto_sai_1_e_no_teto_le(self):
+        teto = 2 * 1024 * 1024
+        self.gravar("docs/kanban/entregas.md", self.FORGE + "x" * (teto + 1 - len(self.FORGE.encode("utf-8"))))
+        self.assertEqual(self.media()[0], 1)
+        self.gravar("docs/kanban/entregas.md", self.FORGE + "x" * (teto - len(self.FORGE.encode("utf-8"))))
+        self.assertEqual(self.media()[0], 0)
+
+    def test_sem_linha_com_tokens_inteiros_sai_1(self):
+        self.gravar("docs/kanban/entregas.md", self.FORGE.split("| 2026-10-16")[0] + "| 2026-10-16 | a | jarvis | — | | | |\n")
+        cod, linhas = self.media()
+        self.assertEqual((cod, linhas), (1, ["custo: --media-por-agente: nenhuma linha com agente e tokens inteiros em docs/kanban/entregas.md (ignoradas=1)"]))
+
+    def test_nao_se_combina_com_outra_entrada_do_custo(self):
+        self.gravar("docs/kanban/entregas.md", self.FORGE)
+        self.gravar("docs/pedidos/p.md", "# p\n")
+        for extra in (["--entregas"], ["--pedido", "p"], ["--desde", "2026-10-16T00:00:00Z"], ["--ate", "2026-10-16T00:00:00Z"], [str(self.tmp)]):
+            with self.subTest(extra):
+                cod, linhas = self.media(*extra)
+                self.assertEqual(cod, 2, linhas)
+                self.assertIn("não se combina", linhas[0])
+
+
 class Esperas(SemQueda, Raiz):
     """`forge-check esperas`: o registro de `forge-check movimento` vira minutos de espera pelo dono e por credencial."""
     HISTORICO = CABECALHO_HISTORICO + "".join(l + "\n" for l in (
@@ -601,7 +687,9 @@ class MedidaM2b(Raiz):
         self.assertEqual((r.returncode, r.stdout), (2, "provas: não verificável (scripts/reexecutar-provas.py ausente)\n"))
 
     def test_agile_coach_leva_a_medida_ao_cartao_na_retrospectiva_da_042(self):
-        coach = (Path(FORGE_CHECK_M2B).parent.parent / "agents" / "agile-coach.md").read_text(encoding="utf-8")
+        raiz = Path(FORGE_CHECK_M2B).parent.parent  # v047 P1: a linha foi, inteira, para a skill kanban-metricas do agile-coach
+        coach = "\n".join((raiz / rel).read_text(encoding="utf-8") for rel in ("agents/agile-coach.md", "skills/kanban-metricas/SKILL.md"))
+        self.assertIn("kanban-metricas", (raiz / "agents" / "agile-coach.md").read_text(encoding="utf-8"))
         self.assertIn("forge-check provas medida --desde <abertura da 0.41>", coach)
         self.assertIn("EST-M2B-REAVALIAR", coach)
 

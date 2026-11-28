@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M66",
+      "guarda": "o catálogo: remove-files não toma valor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if campo not in (\"subpasta\", \"remove\") for n",
+      "para": "if True for n",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M67",
+      "guarda": "o catálogo: a letra (-C) é curta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for n in nomes if len(n) == 1)",
+      "para": "for n in nomes if len(n) == 0)",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_opcoes_do_catalogo_recusam"
+      ]
+    },
+    {
+      "id": "M68",
+      "guarda": "o catálogo: o nome (--cd) é longa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for n in nomes if len(n) > 1)",
+      "para": "for n in nomes if len(n) > 99)",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_opcoes_do_catalogo_recusam"
+      ]
+    },
+    {
+      "id": "M69",
+      "guarda": "--transform: o s do GNU não é o delimitador",
+      "arquivo": "hooks/conformidade.py",
+      "de": "re.sub(r\"^s(?=\\W)\", \"\", e)",
+      "para": "re.sub(r\"^x(?=\\W)\", \"\", e)",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_opcoes_do_catalogo_recusam"
+      ]
+    },
+    {
+      "id": "M70",
+      "guarda": "7z: a chave vale em qualquer caixa (-O)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if c[1:].lower().startswith(n)]",
+      "para": "if c[1:].startswith(n)]",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_opcoes_do_catalogo_recusam"
+      ]
+    },
+    {
+      "id": "M71",
+      "guarda": "7z: só o -u grava o que vem depois do !",
+      "arquivo": "hooks/conformidade.py",
+      "de": "v.partition(\"!\")[2] if n == \"u\" else v",
+      "para": "v.partition(\"!\")[2] if n == \"w\" else v",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_opcoes_do_catalogo_recusam"
+      ]
+    },
+    {
+      "id": "M72",
+      "guarda": "A6: o busybox varre a atualização antes de trocar pelo applet",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.atualizacao(palavras)  # A6",
+      "para": "pass  # A6",
+      "testes": [
+        "tests.test_conformidade_verde.AtualizacaoAtrasDoBusybox.test_applet_que_roda_programa_nao_esconde_a_atualizacao"
+      ]
+    },
+    {
+      "id": "M73",
+      "guarda": "A8: a troca de branch atrás do busybox ou toybox não é registrada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if parte and parte[0] == \"branch\" and not por_applet:",
+      "para": "        if parte and parte[0] == \"branch\":",
+      "testes": [
+        "tests.test_conformidade_verde.TrocaDeBranchAtrasDoBusybox.test_troca_pelo_applet_nao_libera_a_main"
+      ]
+    }
+  ]
+}

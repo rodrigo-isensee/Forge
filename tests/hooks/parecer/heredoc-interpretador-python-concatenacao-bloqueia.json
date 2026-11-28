@@ -1,0 +1,18 @@
+{
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP, volta 1 da E4.4, caso verdadeiro: A1 da segurança: o comando de PR concatenado no texto.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 - <<'EOF'\nimport subprocess\nsubprocess.run(\"gh \" + \"pr merge 5\", shell=True)\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: "
+  }
+}

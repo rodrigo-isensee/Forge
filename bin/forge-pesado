@@ -3,7 +3,8 @@
 
 Uso: forge-pesado status
      forge-pesado esperar --teto SEGUNDOS [--passo SEGUNDOS]
-Lê o estado que o hook `pesado` grava (`pesado.json` e a fila `pesado.fila/` na pasta `Hook.run()` da cópia principal),
+Lê o estado que o hook `pesado` grava (`pesado.json` na pasta `Hook.run()` da cópia principal e a fila `pesado.fila/`
+da máquina, em `~/.forge/maquina/`, MP4),
 sem escrever nele nem limpar a fila. A trava vale até `desde` mais o teto dela (o menor entre `expiracao_horas` e o
 TRAVA_S do hook); o pid gravado só se mostra, nunca decide: o de outro namespace não aparece (skill `esperar-estado`,
 regra 5).
@@ -47,13 +48,22 @@ def esperando(pasta):
     return vivas
 
 
+def ler_trava(caminho):
+    """A trava, ou None sem ela. PESADO-CORRIDA-TRAVA-SOME: o hook solta a trava entre o `exists` e a leitura do
+    `_comum.ler_trava`; o arquivo que some aí é trava livre. O que existe e não se lê (JSON quebrado, permissão) levanta."""
+    try:
+        return _comum.ler_trava(caminho)
+    except FileNotFoundError:
+        return None
+
+
 def estado(run, validade):
     """(a trava em vigor ou None, quantos esperam na fila)."""
-    trava = _comum.ler_json(run / "pesado.json", None)
+    trava = ler_trava(run / "pesado.json")
     desde = trava.get("desde") if isinstance(trava, dict) else None
     if not isinstance(desde, (int, float)) or time.time() - desde >= validade:
         trava = None
-    return trava, esperando(run / "pesado.fila")
+    return trava, esperando(pesado._maquina.caminho_da_pasta() / "pesado.fila")  # MP4: a fila é da máquina
 
 
 def descrever(trava, fila):

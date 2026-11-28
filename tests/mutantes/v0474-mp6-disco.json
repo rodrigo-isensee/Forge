@@ -1,0 +1,86 @@
+{
+  "pedido": "v0474-mp6-disco",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "disco ilegivel recusa a copia nova",
+      "arquivo": "bin/forge-copia",
+      "de": "        return recusa(f\"não consegui medir o disco ({erro})\")",
+      "para": "        uso = 0",
+      "testes": [
+        "tests.test_forge_copia.Disco.test_disco_ilegivel_recusa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "disco acima do limiar recusa a copia nova",
+      "arquivo": "bin/forge-copia",
+      "de": "    if uso > LIMIAR_DISCO:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Disco.test_acima_do_limiar_recusa_e_manda_limpar_sem_chamar_o_git"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "disco no limiar ainda cria (acima, nao igual)",
+      "arquivo": "bin/forge-copia",
+      "de": "    if uso > LIMIAR_DISCO:",
+      "para": "    if uso >= LIMIAR_DISCO:",
+      "testes": [
+        "tests.test_forge_copia.Disco.test_no_limiar_cria"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "disco sem espaco ocupavel conta como cheio",
+      "arquivo": "bin/forge_disco.py",
+      "de": "if ocupavel <= 0 else",
+      "para": "if ocupavel < 0 else",
+      "testes": [
+        "tests.test_forge_copia.Disco.test_disco_sem_espaco_ocupavel_conta_como_cheio"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "placar com disco ilegivel sai traco",
+      "arquivo": "bin/forge-placar",
+      "de": "    except OSError:\n        uso = None",
+      "para": "    except ValueError:\n        uso = None",
+      "testes": [
+        "tests.evals.test_placar.Disco.test_disco_ilegivel_da_uso_none"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "so clone (pasta .git) entra na limpeza de clones; worktree nao",
+      "arquivo": "bin/forge-fechar",
+      "de": "    [ -d \"$d/.git\" ] || continue",
+      "para": "    [ -e \"$d/.git\" ] || continue",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_worktree_que_ficou_nao_e_apagada_como_clone"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o clone que roda o fechamento nao se apaga",
+      "arquivo": "bin/forge-fechar",
+      "de": "    [ \"$(cd \"$d/.git\" && pwd -P)\" != \"$comum\" ] || continue",
+      "para": "    true || continue",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_o_clone_que_roda_o_fechamento_nao_se_apaga_e_diz_o_que_ficou"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "so o clone na branch do item",
+      "arquivo": "bin/forge-fechar",
+      "de": "    [ \"$(\"${g[@]}\" symbolic-ref -q HEAD 2>/dev/null || true)\" = \"refs/heads/$ref\" ] || continue",
+      "para": "    true || continue",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_clone_de_outra_branch_nao_e_tocado"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP1",
+      "guarda": "AE7.1 sha_de: ref com opção ou intervalo não chega ao git",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if not REF.fullmatch(ref) or \"..\" in ref:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_comparar.Refs.test_ref_com_opcao_ou_intervalo_nao_chega_ao_git"
+      ]
+    },
+    {
+      "id": "CMP2",
+      "guarda": "AE7.1 sha_de: commit fora do repositório é None",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    return saida if cod == 0 and re.fullmatch(r\"[0-9a-f]{40}|[0-9a-f]{64}\", saida) else None",
+      "para": "    return saida if True and re.fullmatch(r\"[0-9a-f]{40}|[0-9a-f]{64}\", saida) else None",
+      "testes": [
+        "tests.test_comparar.Refs.test_rev_parse_que_falha_nao_vale"
+      ]
+    },
+    {
+      "id": "CMP3",
+      "guarda": "AE7.1 caso_valido: linha que não é objeto",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    arquivos = caso.get(\"arquivos\", {}) if isinstance(caso, dict) else None",
+      "para": "    arquivos = caso.get(\"arquivos\", {}) if True else None",
+      "testes": [
+        "tests.test_comparar.Corpus.test_corpus_ilegivel_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP4",
+      "guarda": "AE7.1 caso_valido: caso sem entrada",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "and isinstance(caso.get(\"entrada\"), dict)",
+      "para": "and True",
+      "testes": [
+        "tests.test_comparar.Corpus.test_corpus_ilegivel_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP5",
+      "guarda": "AE7.1 caso_valido: arquivo do caso com caminho absoluto",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "Path(r).parts and not Path(r).is_absolute()",
+      "para": "Path(r).parts and True",
+      "testes": [
+        "tests.test_comparar.Corpus.test_corpus_ilegivel_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP6",
+      "guarda": "AE7.1 caso_valido: arquivo do caso fora do projeto (..)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "and \"..\" not in Path(r).parts for r",
+      "para": "and True for r",
+      "testes": [
+        "tests.test_comparar.Corpus.test_corpus_ilegivel_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP7",
+      "guarda": "AE7.1 corpus_de: sem o arquivo é corpus vazio",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if ctx[\"git\"](raiz, \"cat-file\", \"-e\", f\"{sha}:{CORPUS}\")[0] == 0:",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_comparar.Corpus.test_head_sem_o_arquivo_do_corpus_tira_todos"
+      ]
+    },
+    {
+      "id": "CMP8",
+      "guarda": "AE7.1 corpus_de: blob que não se lê é ilegível",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if cod != 0 or gerados is None:\n        return None",
+      "para": "    if gerados is None:\n        return None",
+      "testes": [
+        "tests.test_comparar.Corpus.test_blob_que_nao_se_le_e_nao_verificavel"
+      ]
+    }
+  ]
+}

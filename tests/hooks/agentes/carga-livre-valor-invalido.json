@@ -1,7 +1,8 @@
 {
   "descricao": "Só o valor 1 libera: FORGE_CARGA_LIVRE=true não libera a memória baixa. (memória 1,5 GB, abaixo do piso de 2 GB)",
   "env": {
-    "FORGE_CARGA_LIVRE": "true"
+    "FORGE_CARGA_LIVRE": "true",
+    "HOME": "{tmp}/home"
   },
   "proc": {
     "loadavg": "7.0 1.0 1.0 1/100 1",

@@ -1,2 +1,0 @@
-### Alterado
-- MAQ-I9 (fatia 3): o `bin/forge-testes` roda a suíte completa sem `-k` só pela trava e pela fila do pre-push (R-TETO): faz `execv` de `.githooks/pre-push --suite` da própria cópia, sai 2 quando o script é de outra cópia ou o pre-push falta ou não é executável (sem recuo para o `unittest discover`), e a completa que vem do plano (sem `--completa`) só começa com o `--status` em 1 (livre); com a suíte rodando sai 2 na hora. Com `-k` e com `--afetados` (o plano do pre-push, que nunca é a completa) segue como antes.

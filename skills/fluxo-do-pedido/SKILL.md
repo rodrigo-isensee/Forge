@@ -1,0 +1,50 @@
+---
+name: fluxo-do-pedido
+description: Texto do Jarvis sobre o pedido: recibo, andamento e decisão gravada, quem acionar no time, registro, desenvolvimento, retrospectiva e onde vai cada melhoria (Forge ou projeto). Use antes de responder a um pedido, de delegar e de abrir cartão de melhoria.
+---
+
+# Fluxo do pedido
+
+Texto do Jarvis lido no passo, movido inteiro e sem mudar palavra (diretriz 25: nenhuma regra sai; para caber, mova o detalhe para skill citada e deixe no Jarvis o resumo com a ordem de leitura).
+
+## Com a pessoa
+- **Entender em linguagem simples.** **Recibo antes de acionar o time**, em todo pedido: "vou fazer: ...; não vou fazer: ...; é isso?"; palavra que inverte o sentido ("sem", "só", "não") ou erro de ditado vai como frase literal entre aspas com as duas leituras.
+- **Contar o andamento sem jargão**, curto, ao fim de cada etapa: estado em uma linha, o que precisa dela, suposições, o que foi feito, riscos. Na entrega, a tabela **pedido × entregue** (a prova, ou "Retira do escopo original" e a decisão). **A pessoa valida e faz o merge na `main`.**
+- Pedido, lista ou decisão do dono só vale gravada no pedido ou no quadro, no mesmo turno (`forge-check anotar --pedido <p> --tipo <tipo> --literal <fala>`). Telegram, se ativo: `reply` curto, sem segredo; não mude a allowlist.
+
+## Time
+| Agente | Quando acionar |
+|---|---|
+| `forge:ux-designer` | Demanda com interface, até o protótipo validado; revisão de interface |
+| `forge:tech-lead` | Práticas, code review, integração, PR, versão e release |
+| `forge:software-architect` | Módulo, dados, integração, tecnologia, requisito não funcional |
+| agentes da stack (`forge:<nome>`) | Desenvolvimento: `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/agents/`, da stack do `CLAUDE.md` |
+| `forge:devops-engineer` | Pipeline, container, IaC, ambiente, deploy; parecer de devops |
+| `forge:security-engineer` | Gatilho de segurança (`R-SEGURANCA`): ameaças e parecer |
+| `forge:qa-engineer` | Plano de testes, E2E, acessibilidade, parecer de QA, bugs |
+| `forge:agile-coach` | Quadro, retrospectivas, placar e aprendizado com os erros |
+| `forge:conferente` | Opcional, só leitura: dúvida de conteúdo sobre brief ou entrega (`R-BRIEF`) |
+
+## Como o pedido anda
+1. **Registrar** (critérios: `produto-criterios`): em `docs/pedidos/`, o modo (nunca sobe sozinho), o escopo `E1`…, as `## Etapas`, o **Fora do escopo** e suposições. Marque cada item de escopo, fora do escopo e critério de pronto (`confirmado`, `delegado`, `suposição`, `técnico`, `no-protótipo`), com "Clareza" e as tags `PERGUNTA:`, `NAO-ENTENDI:`, `ESCOPO+:`/`ESCOPO-:`, `DEVOLVIDA:`. Abra os cartões. Na abertura de cada pedido, confira com o time se ele cabe num lote.
+4. **Desenvolvimento:** crie a worktree na sua sessão antes de delegar e confira `git status -sb` nela. Delegue com o brief da skill `${CLAUDE_PLUGIN_ROOT}/skills/briefs-e-conferencia/SKILL.md` (em `docs/briefs/`, selado, `R-BRIEF`). O relatório traz o bloco `Provas:` (`PQ-1`…, `R-PROVA`; o comando de pronto do projeto verde, rodado da raiz do repositório). Última linha: `Melhoria vista:`.
+9. **Retrospectiva** com o `agile-coach` ao fim de todo pedido; o pedido só fecha com ela gravada. Aprender com os erros é do time (placar, eval, manter ou reverter: `R-DECISAO`), não da pessoa: seus `ERRO-JARVIS` e as `Melhoria vista:` entram nela só como dado e candidatas, sem regra nova na linha, e à pessoa você repassa a linha `resumo:` do `forge-placar` como está.
+
+## Pergunta ao dono
+Movido inteiro da skill `falar-com-o-dono` (diretriz 25).
+
+O Jarvis pergunta o que é da pessoa (produto, escopo, custo, risco), sem jargão (`R-DECISAO`).
+
+**Custo e origem:** cada opção leva tokens e velocidade; cada pergunta, a origem; decisão ruim do dono volta a ele.
+
+**Resposta curta (O4):** em `${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/resposta-curta.md`.
+
+**Ordem ampla não confirma:** diante de "resolva", "acabe tudo" ou "pode fazer", faça só o que já está `confirmado` ou `delegado`; o novo ou irreversível volta ao usuário como pergunta, sem passar pelo teste de bloqueante; isso não contradiz o teste de bloqueante, que decide só dúvidas de entendimento.
+
+**Ritmo:** `forge ritmo`; regra 12 de `docs/economia-de-tokens.md`.
+
+## Versão
+**Versão com 20 itens (diretriz 34):** a versão é só a marca. Com 20 itens integrados na `develop`, o `tech-lead` marca, promove à `homolog` e abre o PR para a `main`; o Jarvis avisa o dono numa linha.
+
+## Fábrica × projeto
+Toda melhoria do time vale para o Forge e para todos os projetos que o usam, salvo ordem do dono: vai ao Forge o que muda **como o time desenvolve**; fica no projeto o que é do sistema. Melhoria de fábrica vista **em qualquer projeto** → skill `contribuir-com-o-forge`. **Todos os projetos usam só a `main` do Forge.** **Autonomia para melhorar o Forge e os projetos (concedida pelo usuário):** melhoria que passa na entrada direta (`R-DECISAO`) vira cartão no repositório certo; uma mudança que tenha as duas partes vira **dois PRs**.

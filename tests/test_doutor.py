@@ -605,7 +605,94 @@ class HookDoutor(Base):
         for evento in ("SessionStart", "Stop"):
             comandos = {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"][evento] for h in g["hooks"]}
             self.assertIn("doutor.py", comandos, evento)
-        self.assertNotIn("UserPromptSubmit", d["hooks"], "o stdout dele viraria contexto (ADR 0003)")
+        no_prompt = [h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get("UserPromptSubmit", []) for h in g["hooks"]]
+        self.assertEqual(no_prompt, ["ordens.py", "estado.py"],
+                         "o stdout dele viraria contexto: só o ordens e o estado (emendas \"ordens em vigor\" e \"estado na pergunta do dono\" da ADR 0003)")
+
+
+class SempreAtualNoStop(Base):
+    """v047 E6.6 (ADR 0017): no Stop, o doutor diz o aviso pendente e o adiamento repetido do estado do FORGE-SEMPRE-ATUAL, uma vez,
+    sob a trava da ferramenta; o que não consegue ler fica para o próximo Stop e nunca come os outros avisos."""
+    TEXTO = "A 0.47.2 falhou na checagem de início (hooks); o Forge voltou à 0.47.1 e fica nela até sair versão maior. Nada a fazer."
+
+    def setUp(self):
+        super().setUp()
+        self.pasta = self.home / ".claude/plugins/data/forge-forge/forge/sempre-atual"
+
+    hook, estrago = HookDoutor.hook, HookDoutor.estrago  # sem herdar: os testes do HookDoutor não rodam duas vezes
+
+    def semear(self, estado):
+        self.pasta.mkdir(parents=True, exist_ok=True, mode=0o700)
+        (self.pasta / "estado.json").write_text(json.dumps(estado), encoding="utf-8")
+
+    def estado(self):
+        return json.loads((self.pasta / "estado.json").read_text(encoding="utf-8"))
+
+    def mensagem(self, erro_interno=False):
+        """A linha do Stop; sem `erro_interno`, o hook não pode ter caído (o `executar` engoliria a queda em silêncio)."""
+        r = self.hook("Stop")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        log = self.proj / ".forge/run/erros.log"
+        self.assertEqual(log.exists(), erro_interno, log.read_text(encoding="utf-8") if log.exists() else "sem erros.log")
+        return json.loads(r.stdout)["systemMessage"] if r.stdout.strip() else ""
+
+    def test_aviso_sai_uma_vez_e_fica_marcado_no_estado(self):
+        self.semear({"aviso": {"texto": self.TEXTO, "avisado": False}})
+        self.assertIn("Forge: A 0.47.2 falhou", self.mensagem())
+        self.assertIs(self.estado()["aviso"]["avisado"], True)
+        self.assertEqual(self.mensagem(), "")
+
+    def test_adiamento_unico_nao_avisa_e_o_repetido_avisa_uma_vez_por_contagem(self):
+        self.semear({"adiamentos": {"user": {"n": 1, "desde": "2026-11-14"}}})
+        self.assertEqual(self.mensagem(), "")
+        self.semear({"adiamentos": {"user": {"n": 2, "desde": "2026-11-14"}}})
+        self.assertIn("Forge adiado 2 vezes desde 2026-11-14 (trabalho em curso; escopo usuário)", self.mensagem())
+        self.assertEqual(self.mensagem(), "", "a mesma contagem não repete")
+
+    def test_sem_a_pasta_fica_em_silencio_e_nao_a_cria(self):
+        self.assertEqual(self.mensagem(), "")
+        self.assertFalse(self.pasta.parent.exists())
+
+    def test_pasta_que_e_link_simbolico_nao_e_lida(self):
+        alvo = self.tmp / "alvo"
+        alvo.mkdir()
+        (alvo / "estado.json").write_text(json.dumps({"aviso": {"texto": self.TEXTO, "avisado": False}}), encoding="utf-8")
+        self.pasta.parent.mkdir(parents=True)
+        self.pasta.symlink_to(alvo)
+        self.assertEqual(self.mensagem(), "")
+        self.assertIs(json.loads((alvo / "estado.json").read_text(encoding="utf-8"))["aviso"]["avisado"], False)
+
+    def test_com_a_ferramenta_rodando_fica_para_o_proximo_stop(self):
+        import fcntl
+        self.semear({"aviso": {"texto": self.TEXTO, "avisado": False}})
+        with open(self.pasta / ".trava", "a") as trava:
+            fcntl.flock(trava, fcntl.LOCK_EX)
+            self.assertEqual(self.mensagem(), "")
+        self.assertIs(self.estado()["aviso"]["avisado"], False)
+        self.assertIn("voltou à 0.47.1", self.mensagem())
+
+    def test_estado_sem_json_valido_ou_fora_de_forma_fica_em_silencio(self):
+        for conteudo in ("{quebrado", json.dumps([{"aviso": {"texto": self.TEXTO}}]), json.dumps({"aviso": "texto solto"})):
+            with self.subTest(conteudo=conteudo[:20]):
+                self.pasta.mkdir(parents=True, exist_ok=True)
+                (self.pasta / "estado.json").write_text(conteudo, encoding="utf-8")
+                self.assertEqual(self.mensagem(), "")
+
+    def test_adiamentos_fora_de_forma_nao_comem_o_aviso(self):
+        self.semear({"adiamentos": [["user", {"n": 5}]], "aviso": {"texto": self.TEXTO, "avisado": False}})
+        self.assertIn("voltou à 0.47.1", self.mensagem())
+
+    def test_contagem_que_nao_e_inteiro_nao_avisa(self):
+        self.semear({"adiamentos": {"user": {"n": True}, "project": {"n": "9"}, "local": "x"}})
+        self.assertEqual(self.mensagem(), "")
+
+    def test_falha_ao_ler_o_estado_nao_come_o_aviso_do_doutor(self):
+        self.estrago()
+        self.semear({"aviso": {"texto": self.TEXTO, "avisado": False}})
+        (self.pasta / ".trava").mkdir()  # abrir a trava falha (OSError) mesmo como root
+        mensagem = self.mensagem(erro_interno=True)
+        self.assertTrue(mensagem.startswith("Forge doutor: "), mensagem)
+        self.assertNotIn("voltou à", mensagem)
 
 
 class CaminhosNaSessao(Base):
@@ -680,13 +767,16 @@ class Frequencia(Base):
     """Antes de abrir o Jarvis, antes de atualizar o projeto e antes de abrir PR."""
 
     def test_atalho_jarvis_roda_o_doutor_antes_do_claude(self):
-        cache = self.home / ".claude/plugins/cache/forge/forge/9.9.9/bin"
-        cache.mkdir(parents=True)
-        (cache / "forge-doutor").write_text(f'#!/usr/bin/env bash\necho doutor >> {self.tmp}/ordem\n', encoding="utf-8")
-        (cache / "forge-doutor").chmod(0o755)
+        # o doutor vem da pasta do script (o trampolim leva ao installPath ativo): raiz falsa com o doutor de mentira
+        raiz = self.tmp / "raiz-do-plugin"
+        (raiz / "bin").mkdir(parents=True)
+        (raiz / "scripts").mkdir()
+        shutil.copy(RAIZ / "scripts/jarvis", raiz / "scripts/jarvis")
+        (raiz / "bin/forge-doutor").write_text(f'#!/usr/bin/env bash\necho doutor >> {self.tmp}/ordem\n', encoding="utf-8")
+        (raiz / "bin/forge-doutor").chmod(0o755)
         (self.bin / "claude").write_text(f'#!/usr/bin/env bash\n[ "$1" = plugin ] || echo claude >> {self.tmp}/ordem\n', encoding="utf-8")
         (self.bin / "claude").chmod(0o755)
-        r = subprocess.run(["bash", str(RAIZ / "scripts/jarvis"), "--sem-tmux"], env=self.env, cwd=self.proj,
+        r = subprocess.run(["bash", str(raiz / "scripts/jarvis"), "--sem-tmux"], env=self.env, cwd=self.proj,
                            capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual((self.tmp / "ordem").read_text(encoding="utf-8").split(), ["doutor", "claude"])
@@ -847,12 +937,13 @@ class DoutorVersao(ap.Base):
         a, b, c = (int(n) for n in self.versao.split("."))
         return f"{a}.{b}.{c + 1}"
 
-    def test_versao_nova_avisa_com_o_comando_do_projeto_e_grava_o_cache(self):
+    def test_versao_nova_avisa_que_entra_sozinha_e_grava_o_cache(self):  # v047 E6.6 (ADR 0017, RD10): sem comando ao dono
         nova = self.mais_nova()
         self.tag(f"v{nova}")
         r = self.stop()
         self.assertIn(f"Saiu a versão {nova}", r.stdout)
-        self.assertIn("`forge atualizar`", r.stdout)
+        self.assertIn("próxima abertura do Jarvis", r.stdout)
+        self.assertNotIn("forge atualizar", r.stdout)
         self.assertNotIn("jarvis-forge", r.stdout)
         cache = self.cache()
         self.assertEqual((cache["data"], cache["defasado"], cache["atual"], cache["ultima"]), (HOJE, True, self.versao, nova))
@@ -964,13 +1055,12 @@ class DoutorVersao(ap.Base):
         saida = json.loads(self.stop().stdout)
         self.assertEqual(list(saida), ["systemMessage"])  # ADR 0003: só ao usuário
 
-    def test_o_texto_da_sessao_do_forge_manda_o_comando_da_copia_vigente(self):
+    def test_o_texto_da_sessao_do_forge_diz_que_a_copia_vigente_avanca_sozinha(self):  # v047 E6.6 (ADR 0017)
         sys.path.insert(0, str(RAIZ / "bin"))
         import forge_versoes
         texto = forge_versoes.texto_de_versao_nova("0.20.0", "0.22.0", "forge")
-        self.assertIn("jarvis-forge --atualizar-vigente", texto)
-        self.assertNotIn("forge atualizar`", texto.replace("jarvis-forge --atualizar-vigente", ""))
-        self.assertIn("`forge atualizar`", forge_versoes.texto_de_versao_nova("0.20.0", "0.22.0", "projeto"))
+        self.assertIn("cópia vigente avança sozinha na próxima abertura da sessão do Forge", texto)
+        self.assertIn("próxima abertura do Jarvis", forge_versoes.texto_de_versao_nova("0.20.0", "0.22.0", "projeto"))
 
 
 class JarvisForgeDefasagem(ap.Base):
@@ -1073,6 +1163,218 @@ class JarvisForgeDefasagem(ap.Base):
     def test_dev_nao_avisa(self):
         self.publicar("novo")
         self.assertNotIn("ATRASADO", self.rodar("--dev").stderr)
+
+
+
+# Aviso de versão parada (v0478 E69.3, opção A do desenho aviso-versao-parada): o doutor, no Stop, diz a causa e o
+# comando exato a partir de 2 dias de atraso, um por dia; sem rede usa a última versão guardada com a data; mede em
+# `.forge/run/versao-parada.log`. T1 do desenho: `test_p1_*` e `test_p2_*` reproduzem os dois casos principais e ficam
+# vermelhos na base (bead3e53), que só avisava uma vez por versão, com "Nada a fazer".
+_a, _b, _c = (int(n) for n in VERSAO.split("."))
+NOVA = f"{_a}.{_b}.{_c + 1}"
+D0, D1, D2, D3 = "2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04"
+
+
+class VersaoParada(ap.Base):
+    def setUp(self):
+        super().setUp()
+        self.publicado = self.tmp / "publicado.git"
+        self.g("init", "-q", "--bare", "-b", "main", str(self.publicado), cwd=self.tmp)
+        remoto_sem_manutencao(self.publicado)
+        semente = self.tmp / "semente"
+        self.g("clone", "-q", str(self.publicado), str(semente), cwd=self.tmp)
+        (semente / "a").write_text("1\n", encoding="utf-8")
+        self.g("add", "-A", cwd=semente)
+        self.g("commit", "-q", "-m", "a", cwd=semente)
+        self.g("tag", f"v{NOVA}", cwd=semente)
+        self.g("push", "-q", "origin", "main", f"refs/tags/v{NOVA}", cwd=semente)
+        self.proj = self.tmp / "proj"
+        self.g("init", "-q", "-b", "main", str(self.proj), cwd=self.tmp)
+        (self.proj / ".forge").mkdir()
+        (self.proj / ".forge/versao").write_text(VERSAO + "\n", encoding="utf-8")
+        self.env.update(FORGE_PERMITE_LOCAL="1", FORGE_REPO_URL=str(self.publicado))
+        self.instalada([{"scope": "user", "version": VERSAO}])
+        self.sempre = self.home / ".claude/plugins/data/forge-forge/forge/sempre-atual"
+
+    def instalada(self, entradas, texto=None):
+        arq = self.home / ".claude/plugins/installed_plugins.json"
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(texto if texto is not None else json.dumps({"version": 2, "plugins": {"forge@forge": entradas}}),
+                       encoding="utf-8")
+
+    def estado(self, estado=None, registro=None):
+        self.sempre.mkdir(parents=True, exist_ok=True)
+        self.sempre.chmod(0o700)
+        if estado is not None:
+            (self.sempre / "estado.json").write_text(json.dumps(estado), encoding="utf-8")
+        if registro is not None:
+            (self.sempre / "registro.log").write_text(registro, encoding="utf-8")
+
+    def stop(self, dia):
+        self.env["FORGE_HOJE"] = dia
+        entrada = {"hook_event_name": "Stop", "session_id": "s1", "cwd": str(self.proj)}
+        r = subprocess.run([sys.executable, str(HOOK)], input=json.dumps(entrada), env=self.env, cwd=self.proj,
+                           capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        erros = self.proj / ".forge/run/erros.log"
+        self.assertFalse(erros.exists() and erros.read_text(encoding="utf-8").strip(), "erro interno no hook")
+        return json.loads(r.stdout)["systemMessage"] if r.stdout.strip() else ""
+
+    def parado_em(self, dia):
+        self.assertIn(f"Saiu a versão {NOVA}", self.stop(D0))
+        return self.stop(dia)
+
+    def medida(self):
+        arq = self.proj / ".forge/run/versao-parada.log"
+        return arq.read_text(encoding="utf-8").splitlines() if arq.exists() else []
+
+    # T1: os dois casos principais ------------------------------------------------------------------
+    def test_p1_sessao_antiga_diz_que_a_instalada_ja_subiu_e_manda_sair(self):
+        self.instalada([{"scope": "user", "version": NOVA}])
+        msg = self.parado_em(D2)
+        self.assertIn(f"Forge parado há 2 dias: esta sessão usa a {VERSAO} e a instalada já é a {NOVA}", msg)
+        self.assertIn("digite /exit e rode jarvis no terminal", msg)
+        self.assertNotIn("Nada a fazer", msg)
+
+    def test_p2_sem_o_atalho_manda_abrir_pelo_jarvis_ou_forge_atualizar(self):
+        msg = self.parado_em(D2)
+        self.assertIn(f"Forge parado há 2 dias: você usa a {VERSAO} e a main está na {NOVA}", msg)
+        self.assertIn("abra pelo jarvis; ou, num terminal fora do Claude: forge atualizar", msg)
+        self.assertNotIn("Nada a fazer", msg)
+
+    # Quando e quantas vezes ---------------------------------------------------------------------------
+    def test_antes_de_2_dias_fica_em_silencio(self):
+        self.assertNotIn("parado", self.parado_em(D1))
+
+    def test_um_por_dia_e_volta_no_dia_seguinte_com_a_contagem(self):
+        self.assertIn("parado há 2 dias", self.parado_em(D2))
+        self.assertNotIn("parado", self.stop(D2))
+        self.assertIn("parado há 3 dias", self.stop(D3))
+
+    def test_causa_que_muda_no_mesmo_dia_avisa_de_novo(self):
+        self.assertIn("você usa a", self.parado_em(D2))
+        self.estado(registro=f"2026-11-03T00:00:00Z\tabertura\t-\t-\t-\t-\tfalhou:origem-da-tag\n")
+        self.assertIn("a atualização automática falhou (origem-da-tag)", self.stop(D2))
+
+    # Causas pelo estado da forge-sempre-atual -------------------------------------------------------
+    def test_p3_adiamento_repetido_diz_quantas_vezes(self):
+        self.estado({"adiamentos": {"user": {"n": 3, "desde": D0}, "project": {"n": 1, "desde": D1}}})
+        msg = self.parado_em(D2)
+        self.assertIn(f"Forge parado há 2 dias na {VERSAO} (main na {NOVA}): a atualização foi adiada 3 vezes", msg)
+        self.assertIn("quando o trabalho parar, digite /exit e rode jarvis", msg)
+
+    def test_p4_falha_da_ferramenta_diz_a_etapa_e_o_comando(self):
+        self.estado({}, "x\tabertura\t-\t-\t-\t-\tfalhou:lista:sem resposta\n")
+        msg = self.parado_em(D2)
+        self.assertIn("a atualização automática falhou (lista). Para atualizar, num terminal fora do Claude: forge atualizar", msg)
+
+    def test_registro_que_terminou_bem_nao_e_falha(self):  # e sem estado.json: nada a ler, sem erro
+        self.estado(registro="x\tabertura\t-\t-\t-\t-\tfalhou:lista\nx\tabertura\tuser\t-\t1\t2\tatualizado\n")
+        self.assertIn("você usa a", self.parado_em(D2))
+
+    def test_falha_sem_etapa_ou_com_etapa_estranha_nao_vai_ao_texto(self):
+        self.estado(registro="x\tabertura\t-\t-\t-\t-\tfalhou\n")
+        self.assertIn("a atualização automática falhou (?)", self.parado_em(D2))
+        self.estado(registro="x\tabertura\t-\t-\t-\t-\tfalhou:<Etapa Com Espaço>\n")
+        self.assertIn("a atualização automática falhou (?)", self.stop(D3))
+
+    def test_estado_da_ferramenta_fora_da_forma_cai_no_texto_sem_o_atalho(self):
+        for i, estado in enumerate(([], {"adiamentos": []}, {"adiamentos": {"user": {"n": "3"}}}, {"adiamentos": {"user": {"n": 0}}})):
+            with self.subTest(estado=estado):
+                self.estado(estado)
+                (self.proj / ".forge/run/versao-parada").unlink(missing_ok=True)
+                self.stop(D0)
+                self.assertIn("você usa a", self.stop(f"2026-11-{3 + 2 * i:02d}"))
+
+    def test_pasta_da_ferramenta_que_e_link_nao_e_lida(self):
+        real = self.tmp / "outra"
+        real.mkdir()
+        (real / "registro.log").write_text("x\tabertura\t-\t-\t-\t-\tfalhou:lista\n", encoding="utf-8")
+        self.sempre.parent.mkdir(parents=True, exist_ok=True)
+        self.sempre.symlink_to(real)
+        self.assertIn("você usa a", self.parado_em(D2))
+
+    # A versão instalada (R2: leitura em falha cai no texto P2) --------------------------------------
+    def test_instalada_ilegivel_cai_no_texto_sem_o_atalho(self):
+        self.instalada(None, texto="{quebrado")
+        self.assertIn("você usa a", self.parado_em(D2))
+
+    def test_instalada_fora_da_forma_nao_quebra(self):
+        for i, entradas in enumerate((5, [{"scope": "user", "version": "x"}, {"scope": "user", "version": NOVA}])):
+            with self.subTest(entradas=entradas):
+                self.instalada(entradas)
+                (self.proj / ".forge/run/versao-parada").unlink(missing_ok=True)
+                self.stop(D0)
+                self.assertIn("você usa a" if i == 0 else "a instalada já é a", self.stop(f"2026-11-{3 + 2 * i:02d}"))
+
+    def test_instalada_de_outro_projeto_nao_conta(self):
+        self.instalada([{"scope": "project", "projectPath": str(self.tmp / "outro"), "version": NOVA}])
+        self.assertIn("você usa a", self.parado_em(D2))
+
+    def test_instalada_do_proprio_projeto_conta(self):
+        self.instalada([{"scope": "project", "projectPath": str(self.proj), "version": NOVA}])
+        self.assertIn("a instalada já é a", self.parado_em(D2))
+
+    # Sem rede, superfície e medida ----------------------------------------------------------------------
+    def test_sem_rede_usa_a_ultima_guardada_com_a_data(self):
+        self.assertIn("Saiu a versão", self.stop(D0))
+        self.env["FORGE_REPO_URL"] = str(self.tmp / "nao-existe.git")
+        msg = self.stop(D2)
+        self.assertIn("Forge parado há 2 dias", msg)
+        self.assertIn(f"(main vista em {D0}, sem conferir hoje)", msg)
+
+    def test_data_guardada_fora_da_forma_nao_vai_ao_texto(self):
+        self.stop(D0)
+        cache = self.proj / ".forge/run/versao-nova"
+        cache.write_text(json.dumps({**json.loads(cache.read_text(encoding="utf-8")), "data": "<lixo>"}), encoding="utf-8")
+        self.env["FORGE_REPO_URL"] = str(self.tmp / "nao-existe.git")
+        msg = self.stop(D2)
+        self.assertIn("Forge parado há 2 dias", msg)
+        self.assertNotIn("main vista em", msg)
+
+    def test_estado_proprio_fora_da_forma_recomeca_a_contagem(self):
+        run = self.proj / ".forge/run"
+        run.mkdir(parents=True)
+        (run / "versao-parada").write_text("[]", encoding="utf-8")
+        self.stop(D0)
+        self.assertEqual(json.loads((run / "versao-parada").read_text(encoding="utf-8")), {"versao": NOVA, "vista_em": D0})
+
+    def test_na_sessao_do_forge_o_comando_e_o_jarvis_forge(self):
+        (self.proj / ".claude-plugin").mkdir()
+        (self.proj / ".claude-plugin/plugin.json").write_text(json.dumps({"name": "forge"}), encoding="utf-8")
+        self.instalada([{"scope": "user", "version": NOVA}])
+        self.assertIn("digite /exit e rode jarvis-forge no terminal", self.parado_em(D2))
+
+    def test_em_dia_nao_avisa_nem_mede(self):
+        self.env["FORGE_REPO_URL"] = str(self.tmp / "nao-existe.git")
+        self.stop(D0)
+        self.assertNotIn("parado", self.stop(D3))
+        self.assertEqual(self.medida(), [])
+
+    def test_em_dia_com_a_ultima_igual_nao_guarda_versao_vista(self):
+        run = self.proj / ".forge/run"
+        run.mkdir(parents=True)
+        (run / "versao-nova").write_text(json.dumps({"data": D3, "defasado": False, "atual": VERSAO, "ultima": VERSAO}),
+                                         encoding="utf-8")
+        self.assertNotIn("parado", self.stop(D3))
+        self.assertFalse((run / "versao-parada").exists())
+
+    def test_alcance_sem_aviso_nao_mede(self):
+        run = self.proj / ".forge/run"
+        run.mkdir(parents=True)
+        (run / "versao-parada").write_text(json.dumps({"versao": VERSAO, "vista_em": D0}), encoding="utf-8")
+        self.env["FORGE_REPO_URL"] = str(self.tmp / "nao-existe.git")
+        self.stop(D3)
+        self.assertEqual(self.medida(), [])
+
+    def test_a_medida_grava_o_aviso_e_o_alcance(self):
+        self.parado_em(D2)
+        self.assertEqual(self.medida(), [f"{NOVA} · {D0} · {D2} · sem-atalho · -"])
+        estado = self.proj / ".forge/run/versao-parada"
+        anterior = json.loads(estado.read_text(encoding="utf-8"))
+        estado.write_text(json.dumps({**anterior, "versao": VERSAO}), encoding="utf-8")  # a sessão alcançou a versão vista
+        self.stop(D3)
+        self.assertEqual(self.medida()[-1], f"{VERSAO} · {D0} · {D2} · sem-atalho · {D3}")
 
 
 if __name__ == "__main__":

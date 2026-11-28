@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-corte-completo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "CORTE-ANEXAR: a busca do ramo da marca que falha para sem anexar",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo V5: não busquei $ramo (nada foi anexado)\"",
+      "para": "|| true \"parou no passo V5: não busquei $ramo (nada foi anexado)\"",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_leituras_do_ramo_da_marca_que_falham_param"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "CORTE-ANEXAR: sem base comum entre a develop e o ramo, para sem anexar",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo V5: sem base comum entre a develop e $ramo (nada foi anexado)\"",
+      "para": "|| true \"parou no passo V5: sem base comum entre a develop e $ramo (nada foi anexado)\"",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_leituras_do_ramo_da_marca_que_falham_param"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "CORTE-ANEXAR: o anexar que falha (merge, --anexar, commit, medida ou envio) para sem enviar nem refazer o corpo",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! { git worktree add -q --detach \"$tmp/marca\" \"refs/remotes/origin/$ramo\"",
+      "para": "if false && ! { git worktree add -q --detach \"$tmp/marca\" \"refs/remotes/origin/$ramo\"",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_anexar_que_falha_para_sem_enviar"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "CORTE-ANEXAR: o corpo do PR que nao se refaz para (a linha de teto ficaria velha)",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo V5: o fragmento entrou em $ramo",
+      "para": "|| true \"parou no passo V5: o fragmento entrou em $ramo",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_corpo_que_nao_refaz_para"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "V3: a leitura dos rotulos da promocao que falha avisa",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| { echo \"aviso: não li os rótulos da promoção",
+      "para": "|| { : \"aviso: não li os rótulos da promoção",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_promocao_com_afrouxa_regra_pede_o_rotulo_na_main"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "V3: o rotulo afrouxa-regra pelo nome exato, nunca por substring",
+      "arquivo": "bin/forge-fechar",
+      "de": "grep -qxF afrouxa-regra <<<\"$nomes\"",
+      "para": "grep -qF afrouxa-regra <<<\"$nomes\"",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_promocao_com_afrouxa_regra_pede_o_rotulo_na_main"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "V3: sem o rotulo afrouxa-regra na promocao, nada se pede ao dono",
+      "arquivo": "bin/forge-fechar",
+      "de": "<<<\"$nomes\" || return 0",
+      "para": "<<<\"$nomes\" || true",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_promocao_com_afrouxa_regra_pede_o_rotulo_na_main"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "CORTE-ANEXAR: a worktree do anexar sai (a que nao sai so avisa)",
+      "arquivo": "bin/forge-fechar",
+      "de": "git worktree remove \"$tmp/marca\" || echo \"aviso: não removi a cópia $tmp/marca do anexar;",
+      "para": "true || echo \"aviso: não removi a cópia $tmp/marca do anexar;",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_fragmento_depois_do_corte_entra_na_secao_da_versao"
+      ]
+    }
+  ]
+}

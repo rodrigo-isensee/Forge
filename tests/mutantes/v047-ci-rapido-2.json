@@ -1,0 +1,127 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M13",
+      "guarda": "blocos novos quando passa do tamanho",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "        if atual and tamanho + custo > LIMITE_DA_ANOTACAO:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeTempos.test_muitas_unidades_viram_blocos_e_acima_do_limite_nenhuma"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "escape do dado de comando de workflow",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "replace(\"%\", \"%25\")",
+      "para": "replace(\"%\", \"%\")",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeTempos.test_escapar_dado"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "so execucao push (nao de PR)",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "\"event\": \"push\", \"head_branch\": \"develop\", ",
+      "para": "",
+      "testes": [
+        "tests.test_pesos_do_ci.Leitura.test_execucao_que_nao_e_push_na_develop_do_proprio_repositorio_nao_entra"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "so execucao do proprio repositorio (sem fork)",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "\"head_repository.full_name\": repo, \"status\"",
+      "para": "\"status\"",
+      "testes": [
+        "tests.test_pesos_do_ci.Leitura.test_execucao_que_nao_e_push_na_develop_do_proprio_repositorio_nao_entra"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "so execucao concluida com sucesso",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "\"status\": \"completed\", \"conclusion\": \"success\"}",
+      "para": "\"status\": \"completed\"}",
+      "testes": [
+        "tests.test_pesos_do_ci.Leitura.test_execucao_que_nao_e_push_na_develop_do_proprio_repositorio_nao_entra"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "segundos no teto da perna",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "and math.isfinite(seg) and 0 <= seg <= TETO_S",
+      "para": "and math.isfinite(seg) and 0 <= seg",
+      "testes": [
+        "tests.test_pesos_do_ci.Leitura.test_anotacao_fora_do_formato_e_descartada_inteira"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "unidade tem de existir no plano",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "and nome in conhecidas and",
+      "para": "and",
+      "testes": [
+        "tests.test_pesos_do_ci.Leitura.test_anotacao_fora_do_formato_e_descartada_inteira"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "segundos finitos",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "and math.isfinite(seg) and 0 <= seg <= TETO_S",
+      "para": "and 0 <= seg <= TETO_S",
+      "testes": [
+        "tests.test_pesos_do_ci.Leitura.test_anotacao_fora_do_formato_e_descartada_inteira"
+      ],
+      "equivalente": "inf e NaN ja falham a comparacao 0 <= seg <= TETO_S com TETO_S finito (NaN falha toda comparacao, inf passa de TETO_S); o isfinite so deixa a guarda explicita"
+    },
+    {
+      "id": "M21",
+      "guarda": "o job e do mesmo run",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "perna is None or campo(job, \"run_id\", int) != run_id",
+      "para": "perna is None",
+      "testes": [
+        "tests.test_pesos_do_ci.Leitura.test_perna_vermelha_pulada_ou_de_outro_nome_nao_entra"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "conjunto parcial de pernas nao entra",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if len(quantas) == 1 and set(partes) == set(range(1, next(iter(quantas)) + 1)):",
+      "para": "if True:",
+      "testes": [
+        "tests.test_pesos_do_ci.Leitura.test_conjunto_parcial_de_pernas_nao_entra"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "a anotacao e da parte do job",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "campo(dado, \"parte\", str) == f\"{k}/{n}\"",
+      "para": "True",
+      "testes": [
+        "tests.test_pesos_do_ci.Leitura.test_anotacao_fora_do_formato_e_descartada_inteira"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "a anotacao e do Python do job",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "and campo(dado, \"python\", str) == python)",
+      "para": "and True)",
+      "testes": [
+        "tests.test_pesos_do_ci.Leitura.test_anotacao_fora_do_formato_e_descartada_inteira"
+      ]
+    }
+  ]
+}

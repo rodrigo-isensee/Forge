@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M8",
+      "guarda": "a recusa do config de fora da raiz não vale",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if achado and self.motivo_do_config and self.motivo_do_config in achado[1] and (\n                caminho != Path(os.path.realpath(self.h.raiz)) / CONFIG_DA_RAIZ):\n            return None",
+      "para": "        if False:\n            return None",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDoTetoNoClone.test_modelo_e_config_de_outra_pasta_seguem_livres"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o config da raiz da sessão segue barrado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                caminho != Path(os.path.realpath(self.h.raiz)) / CONFIG_DA_RAIZ):",
+      "para": "                True):",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDoTetoNoClone.test_escrita_no_config_da_raiz_recusa_para_todo_papel"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o config da raiz entra no estado dos hooks",
+      "arquivo": "hooks/conformidade.py",
+      "de": "ESTADO_DOS_HOOKS = (\".git/forge/\", CONFIG_DA_RAIZ)",
+      "para": "ESTADO_DOS_HOOKS = (\".git/forge/\",)",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDoTetoNoClone.test_escrita_no_config_da_raiz_recusa_para_todo_papel"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "C10: a linha que o hook não lê e cita o config recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|agentes\\.json|\\.forge/config\\.json\")",
+      "para": "|agentes\\.json\")",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDoTetoNoClone.test_linha_que_o_hook_nao_le_e_cita_o_config_recusa"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "o motivo do config liga a recusa só para o da raiz",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for e in pol[\"caminhos\"] if e[\"caminho\"] == CONFIG_DA_RAIZ), None)",
+      "para": "for e in pol[\"caminhos\"] if False), None)",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDoTetoNoClone.test_modelo_e_config_de_outra_pasta_seguem_livres"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "C10: .git/forge só como nome inteiro, a prova da suíte fica com a recusa própria",
+      "arquivo": "hooks/conformidade.py",
+      "de": "re.compile(r\"\\.git/forge(?![\\w.-])|",
+      "para": "re.compile(r\"\\.git/forge|",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_prova_da_suite_na_linha_que_o_hook_nao_le_segue_com_a_recusa_propria"
+      ]
+    }
+  ]
+}

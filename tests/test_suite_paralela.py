@@ -377,6 +377,101 @@ class Brinquedo(unittest.TestCase):
         codigo, saida, erro = self.roda(GITHUB_STEP_SUMMARY=str(arquivo), **extra)
         return codigo, saida, erro, (arquivo.read_text(encoding="utf-8") if arquivo.exists() else "")
 
+    def medir(self, nome):
+        """`--medir <nome>` (v0478 E18.1), com Python isolado (-I) e o ambiente limpo do brinquedo."""
+        r = subprocess.run([sys.executable, "-I", str(self.repo / "scripts" / "suite-paralela.py"), "--medir", nome],
+                           cwd=self.repo, env=self.env, capture_output=True, text=True, timeout=120)
+        return r.returncode, r.stdout, r.stderr
+
+    def pesos(self):
+        arquivo = self.repo / "tests" / "pesos-d4.json"
+        return json.loads(arquivo.read_text(encoding="utf-8")) if arquivo.exists() else None
+
+    def test_medir_roda_so_o_modulo_e_regrava_so_o_peso_dele(self):  # PesosDaSuite manda medir um módulo só
+        (self.repo / "tests" / "pesos-d4.json").write_text('{"test_b": 7.0, "test_c": 3.0}')
+        codigo, saida, erro = self.medir("test_a")
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertEqual(saida.strip().splitlines()[-1], "OK")
+        self.assertEqual(self.rodaram(), ["a"])
+        self.assertEqual(sorted(self.pesos()), ["test_a", "test_b", "test_c"])
+        self.assertEqual((self.pesos()["test_b"], self.pesos()["test_c"]), (7.0, 3.0))
+        self.assertIn("pesos regravados", erro)
+
+    def test_medir_verde_nao_grava_o_carimbo_da_suite_verde(self):  # A1 da segurança: um módulo não prova a suíte
+        codigo, saida, erro = self.medir("test_a")
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertEqual(sorted(p.name for p in (self.repo / ".git").glob("*verde*")), [], "--medir gravou o carimbo")
+        for marca in self.marcas.iterdir():
+            marca.unlink()
+        codigo, saida, erro = self.roda()  # sem carimbo, a suíte inteira roda e não reusa
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertNotIn("suite: reusa", saida)
+        self.assertEqual(self.rodaram(), ["a", "b", "c"])
+
+    def test_medir_modulo_que_nao_existe_sai_2_sem_rodar_nem_gravar(self):
+        for nome in ("test_x", "a", "../test_a", "test_a.T"):
+            with self.subTest(nome):
+                codigo, saida, erro = self.medir(nome)
+                self.assertEqual(codigo, 2, saida + erro)
+                self.assertEqual(saida.strip().splitlines()[-1], "FAILED (módulo)")
+                self.assertIn("não é módulo de tests/", erro)
+        self.assertEqual(self.rodaram(), [])
+        self.assertIsNone(self.pesos())
+
+    def test_medir_modulo_vermelho_sai_1_sem_regravar(self):
+        self.modulo("b", modulo_de_teste("b", "self.fail('x')"))
+        (self.repo / "tests" / "pesos-d4.json").write_text('{"test_b": 7.0}')
+        codigo, saida, erro = self.medir("test_b")
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertEqual(saida.strip().splitlines()[-1], "FAILED (medida)")
+        self.assertIn("pesos não regravados", erro)
+        self.assertEqual(self.pesos(), {"test_b": 7.0})
+        self.assertEqual(self.rodaram(), ["b"])
+
+    def test_medir_com_guarda_de_completude_reprovada_nao_regrava(self):
+        script = self.script_do_brinquedo()
+        (self.repo / "tests" / "pesos-d4.json").write_text('{"test_a": 7.0}')
+        cwd, modulos_antes = os.getcwd(), set(sys.modules)
+        self.addCleanup(os.chdir, cwd)
+        self.addCleanup(lambda: [sys.modules.pop(n) for n in set(sys.modules) - modulos_antes if n.startswith("test_")])
+        with mock.patch.object(script, "conferir_completude", return_value=["soma diferente"]), \
+                contextlib.redirect_stdout(io.StringIO()) as saida, contextlib.redirect_stderr(io.StringIO()) as erro, \
+                mock.patch.dict(os.environ, {"MARCAS": str(self.marcas)}):
+            codigo = script.medir("test_a")
+        self.assertEqual(codigo, 1, saida.getvalue() + erro.getvalue())
+        self.assertIn("suite-paralela: soma diferente", erro.getvalue())
+        self.assertEqual(self.pesos(), {"test_a": 7.0})
+
+    def test_medir_interrompido_sai_com_o_sinal_sem_regravar(self):
+        self.modulo("b", MARCA + '''
+import time
+class T(unittest.TestCase):
+    def test_b(self):
+        marca("b")
+        time.sleep(60)
+''')
+        (self.repo / "tests" / "pesos-d4.json").write_text('{"test_b": 7.0}')
+        p = subprocess.Popen([sys.executable, "-I", str(self.repo / "scripts" / "suite-paralela.py"), "--medir", "test_b"],
+                             cwd=self.repo, env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.addCleanup(lambda: p.poll() is None and p.kill())
+        fim = time.monotonic() + 30
+        while time.monotonic() < fim and not any(n.name.startswith("b-") for n in self.marcas.iterdir()):
+            time.sleep(0.05)
+        p.send_signal(signal.SIGTERM)
+        saida, erro = p.communicate(timeout=30)
+        self.assertEqual(p.returncode, 128 + signal.SIGTERM, saida + erro)
+        self.assertIn("interrompida", erro)
+        self.assertEqual(self.pesos(), {"test_b": 7.0})
+
+    def test_medir_sem_modulo_ou_com_mais_argumentos_mostra_o_uso(self):
+        for args in (["--medir"], ["--medir", "test_a", "test_b"]):
+            with self.subTest(args):
+                r = subprocess.run([sys.executable, "-I", str(self.repo / "scripts" / "suite-paralela.py"), *args],
+                                   cwd=self.repo, env=self.env, capture_output=True, text=True, timeout=60)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("--medir MÓDULO", r.stderr)
+        self.assertEqual(self.rodaram(), [])
+
     def test_tudo_verde_roda_cada_modulo_uma_vez(self):
         codigo, saida, erro = self.roda()
         self.assertEqual(codigo, 0, saida + erro)
@@ -748,6 +843,7 @@ class Brinquedo(unittest.TestCase):
         codigo, saida, erro, resumo = self.resumo_do_ci()
         self.assertEqual(codigo, 0, saida + erro)
         self.assertIn("- sem peso em tests/pesos-d4.json: test_b, test_c\n", resumo)
+        self.assertIn("vale a mediana; o PR não edita os pesos", resumo)  # E19.1: sem pedir medida no PR
 
     def test_resumo_limita_as_unidades_sem_peso(self):  # AB-6, C-11
         for i in range(27):

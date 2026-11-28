@@ -26,8 +26,8 @@
       "id": "V3",
       "guarda": "falha da conferencia da remota fica pendente e nao vira ok",
       "arquivo": "bin/forge-fechar",
-      "de": "\"$(com_teto 10 git ls-remote origin \"refs/heads/$ref\")\"; then",
-      "para": "\"$(com_teto 10 git ls-remote origin \"refs/heads/$ref\" || true)\"; then",
+      "de": "if sha_depois=\"$(remoto_exato \"$ref\" com_teto 10)\"; then",
+      "para": "if sha_depois=\"$(remoto_exato \"$ref\" com_teto 10 || true)\"; then",
       "testes": [
         "tests.test_fechar_orfao.Teste.test_corte_com_a_conferencia_da_remota_falhando_fica_pendente_sem_afirmar_que_esta_viva"
       ]

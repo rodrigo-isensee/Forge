@@ -1,0 +1,33 @@
+{
+  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO, A6 da segurança E1.304 (U4 e U3, o comando trocado sem função): S16: `GIT_WORK_TREE` muda a saída do `rev-parse --show-toplevel`.",
+  "arquivos": {
+    "x": "x\n",
+    "config": "c\n",
+    "pre-push": "p\n",
+    "lugar.txt": "docs\n",
+    "docs/a.md": "a\n",
+    "hooks/pre-push": "p\n",
+    "lugar2.txt": ".git/config\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "export GIT_WORK_TREE=.git; cp config \"$(git rev-parse --show-toplevel)\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o hook só libera o valor que calcula"
+  }
+}

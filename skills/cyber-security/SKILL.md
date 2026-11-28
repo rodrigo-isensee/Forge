@@ -7,12 +7,12 @@ description: Revisão de cibersegurança e boas práticas de um sistema (checkli
 
 ## Postura
 - Revisão **defensiva e estática**: ler código, configuração, migrações, workflows e documentação. **Não** explorar vulnerabilidade, **não** varrer sistemas externos, **não** copiar nem exibir segredo encontrado (cite só arquivo:linha e o tipo).
-- Falso positivo é custo. Para cada achado, mostre um caminho realista de ataque (quem, de onde, o quê ganha). Sem caminho, é recomendação, não vulnerabilidade.
-- Cada correção proposta deve ser proporcional: não inflar a arquitetura. Prefira configuração e remoção a mais código.
+- Falso positivo é custo. Cada achado traz um caminho realista de ataque (quem, de onde, o quê ganha). Sem caminho, é recomendação.
+- Correção proporcional. Prefira configuração e remoção a mais código.
 
 ## Método
 1. **Ativos e fronteiras de confiança:** dados pessoais, credenciais (integrações externas), o banco, webhooks (quando houver), o CI, o navegador. Desenhe o fluxo (Mermaid) e as fronteiras.
-2. **Ameaças (STRIDE)** por fronteira; priorize por probabilidade × impacto.
+2. **Ameaças (STRIDE)** por fronteira; priorize por probabilidade × impacto. Ensaio de roteiro em alvo não provado descartável é ameaça fixa.
 3. **Checklists por camada** (abaixo), com evidência `arquivo:linha`.
 4. **Severidade:** crítica (exploração remota sem autenticação ou vazamento de dado pessoal/segredo), alta, média, baixa, informativa. Para cada achado: evidência, caminho de ataque, correção mínima, esforço (P/M/G), dono (agente). A correção mínima que cita uma lista (arquivos protegidos, comandos, caminhos) reproduz o conteúdo inteiro dela no parecer, não uma amostra: quem corrige não precisa abrir a lista para saber o que cobrir.
 5. **Saída:** o parecer `docs/security/<pedido>.md` (modelo em `docs/security/_modelo.md`: resumo, achados, plano em cartões, riscos aceitos) e o modelo de ameaças em `docs/security/ameacas/<demanda>.md`. Atualizar, não duplicar. Com gatilho, o modelo de ameaças lista os **casos de abuso**, um por linha: entrada, caminho (de onde chega até onde) e resultado esperado (o que o sistema deve fazer); o `qa-engineer` os escreve como teste durante a implementação (`qa-testing`, "Plano antecipado"). Sem gatilho, não se aplica. O parecer é portão quando há gatilho (`R-SEGURANCA`, que traz a lista).
@@ -31,7 +31,7 @@ description: Revisão de cibersegurança e boas práticas de um sistema (checkli
 **Suíte:** a suíte inteira roda só no CI; cite o CI verde ou o PQ conferido; rode o teste novo de abuso e o que tirar dúvida; sem eles, devolva.
 
 ## Ferramentas (só gratuitas, `R-CUSTO`)
-`gitleaks` (segredos, com `--redact`), `osv-scanner` (dependências), Semgrep CE ou linter de segurança da linguagem (SAST, só com regras de licença compatível), `zizmor` e `actionlint` (workflows), `trivy` (imagens e IaC, no CI), Dependabot e secret scanning nativos (confira o custo em repositório privado). Análise avançada paga em repositório privado fica fora. O agente **não instala** ferramenta: usa a que já está no PATH e registra a lacuna no parecer; as varreduras rodam no CI do projeto (`devops-engineer`).
+`gitleaks` (segredos, com `--redact`), `osv-scanner` (dependências), Semgrep CE ou linter de segurança da linguagem (SAST, só com regras de licença compatível), `zizmor` e `actionlint` (workflows), `trivy` (imagens e IaC, no CI), Dependabot e secret scanning nativos (confira o custo em repositório privado). Análise avançada paga em repositório privado fica fora. Quem instala é `scripts/preparar-estacao.sh`, não o agente; ferramenta ausente é achado no parecer; as varreduras rodam no CI do projeto (`devops-engineer`).
 
 ## Limites
 Não altera código de produção: propõe o que mudar e o agente dono implementa; correção de segurança passa por code review e QA como qualquer outra (`R-REVIEW`, `R-QA`). Dúvida de regra de negócio ou de risco aceito vai ao usuário, com insumos.

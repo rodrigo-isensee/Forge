@@ -1,0 +1,30 @@
+{
+  "pedido": "v047-mutante-diagnostico",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "MD9", "guarda": "o de repetido é o motivo", "arquivo": "bin/forge-mutante",
+     "de": "    if dados.count(de) != 1:\n", "para": "    if False:\n",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre"]},
+    {"id": "MD10", "guarda": "o de curto é o motivo e não cobre", "arquivo": "bin/forge-mutante",
+     "de": "    if len(\"\".join(m[\"de\"].split())) < 8:", "para": "    if len(\"\".join(m[\"de\"].split())) < 0:",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre"]},
+    {"id": "MD11", "guarda": "a troca fora do nó não cobre", "arquivo": "bin/forge-mutante",
+     "de": "    if primeira > ultima:\n", "para": "    if False:\n",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre"]},
+    {"id": "MD12", "guarda": "a linha por quê só sai com motivo", "arquivo": "bin/forge-mutante",
+     "de": "por_que_nao_cobre(m, arquivo, depois, de, ate))", "para": "por_que_nao_cobre(m, arquivo, depois, de, ate) or 'sem motivo')",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre"]},
+    {"id": "MD13", "guarda": "specs de pedidos diferentes saem 2", "arquivo": "bin/forge-mutante",
+     "de": "    if len(por_pedido) > 1:", "para": "    if len(por_pedido) > 2:",
+     "testes": ["tests.test_forge_mutante.ValidacaoDaSpec.test_varias_specs_com_pedido_diferente_ou_id_repetido_sao_invalidas"]},
+    {"id": "MD14", "guarda": "a mensagem diz as chamadas com os caminhos dados", "arquivo": "bin/forge-mutante",
+     "de": "zip(nomes or [f\"spec{i}.json\"", "para": "zip(None or [f\"spec{i}.json\"",
+     "testes": ["tests.test_forge_mutante.Execucao.test_specs_de_pedidos_diferentes_saem_2_com_uma_chamada_por_pedido"]},
+    {"id": "MD15", "guarda": "só a árvore suja recusa a spec fora do commit", "arquivo": "bin/forge-mutante",
+     "de": "    if fora and git(\"status\", \"--porcelain\"):", "para": "    if fora:",
+     "testes": ["tests.test_forge_mutante.Execucao.test_arvore_suja_com_spec_diferente_da_do_commit_recusa_antes_de_rodar"]},
+    {"id": "MD16", "guarda": "a recusa sai 2 sem rodar", "arquivo": "bin/forge-mutante",
+     "de": "\"executado.\", file=sys.stderr)\n        return 2", "para": "\"executado.\", file=sys.stderr)",
+     "testes": ["tests.test_forge_mutante.Execucao.test_arvore_suja_com_spec_diferente_da_do_commit_recusa_antes_de_rodar"]}
+  ]
+}

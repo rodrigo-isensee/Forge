@@ -1,0 +1,30 @@
+{
+  "descricao": "CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.1, alvo opaco por lista positiva do E51.6; R-VERIFY, R-FLUXO): na sessão do Forge (clone), como no projeto, o commit com a mensagem em heredoc segue livre.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git commit -m \"$(cat <<'EOF'\nfix(x): push y\nEOF\n)\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "forge": false
+}

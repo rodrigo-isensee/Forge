@@ -36,8 +36,8 @@
       "id": "A4",
       "guarda": "D3: só avisa com brief vencido",
       "arquivo": "hooks/agentes.py",
-      "de": "    if avisos:\n        texto = mensagem(",
-      "para": "    if not avisos:\n        texto = mensagem(",
+      "de": "    if avisos:\n        return mensagem(\"R-BRIEF\",",
+      "para": "    if not avisos:\n        return mensagem(\"R-BRIEF\",",
       "testes": [
         "tests.test_selo_e_entrega.Hook.test_brief_vencido_so_avisa"
       ]
@@ -46,8 +46,8 @@
       "id": "A5",
       "guarda": "D2: o selo é conferido de quem o exige",
       "arquivo": "hooks/agentes.py",
-      "de": "    if exige_selo(tipo):",
-      "para": "    if not exige_selo(tipo):",
+      "de": "if not exige_selo(tipo):\n            return lidos, None",
+      "para": "if True:\n            return lidos, None",
       "testes": [
         "tests.test_selo_e_entrega.Hook.test_todo_tipo_que_escreve_pede_selo_e_so_leitura_segue_livre"
       ]

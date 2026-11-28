@@ -76,8 +76,8 @@
    "id": "M8",
    "guarda": "sem mutante no diff, main sai 2 em vez de rodar nada",
    "arquivo": "bin/forge-mutante",
-   "de": "if specs is None:",
-   "para": "if False:",
+   "de": "specs = dirigir(specs, caminhos, args.base, sha)\n        if specs is None:",
+   "para": "specs = dirigir(specs, caminhos, args.base, sha)\n        if False:",
    "testes": [
     "tests.test_forge_mutante.MutacaoDirigida.test_nenhum_mutante_no_diff_sai_2_sem_rodar"
    ]

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M15",
+      "guarda": "com a sessão no clone, o config vem dela, também com a pasta corrente feita projeto (S9)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    return declarada if e_clone_do_forge(declarada) else hook.raiz",
+      "para": "    return declarada if e_clone_do_forge(hook.raiz) and e_clone_do_forge(declarada) else hook.raiz",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDaWorktreeNoClone.test_versao_na_worktree_nao_deixa_o_config_dela_no_cache"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "a mesma raiz não consulta o clone (C7)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if declarada is None or os.path.realpath(declarada) == os.path.realpath(hook.raiz):",
+      "para": "    if declarada is None:",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDaWorktreeNoClone.test_sessao_e_pasta_corrente_na_mesma_raiz_nao_consultam_o_clone"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "find lido como escritor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif prog == \"find\":\n            self.find(",
+      "para": "        elif False:\n            self.find(",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "o catálogo de extratores é lido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif prog in EXTRATORES:\n            alvos =",
+      "para": "        elif prog == \"tar\":\n            alvos =",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "chmod, chown, chattr lidos como escritores",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif prog in MUDA_ATRIBUTO:",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "operando do chmod é escrita",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if not a.startswith(\"-\"):\n                    self.checar_escrita(a, pasta, parecer_conta=False)\n                    self.checar_remocao(a, pasta, f\"{prog} em\")",
+      "para": "                if a.startswith(\"-\"):\n                    self.checar_escrita(a, pasta, parecer_conta=False)\n                    self.checar_remocao(a, pasta, f\"{prog} em\")",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "opções do find antes dos pontos de partida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        while i < len(args) and re.fullmatch(r\"-[HLP]|-D|-O\\d*\", args[i]):",
+      "para": "        while False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "-D do find toma um valor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            i += 2 if args[i] == \"-D\" else 1",
+      "para": "            i += 2 if True else 1",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    }
+  ]
+}

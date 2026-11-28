@@ -46,7 +46,7 @@
       "id": "M5",
       "guarda": "G2: tratar merge de outra branch como da base esconderia o que ele trouxe",
       "arquivo": "bin/forge-check",
-      "de": "        if len(pais) == 2 and e_ancestral(raiz, pais[1], base_ref):\n",
+      "de": "        if len(pais) == 2 and na_base(raiz, pais[1], base_ref, ancoras):\n",
       "para": "        if len(pais) == 2:\n",
       "testes": [
         "tests.test_conferencia_base_dono.IntegracaoNaBranch.test_merge_de_outra_branch_conta_tudo"
@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "G2: com dois slugs nos briefs, escolher um trocaria o pedido sem aviso",
       "arquivo": "bin/forge-check",
-      "de": "    if len(slugs) != 1:\n        return pedido\n",
-      "para": "    if len(slugs) < 1:\n        return pedido\n",
+      "de": "if len(slugs) > 1:  # ambíguo",
+      "para": "if len(slugs) > 2:  # ambíguo",
       "testes": [
         "tests.test_etapa_do_brief.RecusaDoIdDoPedido.test_id_com_brief_da_branch_vira_o_slug_da_linha_branch"
       ]
@@ -76,8 +76,8 @@
       "id": "M8",
       "guarda": "D4: sem o fragmento da branch nos livres, mudar só o changelog.d/<slug>.md desatualizaria o parecer",
       "arquivo": "bin/forge-check",
-      "de": "base, LIVRES + (f\"changelog.d/{pedido}.md\",))  # D4\n",
-      "para": "base, LIVRES)  # D4\n",
+      "de": "return LIVRES + ANEXOS_DO_PORTAO + (f\"changelog.d/{pedido}.md\", f\"{ACEITES_DO_USUARIO[0]}{pedido}.md\")",
+      "para": "return LIVRES + ANEXOS_DO_PORTAO + (f\"{ACEITES_DO_USUARIO[0]}{pedido}.md\",)",
       "testes": [
         "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_fragmento_do_changelog_da_branch_nao_desatualiza_o_parecer"
       ]

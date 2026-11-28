@@ -38,8 +38,8 @@
       "id": "M12",
       "guarda": "E23.36 (d): o pedido: do parecer é o da entrega",
       "arquivo": "bin/forge-check",
-      "de": "    if fm.get(\"pedido\") not in (pedido_id, slug):",
-      "para": "    if False:",
+      "de": "    if fm.get(\"parecer\") not in (\"aprovado\", \"reprovado\"):\n        return False\n    if fm.get(\"pedido\") not in (pedido_id, slug):",
+      "para": "    if fm.get(\"parecer\") not in (\"aprovado\", \"reprovado\"):\n        return False\n    if False:",
       "testes": [
         "tests.test_selo_e_entrega.ParecerDoPortao.test_parecer_de_outro_pedido_segue_fora"
       ]

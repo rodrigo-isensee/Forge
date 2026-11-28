@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "no clone, a recusa do estado vale na GuardaDaProva",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self.recusa_do_estado(o_que):\n            super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)",
+      "para": "        if False:\n            super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_escrita_remocao_e_link_no_estado_recusam_para_todo_papel"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "fora do clone do Forge a recusa do estado não vale",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not self.no_clone:\n            return False",
+      "para": "        if False:\n            return False",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_fora_do_clone_do_forge_a_guarda_nao_se_estende"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a recusa que cita o motivo do estado vale",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if any(m in o_que for m in self.motivos_do_estado):\n            return True",
+      "para": "        if False:\n            return True",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_escrita_remocao_e_link_no_estado_recusam_para_todo_papel"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a construção não modelada vale na linha que cita o estado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return \"o hook não modela\" in o_que and isinstance(linha, str) and (\n            bool(ESTADO_NO_TEXTO.search(linha)) or self.parecer_no_texto(linha))",
+      "para": "        return False",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_escrita_remocao_e_link_no_estado_recusam_para_todo_papel"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a construção não modelada só vale se a linha cita o estado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return \"o hook não modela\" in o_que and isinstance(linha, str) and (\n            bool(ESTADO_NO_TEXTO.search(linha)) or self.parecer_no_texto(linha))",
+      "para": "        return \"o hook não modela\" in o_que",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_leitura_e_resto_do_clone_seguem_livres"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a sessão no clone do Forge liga a guarda do estado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "bool(raiz and e_clone_do_forge(raiz))",
+      "para": "bool(True)",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_fora_do_clone_do_forge_a_guarda_nao_se_estende"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "C10: linha que o hook não lê e cita o estado recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if guarda.no_clone and isinstance(alvo, str) and ESTADO_NO_TEXTO.search(juntar_continuacoes(alvo)):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_linha_que_o_hook_nao_le_e_cita_o_estado_recusa"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "as entradas do estado dão os motivos que valem no clone",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for e in pol[\"caminhos\"] if e[\"caminho\"] in ESTADO_DOS_HOOKS)",
+      "para": "for e in pol[\"caminhos\"] if False)",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_escrita_remocao_e_link_no_estado_recusam_para_todo_papel"
+      ]
+    }
+  ]
+}

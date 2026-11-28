@@ -1,0 +1,88 @@
+{
+  "pedido": "v047-h2-autor-fica",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: autores que não é lista vale vazio, nunca derruba o disparo",
+      "arquivo": "hooks/agentes.py",
+      "de": "for a in (lista if isinstance(lista, list) else []):\n        if not (isinstance(a, dict)",
+      "para": "for a in (lista if True else []):\n        if not (isinstance(a, dict)",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: autor com id fora da forma de agente não entra no aviso",
+      "arquivo": "hooks/agentes.py",
+      "de": "isinstance(a.get(\"id\"), str) and ID_DE_AGENTE.fullmatch(a[\"id\"])\n                and isinstance(a.get(\"desde\"), (int, float))):",
+      "para": "isinstance(a.get(\"id\"), str)\n                and isinstance(a.get(\"desde\"), (int, float))):",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: autor que passou de expiracao_horas não avisa",
+      "arquivo": "hooks/agentes.py",
+      "de": "return [a for a in validos if agora - a[\"desde\"] < expira_s]",
+      "para": "return [a for a in validos]",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: a retomada herda as branches do mesmo id e renova o prazo",
+      "arquivo": "hooks/agentes.py",
+      "de": "for a in autores if a[\"id\"] == r.get(\"id\") for b in",
+      "para": "for a in autores if a[\"id\"] != r.get(\"id\") for b in",
+      "testes": [
+        "tests.test_hooks_agentes_autor.Autores.test_retomada_sem_escrita_herda_as_branches_e_renova_o_prazo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: só agente de escrita com id de agente vira autor",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if not (isinstance(r.get(\"id\"), str) and ID_DE_AGENTE.fullmatch(r[\"id\"]) and escrita):",
+      "para": "        if not isinstance(r.get(\"id\"), str):",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
+        "tests.test_hooks_agentes_autor.Autores.test_id_fora_da_forma_nao_vira_autor"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o autor anterior sem branch que sobre sai da lista",
+      "arquivo": "hooks/agentes.py",
+      "de": "            if sobra:\n",
+      "para": "            if True:\n",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
+        "tests.test_hooks_agentes_autor.Autores.test_novo_autor_tira_so_o_anterior_da_mesma_branch"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: lápide (desistência registrada) tira o aviso",
+      "arquivo": "hooks/agentes.py",
+      "de": "    fora = {i for i in [l.get(\"id\") for l in lapides] + [a.get(\"id\") for a in agentes] if isinstance(i, str)}",
+      "para": "    fora = {i for i in [a.get(\"id\") for a in agentes] if isinstance(i, str)}",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: autor ativo (já retomado) tira o aviso",
+      "arquivo": "hooks/agentes.py",
+      "de": "    fora = {i for i in [l.get(\"id\") for l in lapides] + [a.get(\"id\") for a in agentes] if isinstance(i, str)}",
+      "para": "    fora = {i for i in [l.get(\"id\") for l in lapides] if isinstance(i, str)}",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    }
+  ]
+}

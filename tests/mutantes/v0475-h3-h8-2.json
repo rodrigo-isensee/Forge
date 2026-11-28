@@ -1,0 +1,67 @@
+{
+  "pedido": "v0475-h3-h8",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "só a linha de parecer desatualizado ou reprovado dá o delta",
+      "arquivo": "bin/forge-check",
+      "de": "(m := PARECER_A_REVALIDAR.match(linha))",
+      "para": "(m := re.match(r\"(\\S+)\", linha))",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_parecer_ausente_ou_com_outra_violacao_nao_avisa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "com linha do portão no forge-check pr, nenhum aviso",
+      "arquivo": "bin/forge-check",
+      "de": "    if linhas or any(not linha.startswith(conhecidas) for linha in todas):",
+      "para": "    if any(not linha.startswith(conhecidas) for linha in todas):",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_parecer_ausente_ou_com_outra_violacao_nao_avisa"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "portão que a classe não exige avisa pela classe (H8)",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo not in exigidos_do_pr(raiz, pedido_id, branch, base_do_delta(raiz, nome, branch)[0])[0]:",
+      "para": "if tipo in exigidos_do_pr(raiz, pedido_id, branch, base_do_delta(raiz, nome, branch)[0])[0]:",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_portao_que_a_classe_nao_exige_avisa_sem_tirar_o_reprovado",
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_parecer_exigido_aprovado_e_em_dia_avisa_que_nao_precisa_de_agente"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "base fora do fluxo não avisa (review A1, segurança A1)",
+      "arquivo": "bin/forge-check",
+      "de": "    if nome not in BASES_DO_FLUXO:  # a recusa de uso do pr_da_cli",
+      "para": "    if False:  # a recusa de uso do pr_da_cli",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_base_fora_do_fluxo_nao_avisa_nem_le_o_pr"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "linha de erro ou desconhecida no forge-check pr não avisa (segurança A2)",
+      "arquivo": "bin/forge-check",
+      "de": "    if linhas or any(not linha.startswith(conhecidas) for linha in todas):",
+      "para": "    if linhas:",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_linha_de_erro_ou_fora_das_pastas_de_parecer_nao_avisa"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o --base do brief gerar aceita só as bases do fluxo",
+      "arquivo": "bin/forge-check",
+      "de": "br.add_argument(\"--base\", default=\"develop\", choices=BASES_DO_FLUXO, ",
+      "para": "br.add_argument(\"--base\", default=\"develop\", ",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_brief_gerar_recusa_base_fora_do_fluxo"
+      ]
+    }
+  ]
+}

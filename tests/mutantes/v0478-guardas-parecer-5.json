@@ -1,0 +1,87 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M27",
+      "guarda": "GH-REPO-DE-ARQUIVO: `builtin source` e `command .` são o mesmo source",
+      "arquivo": "hooks/parecer.py",
+      "de": "while comando[:1] in ([\"builtin\"], [\"command\"]):",
+      "para": "while False:",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "GH-REPO-DE-ARQUIVO (A5 da E3.13): source e . mexem em todos os SENSIVEIS",
+      "arquivo": "hooks/parecer.py",
+      "de": "(comando[0] in CARREGA_ARQUIVO or nome_incerto(comando[0]))",
+      "para": "(False or nome_incerto(comando[0]))",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao",
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d1_opcoes_depois_de_builtin_e_command"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "GH-REPO-DE-ARQUIVO: o export (NOMEIA) também tem nomes nas palavras",
+      "arquivo": "hooks/parecer.py",
+      "de": "if comando and comando[0] in LE_VARIAVEL | NOMEIA:",
+      "para": "if comando and comando[0] in LE_VARIAVEL:",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "GH-REPO-DE-ARQUIVO: nome por expansão mexe em todos os SENSIVEIS",
+      "arquivo": "hooks/parecer.py",
+      "de": "if nomes_dinamicos(comando):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "GH-REPO-DE-ARQUIVO: no printf, o nome é a palavra do -v",
+      "arquivo": "hooks/parecer.py",
+      "de": "if nome == \"printf\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "GH-REPO-DE-ARQUIVO: no read, as palavras são nomes",
+      "arquivo": "hooks/parecer.py",
+      "de": "elif nome == \"read\":",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "GH-REPO-DE-ARQUIVO: no read, o valor de -p, -d, -t... não é nome",
+      "arquivo": "hooks/parecer.py",
+      "de": "args = [b for a, b in zip([\"\"] + args, args) if a not in LE_COM_VALOR]",
+      "para": "args = args",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "GH-REPO-DE-ARQUIVO: fora de NOMEIA, printf e read, as palavras não são nomes (for, let...)",
+      "arquivo": "hooks/parecer.py",
+      "de": "elif nome not in NOMEIA:",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    }
+  ]
+}

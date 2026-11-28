@@ -66,8 +66,8 @@
       "id": "M38",
       "guarda": "bin/forge_voltas.py:144 construcao is not None",
       "arquivo": "bin/forge_voltas.py",
-      "de": "              + f\" minutos={_numero(total)} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}\")",
-      "para": "              + f\" minutos={_numero(total)} construcao={_numero(construcao) if (not (construcao is not None)) else '-'} razao={razao}\")",
+      "de": "              + f\" minutos={_numero(total) if movimento or linhas else 'nao-medido'} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}\")",
+      "para": "              + f\" minutos={_numero(total) if movimento or linhas else 'nao-medido'} construcao={_numero(construcao) if (not (construcao is not None)) else '-'} razao={razao}\")",
       "testes": [
         "tests.test_voltas.Voltas",
         "tests.test_voltas.RodadasDeBrief",

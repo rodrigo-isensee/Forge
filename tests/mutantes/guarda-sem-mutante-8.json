@@ -36,8 +36,8 @@
       "id": "M51",
       "guarda": "arquivo da isenta e caminho valido",
       "arquivo": "bin/forge-mutante",
-      "de": "and not validar_caminho(i[\"arquivo\"]))",
-      "para": "and True)",
+      "de": "and len(i[\"motivo\"].strip()) >= 20 and not validar_caminho(i[\"arquivo\"])",
+      "para": "and len(i[\"motivo\"].strip()) >= 20",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_isenta_invalida_e_mais_de_oito_somadas_sao_2"
       ]

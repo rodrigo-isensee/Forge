@@ -1,0 +1,8 @@
+# Checagem do brief por tema
+
+Detalhe da skill `checagem-do-brief` (diretriz 25: a lista neutra traz o resumo e manda ler este arquivo). Cada item vale quando o brief toca o tema. Vale no Forge e em todo projeto.
+
+- **Cópia nova:** onde o brief ou o passo manda criar a cópia de trabalho, ele diz como: `forge-copia worktree <destino> --branch <b>` (num projeto, `forge-copia clone`) ou `git worktree add --no-track -b <b> <destino> origin/<base>`. O clone de revisão (o caminho `-rev`, `-qa` ou `-sec` do review, do QA ou da segurança) se cria com `forge-copia clone <destino> --branch <b> --origem <url> --revisao`, no head remoto da branch, nunca com `git clone` à mão. Logo depois de criar a cópia ou de trocar de branch nela, confira `git -C <destino> status -sb`: a primeira linha traz a branch esperada e nada pendente. Um `git switch -c` numa cópia já em uso pode deixar o HEAD na branch antiga.
+- **`.githooks/`:** o arquivo é do usuário e o hook `conformidade` barra a escrita do agente. O brief diz isso e pede o diff como proposta (um `.patch` ou um bloco `diff` num documento de proposta), que o dono aplica; o Entregar não manda editar o arquivo.
+- **Parecer:** brief que manda gravar parecer traz o PQ `forge-check pr <pedido>` com `rc=0`, rodado depois do commit do parecer; a autoria e a validade do parecer são cobradas antes do QA, não só no merge.
+- **Número de testes:** PQ ou relatório que diz quantos testes há ou passaram tira o número de um comando rodado na entrega (a listagem do executor, como `--list`), com a data e o commit; nunca de uma rodada anterior nem de outro relatório.

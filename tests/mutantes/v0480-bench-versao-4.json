@@ -1,0 +1,8 @@
+{"pedido": "v0480-bench-versao", "executor": "unittest", "mutantes": [
+ {"id": "M25", "guarda": "sem --executar só simula", "arquivo": "tests/bancada/versao.py",
+  "de": "    if not args.executar:\n        print(\"simulação", "para": "    if False:\n        print(\"simulação", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M26", "guarda": "validação com erro para", "arquivo": "tests/bancada/versao.py",
+  "de": "    if erros:\n        return 1\n", "para": "    if False:\n        return 1\n", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M27", "guarda": "repo não descartável para", "arquivo": "tests/bancada/versao.py",
+  "de": "    if erro:\n        print(f\"versao: {erro}\", file=sys.stderr)\n        return 1\n    return executar(args)", "para": "    if False:\n        print(f\"versao: {erro}\", file=sys.stderr)\n        return 1\n    return executar(args)", "testes": ["tests.test_bancada_versao"]}
+]}

@@ -1,0 +1,46 @@
+{
+  "pedido": "v0478-pv-b1-registros",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "R1",
+      "guarda": "a base `origin/<ramo>` é buscada antes de conferir",
+      "arquivo": "bin/forge-testes",
+      "de": "if remoto != \"origin\" or not ramo:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_busca_a_origin_antes_e_sem_rede_avisa_e_confere_a_local"
+      ]
+    },
+    {
+      "id": "R2",
+      "guarda": "a busca que falha vira aviso",
+      "arquivo": "bin/forge-testes",
+      "de": "    if r.returncode:\n        return f\"não busquei",
+      "para": "    if False:\n        return f\"não busquei",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_busca_a_origin_antes_e_sem_rede_avisa_e_confere_a_local"
+      ]
+    },
+    {
+      "id": "R3",
+      "guarda": "o aviso da busca sai no stderr",
+      "arquivo": "bin/forge-testes",
+      "de": "if aviso:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_busca_a_origin_antes_e_sem_rede_avisa_e_confere_a_local"
+      ]
+    },
+    {
+      "id": "R8",
+      "guarda": "o ambiente herdado (GIT_*, FORGE_*) não chega aos testes dos registros (AR-4)",
+      "arquivo": "bin/forge-testes",
+      "de": "    env = ambiente_da_copia()\n    comandos",
+      "para": "    env = dict(os.environ)\n    comandos",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_em_dia_sai_0_sem_gravar_nada_e_sem_o_ambiente_herdado"
+      ]
+    }
+  ]
+}

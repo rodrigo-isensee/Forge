@@ -16,8 +16,8 @@
       "id": "AF-M2",
       "guarda": "os achados recorrentes não vencem o parecer no pr",
       "arquivo": "bin/forge-check",
-      "de": "            livres = LIVRES + ANEXOS_DO_PORTAO + (f\"changelog.d/{pedido}.md\", f\"{ACEITES_DO_USUARIO[0]}{pedido}.md\")  # D4; E1g; E2.252",
-      "para": "            livres = LIVRES + (f\"changelog.d/{pedido}.md\", f\"{ACEITES_DO_USUARIO[0]}{pedido}.md\")  # D4; E1g; E2.252",
+      "de": "return LIVRES + ANEXOS_DO_PORTAO + (f\"changelog.d/{pedido}.md\", f\"{ACEITES_DO_USUARIO[0]}{pedido}.md\")",
+      "para": "return LIVRES + (f\"changelog.d/{pedido}.md\", f\"{ACEITES_DO_USUARIO[0]}{pedido}.md\")",
       "testes": [
         "tests.test_parecer_conteudo.AchadosRecorrentesForaDoDominio.test_parecer_no_mesmo_commit_dos_achados_vale"
       ]
@@ -26,8 +26,8 @@
       "id": "AF-M3",
       "guarda": "o parecer delta deixa os achados recorrentes fora do domínio",
       "arquivo": "bin/forge-check",
-      "de": "    nomes = [n for n in nomes if not livre(n, LIVRES + ANEXOS_DO_PORTAO)]",
-      "para": "    nomes = [n for n in nomes if not livre(n, LIVRES)]",
+      "de": "    nomes = [n for n in nomes if not livre(n, LIVRES + ANEXOS_DO_PORTAO) or documento_sem_parecer(raiz, fim, n)]",
+      "para": "    nomes = [n for n in nomes if not livre(n, LIVRES) or documento_sem_parecer(raiz, fim, n)]",
       "testes": [
         "tests.test_parecer_conteudo.AchadosRecorrentesForaDoDominio.test_parecer_delta_nao_le_os_achados"
       ]

@@ -1,0 +1,37 @@
+{
+  "descricao": "MP5 (volta): nome repetido (sem diferença de maiúsculas) conta uma vez; um projeto só, o escape libera.",
+  "env": {
+    "FORGE_CARGA_LIVRE": "1",
+    "HOME": "{tmp}/home"
+  },
+  "proc": {
+    "loadavg": "7.0 1.0 1.0 1/100 1",
+    "mem_gb": 1.5
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": []
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "erros_log": "FORGE_CARGA_LIVRE=1",
+    "codigo": 0
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/home/.forge/maquina/projetos-ativos.json": "{\"projetos\": [\"loja\", \"Loja\", \"loja\"]}"
+      }
+    }
+  ]
+}

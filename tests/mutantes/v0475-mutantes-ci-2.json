@@ -1,0 +1,136 @@
+{
+  "pedido": "v0475-mutantes-ci",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "guarda": "traceback sem quadro conta como recuo",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "recuada or linha.startswith(\"Traceback\")",
+      "para": "recuada",
+      "testes": [
+        "tests.test_falhas_no_resumo.ErroDoBloco.test_traceback_sem_quadro_antes_da_excecao"
+      ],
+      "id": "MC14"
+    },
+    {
+      "guarda": "linha que nao e quadro fica fora",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "        if m:\n            quadros",
+      "para": "        if True:\n            quadros",
+      "testes": [
+        "tests.test_falhas_no_resumo.Local.test_quadro_fora_do_repositorio_e_ignorado"
+      ],
+      "id": "MC15"
+    },
+    {
+      "guarda": "quadro fora do repositorio e descartado",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "in quadros if q[0]]",
+      "para": "in quadros if True]",
+      "testes": [
+        "tests.test_falhas_no_resumo.Local.test_quadro_fora_do_repositorio_e_ignorado"
+      ],
+      "id": "MC16"
+    },
+    {
+      "guarda": "pasta tests aninhada vale como teste",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": " or \"/tests/\" in q[0]",
+      "para": "",
+      "testes": [
+        "tests.test_falhas_no_resumo.Local.test_pasta_tests_aninhada_vale_como_teste"
+      ],
+      "id": "MC17"
+    },
+    {
+      "guarda": "so quadro do repositorio serve",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "dos_testes or do_repo or [(None, 0)]",
+      "para": "dos_testes or [(None, 0)]",
+      "testes": [
+        "tests.test_falhas_no_resumo.Local.test_so_quadro_do_repositorio_fora_dos_testes_serve"
+      ],
+      "id": "MC18"
+    },
+    {
+      "guarda": "sem quadro nenhum fica sem arquivo",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "dos_testes or do_repo or [(None, 0)]",
+      "para": "dos_testes or do_repo",
+      "testes": [
+        "tests.test_falhas_no_resumo.Local.test_sem_quadro_nenhum_fica_sem_arquivo"
+      ],
+      "id": "MC19"
+    },
+    {
+      "guarda": "nome so e omitido se o completo termina em ponto e nome",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "completo.endswith(\".\" + nome)",
+      "para": "completo.endswith(nome)",
+      "testes": [
+        "tests.test_falhas_no_resumo.Local.test_nome_que_termina_o_completo_sem_ponto_leva_o_nome"
+      ],
+      "id": "MC20"
+    },
+    {
+      "guarda": "subteste entra no nome",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "if sub else \"\"",
+      "para": "if True else \"\"",
+      "testes": [
+        "tests.test_falhas_no_resumo.Leitor.test_acha_falha_erro_subteste_e_setupclass"
+      ],
+      "id": "MC21"
+    },
+    {
+      "guarda": "sem excecao o erro e o tipo",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "erro_do_bloco(linhas) or tipo",
+      "para": "erro_do_bloco(linhas)",
+      "testes": [
+        "tests.test_falhas_no_resumo.Local.test_sem_excecao_o_erro_e_o_tipo"
+      ],
+      "id": "MC22"
+    },
+    {
+      "guarda": "contagem por processo",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "if por_processo else",
+      "para": "if False else",
+      "testes": [
+        "tests.test_falhas_no_resumo.Leitor.test_verde_e_uma_linha_com_a_contagem_somada_dos_processos"
+      ],
+      "id": "MC23"
+    },
+    {
+      "guarda": "sem falha e uma linha",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "if not achadas:",
+      "para": "if achadas:",
+      "testes": [
+        "tests.test_falhas_no_resumo.Leitor.test_verde_e_uma_linha_com_a_contagem_somada_dos_processos"
+      ],
+      "id": "MC24"
+    },
+    {
+      "guarda": "sobras param no teto",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": " and len(sobras) < TETO_SOBRAS",
+      "para": "",
+      "testes": [
+        "tests.test_falhas_no_resumo.Resumo.test_sobras_param_no_teto_e_aceitam_as_duas_causas"
+      ],
+      "id": "MC25"
+    },
+    {
+      "guarda": "causa da suite-partes e sobra",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "\"suite-paralela: causa\", \"suite-partes: causa\"",
+      "para": "\"suite-paralela: causa\"",
+      "testes": [
+        "tests.test_falhas_no_resumo.Resumo.test_sobras_param_no_teto_e_aceitam_as_duas_causas"
+      ],
+      "id": "MC26"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M49",
+      "guarda": "AE1.1 onde_do_cartao: achado numa base vale para todas",
+      "arquivo": "bin/forge_onde.py",
+      "de": "achou = achou or bool(shas)",
+      "para": "achou = bool(shas)",
+      "testes": [
+        "tests.test_forge_onde.Cartao.test_id_inteiro_e_o_commit_mais_novo_de_cada_base"
+      ]
+    },
+    {
+      "id": "M50",
+      "guarda": "AE1.1 onde: sha curto lido de ref de mesmo nome não vale (A1 da segurança)",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        if tipo == \"commit\" and not sha.startswith(valor):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_onde.VersaoECommit.test_sha_curto_com_tag_de_mesmo_nome_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "AE1.1 executar: git sem resposta sai rc 2 (A2 da segurança)",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    except subprocess.TimeoutExpired:  # leitura",
+      "para": "    except ZeroDivisionError:  # leitura",
+      "testes": [
+        "tests.test_forge_onde.VersaoECommit.test_git_sem_resposta_sai_rc_2_nao_1"
+      ]
+    }
+  ]
+}

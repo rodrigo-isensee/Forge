@@ -1,0 +1,60 @@
+{
+  "descricao": "H2-RESERVA-DA-RETOMADA-PRAZO (R-TETO): a reserva refeita no SubagentStart tardio do retomado cai no SubagentStop dele; o disparo de escrita na branch segue.",
+  "arquivos": {
+    "docs/briefs/x.md": "Agente destino: forge:tech-lead\nPedido: p1\nBranch: melhoria/a   Base: develop\n\n## Objetivo\nFazer.\n"
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [],
+      "autores": [
+        {
+          "id": "a0123456789abcdef",
+          "desde": "{agora-400}",
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ]
+    }
+  },
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SubagentStart",
+        "agent_id": "a0123456789abcdef",
+        "agent_type": "forge:software-engineer"
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SubagentStop",
+        "agent_id": "a0123456789abcdef",
+        "agent_type": "forge:software-engineer"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_2",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Corrigir o CI",
+      "prompt": "Execute docs/briefs/x.md"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "aviso": "R-TETO: aviso: autor retomável (melhoria/a: a0123456789abcdef)",
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "Corrigir o CI"
+        ],
+        "ausente": [
+          "forge:software-engineer"
+        ]
+      }
+    }
+  }
+}

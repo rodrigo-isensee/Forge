@@ -1,0 +1,25 @@
+{
+  "descricao": "Diretriz 36 (R-CONTRIB): a sessão de desenvolvimento do Forge (raiz com o manifesto) cria branch, commita e envia: não é afetada.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git switch -c melhoria/x && git commit -m 'feat: x' && git push origin melhoria/x && gh pr create --base develop --title t --body-file x.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "forge": false
+}

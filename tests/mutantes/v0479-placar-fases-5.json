@@ -1,0 +1,26 @@
+{
+  "pedido": "v0479-placar-fases",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M32",
+      "guarda": "sem fonte, o texto diz tracinho",
+      "arquivo": "bin/forge-placar",
+      "de": "\"-\" if sem_teste is None else",
+      "para": "\"-\" if False else",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_sem_dados_sai_tracinho_nunca_zero"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "lista vazia diz nenhum PR mesclado",
+      "arquivo": "bin/forge-placar",
+      "de": "for s, (n, t) in sem_teste.items()) or \"nenhum PR mesclado\"",
+      "para": "for s, (n, t) in sem_teste.items()) or \"\"",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_lista_vazia_diz_nenhum_pr"
+      ]
+    }
+  ]
+}

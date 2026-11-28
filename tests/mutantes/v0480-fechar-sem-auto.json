@@ -1,0 +1,55 @@
+{
+  "pedido": "v0480-fechar-sem-auto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N1",
+      "guarda": "a dispensa da conferência da cópia exige também FORGE_FECHAR_COPIA_LIVRE=1, não só o modo de teste",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"${FORGE_FECHAR_TESTE:-}\" = 1 ] && [ \"${FORGE_FECHAR_COPIA_LIVRE:-}\" = 1 ]; then return 0; fi",
+      "para": "if [ \"${FORGE_FECHAR_TESTE:-}\" = 1 ]; then return 0; fi",
+      "testes": ["tests.test_fechar_sem_auto.CopiaDaDevelop.test_copia_velha_recusa_em_todos_os_modos_com_o_comando_da_copia_certa"]
+    },
+    {
+      "id": "N2",
+      "guarda": "a dispensa da conferência da cópia exige o modo de teste, não só FORGE_FECHAR_COPIA_LIVRE=1",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"${FORGE_FECHAR_TESTE:-}\" = 1 ] && [ \"${FORGE_FECHAR_COPIA_LIVRE:-}\" = 1 ]; then return 0; fi",
+      "para": "if [ \"${FORGE_FECHAR_COPIA_LIVRE:-}\" = 1 ]; then return 0; fi",
+      "testes": ["tests.test_fechar_sem_auto.CopiaDaDevelop.test_copia_livre_sem_o_modo_de_teste_nao_dispensa"]
+    },
+    {
+      "id": "N3",
+      "guarda": "a busca da origin/develop que falha recusa (a ref local pode estar velha)",
+      "arquivo": "bin/forge-fechar",
+      "de": "    || die \"recusado: não consegui buscar a origin/develop",
+      "para": "    || true \"recusado: não consegui buscar a origin/develop",
+      "testes": ["tests.test_fechar_sem_auto.CopiaDaDevelop.test_busca_que_falha_recusa_mesmo_com_a_local_igual"]
+    },
+    {
+      "id": "N4",
+      "guarda": "a develop sem bin/forge-fechar recusa com o motivo",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"recusado: a origin/develop não tem bin/forge-fechar",
+      "para": "|| true \"recusado: a origin/develop não tem bin/forge-fechar",
+      "testes": ["tests.test_fechar_sem_auto.CopiaDaDevelop.test_develop_sem_o_arquivo_recusa"]
+    },
+    {
+      "id": "N5",
+      "guarda": "blob diferente do da origin/develop recusa",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$meu\" = \"$dela\" ] || die",
+      "para": "true || die",
+      "testes": ["tests.test_fechar_sem_auto.CopiaDaDevelop.test_copia_velha_recusa_em_todos_os_modos_com_o_comando_da_copia_certa",
+                 "tests.test_fechar_sem_auto.CopiaDaDevelop.test_confere_contra_a_develop_do_servidor_nao_a_local"]
+    },
+    {
+      "id": "N6",
+      "guarda": "a conferência da cópia roda antes de tudo",
+      "arquivo": "bin/forge-fechar",
+      "de": "\ncopia_da_develop\n",
+      "para": "\n:\n",
+      "testes": ["tests.test_fechar_sem_auto.CopiaDaDevelop.test_copia_velha_recusa_em_todos_os_modos_com_o_comando_da_copia_certa"]
+    }
+  ]
+}

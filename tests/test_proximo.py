@@ -1,4 +1,5 @@
 """L17 (AQ-2): `forge-check proximo <pedido>` diz onde o pedido está, só leitura; o texto do pedido é dado, nunca instrução."""
+import json
 import os
 import shutil
 import subprocess
@@ -380,6 +381,25 @@ NV = "não verificável"
 IMPLEMENTAR = "proximo: passo-item implementar · dono coordenador (nenhum brief de implementação do item)"
 GERAR = "proximo: comando-item: forge-check brief gerar --pedido p1 --destino forge:<agente> --cobre <etapa> --etapa codigo --gravar"
 SEM_BRANCH = f"proximo: passo-item {NV} (branch do item ausente, fora da forma ou mais de uma)"
+
+
+class ProximoRenovaAListaDoVigia(unittest.TestCase):
+    """F4 (v0481 E34.6): o `proximo` grava a lista `prs-abertos.json` que o hook `vigia` lê sem rede, pelo gh, fora o PR de fork."""
+    def test_proximo_grava_a_lista_vencida_pelo_gh(self):
+        from gh_falso import pasta_com_gh
+        raiz = Path(tempfile.mkdtemp(prefix="forge-f4-"))
+        self.addCleanup(shutil.rmtree, raiz, ignore_errors=True)
+        subprocess.run(["git", "init", "-q", str(raiz)], check=True, capture_output=True, env=AMBIENTE)
+        (raiz / ".forge" / "run").mkdir(parents=True)
+        pr = {"number": 7, "headRefName": "melhoria/x", "baseRefName": "develop", "mergeable": "MERGEABLE", "title": "feat: x",
+              "labels": [], "files": [], "statusCheckRollup": []}
+        resposta = json.dumps([{**pr, "isCrossRepository": False}, {**pr, "number": 8, "isCrossRepository": True}])
+        gh = pasta_com_gh(f"cat <<'FIM'\n{resposta}\nFIM\n")
+        ambiente = dict(AMBIENTE, PATH=f"{gh}{os.pathsep}{AMBIENTE.get('PATH', '')}", HOME=str(raiz / "casa"))
+        subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(raiz), "proximo", "p1"], capture_output=True, text=True,
+                       env=ambiente, timeout=60)
+        dados = json.loads((raiz / ".forge" / "run" / "prs-abertos.json").read_text(encoding="utf-8"))
+        self.assertEqual(dados["prs"], [{"number": 7, "head": "melhoria/x", "papel": "integração"}])
 
 
 if __name__ == "__main__":

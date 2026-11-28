@@ -1,0 +1,63 @@
+{
+  "pedido": "v0478-bp1-relogio",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o vigia armado entrega que armou (o prazo longo depende disso)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        yield True\n",
+      "para": "        yield False\n",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_s1_recusa_no_prazo_longo_libera_dentro_e_recusa_na_fronteira"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o início do prazo vem do relógio injetado",
+      "arquivo": "hooks/_comum.py",
+      "de": "    inicio = relogio() - (idade_do_processo",
+      "para": "    inicio = time.monotonic() - (idade_do_processo",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_s1_recusa_no_prazo_longo_libera_dentro_e_recusa_na_fronteira"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o prazo longo conta pelo relógio injetado",
+      "arquivo": "hooks/_comum.py",
+      "de": "max(PRAZO_DO_MERGE_S - (relogio() - inicio), 0.001)",
+      "para": "max(PRAZO_DO_MERGE_S - (time.monotonic() - inicio), 0.001)",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_s1_recusa_no_prazo_longo_libera_dentro_e_recusa_na_fronteira"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o prazo longo rearma pelo alarme injetado",
+      "arquivo": "hooks/_comum.py",
+      "de": "    armar(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S",
+      "para": "    (lambda *a: None)(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_s1_recusa_no_prazo_longo_libera_dentro_e_recusa_na_fronteira"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a saída do vigia desarma pelo alarme injetado",
+      "arquivo": "hooks/_comum.py",
+      "de": "        armar(signal.ITIMER_REAL, 0)\n",
+      "para": "        pass\n",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_s1_recusa_no_prazo_longo_libera_dentro_e_recusa_na_fronteira"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/_comum.py",
+      "trecho": "signal.getitimer(signal.ITIMER_REAL)[0] <= 0",
+      "motivo": "a pergunta 'o vigia está armado?' passa do getitimer ao `armado` que o vigia_de_prazo entrega (o relógio falso não arma timer real); provada por P7 e P8 de v0455-prazo.json, realinhados, e pelo teste fora da thread principal"
+    }
+  ]
+}

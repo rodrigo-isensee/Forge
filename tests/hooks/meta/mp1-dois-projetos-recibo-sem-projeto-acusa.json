@@ -1,0 +1,40 @@
+{
+  "descricao": "MP1 (diretriz 35): com dois projetos ativos, o recibo sem `Projeto:` no começo é acusado na medida; o Stop passa.",
+  "arquivos": {
+    "t.jsonl": [
+      "{\"type\": \"user\", \"message\": {\"content\": \"faça o relatório\"}}"
+    ]
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/home/.forge/maquina/projetos-ativos.json": "{\"projetos\": [\"proj\", \"estoque\"]}"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{raiz}/t.jsonl",
+    "last_assistant_message": "Recebi: vou fazer o relatório."
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "mensagens.jsonl": {
+        "contem": [
+          "\"projetos_ativos\": 2",
+          "\"sem_projeto\": true",
+          "\"cita_outro_projeto\": false"
+        ],
+        "ausente": [
+          "estoque",
+          "relatório"
+        ]
+      }
+    }
+  }
+}

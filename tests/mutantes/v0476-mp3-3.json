@@ -1,0 +1,76 @@
+{
+  "pedido": "v0476-mp3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "T17",
+      "guarda": "MP3: a recusa não conta a vaga no uso",
+      "arquivo": "hooks/agentes.py",
+      "de": "meu if texto else meu + 1",
+      "para": "meu if not texto else meu + 1",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_dois_ativos_um_parado_o_outro_usa_quase_tudo"
+      ]
+    },
+    {
+      "id": "T18",
+      "guarda": "MP3 volta (segurança A3): arquivo da máquina ilegível levanta o erro que nomeia o arquivo",
+      "arquivo": "hooks/agentes.py",
+      "de": "        raise Ilegivel(nome) from erro",
+      "para": "        raise ValueError(nome) from erro",
+      "testes": [
+        "tests.test_maquina_teto.FalhaFechada.test_registro_ou_uso_fora_da_forma_levanta"
+      ]
+    },
+    {
+      "id": "T19",
+      "guarda": "MP3 volta (segurança A3): a recusa por arquivo ilegível nomeia o arquivo e diz que o usuário pode apagá-lo",
+      "arquivo": "hooks/agentes.py",
+      "de": "    except Ilegivel as erro:",
+      "para": "    except KeyError as erro:",
+      "testes": [
+        "tests.test_maquina_teto.NoHook.test_registro_ilegivel_recusa"
+      ]
+    },
+    {
+      "id": "T20",
+      "guarda": "MP3 volta (review A1, segurança A2): o projeto ativo é a pasta, não o nome",
+      "arquivo": "hooks/agentes.py",
+      "de": "return {s[\"pasta\"] for s in vivas if isinstance(s.get(\"pasta\"), str)} | {proprio}",
+      "para": "return {s[\"projeto\"] for s in vivas if isinstance(s.get(\"projeto\"), str)} | {proprio}",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_dois_projetos_de_mesmo_nome_de_pasta_sao_dois"
+      ]
+    },
+    {
+      "id": "T21",
+      "guarda": "MP3 volta (review A3): a máquina vem depois da branch ocupada, sem vaga fantasma",
+      "arquivo": "hooks/agentes.py",
+      "de": "    recusar_branch_ocupada(hook, agentes, sorted(a_conferir))  # Z10: fora do try, sobre a lista pronta\n    recusar_pela_maquina(hook, agentes, agora, (carga, memoria, total, nproc))",
+      "para": "    recusar_pela_maquina(hook, agentes, agora, (carga, memoria, total, nproc))\n    recusar_branch_ocupada(hook, agentes, sorted(a_conferir))  # Z10: fora do try, sobre a lista pronta",
+      "testes": [
+        "tests.test_maquina_teto.NoHook.test_branch_ocupada_nao_conta_a_vaga_na_maquina"
+      ]
+    },
+    {
+      "id": "T22",
+      "guarda": "MP2/MP3 volta (review A1): a identidade é a cópia principal, não a worktree",
+      "arquivo": "hooks/_maquina.py",
+      "de": "    principal = Path(hook.copia_principal())",
+      "para": "    principal = Path(hook.raiz)",
+      "testes": [
+        "tests.test_maquina_teto.NoHook.test_sessao_em_worktree_conta_como_o_projeto_dela"
+      ]
+    },
+    {
+      "id": "T23",
+      "guarda": "MP2 volta (review A1): o registro grava a pasta da identidade",
+      "arquivo": "hooks/_maquina.py",
+      "de": "\"pasta\": principal, \"pid\"",
+      "para": "\"pasta\": str(raiz), \"pid\"",
+      "testes": [
+        "tests.test_maquina_teto.NoHook.test_sessao_em_worktree_conta_como_o_projeto_dela"
+      ]
+    }
+  ]
+}

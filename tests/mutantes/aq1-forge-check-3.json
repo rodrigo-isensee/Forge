@@ -35,9 +35,9 @@
     {
       "id": "M20",
       "guarda": "o resumo conta cada escape na sua origem",
-      "arquivo": "bin/forge-check",
-      "de": "origem_do_escape(e) == o)}\" for o in ORIGENS))",
-      "para": "origem_do_escape(e) != o)}\" for o in ORIGENS))",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "origem_do_escape(e, ctx) == o)}\" for o in ORIGENS))",
+      "para": "origem_do_escape(e, ctx) != o)}\" for o in ORIGENS))",
       "testes": [
         "tests.test_medidas_m14b.DefeitoEscapado.test_aq1_resumo_conta_por_origem_e_le_a_linha_antiga_sem_a_coluna_como_nao_classificado"
       ]

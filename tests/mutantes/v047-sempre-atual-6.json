@@ -1,0 +1,34 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A17",
+      "guarda": "com a branch pronta, o aviso não manda rodar o forge-upgrade de novo",
+      "arquivo": "bin/forge-check",
+      "de": "              file=sys.stderr)\n    elif pendentes:",
+      "para": "              file=sys.stderr)\n    if pendentes:",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_linha_da_branch_do_modelo_troca_o_rode_forge_upgrade"
+      ]
+    },
+    {
+      "id": "A18",
+      "guarda": "registro de adiamento que não é objeto não derruba o hook",
+      "arquivo": "hooks/doutor.py",
+      "de": "reg.get(\"n\") if isinstance(reg, dict) else None",
+      "para": "reg.get(\"n\") if reg is not None else None",
+      "testes": [
+        "tests.test_doutor.SempreAtualNoStop.test_contagem_que_nao_e_inteiro_nao_avisa"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_versoes.py",
+      "trecho": "superficie == \"projeto\"",
+      "linha_base": 167,
+      "motivo": "o aviso de versão nova deixou de mandar comando (RD10, ADR 0017): o ponto de retorno do texto antigo saiu com o comando, sem condição no lugar"
+    }
+  ]
+}

@@ -10,6 +10,10 @@ Pronto completo: o comando sugerido, que o autor roda antes de entregar e o CI r
 
 Detecção: `pyproject.toml`, `requirements.txt`, `setup.py`, `setup.cfg`
 
+Versões: as de Python da matriz `python-version` do CI do projeto; sem matriz, a do `requires-python`. O autor roda os testes rápidos em cada uma antes de entregar (`python<X.Y>` do PATH que se diz dessa versão), um log por versão com `head=` e `rc=`; sem o intérprete, a versão não é verde.
+
+Instalação na cópia (`forge-copia --instalar`, `instalar.json`): só com o lockfile `requirements.lock` (uma linha por pacote com `--hash`, gerado por `pip-compile --generate-hashes`); instala com `--require-hashes --no-deps` e o pacote local com `--no-deps`. Sem `requirements.lock` não instala e avisa.
+
 Pronto existente: `tox.ini` com `[tox]` → `tox`; `pyproject.toml` com `[tool.pytest` → `python -m pytest`; `pytest.ini` com `[pytest]` → `python -m pytest`
 
 Ele precisa rodar, e falhar se algo falhar: lint e formatação (ruff) · tipos (mypy) · testes (pytest). Reporte o resultado real.
@@ -29,9 +33,10 @@ Ele precisa rodar, e falhar se algo falhar: lint e formatação (ruff) · tipos 
 ## Vermelho antes do verde e mutação
 - Vermelho: `git stash push -- <arquivos de produção>` e `python -m pytest <teste>` precisa falhar; depois `git stash pop`.
 - Mutação (gratuita): `forge-mutante` com o executor `unittest` quando os testes são unittest; com pytest, `mutmut` só nos arquivos do diff. A meta fica em `docs/engineering/praticas.md` e só sobe.
+- Prova da entrega (META85, `forge-check entrega --mutantes <log> --pronto <log>`, etapa codigo com código): cada comando acima (mutação e pronto) roda com log que abre com o head e fecha com o rc, `{ echo head=$(git rev-parse HEAD); <comando>; } > <log> 2>&1 && echo rc=0 >> <log> || echo rc=1 >> <log>`; sem os dois logs verdes no head entregue, a entrega volta antes do parecer.
 
 ## CI
-Insumos da skill `ci-cd` para o `devops-engineer`: Python da versão do `requires-python`; cache derivado do lockfile; instalação travada (com hash); jobs na ordem lint e tipos, testes, build do pacote ou da imagem; a checagem de pareceres (`forge-check pr`) em job próprio, obrigatório para o merge e fora do `needs` dos jobs de testes, para o parecer faltando não esconder o resultado da suíte; no agregador, o job de pareceres pulado ou cancelado em PR reprova (só `success` passa; `skipped` vale fora de PR), sem `!contains(failure)`; imagem base `python` fixada por digest, em multi-stage, com usuário não root.
+Insumos da skill `ci-cd` para o `devops-engineer`: Python da versão do `requires-python`; cache derivado do lockfile; instalação travada (com hash); jobs na ordem lint e tipos, testes, build do pacote ou da imagem; a checagem de pareceres (`forge-check pr`) em job próprio, obrigatório para o merge e fora do `needs` dos jobs de testes, para o parecer faltando não esconder o resultado da suíte; no agregador, o job de pareceres pulado ou cancelado em PR reprova (só `success` passa; `skipped` vale fora de PR), sem `!contains(failure)`; imagem base `python` fixada por digest, em multi-stage, com usuário não root. Suíte em partes por unidade de teste, não por arquivo (`pytest-split` com pesos; só ferramenta gratuita, `R-CUSTO`), com os pesos regravados a cada release e o N da matriz igual ao do argumento da parte e ao da soma; o agregador leva o nome do check exigido e reprova perna pulada ou cancelada (as pernas têm nome livre).
 
 ### Dependabot (ecossistema de pacotes)
 Copie para o fim de `updates:` do `.github/dependabot.yml` do projeto; horário, `cooldown` e grupos seguem o modelo em `templates/projeto/.github/dependabot.yml`:

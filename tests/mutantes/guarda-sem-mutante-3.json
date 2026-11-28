@@ -76,8 +76,8 @@
       "id": "M24",
       "guarda": "condicao apagada reprova (rc 1)",
       "arquivo": "bin/forge-mutante",
-      "de": "x.startswith((\"sem mutante\", \"apagada\"))",
-      "para": "x.startswith((\"sem mutante\",))",
+      "de": "x.startswith((\"sem mutante\", \"só equivalente\", \"apagada\", \"isenta velha\"))",
+      "para": "x.startswith((\"sem mutante\", \"só equivalente\", \"isenta velha\"))",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_reformatar_nao_conta_e_copiar_ou_apagar_conta"
       ]

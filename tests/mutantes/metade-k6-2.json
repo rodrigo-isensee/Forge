@@ -16,8 +16,8 @@
       "id": "M10",
       "guarda": "vermelho nao grava o carimbo",
       "arquivo": "scripts/suite-paralela.py",
-      "de": "        print(f\"FAILED ({', '.join(detalhes)})\")\n",
-      "para": "        print(f\"FAILED ({', '.join(detalhes)})\")\n        gravar_carimbo(RAIZ, hash_arvore)\n",
+      "de": "        return f\"FAILED ({', '.join(detalhes)})\", 1",
+      "para": "        gravar_carimbo(RAIZ, hash_arvore)\n        return f\"FAILED ({', '.join(detalhes)})\", 1",
       "testes": [
         "tests.test_suite_paralela.Brinquedo.test_vermelho_nao_grava_carimbo"
       ]

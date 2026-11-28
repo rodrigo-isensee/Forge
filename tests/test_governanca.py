@@ -211,6 +211,21 @@ class Metricas(unittest.TestCase):
                 self.assertIn("ausente, fora de docs/pedidos/", erro)
                 self.assertEqual(json.loads(saida)["itens"], [])
 
+    def test_pedido_sem_item_com_movimento_sai_nao_medido_e_nao_zero(self):  # E147.1: só o registro, nenhuma linha no Histórico
+        pedido = self.tmp / "docs" / "pedidos" / "versao-901.md"
+        pedido.write_text("# Pedido versao-901\n\n## Histórico\n", encoding="utf-8")
+        self.addCleanup(pedido.unlink)
+        args = ("--raiz", str(self.tmp), "metricas", "--pedido", "versao-901", "--fuso=-03:00", "--develop", "develop", "--main", "main")
+        rc, saida, _ = rodar(*args)
+        self.assertEqual(rc, 0)
+        contagens = ("prontos=nao-medido develop_h_p50=nao-medido(n=0) main_h_p50=nao-medido(n=0) abertos=nao-medido voltas=nao-medido "
+                     "revalidacoes=nao-medido suites=nao-medido falhas=nao-medido espera_dono_min=nao-medido reprovacoes=decisao=1 ")
+        for linha in ("metricas: pedido versao-901 ", "metricas: periodo 2026-11-03 "):
+            self.assertTrue(any(l.startswith(linha + contagens) for l in saida.splitlines()), saida)
+        dados = json.loads(rodar(*args, "--json")[1])
+        campos = ("itens_prontos", "abertos", "voltas", "revalidacoes", "suites", "suites_falhas", "espera_dono_min")
+        self.assertEqual([dados["pedidos"][0][c] for c in campos], [None] * 7)
+
     def test_data_invalida_sai_com_2(self):
         self.assertEqual(rodar("--raiz", str(self.tmp), "metricas", "--desde", "ontem")[0], 2)
 
@@ -467,6 +482,10 @@ class EsperaPorPortaoETokens(unittest.TestCase):
         texto = G.linhas_de_texto(dados)
         self.assertTrue(any(" E1 " in l and l.endswith("tokens=40") for l in texto), texto)
         self.assertTrue(any(" E3 " in l and l.endswith("tokens=-") for l in texto), texto)
+        self.assertTrue(any(l.startswith("metricas: pedido p9 ") and l.endswith("tokens=40") for l in texto), texto)  # I155: o pedido
+        sem, _ = G.calcular(self.tmp, self.tmp, ["p9"], fuso=FUSO, transcritos=[self.tmp / "vazia"], recusas=[])
+        self.assertTrue(any(l.startswith("metricas: pedido p9 ") and l.endswith("tokens=-")
+                            for l in G.linhas_de_texto(sem)), "pedido sem fonte de tokens sai com tracinho, não None")
 
     def test_opcao_transcritos_da_linha_de_comando_chega_ao_calculo(self):  # 0.43.3: --transcritos no forge-check metricas
         self.gravar("docs/pedidos/p9.md", "# p9\n\n## Histórico\n- 2026-11-02 10:00: (E1) aberto\n")

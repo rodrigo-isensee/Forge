@@ -1,0 +1,88 @@
+{
+    "pedido": "v0478-testes-prazo",
+    "executor": "unittest",
+    "mutantes": [
+        {
+            "id": "M1",
+            "guarda": "descende_de: a cadeia de pais anda enquanto o pid é válido e ainda não visto",
+            "arquivo": "tests/sem_claude_ancestral.py",
+            "de": "    while pid > 0 and pid not in vistos:",
+            "para": "    while pid > 0 and pid in vistos:",
+            "testes": [
+                "tests.test_sempre_atual.ProcessoDeOutraParteDaSuite.test_descende_de_segue_a_cadeia_de_pais_ate_o_teste"
+            ]
+        },
+        {
+            "id": "M2",
+            "guarda": "descende_de: só o processo do teste (--ate) na cadeia faz o pid contar como do teste",
+            "arquivo": "tests/sem_claude_ancestral.py",
+            "de": "        if pid == ate:",
+            "para": "        if pid != ate:",
+            "testes": [
+                "tests.test_sempre_atual.ProcessoDeOutraParteDaSuite.test_descende_de_segue_a_cadeia_de_pais_ate_o_teste"
+            ]
+        },
+        {
+            "id": "M3",
+            "guarda": "o lançador troca a lista de pids só no forge-sempre-atual; os outros scripts veem o /proc inteiro",
+            "arquivo": "tests/sem_claude_ancestral.py",
+            "de": "        if script.name == \"forge-sempre-atual\":",
+            "para": "        if script.name != \"forge-sempre-atual\":",
+            "testes": [
+                "tests.test_sempre_atual.ProcessoDeOutraParteDaSuite.test_lancador_troca_a_lista_de_pids_so_do_forge_sempre_atual"
+            ]
+        },
+        {
+            "id": "M4",
+            "guarda": "o forge-sempre-atual do teste vê só os pids que descendem do --ate",
+            "arquivo": "tests/sem_claude_ancestral.py",
+            "de": "if descende_de(int(n), ate, original)]",
+            "para": "if not descende_de(int(n), ate, original)]",
+            "testes": [
+                "tests.test_sempre_atual.ProcessoDeOutraParteDaSuite.test_lancador_troca_a_lista_de_pids_so_do_forge_sempre_atual"
+            ]
+        },
+        {
+            "id": "M5",
+            "guarda": "carga_explica_a_recusa: só a recusa do vigia do prazo longo (código 2 e a mensagem dos 8 s) conta",
+            "arquivo": "tests/prova_de_carga.py",
+            "de": "    if r is None or r.returncode != 2 or f\"não decidiu em {prazo:g} s\" not in r.stderr:",
+            "para": "    if r is None or r.returncode != 2:",
+            "testes": [
+                "tests.test_hooks.Hooks.test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada",
+                "tests.test_hooks.Hooks.test_liberar_ou_provar_a_carga_aceita_so_a_recusa_explicada_pela_carga"
+            ]
+        },
+        {
+            "id": "M6",
+            "guarda": "carga_explica_a_recusa: o relógio chegou ao prazo e as três medidas existem",
+            "arquivo": "tests/prova_de_carga.py",
+            "de": "    if parede is None or parede < prazo or cpu is None or parcela is None:",
+            "para": "    if parede is None or parede < 0 or cpu is None or parcela is None:",
+            "testes": [
+                "tests.test_hooks.Hooks.test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada"
+            ]
+        },
+        {
+            "id": "M7",
+            "guarda": "carga_explica_a_recusa: a referência conseguiu no máximo PARCELA_DE_DISPUTA do relógio (disputa provada)",
+            "arquivo": "tests/prova_de_carga.py",
+            "de": "    if cpu + sono > prazo - FOLGA_DA_CPU_NO_PRAZO_S or parcela > PARCELA_DE_DISPUTA:",
+            "para": "    if cpu + sono > prazo - FOLGA_DA_CPU_NO_PRAZO_S or parcela > 1:",
+            "testes": [
+                "tests.test_hooks.Hooks.test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada",
+                "tests.test_hooks.Hooks.test_liberar_ou_provar_a_carga_aceita_so_a_recusa_explicada_pela_carga"
+            ]
+        },
+        {
+            "id": "M8",
+            "guarda": "carga_explica_a_recusa: o hook aproveitou a parcela da referência (a S1, sono a mais, reprova aqui)",
+            "arquivo": "tests/prova_de_carga.py",
+            "de": "    return aproveitamento_da_cpu(parede, cpu, sono, parcela) >= APROVEITAMENTO_MINIMO",
+            "para": "    return aproveitamento_da_cpu(parede, cpu, sono, parcela) >= 0",
+            "testes": [
+                "tests.test_hooks.Hooks.test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada"
+            ]
+        }
+    ]
+}

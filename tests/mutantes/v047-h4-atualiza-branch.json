@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-h4-atualiza-branch",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "H4: só melhoria/* recebe o merge da base; fora dela segue sem trazer (E8)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  case \"$ref\" in\n    melhoria/*)\n      if [ \"$trazida\" = 0 ]",
+      "para": "  case \"$ref\" in\n    *)\n      if [ \"$trazida\" = 0 ]",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_e8_fora_de_melhoria_e_o_mesmo_nenhuma_branch_recebe_o_merge"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "H4: um merge da base por cadeia (a cadeia recomeçada, com --trazida, não traz de novo)",
+      "arquivo": "bin/forge-fechar",
+      "de": "      if [ \"$trazida\" = 0 ]; then echo \"$msg; trago a base por merge (H4).\"",
+      "para": "      if true; then echo \"$msg; trago a base por merge (H4).\"",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_h4_com_trazida_nao_traz_a_base_de_novo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "H4: saída do merge-tree que não é árvore para",
+      "arquivo": "bin/forge-fechar",
+      "de": "  [[ \"$arvore_mt\" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || die",
+      "para": "  [[ \"$arvore_mt\" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || true",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_h4_falha_de_cada_passo_do_merge_para_sem_pr"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "H4: commit-tree que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "    || die \"parou no passo 2b: não consegui criar o commit de merge; nada foi aberto\"",
+      "para": "    || true",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_h4_falha_de_cada_passo_do_merge_para_sem_pr"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "H4: sem a branch local, só o envio (nada de update-ref numa ref ausente)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"$so_remota\" = 1 ]; then\n    :  # sem a branch local",
+      "para": "  if [ \"$so_remota\" = 2 ]; then\n    :  # sem a branch local",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_h4_sem_a_branch_local_envia_o_merge_e_recomeca"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "H4: a branch numa worktree anda por ela (conferida limpa), não por update-ref",
+      "arquivo": "bin/forge-fechar",
+      "de": "  elif [ -n \"$arvore_lock\" ] && test -d \"$arvore_lock\"; then\n    [ -z \"$(git -C \"$arvore_lock\" status --porcelain)\" ]",
+      "para": "  elif false; then\n    [ -z \"$(git -C \"$arvore_lock\" status --porcelain)\" ]",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_h4_worktree_suja_ou_ff_que_falha_para_sem_enviar"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "H4: worktree com mudança não commitada para",
+      "arquivo": "bin/forge-fechar",
+      "de": "status --porcelain)\" ] || die \"parou no passo 2b: a worktree de $ref",
+      "para": "status --porcelain)\" ] || true \"parou no passo 2b: a worktree de $ref",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_h4_worktree_suja_ou_ff_que_falha_para_sem_enviar"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "H4: fast-forward da worktree que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "merge --ff-only --quiet \"$novo\" || die",
+      "para": "merge --ff-only --quiet \"$novo\" || true",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_h4_worktree_suja_ou_ff_que_falha_para_sem_enviar"
+      ]
+    }
+  ]
+}

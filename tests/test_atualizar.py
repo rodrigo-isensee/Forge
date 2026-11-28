@@ -40,7 +40,8 @@ fi
 if [ "$2 $3" = "marketplace remove" ] && [[ "$*" != *"--scope user"* ]] && [ -f "$PWD/.claude/settings.json" ]; then
   echo '{}' > "$PWD/.claude/settings.json"
 fi
-if [ -f "$FAKE_DIR/suja-projeto" ] && [ "$2 $3" = "marketplace remove" ]; then
+# (E6.5: o forge não chama mais `marketplace remove`; o defeito é imitado no `add`, que é a troca de hoje)
+if [ -f "$FAKE_DIR/suja-projeto" ] && [ "$2 $3" = "marketplace add" ]; then
   echo '{"agent": "outro"}' > "$(cat "$FAKE_DIR/suja-projeto")/.claude/settings.json"
 fi
 # Imita o Ctrl-C do terminal no meio da troca: o `add` da tag manda SIGINT ao `forge` (o pai) e demora a terminar
@@ -930,7 +931,7 @@ class AvisoDoDoutor(Base):
         self.assertEqual(len(mensagem.splitlines()), 1)
         self.assertIn("9.9.0", mensagem)
         self.assertIn(VERSAO, mensagem)
-        self.assertIn("forge atualizar", mensagem)
+        self.assertIn("próxima abertura", mensagem)  # v047 E6.6 (ADR 0017): entra sozinha, sem comando ao dono
         r = self.hook("Stop")
         self.assertEqual((r.returncode, r.stdout), (0, ""), "uma vez por dia")
 
@@ -1037,7 +1038,7 @@ class Revisao(Base):
         r = self.py("print(v.fixar_plugin(v.url_do_forge(), '9.9.0'))", env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("False", r.stdout)
-        self.assertEqual(self.chamadas_do_claude(), [], "a checagem da tag vem antes do remove")
+        self.assertEqual(self.chamadas_do_claude(), [], "a checagem da tag vem antes de qualquer troca")
         r = self.py("print(v.fixar_plugin(v.url_do_forge(), '8.8.8'))")  # rede ok, tag inexistente
         self.assertIn("False", r.stdout)
         self.assertEqual(self.chamadas_do_claude(), [])
@@ -1134,7 +1135,7 @@ if __name__ == "__main__":
 
 
 class CtrlCNaTroca(Base):
-    """Terceira review do PR 111: Ctrl-C entre o `remove` e o `add` não pode deixar o usuário sem marketplace e sem plugin."""
+    """Terceira review do PR 111: Ctrl-C no meio da troca (o `add` da tag) não pode deixar o usuário sem marketplace e sem plugin."""
 
     def estado(self):
         arq = self.home / ".local/state/forge/marketplace-original.json"
@@ -1188,7 +1189,7 @@ class CtrlCNaTroca(Base):
         self.assertEqual(dados, {"fonte": "dono/Forge", "escopo": "user"})
         self.assertEqual(arq.stat().st_mode & 0o777, 0o600)
 
-    def test_atualizar_grava_a_fonte_original_antes_do_remove(self):
+    def test_atualizar_grava_a_fonte_original_antes_da_troca(self):
         self.publicar("9.9.0")
         (self.fake / "claude-falha").write_text("#v9.9.0", encoding="utf-8")
         self.rodar(ATUALIZAR, respostas=["s"])
@@ -1283,4 +1284,243 @@ class AtualizarSemPergunta(Base):
         self.assertEqual(codigo, 0, saida)
         self.assertEqual(len(self.adds()), 1, self.adds())
         self.assertTrue(self.adds()[0].endswith("#v" + VERSAO + " --scope user"))
+        self.assertEqual(self.ramos(), {"main", "develop", "homolog"})
+
+
+class SemMarketplaceRemove(Base):
+    """FORGE-SEMPRE-ATUAL (E6.5, ADR 0017, prova U3): `claude plugin marketplace remove` desinstala o Forge do usuário e dos projetos e
+    apaga o `enabledPlugins` versionado. Nenhum caminho do `forge atualizar` e do `forge voltar-versao` o chama; a troca e a devolução
+    da marketplace são `marketplace add <fonte> --scope user` sobre a existente."""
+
+    def sem_remove(self):
+        chamadas = self.chamadas_do_claude()
+        self.assertTrue([c for c in chamadas if " marketplace add " in c], chamadas)
+        self.assertEqual([c for c in chamadas if " marketplace remove" in c], [], chamadas)
+
+    def test_atualizar_troca_por_add_sem_remove(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.sem_remove()
+
+    def test_fixar_troca_por_add_sem_remove(self):
+        codigo, saida = self.rodar(ATUALIZAR, "--fixar", respostas=[])
+        self.assertEqual(codigo, 0, saida)
+        self.sem_remove()
+
+    def test_falha_no_add_devolve_a_fonte_por_add_sem_remove(self):
+        self.publicar("9.9.0")
+        (self.fake / "claude-falha").write_text("#v9.9.0", encoding="utf-8")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 1, saida)
+        self.sem_remove()
+
+    def test_ctrl_c_na_troca_devolve_a_fonte_por_add_sem_remove(self):
+        self.publicar("9.9.0")
+        (self.fake / "sigint-no-add").write_text("", encoding="utf-8")
+        self.rodar(ATUALIZAR, respostas=["s"])
+        self.sem_remove()
+
+    def test_voltar_versao_sem_remove(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        codigo, saida = self.rodar(VOLTAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.sem_remove()
+
+    def test_marketplace_de_outro_escopo_e_devolvida_por_add_sem_remove(self):
+        """A fonte de antes vinha de fora do settings do usuário (escopo "outro"): a devolução também é `add`."""
+        self.publicar("9.9.0")
+        sys.path.insert(0, str(RAIZ / "bin"))
+        self.addCleanup(sys.path.remove, str(RAIZ / "bin"))
+        import forge_versoes
+        antes = os.environ.copy()
+        self.addCleanup(lambda: (os.environ.clear(), os.environ.update(antes)))
+        os.environ.update(self.env)
+        self.assertTrue(forge_versoes.devolver_original({"fonte": "dono/Forge", "escopo": "outro"}))
+        self.sem_remove()
+
+
+class FixacaoDoDono(Base):
+    """FORGE-SEMPRE-ATUAL (E6.8, ADR 0017 item 11): `forge atualizar --fixar` e `forge voltar-versao` gravam `fixacao={motivo: dono}` no
+    estado da ferramenta; a abertura seguinte do atalho respeita (a leitura está em `test_sempre_atual`); `forge atualizar` solta."""
+
+    def fixacao(self):
+        arq = self.home / ".claude/plugins/data/forge-forge/forge/sempre-atual/estado.json"
+        return json.loads(arq.read_text(encoding="utf-8")).get("fixacao") if arq.is_file() else None
+
+    def test_fixar_grava_a_fixacao_do_dono_na_versao_em_uso(self):
+        codigo, saida = self.rodar(ATUALIZAR, "--fixar", respostas=[])
+        self.assertEqual(codigo, 0, saida)
+        fix = self.fixacao()
+        self.assertEqual((fix["motivo"], fix["de"], fix["para"]), ("dono", VERSAO, VERSAO), fix)
+
+    def test_voltar_versao_grava_a_fixacao_do_dono_na_versao_de_antes(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIsNone(self.fixacao(), "atualizar não fixa")
+        codigo, saida = self.rodar(VOLTAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        fix = self.fixacao()
+        self.assertEqual((fix["motivo"], fix["para"]), ("dono", VERSAO), fix)
+        self.assertNotIn("não gravei a fixação", saida, "gravou: sem aviso")
+
+    def test_voltar_versao_que_nao_grava_a_fixacao_avisa_e_volta(self):
+        """ramo de falha do `if not gravou` do voltar-versao (E1.62): a pasta de estado que é arquivo recusa a gravação; a volta segue e avisa"""
+        self.publicar("9.9.0")
+        self.assertEqual(self.rodar(ATUALIZAR, respostas=["s"])[0], 0)
+        estado = self.home / ".claude/plugins/data/forge-forge/forge/sempre-atual"
+        shutil.rmtree(estado, ignore_errors=True)
+        estado.parent.mkdir(parents=True, exist_ok=True)
+        estado.write_text("não é pasta", encoding="utf-8")
+        codigo, saida = self.rodar(VOLTAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("não gravei a fixação", saida)
+
+    def test_atualizar_solta_so_a_fixacao_do_dono(self):
+        self.publicar("9.9.0")
+        self.rodar(ATUALIZAR, "--fixar", respostas=[])
+        self.assertEqual(self.fixacao()["motivo"], "dono")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIsNone(self.fixacao())
+
+    def test_fixar_sem_pasta_de_estado_avisa_e_nao_falha(self):
+        shutil.rmtree(self.home / ".claude/plugins")
+        codigo, saida = self.rodar(ATUALIZAR, "--fixar", respostas=[])
+        self.assertIn("não gravei a fixação", saida)
+
+
+class HooksDoModeloSemChamada(Base):
+    """Q2 (E6.10): o modelo entrega `.githooks/pre-push.local`; se o `pre-push` do projeto (que é dele) não o chama, `forge atualizar`
+    liga a chamada (hook de shell, na branch do upgrade, num commit à parte) ou avisa em linguagem simples, sem apagar nada."""
+
+    LOCAL = "#!/usr/bin/env bash\necho local-rodou >> \"$(dirname \"$0\")/../.git/marca-local.txt\"\n"
+
+    def com_hooks(self, pre_push="#!/bin/sh\nexit 0\n", local=LOCAL, local_exec=True):
+        """O projeto tem o hook próprio e o pre-push.local, na main e na develop (a base do upgrade)."""
+        if pre_push is not None:
+            self.escrever(".githooks/pre-push", "")
+            (self.proj / ".githooks" / "pre-push").write_bytes(pre_push if isinstance(pre_push, bytes) else pre_push.encode())
+            (self.proj / ".githooks" / "pre-push").chmod(0o755)
+        if local is not None:
+            self.escrever(".githooks/pre-push.local", local)
+            (self.proj / ".githooks" / "pre-push.local").chmod(0o755 if local_exec else 0o644)
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "chore: hooks do projeto")
+        self.empurrar("main")
+        self.git("branch", "-f", "develop", "main")
+        self.empurrar("develop")
+
+    def empurrar(self, ramo):
+        """Envia sem rodar os hooks do projeto (o fixture mexe neles; o que se testa aqui é o `forge atualizar`)."""
+        self.git("-c", "core.hooksPath=/dev/null", "push", "-q", "origin", ramo)
+
+    def hook(self, ramo="forge/upgrade-9.9.0", nome="pre-push"):
+        return self.git("show", f"{ramo}:.githooks/{nome}")
+
+    def test_liga_a_chamada_no_hook_de_shell_do_projeto_num_commit_a_parte(self):
+        self.com_hooks()
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("Liguei a chamada", saida)
+        texto = self.hook()
+        linhas = texto.splitlines()
+        self.assertEqual(linhas[0], "#!/bin/sh")
+        self.assertIn("pre-push.local", linhas[2])
+        self.assertEqual(linhas[-1], "exit 0", "nada do hook do projeto foi apagado")
+        self.assertIn("chore(forge): liga o pre-push.local ao pre-push do projeto", self.git("log", "--format=%s", "origin/develop..forge/upgrade-9.9.0"))
+        self.assertEqual(self.git("status", "--porcelain"), "")
+
+    def test_commit_da_ligacao_recusado_desfaz_o_hook_e_so_avisa(self):
+        """ramo de falha do `if not ligou` (E1.62): o commit da ligação recusado (commit-msg do projeto) desfaz a mudança no arquivo
+        e no índice; nada fica pela metade"""
+        self.escrever(".githooks/commit-msg", "#!/bin/sh\ngrep -q 'liga o' \"$1\" && exit 1\nexit 0\n")
+        (self.proj / ".githooks" / "commit-msg").chmod(0o755)
+        self.com_hooks()
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertNotIn("Liguei a chamada", saida)
+        self.assertEqual(self.git("status", "--porcelain"), "")
+        self.assertEqual((self.proj / ".githooks" / "pre-push").read_text(encoding="utf-8"), "#!/bin/sh\nexit 0\n")
+
+    def test_o_hook_ligado_roda_o_local_e_o_erro_do_local_barra_o_envio(self):
+        self.com_hooks()
+        self.publicar("9.9.0")
+        self.assertEqual(self.rodar(ATUALIZAR, respostas=["s"])[0], 0)
+        hook = self.proj / ".githooks" / "pre-push"
+        r = subprocess.run([str(hook), "origem", "url"], cwd=self.proj, env=self.env, capture_output=True, text=True, input="")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((self.proj / ".git" / "marca-local.txt").read_text(encoding="utf-8").strip(), "local-rodou")
+        (self.proj / ".githooks" / "pre-push.local").write_text("#!/bin/sh\nexit 7\n", encoding="utf-8")
+        r = subprocess.run([str(hook)], cwd=self.proj, env=self.env, capture_output=True, text=True, input="")
+        self.assertEqual(r.returncode, 1, "o local que reprova barra o envio")
+
+    def test_hook_que_ja_chama_o_local_fica_como_esta(self):
+        original = "#!/bin/sh\n.githooks/pre-push.local || exit 1\nexit 0\n"
+        self.com_hooks(pre_push=original)
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertNotIn("Atenção:", saida)
+        self.assertEqual(self.hook() + "\n", original)
+        self.assertNotIn("liga o pre-push.local", self.git("log", "--format=%s", "origin/develop..forge/upgrade-9.9.0"))
+
+    def test_hook_que_nao_e_de_shell_so_avisa_e_fica_intacto(self):
+        original = "#!/usr/bin/env python3\nimport sys\nsys.exit(0)\n"
+        self.com_hooks(pre_push=original)
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("não é chamado pelo .githooks/pre-push", saida)
+        self.assertIn("Peça ao Jarvis", saida)
+        self.assertEqual(self.hook() + "\n", original)
+
+    def test_hook_com_fim_de_linha_do_windows_so_avisa(self):
+        original = "#!/bin/sh\r\nexit 0\r\n"
+        self.com_hooks(pre_push=original.encode())
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("não é chamado pelo .githooks/pre-push", saida)
+        self.assertEqual(self.git("show", "forge/upgrade-9.9.0:.githooks/pre-push").replace("\r", "") + "\n", original.replace("\r", ""))
+
+    def test_local_sem_permissao_de_execucao_avisa_o_comando(self):
+        self.com_hooks(pre_push="#!/bin/sh\n.githooks/pre-push.local\nexit 0\n", local_exec=False)
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("chmod +x .githooks/pre-push.local", saida)
+
+    def test_projeto_com_local_e_sem_hook_avisa(self):
+        self.com_hooks(pre_push=None)
+        self.git("rm", "-q", ".githooks/pre-push")
+        self.git("commit", "-q", "-m", "chore: sem hook")
+        self.empurrar("main")
+        self.git("branch", "-f", "develop", "main")
+        self.empurrar("develop")
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("não tem o .githooks/pre-push", saida)
+
+    def test_sem_local_no_projeto_nao_avisa_nada(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertNotIn("Atenção:", saida)
+
+    def test_ja_na_ultima_versao_avisa_sem_mudar_nada(self):
+        self.com_hooks()
+        self.publicar(VERSAO)
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("última versão", saida)
+        self.assertIn("não é chamado pelo .githooks/pre-push", saida)
+        self.assertEqual(self.git("status", "--porcelain"), "")
+        self.assertEqual(self.git("show", "HEAD:.githooks/pre-push"), "#!/bin/sh\nexit 0")
         self.assertEqual(self.ramos(), {"main", "develop", "homolog"})

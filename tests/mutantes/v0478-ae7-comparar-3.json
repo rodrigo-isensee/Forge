@@ -1,0 +1,87 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP17",
+      "guarda": "AE7.1 veredito: código 2 é recusa",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if r.returncode == 2:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_comparar.Medida.test_head_que_libera_aparece_como_aceite_novo"
+      ]
+    },
+    {
+      "id": "CMP18",
+      "guarda": "AE7.1 veredito: JSON com código de erro é ignorado",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if r.returncode == 0 and r.stdout.strip() else {}",
+      "para": "if r.stdout.strip() else {}",
+      "testes": [
+        "tests.test_comparar.Medida.test_json_com_codigo_de_erro_e_ignorado"
+      ]
+    },
+    {
+      "id": "CMP19",
+      "guarda": "AE7.1 veredito: saída que não é JSON libera",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    except (ValueError, AttributeError):\n        return ACEITE, None",
+      "para": "    except (ValueError, AttributeError):\n        return RECUSA, None",
+      "testes": [
+        "tests.test_comparar.Medida.test_saida_que_nao_e_json_libera"
+      ]
+    },
+    {
+      "id": "CMP20",
+      "guarda": "AE7.1 veredito: deny no JSON é recusa",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if decisao == \"deny\" or saida.get(\"decision\") == \"block\" or saida.get(\"continue\") is False:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_comparar.Medida.test_deny_no_json_e_recusa"
+      ]
+    },
+    {
+      "id": "CMP21",
+      "guarda": "AE7.1 veredito: ask é pergunta",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "PERGUNTA if decisao == \"ask\"",
+      "para": "PERGUNTA if decisao == \"nunca\"",
+      "testes": [
+        "tests.test_comparar.Medida.test_pergunta_no_lugar_da_recusa_e_aceite_novo"
+      ]
+    },
+    {
+      "id": "CMP22",
+      "guarda": "AE7.1 rodar_caso: ambiente por lista positiva, sem marca do comparador",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "for k in AMBIENTE if k in os.environ}, HOME=str(home), TMPDIR=str(arvore.parent",
+      "para": "for k in os.environ}, HOME=str(home), TMPDIR=str(arvore.parent",
+      "testes": [
+        "tests.test_comparar.ComoOClaudeCode.test_hook_do_head_que_detecta_o_comparador_nao_finge_apertar"
+      ]
+    },
+    {
+      "id": "CMP23",
+      "guarda": "AE7.1 executar: base ou head fora do repositório",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if base is None or head is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_comparar.Refs.test_commit_de_outro_repositorio_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP24",
+      "guarda": "AE7.1 executar: corpus ilegível ou vazio",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if corpus_base is None or corpus_head is None or not {**corpus_head, **corpus_base}:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_comparar.Corpus.test_corpus_ilegivel_e_nao_verificavel",
+        "tests.test_comparar.Corpus.test_nenhum_caso_e_nao_verificavel"
+      ]
+    }
+  ]
+}

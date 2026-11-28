@@ -1,0 +1,76 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "I1",
+      "guarda": "o add e o update-index passam pela conferência do índice (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if sub in INDICE_NO_GIT:\n            self.git_indice(sub, args, [pasta, pasta_git], opcoes)\n",
+      "para": "        if False:\n            self.git_indice(sub, args, [pasta, pasta_git], opcoes)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "I2",
+      "guarda": "a lista de caminhos pela entrada recusa (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if any(abreviacao_de(a, INDICE_PELA_ENTRADA) for a in args):\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "I3",
+      "guarda": "a palavra do --cacheinfo com vírgulas dá o caminho (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        caminhos = palavras + [a.split(\",\", 2)[2] for a in palavras if a.count(\",\") >= 2]\n",
+      "para": "        caminhos = palavras\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "I4",
+      "guarda": "o pathspec de pasta, curinga ou magia, que não é varredura, vale pelo que alcança (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if not self.varredura(c) and (GLOB_DE_PATHSPEC.search(c) or c.startswith(\":\") or alvos[0].is_dir()):\n",
+      "para": "                if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "I5",
+      "guarda": "o que o pathspec alcança fora do índice também conta (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.tracked_do_pathspec(c, pasta, opcoes, (\"-c\", \"-o\"))",
+      "para": "self.tracked_do_pathspec(c, pasta, opcoes)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "I6",
+      "guarda": "só o caminho quem: [] recusa no índice (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    if achado and achado[3:4] == (\"instalacao\",):\n",
+      "para": "                    if achado:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "I8",
+      "guarda": "o alvo que casa um termo da política passa pela regra inteira (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    achado = self.caminho_barrado(Path(alvo)) if termos is False or termos.search(str(alvo)) else None\n",
+      "para": "                    achado = None\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    }
+  ]
+}

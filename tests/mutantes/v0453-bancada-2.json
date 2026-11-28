@@ -26,8 +26,8 @@
       "id": "B17",
       "guarda": "alguma falha dá rc 1",
       "arquivo": "tests/bancada/bancada.py",
-      "de": "    return 1 if falhas else 0",
-      "para": "    return 1 if not falhas else 0",
+      "de": "return (1 if falhas else 0), registro",
+      "para": "return (1 if not falhas else 0), registro",
       "testes": [
         "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera",
         "tests.test_bancada.Bancada.test_chamada_que_falha_da_rc_1"

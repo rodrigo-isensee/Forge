@@ -1,0 +1,63 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M8",
+      "guarda": "o brief sem a marca (volta N) no Entregar é a entrega original: conta 0",
+      "arquivo": "bin/forge-check",
+      "de": "return int(grupo(VOLTA_NO_ENTREGAR, (blocos.get(\"Entregar\") or [\"\"])[0]) or 0)",
+      "para": "return int(grupo(VOLTA_NO_ENTREGAR, (blocos.get(\"Entregar\") or [\"\"])[0]) or 1)",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_numero_da_volta_sem_a_marca_e_zero"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "o brief gerar --volta recusa o anterior que já tem volta",
+      "arquivo": "bin/forge-check",
+      "de": "    if sucessores:  # G1.1: a volta sai do último brief do item",
+      "para": "    if False:  # G1.1: a volta sai do último brief do item",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_conta_o_item_e_nao_a_cadeia"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "a conferência recusa o anterior que já tem volta",
+      "arquivo": "bin/forge-check",
+      "de": "    if sucessores:\n        saida.append((f\"volta: o anterior",
+      "para": "    if False:\n        saida.append((f\"volta: o anterior",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_conta_o_item_e_nao_a_cadeia"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o brief gerar --volta conta as voltas do item, não só a cadeia",
+      "arquivo": "bin/forge-check",
+      "de": "n = max(numero_da_volta(blocos_literais(anterior)), voltas) + 1",
+      "para": "n = numero_da_volta(blocos_literais(anterior)) + 1",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_conta_o_item_e_nao_a_cadeia"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "a conferência conta as voltas do item, não só a cadeia",
+      "arquivo": "bin/forge-check",
+      "de": "real = max(n, n_anterior + 1, voltas + 1)",
+      "para": "real = max(n, n_anterior + 1)",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_conta_o_item_e_nao_a_cadeia"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "grupo(r\"\\bvolta (\\d+)\", (blocos.get(\"Entregar\") or [\"\"])[0]) or 0",
+      "motivo": "a condição saiu do gerar_volta para numero_da_volta (G1.1), coberta lá pelo M8"
+    }
+  ]
+}

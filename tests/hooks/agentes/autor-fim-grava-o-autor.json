@@ -1,0 +1,41 @@
+{
+  "descricao": "H2-AUTOR-FICA-ATE-O-MERGE: o SubagentStop do agente de escrita grava o id e as branches dele em `autores`.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a0123456789abcdef",
+          "tipo": "forge:tech-lead",
+          "descricao": "Implementar",
+          "desde": "{agora-60}",
+          "escrita": [
+            "melhoria/a"
+          ],
+          "branches": [
+            "melhoria/a"
+          ]
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "SubagentStop",
+    "agent_id": "a0123456789abcdef",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "\"autores\"",
+          "a0123456789abcdef",
+          "melhoria/a"
+        ],
+        "ausente": [
+          "Implementar"
+        ]
+      }
+    }
+  }
+}

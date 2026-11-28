@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S81",
+      "guarda": "forge_sempre_atual.py:524 decide por `rc != 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.git_rede([\"ls-remote\", \"--tags\", \"--refs\", \"--\", self.url, \"refs/tags/v*\"])\n        if rc != 0:\n            self.falhar(livres, \"prazo\" if rc is None else \"rede\", saida)",
+      "para": "rc, saida = self.git_rede([\"ls-remote\", \"--tags\", \"--refs\", \"--\", self.url, \"refs/tags/v*\"])\n        if not (rc != 0):\n            self.falhar(livres, \"prazo\" if rc is None else \"rede\", saida)",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S82",
+      "guarda": "forge_sempre_atual.py:525 decide por `rc is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.git_rede([\"ls-remote\", \"--tags\", \"--refs\", \"--\", self.url, \"refs/tags/v*\"])\n        if rc != 0:\n            self.falhar(livres, \"prazo\" if rc is None else \"rede\", saida)\n            return None\n        ultima = maior_tag(saida)",
+      "para": "rc, saida = self.git_rede([\"ls-remote\", \"--tags\", \"--refs\", \"--\", self.url, \"refs/tags/v*\"])\n        if rc != 0:\n            self.falhar(livres, \"prazo\" if not (rc is None) else \"rede\", saida)\n            return None\n        ultima = maior_tag(saida)",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_sem_rede_na_lista_de_tags_registra_rede"
+      ]
+    },
+    {
+      "id": "S83",
+      "guarda": "forge_sempre_atual.py:532 decide por `fix is None and \"fixacao\" not in self.estado`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if fix is None and \"fixacao\" not in self.estado:",
+      "para": "if not (fix is None and \"fixacao\" not in self.estado):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_legada_so_com_o_log_do_forge_atualizar"
+      ]
+    },
+    {
+      "id": "S84",
+      "guarda": "forge_sempre_atual.py:534 decide por `legada`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if legada:",
+      "para": "if not (legada):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_legada_so_com_o_log_do_forge_atualizar"
+      ]
+    },
+    {
+      "id": "S85",
+      "guarda": "forge_sempre_atual.py:539 decide por `fix`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return (versao_tupla(fix[\"para\"]) if fix else ultima), ultima, fix",
+      "para": "return (versao_tupla(fix[\"para\"]) if not (fix) else ultima), ultima, fix",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S86",
+      "guarda": "forge_sempre_atual.py:569 decide por `rc != 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.claude([\"plugin\", \"marketplace\", \"add\", f\"{self.url}#{tag}\", \"--scope\", \"user\"], cap=120)\n        if rc != 0:\n            self.falhar(escopos, \"prazo\" if rc is None else \"add\", saida)",
+      "para": "rc, saida = self.claude([\"plugin\", \"marketplace\", \"add\", f\"{self.url}#{tag}\", \"--scope\", \"user\"], cap=120)\n        if not (rc != 0):\n            self.falhar(escopos, \"prazo\" if rc is None else \"add\", saida)",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S87",
+      "guarda": "forge_sempre_atual.py:570 decide por `rc is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.falhar(escopos, \"prazo\" if rc is None else \"add\", saida)",
+      "para": "self.falhar(escopos, \"prazo\" if not (rc is None) else \"add\", saida)",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_add_recusado_registra_add"
+      ]
+    },
+    {
+      "id": "S88",
+      "guarda": "forge_sempre_atual.py:578 decide por `e[\"escopo\"] == \"user\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "cwd = self.neutro if e[\"escopo\"] == \"user\" else e[\"projeto\"]",
+      "para": "cwd = self.neutro if not (e[\"escopo\"] == \"user\") else e[\"projeto\"]",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    }
+  ]
+}

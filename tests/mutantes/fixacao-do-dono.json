@@ -1,0 +1,77 @@
+{
+  "pedido": "v047-fixacao-do-dono",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "forge atualizar --fixar grava a fixação do dono",
+      "arquivo": "bin/forge-atualizar",
+      "de": "gravou, motivo = fsa.fixar_como_dono(atual)",
+      "para": "gravou, motivo = True, \"\"",
+      "testes": [
+        "tests.test_atualizar.FixacaoDoDono.test_fixar_grava_a_fixacao_do_dono_na_versao_em_uso"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "forge voltar-versao grava a fixação do dono",
+      "arquivo": "bin/forge-voltar-versao",
+      "de": "gravou, motivo = fsa.fixar_como_dono(antes)",
+      "para": "gravou, motivo = True, \"\"",
+      "testes": [
+        "tests.test_atualizar.FixacaoDoDono.test_voltar_versao_grava_a_fixacao_do_dono_na_versao_de_antes"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a fixação gravada é do dono, não a automática",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "{\"motivo\": \"dono\", \"de\": texto,",
+      "para": "{\"motivo\": \"volta-automatica\", \"de\": texto,",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_gravada_pelo_dono_e_respeitada_na_abertura_seguinte",
+        "tests.test_atualizar.FixacaoDoDono.test_fixar_grava_a_fixacao_do_dono_na_versao_em_uso"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "soltar mexe só na fixação do dono",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "isinstance(fix, dict) and fix.get(\"motivo\") == \"dono\"",
+      "para": "isinstance(fix, dict)",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_soltar_a_fixacao_do_dono_deixa_a_rodada_atualizar_e_poupa_a_automatica"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "forge atualizar solta a fixação do dono",
+      "arquivo": "bin/forge-atualizar",
+      "de": "    fsa.soltar_fixacao_do_dono()",
+      "para": "    pass",
+      "testes": [
+        "tests.test_atualizar.FixacaoDoDono.test_atualizar_solta_so_a_fixacao_do_dono"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "versão inválida não vira fixação",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "    if versao_tupla(versao) is None:\n        return False, f\"versão inválida",
+      "para": "    if False:\n        return False, f\"versão inválida",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixar_como_dono_recusa_versao_invalida_e_estado_inexistente"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a fixação grava a versão pedida em `para`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "\"para\": texto, \"desde\": hoje()}\n    return _com_estado",
+      "para": "\"para\": \"0.0.1\", \"desde\": hoje()}\n    return _com_estado",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_gravada_pelo_dono_e_respeitada_na_abertura_seguinte"
+      ]
+    }
+  ]
+}

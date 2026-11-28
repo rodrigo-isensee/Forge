@@ -3,6 +3,8 @@
 Os testes saíram da classe `CorpusHeredocVoltaUnica` de tests/test_hooks.py (HOOKS-CORPUS-RAPIDO); a base e o corpus estão em
 tests/apoio_volta_unica.py."""
 from pathlib import Path
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -21,15 +23,19 @@ from apoio_volta_unica import (  # noqa: E402
     corpus_da_volta_unica,
     modulos_dos_hooks,
     texto)
+from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 import test_hooks  # noqa: E402
 
 # TESTE-T-VIGIA-PAREDE (L31): o teste do vigia mede a parede só do hook (de dentro do lançador, depois de subir o
 # interpretador e importar o `_comum`) e a CPU do processo (`MedidaDeCpu`); o teto segue o de sempre, e a fila da
-# máquina carregada não o estoura.
+# máquina carregada não o estoura. Desde o E7.40 o prazo do hook conta da partida do processo (`idade_do_processo`);
+# aqui ele conta do mesmo ponto da medida, e a partida real sob atraso tem a prova de parede própria
+# (`PrazoVencidoNaSessaoDoForge.test_partida_lenta_recusa_o_merge_antes_do_corte`).
 LANCADOR_MEDIDO = test_hooks.LANCADOR.replace(
     'runpy.run_path(sys.argv[0], run_name="__main__")',
-    "inicio_do_hook = time.monotonic()\ntry:\n    runpy.run_path(sys.argv[0], run_name='__main__')\n"
+    "inicio_do_hook = time.monotonic()\n_comum.idade_do_processo = lambda nome: time.monotonic() - inicio_do_hook\n"
+    "try:\n    runpy.run_path(sys.argv[0], run_name='__main__')\n"
     "finally:\n    open(os.environ['FORGE_MEDIDA_DO_HOOK'], 'w').write(repr(time.monotonic() - inicio_do_hook))").replace(
     "import runpy, sys, time", "import os, runpy, sys, time")
 
@@ -204,9 +210,10 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
 
     def test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem(self):  # item 3 do critério de fim do bloco T
         """Um passo lento injetado (`lancador(lento=True)`: o 2.o `Hook.campo`, depois do marcador, dorme 60 s) faz os dois hooks
-        recusarem a chamada com o marcador antes de 10 s, com a regra do hook (R-CONFORMIDADE, R-REVIEW), e liberarem a
-        sem marcador. Sem o passo lento, a mesma chamada com marcador passa: o que recusa é o vigia, e é por construção,
-        para qualquer passo lento, e não só para os que o teste 1 gera."""
+        recusarem a chamada com o marcador antes de 10 s, com a regra do hook (R-CONFORMIDADE, R-REVIEW), e também a sem
+        marcador (VIGIA-PRAZO-TRAVA, decisão do dono de 24/11: o prazo vencido numa trava recusa com ou sem o marcador; o
+        nome do teste é o antigo, citado em tests/mutantes/). Sem o passo lento, a mesma chamada com marcador passa: o que
+        recusa é o vigia, e é por construção, para qualquer passo lento, e não só para os que o teste 1 gera."""
         montados = self.modelos_montados()
         linhas = {"conformidade": ("git push origin feature/x", "R-CONFORMIDADE"),
                   "parecer": ("gh pr create --draft --base develop --title x --body y", "R-REVIEW")}
@@ -222,7 +229,8 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                 self.assertLess(cpu, PRAZO_DO_CLAUDE_CODE_S / 2, "o passo lento dorme: o vigia não gasta CPU")
             with self.subTest(hook=hook, caso="sem marcador"):
                 codigo, erro, segundos, _ = self.decidir_medido(montados, hook, "echo oi", lento=True)
-                self.assertEqual((codigo, erro), (0, ""))
+                self.assertEqual(codigo, 2, erro)
+                self.assertRegex(erro, f"^{regra}: o hook não decidiu")
                 self.assertLess(segundos, PRAZO_DO_CLAUDE_CODE_S)
 
     def test_t_vigia_cobre_a_busca_do_proprio_marcador(self):
@@ -279,6 +287,68 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
             with self.subTest(rotulo=rotulo, hook=hook):
                 self.assertEqual(decisoes[(hook, texto)], 2, f"o {hook} libera {texto!r}, com a palavra da tabela")
         self.assertGreaterEqual(len(reais), 800)
+
+
+class VigiaAgentesPesado(unittest.TestCase):
+    """VIGIA-AGENTES-PESADO (E172.3, decisão do dono de 24/11): o `agentes` e o `pesado` também recusam quando o vigia de
+    prazo vence, sem marcador crítico, no PreToolUse (no projeto e no clone do Forge), e só registram nos outros eventos.
+    Os casos são as fixtures cuja descrição abre com o cartão; o prazo vencido é forçado no processo do hook (`forcar`)."""
+    executar_em_lote = test_hooks.Hooks.executar_em_lote
+    executar_fixture = test_hooks.Hooks.executar_fixture
+    _pasta_temporaria = test_hooks.Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(test_hooks.Hooks.depende_de_pid_ou_trava)
+
+    def test_fixtures_do_vigia_agentes_pesado(self):
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in map(test_hooks.Fixture, sorted(test_hooks.FIXTURES.glob("*/*.json")))
+                if f.dados.get("descricao", "").startswith("VIGIA-AGENTES-PESADO")]
+        self.assertGreaterEqual(len(lote), 6, "as fixtures do vigia nos dois hooks")
+        self.assertEqual({f.hook for _, f in lote}, {"agentes", "pesado"})
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_prazo_do_hook_pelo_relogio_falso(self):
+        """O `executar` arma o vigia com o `prazo_do_hook` de cada um (e não com os 3 s comuns): o passo que dorme até
+        perto do prazo libera; o que chega nele recusa com R-TETO e o prazo do hook no texto; a saída desarma."""
+        _comum, _, _ = modulos_dos_hooks()
+        import agentes
+        import pesado
+        raiz = Path(tempfile.mkdtemp(prefix="forge-vigia-ap-"))
+        self.addCleanup(shutil.rmtree, raiz, ignore_errors=True)
+        subprocess.run(["git", "init", "-q", "-b", "develop", str(raiz)], check=True, stdin=subprocess.DEVNULL,
+                       env=sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(raiz)}))
+        (raiz / ".forge").mkdir()
+        (raiz / ".forge" / "versao").write_text("0.0.0\n", encoding="utf-8")
+        ambiente = {k: v for k, v in os.environ.items() if k != "FORGE_GUARDA_ABERTA"}
+        for modulo in (agentes, pesado):
+            prazo = modulo.PRAZO_DO_HOOK_S
+            for passo, codigo in ((prazo - 0.1, 0), (prazo, 2)):
+                with self.subTest(hook=modulo.__name__, passo=passo):
+                    relogio = test_hooks.RelogioFalso(_comum.PrazoVencido)
+                    entrada = {"hook_event_name": "PreToolUse", "cwd": str(raiz)}
+                    with mock.patch.dict(os.environ, {**ambiente, "CLAUDE_PROJECT_DIR": str(raiz)}, clear=True), \
+                            mock.patch("sys.stdin", io.StringIO(json.dumps(entrada))), \
+                            contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(SystemExit) as saida:
+                        _comum.executar(modulo.__name__, lambda hook, s=passo: relogio.dormir(s), clone_do_forge=True,
+                                        regra_do_prazo="R-TETO", prazo_do_hook=prazo, relogio=relogio, armar=relogio.armar)
+                    self.assertEqual(saida.exception.code, codigo, erro.getvalue())
+                    sessao = [_comum.PRAZO_DA_SESSAO_S, 0] * 2 if codigo else []  # E7.23: a sessão e o registro (E7.27)
+                    self.assertEqual(relogio.armados, [prazo, 0, *sessao])
+                    if codigo:
+                        self.assertRegex(erro.getvalue(), f"^R-TETO: o hook não decidiu em {prazo:g} s ")
+
+    def test_prazo_de_cada_hook_abaixo_do_timeout_do_hooks_json(self):
+        """O prazo do vigia de cada hook passa do prazo comum (e, no `pesado`, da espera na fila) e fica abaixo do menor
+        `timeout` do PreToolUse dele no hooks.json, com folga de 2 s: senão o Claude Code mata o hook e libera a ação."""
+        _comum, _, _ = modulos_dos_hooks()
+        import agentes
+        import pesado
+        d = json.loads((test_hooks.HOOKS / "hooks.json").read_text(encoding="utf-8"))
+        for modulo, piso in ((agentes, _comum.PRAZO_DA_DECISAO_S), (pesado, pesado.ESPERA_S)):
+            limites = [h["timeout"] for g in d["hooks"]["PreToolUse"] for h in g["hooks"]
+                       if any(a.endswith(f"/hooks/{modulo.__name__}.py") for a in h.get("args", []))]
+            with self.subTest(hook=modulo.__name__):
+                self.assertTrue(limites, f"o {modulo.__name__}.py no PreToolUse do hooks.json")
+                self.assertGreater(modulo.PRAZO_DO_HOOK_S, piso)
+                self.assertLessEqual(modulo.PRAZO_DO_HOOK_S, min(limites) - 2)
 
 
 if __name__ == "__main__":

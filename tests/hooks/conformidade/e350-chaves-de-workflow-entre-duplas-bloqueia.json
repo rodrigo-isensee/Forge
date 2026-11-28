@@ -1,0 +1,25 @@
+{
+  "descricao": "E3.50: ${{ }} entre aspas duplas com marcador crítico segue recusado (o bash expande o $); a recusa diz a forma aceita.",
+  "arquivos": {
+    "docs/a.md": "parecer\n",
+    "docs/reviews/a.md": "## Achados\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "grep -n \"git push origin ${{ github.ref }}\" .github/workflows/ci.yml"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "texto com $ só entre aspas simples: '${{ x }}'"
+  }
+}

@@ -275,10 +275,8 @@ class GerarComCobre(Base):
         self.assertIn("Etapa: codigo   Cobre: E1.1\n", saida)
         self.assertIn('- "E1.1 (dev-exemplo): implementação do recurso X." (E1.1)\n', saida)
         self.assertIn("## Fora do escopo (outras etapas do pedido, sem a marca; R-BRIEF)", saida)
-        for etapa, trecho in ETAPAS.items():
-            if etapa != "E1.1":
-                self.assertIn(f"- {trecho} · etapa de outra delegação; continua no pedido\n", saida)
         fora = saida.split("## Fora do escopo", 1)[1].split("## Marca de corte", 1)[0]
+        self.assertIn(f"- {', '.join(e for e in ETAPAS if e != 'E1.1')} · outras delegações\n", fora)  # E3.48: só os ids
         self.assertNotIn("Retira do escopo original", fora)
         self.assertNotIn("E1.1 (dev-exemplo)", fora)
 
@@ -931,7 +929,7 @@ class PqDoExecutor(eb.Repo):
 
     def entrega_do(self, base, pedido="exemplo", fora=""):
         return (f"- PQ-N (cmd, do autor): `forge-check entrega {pedido}{fora} --branch melhoria/x --base develop --base-sha {base} "
-                "--etapa codigo` · espera: rc=0\n")
+                "--mutantes ${TMPDIR:-/tmp}/forge-mutantes.log --pronto ${TMPDIR:-/tmp}/forge-pronto.log --etapa codigo` · espera: rc=0\n")
 
     def test_codigo_traz_o_pq_com_o_sha40_da_base(self):
         rc, saida, erro = self.gerar("--etapa", "codigo")
@@ -963,7 +961,7 @@ class PqDoExecutor(eb.Repo):
 
     def test_sem_base_remota_o_sha_fica_preencher(self):
         rc, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo", "--etapa", "codigo",
-                                     "--branch", "melhoria/x", "--base", "inexistente")
+                                     "--branch", "melhoria/x", "--base", "homolog")  # do fluxo, sem ref no repo de teste
         self.assertEqual(rc, 0, saida + erro)
         self.assertIn("Base-sha: PREENCHER\n", saida)
         self.sem_pq("sha fora da forma (PREENCHER)", saida, erro)
@@ -983,6 +981,8 @@ class PqDoExecutor(eb.Repo):
 
     def test_volta_com_branch_fora_da_forma_nao_gera(self):
         eb.Volta.anterior(self)
+        arq = self.repo / "docs" / "briefs" / "exemplo-dev-exemplo-1.md"  # G1.1: a `Branch:` do anterior é a do --branch
+        arq.write_text(arq.read_text(encoding="utf-8").replace("Branch: melhoria/x ", "Branch: melhoria/x;rm ", 1), encoding="utf-8")
         self.pareceres(self.c1, p="reprovado", corpo="## Achados\n- A1 (bloqueante) src/app.py:1 · o valor está errado\n")
         _, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo",
                                     "--volta", "docs/briefs/exemplo-dev-exemplo-1.md", "--ref", "melhoria/x", "--branch", "melhoria/x;rm")
@@ -1007,8 +1007,8 @@ class PqDoExecutor(eb.Repo):
 
 
 
-# AQR-2 (E15.1): o `brief gerar` põe no `Fora do escopo` uma linha curta por etapa já feita (id, papel e a marca `· feito`) e o
-# texto inteiro só das abertas; o brief gerado, preenchido, continua aprovado no corte (R-BRIEF).
+# v0474 E3.48 (antes AQR-2): o `brief gerar` põe no `Fora do escopo` só os ids das outras etapas, feitas ou abertas, em linhas de
+# `IDS_POR_LINHA_DO_FORA` (a forma da volta); o brief gerado, preenchido, continua aprovado no corte (R-BRIEF).
 TEXTO_CUMPRIDA = "implementação da parte {n} do recurso X, com os testes, os mutantes e a documentação afetada pela mudança"
 
 
@@ -1043,21 +1043,17 @@ class GerarComCumpridas(Base):
     def fora(texto):
         return texto.split("## Fora do escopo", 1)[1].split("\n## ", 1)[0]
 
-    def test_feita_vai_curta_e_aberta_com_o_texto_inteiro(self):
+    def test_feitas_e_abertas_vao_so_pelo_id(self):
         fora = self.fora(self.gerar())
-        for n in range(1, 20, 2):
-            self.assertIn(f"\n- E1.{n} (papel-{n}) · feito · etapa de outra delegação; continua no pedido\n", fora)
-            self.assertNotIn(TEXTO_CUMPRIDA.format(n=n) + " ", fora)
-        for n in range(2, 20, 2):
-            self.assertIn(f'\n- "E1.{n} (papel-{n}): {TEXTO_CUMPRIDA.format(n=n)} · prazo 2026-01-02" · etapa de outra delegação', fora)
-        self.assertIn('- "E2.1 (papel-x): o feito anterior do recurso X segue aberto · prazo 2026-01-03"', fora)  # "feito" no meio não é a marca
-        self.assertIn("\n- E2.2 () · feito · etapa de outra delegação; continua no pedido\n", fora)  # sem papel, nunca "None"
+        ids = [f"E1.{n}" for n in range(1, 20)] + ["E2.1", "E2.2"]
+        self.assertEqual(fora.strip().splitlines()[1:], [f"- {', '.join(ids)} · outras delegações"])
+        self.assertNotIn("recurso X", fora)  # o texto das etapas continua no pedido
 
     def test_o_bloco_fica_menor_que_o_de_texto_inteiro(self):
         fora = self.fora(self.gerar())
         dados = fc.ler_pedido_brief(PEDIDO_CUMPRIDAS)
         inteiro = "".join(f'- "{t}" · etapa de outra delegação; continua no pedido\n' for e, (_, t) in dados["etapas"].items() if e != "E1.20")
-        self.assertLess(len(fora), len(inteiro) - 10 * 60, fora)  # cada uma das 10 feitas encolhe mais de 60 caracteres
+        self.assertLess(len(fora), len(inteiro) // 10, fora)  # E3.48: o id no lugar do texto, abertas incluídas
 
     def test_o_brief_gerado_e_preenchido_passa_no_corte(self):
         texto = preencher(self.gerar()).replace("- Mesclar o commit aprovado.\n", "")

@@ -16,8 +16,8 @@
       "id": "M26",
       "guarda": "C-2: o desenho se lê em UTF-8 estrito (`ilegível`)",
       "arquivo": "bin/forge-check",
-      "de": "ler_registro(raiz, valor, PASTAS_DE_DESENHO, \"strict\")",
-      "para": "ler_registro(raiz, valor, PASTAS_DE_DESENHO, \"replace\")",
+      "de": "PASTAS_DE_DESENHO, \"strict\", RAIZES",
+      "para": "PASTAS_DE_DESENHO, \"replace\", RAIZES",
       "testes": [
         "tests.test_forge.CriterioDeParada.test_ausente_link_para_fora_grande_e_ilegivel_avisam_sem_cair_na_outra_raiz"
       ]

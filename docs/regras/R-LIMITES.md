@@ -8,7 +8,7 @@ verificada_por: cada trecho abaixo diz a sua (hooks, permissões, catraca do CI,
 Propósito: texto único de cinco regras de limite (AV5, 2026-11-10); os outros arquivos citam o ID do trecho. Público: todo o time.
 
 Revisar em: 2027-01-07
-Medida: 25 pontos de recusa no código e 0 cópias; a de cada trecho vem nele
+Medida: 28 pontos de recusa no código e 0 cópias; a de cada trecho vem nele
 
 ## R-MAIN: A main é do usuário
 
@@ -41,20 +41,19 @@ verificada_por: revisão (code review do `tech-lead` em toda melhoria do Forge) 
 Medida: 2 pontos de recusa `msg("R-CUSTO"` em `tests/catraca.py`; custo do Forge hoje: 0
 
 - Nada no Forge (CI, testes, scripts, fluxo) consome API paga ou serviço cobrado.
-- Nada que custe dinheiro (API paga, serviço cobrado) entra no Forge sem autorização expressa do usuário, dono do Forge. Vale também para melhoria de fábrica vinda de qualquer projeto.
+- Nada que custe dinheiro (API paga, serviço cobrado) entra no Forge sem autorização expressa do usuário, dono do Forge. Vale para melhoria de fábrica vinda de qualquer projeto.
 
-## R-CONTRIB: Contribuição ao Forge: projeto abre PR, nunca mescla
+## R-CONTRIB: Contribuição ao Forge: projeto só sugere, nunca mexe no Forge
 
 verificada_por: hooks `parecer` e `conformidade`, rulesets e catraca do CI (ADR 0008; vale em qualquer projeto)
 
-Medida: 6 pontos de recusa `barrar("R-CONTRIB"` em `hooks/conformidade.py` e 2 `msg("R-CONTRIB"` em `tests/catraca.py`
+Medida: 11 pontos de recusa `barrar("R-CONTRIB"` em `hooks/conformidade.py` e 2 `msg("R-CONTRIB"` em `tests/catraca.py`
 
-- **Quem trabalha em um projeto abre PR para a `develop` do Forge e nunca o mescla**; mescla a sessão do próprio Forge e, na `main`, o usuário.
+- **Projeto nunca mexe no Forge, só sugere** (diretriz 36 do dono, 2026-11-17). A sessão de outro projeto não cria branch, não commita, não envia, não abre PR, não comenta nem rotula no repositório do Forge, nem escreve em `~/.forge-contrib/`. A melhoria vista no projeto vira só sugestão anonimizada, guardada com `forge sugerir --guardar`; vira issue só depois que o dono confirma, no terminal dele. Quem implementa é sempre a sessão do Forge (triagem, PR e merge na `develop`); na `main`, o usuário.
 - **Nenhum portão tem exceção, nem para o dono:** os portões da classe da entrega, os checks e os rótulos valem para todos os autores.
 - **O rótulo `afrouxa-regra` é só do dono do Forge.** O agente só o aplica, e só cria ou renomeia um rótulo com esse nome, com a conta dona do repositório e decisão do dono registrada; fora disso, aplicar ou delegar esse rótulo a um agente é **proibido**. O rótulo vale para o conteúdo dos arquivos protegidos que o dono viu: push sem arquivo protegido não o derruba.
 - **O `tech-lead` abre e mescla o PR**, não o Jarvis (FILA-22, hook `conformidade`). **Checklist de merge:** na `develop` e na `homolog`, só com todos os checks verdes (`gh pr checks`), pareceres válidos (`forge-check pr`) e, se a catraca pedir, o rótulo do dono; na `main`, nunca (`R-MAIN`).
-- **Sessão de outro projeto só propõe.** Pode: criar **uma** branch própria `melhoria/<projeto>-<tema>` a partir da `develop`; abrir o PR. Não pode: commitar ou enviar em branch que não criou; resolver conflitos nem revalidar pareceres de PR alheio; mesclar; fechar ou editar PR alheio; aplicar rótulos; criar issue (dentro do Claude, só `forge sugerir --guardar "<texto>"`). Aberto o PR, avisa o usuário e **para**. O hook `conformidade` barra o resto pela raiz da sessão e falha fechado.
-- A sessão de projeto usa só `~/.forge-contrib/<projeto>` e `~/.forge-contrib/<projeto>-wt/*`.
+- **O hook `conformidade` barra branch, commit, envio e PR no Forge vindos de sessão de projeto** e todo `gh` no Forge que não só lê (formas em `skills/contribuir-com-o-forge/formas-recusadas.md`). Decide pela raiz da sessão e, na dúvida sobre o alvo, falha fechado; a recusa diz a forma aceita. A sessão do Forge não é afetada.
 
 ## R-COPIA: Não copiar agentes e skills para o projeto
 

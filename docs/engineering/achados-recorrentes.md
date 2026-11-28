@@ -12,10 +12,10 @@ Uma linha por achado recorrente, no máximo 20; só classe, ID da regra, contage
 O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Quem escreve: o `tech-lead` (review), o `security-engineer` e o `qa-engineer`, no mesmo PR do parecer. Sai a linha sem ocorrência em 90 dias.
 
 ## Achados
-- AR-1 · qa · lista de mutantes incompleta · R-QA · vezes: 8 · última: tests/mutantes/v046-fechar-lote.json:1
+- AR-1 · qa · lista de mutantes incompleta · R-QA · vezes: 9 · última: hooks/ambiente.py:40
 - AR-2 · qa · ramo de falha de guarda sem teste de comportamento · R-QA · vezes: 2 · última: bin/forge-fechar:177
 - AR-3 · seguranca · lista negativa em trava de ambiente · R-SEGURANCA · vezes: 3 · última: tests/test_ci_local.py:36
-- AR-4 · review · teste herda o ambiente do CI · R-REVIEW · vezes: 2 · última: tests/test_suite_paralela.py:181
+- AR-4 · review · teste herda o ambiente do CI · R-REVIEW · vezes: 3 · última: tests/test_ambiente_hook.py:58
 - AR-5 · seguranca · python sem -I em caminho que decide · R-SEGURANCA · vezes: 2 · última: .githooks/pre-push:264
 - AR-6 · review · mascara-do-shell-esconde-codigo · R-REVIEW · vezes: 5 · última: bin/forge-mutante:404
 - AR-7 · seguranca · pasta-do-git-diferente-do-bash · R-REVIEW · vezes: 3 · última: hooks/parecer.py:587
@@ -23,6 +23,7 @@ O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Qu
 - AR-9 · review · limite-antigo-no-texto · R-REVIEW · vezes: 2 · última: skills/qa-testing/SKILL.md:85
 - AR-10 · review · texto-isento-executado-por-outro-caminho · R-REVIEW · vezes: 2 · última: hooks/parecer.py:117
 - AR-11 · seguranca · leitura-de-opcao-do-gh-api-difere-da-do-gh · R-MAIN · vezes: 5 · última: hooks/parecer.py:537
-- AR-12 · review · spec-de-mutante-desatualizada-pelo-commit-que-muda-a-linha · R-REVIEW · vezes: 3 · última: tests/mutantes/v047-pr-hook-rapido.json:59
+- AR-12 · review · spec-de-mutante-desatualizada-pelo-commit-que-muda-a-linha · R-REVIEW · vezes: 5 · última: tests/mutantes/pr-verde-lote-check.json:79
 - AR-13 · review · hook-interpreta-o-curinga-diferente-do-bash · R-REVIEW · vezes: 2 · última: hooks/conformidade.py:1095
 - AR-14 · review · catraca-le-o-hook-diferente-do-claude-code · R-CONFORMIDADE · vezes: 6 · última: tests/catraca.py:344
+- AR-15 · review · guarda-de-hook-por-lista-negativa-sobre-texto-cru · R-CONFORMIDADE · vezes: 4 · última: hooks/conformidade.py:496

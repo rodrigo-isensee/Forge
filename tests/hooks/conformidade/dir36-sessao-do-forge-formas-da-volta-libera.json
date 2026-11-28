@@ -1,0 +1,25 @@
+{
+  "descricao": "Diretriz 36 (R-CONTRIB, E3.106): a sessão de desenvolvimento do Forge (raiz com o manifesto) grava `remote.origin.url` com o Forge, envia com `-c pushurl`, `--repo`, mescla, comenta e usa `gh api` com URL completa: não é afetada.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git config remote.origin.url https://github.com/rodrigo-isensee/Forge.git && git switch --create=melhoria/y && git merge origin/develop && git -c remote.origin.pushurl=https://github.com/rodrigo-isensee/Forge.git push origin melhoria/y && git push --repo=https://github.com/rodrigo-isensee/Forge.git && gh pr comment 5 -b ok && gh api -X PATCH https://api.github.com/repos/rodrigo-isensee/Forge/pulls/5 -f title=t && gh release view v1"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "forge": false
+}

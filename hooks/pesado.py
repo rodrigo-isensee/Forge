@@ -10,6 +10,9 @@ No clone do Forge (cópia principal e worktrees), que não tem `.forge/config.js
 abaixo: duas suítes completas ao mesmo tempo esgotam a memória (R-TETO); os scripts de PELOS_ARGUMENTOS são
 pesados salvo nas formas leves exatas (MAQ-A1b).
 Estado em .forge/run/pesado.json.
+MP4 (diretriz 35): a fila é uma só para a máquina (`_maquina`: `pesado.fila/` e, em `pesado.json`, a vez de cada projeto
+pela pasta do estado dele), com no máximo `vagas()` tarefas pesadas ao mesmo tempo, 1 por NUCLEOS_POR_VAGA núcleos. A senha
+leva a chave do projeto: a de projeto cuja vez já está tomada não anda agora e não segura quem vem atrás com vaga livre.
 Orkastery 5 (0.44.2): ocupado, o PreToolUse ESPERA a vez numa fila flock (a mesma ideia do .githooks/pre-push: senha presa
 por flock em .forge/run/pesado.fila/, a de processo morto se descarta) até ESPERA_S; a fila anda pela versão da branch (a
 versão em curso, a menor, primeiro) e depois pela chegada. Cartão da branch em "Aguardando o dono" recusa na hora. Passado o
@@ -18,17 +21,21 @@ teto, bloqueia dizendo a posição na fila.
 import fcntl
 import os
 import re
+import stat
 import subprocess
 import time
 from pathlib import Path
 
-from _comum import (bloquear, e_clone_do_forge, executar, gravar_json, ler_json, leituras, sem_atribuicoes,
+import _maquina
+from _comum import (bloquear, e_clone_do_forge, executar, gravar_json, ler_json, ler_trava, leituras, sem_atribuicoes,
                     separar_lancadores)
 
 CASCAS = {"sh", "bash", "dash", "zsh"}
 EVENTOS = {"PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionDenied"}
-# Sem o par Post (permissão negada, outro hook bloqueou), a trava não prende as outras sessões por horas.
-TRAVA_S = 600
+# Sem o par Post (permissão negada, outro hook bloqueou), a trava não prende as outras sessões por horas. Com o PID
+# vivo ela vale até 1.200 s, acima da suíte em série (até 693 s, MAQ-I9); com o PID morto solta na hora. A espera na
+# fila (ESPERA_S) não muda: o teto dela é o timeout do PreToolUse, e quem passa dele recusa com a posição.
+TRAVA_S = 1200
 # Palavras que só lançam a ferramenta: `sudo`, `npx playwright`, `pnpm exec playwright`...
 LANCADORES = {"sudo", "env", "time", "nice", "nohup", "exec", "command", "npx", "pnpx", "bunx", "uvx"}
 GERENCIADORES = {"npm", "pnpm", "yarn", "bun", "uv", "poetry"}
@@ -45,6 +52,7 @@ PESADOS_DO_FORGE = ["python3 -m unittest discover", "python -m unittest discover
 
 # Orkastery 5: espera na fila em vez de bloquear. O timeout do PreToolUse do pesado em hooks.json fica acima deste teto.
 ESPERA_S = 240
+NUCLEOS_POR_VAGA = 6
 PASSO_S = 0.5
 SEM_VERSAO = 999999
 VERSAO_DA_BRANCH = re.compile(r"(?:^|/)v(\d)(\d{2})(\d{1,2})?(?:\b|-)")
@@ -80,36 +88,111 @@ def aguardando_o_dono(raiz, branch):
     return bool(branch) and re.search(r"(?<![\w/.-])" + re.escape(branch) + r"(?![\w/.-])", secao) is not None
 
 
-def entrar_na_fila(pasta, prio):
-    """Cria e prende (flock) a senha `<prioridade>-<ns>-<pid>`; devolve (caminho, arquivo aberto)."""
+def pasta_da_fila():
+    """`pesado.fila/` na pasta da máquina; em link, levanta (segurança A4: a poda não apaga senha fora da pasta)."""
+    pasta = _maquina.pasta() / "pesado.fila"
+    if pasta.is_symlink():
+        raise OSError(f"{pasta} é link")
+    return pasta
+
+
+def entrar_na_fila(pasta, prio, chave=""):
+    """Cria e prende (flock) a senha `<prioridade>-<ns>-<pid>` com a `chave` do projeto dentro; devolve (caminho, arquivo aberto)."""
     pasta.mkdir(mode=0o700, exist_ok=True)
     caminho = pasta / f"{prio:06d}-{time.time_ns()}-{os.getpid()}"
-    f = open(caminho, "w", encoding="utf-8")  # noqa: SIM115 - fica aberto (e preso) enquanto espera
+    fd = os.open(caminho, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    f = os.fdopen(fd, "w", encoding="utf-8")  # noqa: SIM115 - fica aberto (e preso) enquanto espera
     fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    f.write(chave)
+    f.flush()
     return caminho, f
+
+
+def abrir_senha(c):
+    """O descritor da senha `c` só se ela é arquivo regular, sem seguir link nem esperar FIFO (segurança A4); senão None."""
+    try:
+        fd = os.open(c, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return None
+    if not stat.S_ISREG(os.fstat(fd).st_mode):
+        os.close(fd)
+        return None
+    return fd
 
 
 def fila_viva(pasta):
     """As senhas vivas, em ordem (prioridade, chegada); a de processo morto (flock livre) sai."""
     vivas = []
     for c in sorted(pasta.glob("[0-9]*")):
-        if c.is_symlink():
+        fd = abrir_senha(c)
+        if fd is None:
             continue
         try:
-            with open(c, encoding="utf-8") as f:
-                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             c.unlink(missing_ok=True)
         except BlockingIOError:
             vivas.append(c)
         except OSError:
             continue
+        finally:
+            os.close(fd)
     return vivas
+
+
+def chave_da_senha(c):
+    """A chave do projeto gravada na senha; vazia se não se lê."""
+    fd = abrir_senha(c)
+    if fd is None:
+        return ""
+    with os.fdopen(fd, "rb") as f:
+        return f.read(4096).decode("utf-8", "replace")
+
+
+def frente_parada(vivas, agora, vez_na_fila=None):
+    """Review A1 e A2: nenhuma senha à frente de `vez_na_fila` (sem ela, a fila toda) anda agora; anda a que é de projeto sem
+    vez viva na máquina. A senha presa pela vez do próprio projeto não segura os outros projetos quando há vaga livre."""
+    frente = vivas[:vivas.index(vez_na_fila)] if vez_na_fila in vivas else vivas
+    vezes = _maquina.ler("pesado.json")
+    return all(vez_viva(vezes.get(chave_da_senha(c)), agora) for c in frente)
+
+
+def vagas():
+    """MP4: tarefas pesadas ao mesmo tempo na máquina: 1 por NUCLEOS_POR_VAGA núcleos, no mínimo 1."""
+    return max(1, (os.cpu_count() or 1) // NUCLEOS_POR_VAGA)
+
+
+def outras_vezes(hook, uso, agora):
+    """MP4: as chaves das vezes vivas dos outros projetos na máquina (o critério de `ocupada`)."""
+    return [chave for chave, t in _maquina.ler("pesado.json").items() if chave != str(hook.run()) and ocupada(hook, t, uso, agora)]
+
+
+def maquina_cheia(hook, uso, agora):
+    """MP4: as vezes vivas dos outros projetos já tomam todas as vagas da máquina."""
+    return len(outras_vezes(hook, uso, agora)) >= vagas()
+
+
+def marcar_na_maquina(hook, trava):
+    """MP4: grava (`trava`) ou solta (None) a vez deste projeto no `pesado.json` da máquina; a de dono morto sai."""
+    chave = str(hook.run())
+    vezes = {c: t for c, t in _maquina.ler("pesado.json").items()
+             if c != chave and isinstance(t, dict) and pid_vivo(t.get("pid"), t.get("inicio"))}
+    _maquina.gravar("pesado.json", {**vezes, chave: trava} if trava else vezes)
+
+
+def solta(trava, uso):
+    """O Post deste uso solta a trava (e a sem `tool_use_id`)."""
+    return isinstance(trava, dict) and (not uso or trava.get("tool_use_id") in (uso, None))
 
 
 def ocupada(hook, trava, uso, agora):
     return isinstance(trava, dict) and trava.get("tool_use_id") != uso and not mesma_sessao(hook, trava) \
-        and pid_vivo(trava.get("pid"), trava.get("inicio")) and isinstance(trava.get("desde"), (int, float)) \
-        and agora - trava["desde"] < min(hook.expira_s(), TRAVA_S)
+        and vez_viva(trava, agora, min(hook.expira_s(), TRAVA_S))
+
+
+def vez_viva(trava, agora, teto=TRAVA_S):
+    """Dono vivo e `desde` há menos de `teto`; `desde` no futuro não vale (segurança A2: a vez nunca venceria)."""
+    return isinstance(trava, dict) and pid_vivo(trava.get("pid"), trava.get("inicio")) \
+        and isinstance(trava.get("desde"), (int, float)) and 0 <= agora - trava["desde"] < teto
 
 
 def pesados_da_raiz(hook, raiz):
@@ -150,8 +233,10 @@ def inicio_de(pid):
 
 
 def gravar_a_vez(hook, arquivo, dono, inicio, comando, agora, uso):
-    gravar_json(arquivo, {"pid": dono, "inicio": inicio, "agente": hook.campo("agent_id"),
-                          "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso})
+    trava = {"pid": dono, "inicio": inicio, "agente": hook.campo("agent_id"),
+             "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso}
+    gravar_json(arquivo, trava)
+    marcar_na_maquina(hook, trava)
 
 
 def pid_vivo(pid, inicio=None):
@@ -204,12 +289,24 @@ def pede_opcao(argumento, opcao):
     return len(nome) > 2 and opcao.startswith(nome)
 
 
+# PESADO-VERSOES-FORA-DA-FILA (v0478 E64.1): lista fechada das opções do teste dirigido; qualquer outra (`--completa`,
+# `--vermelho`, `--versoes`, a desconhecida e a interna `--executar`) pesa. Nenhuma começa por `--c` nem `--v`.
+LEVES_DO_FORGE_TESTES = ("--base", "--listar", "--afetados", "--texto", "--registros", "--regerar")
+
+
+def opcao_leve(argumento):
+    """O separador `--`, o `-k` (inteiro ou `-k=x`) ou uma opção de LEVES_DO_FORGE_TESTES, inteira, prefixo ou `=`."""
+    if argumento.split("=", 1)[0] in ("--", "-k"):
+        return True
+    return any(pede_opcao(argumento, o) for o in LEVES_DO_FORGE_TESTES)
+
+
 def leve_pelos_argumentos(inicio, padrao):
-    """O teste dirigido (os dois primeiros de PELOS_ARGUMENTOS) sem `--completa` nem `--vermelho` em posição nenhuma; o
-    mutante só com `--listar` sozinho."""
+    """O teste dirigido (os dois primeiros de PELOS_ARGUMENTOS) só com opções leves em qualquer posição (o que vem
+    depois do `--` também é lido, para só apertar); o mutante só com `--listar` sozinho."""
     _, *argumentos = inicio.split()
     if padrao in PELOS_ARGUMENTOS[:2]:
-        return not any(pede_opcao(a, o) for a in argumentos for o in ("--completa", "--vermelho"))
+        return all(opcao_leve(a) for a in argumentos if a.startswith("-"))
     return argumentos == ["--listar"]
 
 
@@ -294,19 +391,32 @@ def principal(hook):
     if not raiz or not pesado(comando, pesados_da_raiz(hook, raiz)):
         return
     uso = hook.campo("tool_use_id")
-    with hook.trava():
+    with hook.trava(), _maquina.trava():
         arquivo = hook.run() / "pesado.json"
-        trava = ler_json(arquivo, None)
+        trava = ler_trava(arquivo)
         if evento != "PreToolUse":
-            if isinstance(trava, dict) and (not uso or trava.get("tool_use_id") in (uso, None)):
-                arquivo.unlink()
+            if solta(trava, uso):
+                gravar_json(arquivo, None)  # `null`, não apaga: o arquivo negado ao Bash precisa existir (o runtime o criaria vazio)
+            if solta(_maquina.ler("pesado.json").get(str(hook.run())), uso):
+                marcar_na_maquina(hook, None)
             return
         agora = time.time()
-        if not ocupada(hook, trava, uso, agora) and not fila_viva(hook.run() / "pesado.fila"):
+        if not ocupada(hook, trava, uso, agora) and not maquina_cheia(hook, uso, agora) \
+                and frente_parada(fila_viva(pasta_da_fila()), agora):
             dono = pid_da_sessao()
             gravar_a_vez(hook, arquivo, dono, inicio_de(dono), comando, agora, uso)
             return
     esperar_a_vez(hook, raiz, arquivo, comando, uso)
+
+
+def motivo(hook, trava, uso, agora):
+    """Review A3: qual trava segura a vez; só a do projeto se apaga em `.forge/run/pesado.json`."""
+    if ocupada(hook, trava, uso, agora):
+        return f"tarefa pesada de outra sessão ou agente{descricao(trava, agora)}; se travou, apague .forge/run/pesado.json"
+    if maquina_cheia(hook, uso, agora):
+        nomes = ", ".join(sorted(Path(c).parent.parent.name for c in outras_vezes(hook, uso, agora)))
+        return f"máquina cheia: {vagas()} vaga(s) com {nomes} (~/.forge/maquina/pesado.json)"
+    return "senha à frente na fila da máquina que pode andar (~/.forge/maquina/pesado.fila/)"
 
 
 def descricao(trava, agora):
@@ -324,28 +434,33 @@ def esperar_a_vez(hook, raiz, arquivo, comando, uso):
         registrar_a_recusa(hook)
         bloquear("R-TETO", f"o cartão da branch `{branch}` está em \"Aguardando o dono\" no KANBAN.md; tarefa pesada não roda "
                            "enquanto ele não responde (a vez fica com quem pode andar).")
-    pasta = hook.run() / "pesado.fila"
-    senha, preso = entrar_na_fila(pasta, prioridade(branch))
+    pasta = pasta_da_fila()
+    senha, preso = entrar_na_fila(pasta, prioridade(branch), str(hook.run()))
     dono = pid_da_sessao()
     inicio = inicio_de(dono)  # lidos uma vez: a vez grava o dono já checado, não um pid relido depois da checagem
     try:
         for _ in range(int(espera_s() / PASSO_S) + 1):
             if pid_da_sessao() != dono:  # PROCESSO-ORFAO (v046): a sessão acabou; a senha sai da fila e a vez não é pega
                 bloquear("R-TETO", "a sessão que pediu a tarefa pesada acabou; a vez fica com a próxima da fila.")
-            with hook.trava():
-                trava, agora = ler_json(arquivo, None), time.time()
+            with hook.trava(), _maquina.trava():
+                trava, agora = ler_trava(arquivo), time.time()
                 vivas = fila_viva(pasta)
-                if not ocupada(hook, trava, uso, agora) and vivas[:1] == [senha]:
+                if not ocupada(hook, trava, uso, agora) and not maquina_cheia(hook, uso, agora) \
+                        and frente_parada(vivas, agora, senha):
                     gravar_a_vez(hook, arquivo, dono, inicio, comando, agora, uso)
                     return
             time.sleep(PASSO_S)
         registrar_a_recusa(hook)
-        bloquear("R-TETO", f"tarefa pesada de outra sessão ou agente{descricao(trava, agora)}; se travou, apague .forge/run/pesado.json; "
+        bloquear("R-TETO", f"{motivo(hook, trava, uso, agora)}; "
                            f"fila: posição {vivas.index(senha) + 1} de {len(vivas)} após {espera_s()} s (versão em curso na frente).")
     finally:
         preso.close()
         senha.unlink(missing_ok=True)
 
 
+# VIGIA-AGENTES-PESADO (decisão do dono, 24/11): a espera na fila (ESPERA_S) mais a folga da decisão, abaixo do timeout de
+# 300 s do PreToolUse no hooks.json; vencido, o vigia do `_comum` recusa (R-TETO), em vez de o timeout liberar a tarefa.
+PRAZO_DO_HOOK_S = ESPERA_S + 50
+
 if __name__ == "__main__":
-    executar("pesado", principal)
+    executar("pesado", principal, clone_do_forge=True, regra_do_prazo="R-TETO", prazo_do_hook=PRAZO_DO_HOOK_S)

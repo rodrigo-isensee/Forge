@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-meta85-placar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PR do merge de dois pais vem do assunto",
+      "arquivo": "bin/forge-placar",
+      "de": "int(pr.group(1)) if pr else None",
+      "para": "int(pr.group(1)) if True else None",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_pr_e_hora_do_merge_no_json"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "PR do merge le Merge pull request #N",
+      "arquivo": "bin/forge-placar",
+      "de": "PR_DO_MERGE.search(assunto)",
+      "para": "SQUASH.search(assunto)",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_pr_e_hora_do_merge_no_json"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "corte com data invalida sai com 2",
+      "arquivo": "bin/forge-placar",
+      "de": "    except (TypeError, ValueError):\n        raise SystemExit(f\"forge-placar: {nome} deve ser AAAA-MM-DDTHH:MM",
+      "para": "    except (TypeError, KeyError):\n        raise SystemExit(f\"forge-placar: {nome} deve ser AAAA-MM-DDTHH:MM",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_corte_invalido_sai_com_2"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "--desde corta o inicio",
+      "arquivo": "bin/forge-placar",
+      "de": "if args.desde else momento(dia.isoformat()",
+      "para": "if False else momento(dia.isoformat()",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_corte_por_hora_do_merge"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "--ate corta o fim",
+      "arquivo": "bin/forge-placar",
+      "de": "if args.ate else momento((dia",
+      "para": "if False else momento((dia",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_corte_por_hora_do_merge"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "--ate igual ou antes de --desde sai com 2",
+      "arquivo": "bin/forge-placar",
+      "de": "    if fim <= inicio:",
+      "para": "    if fim < inicio:",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_corte_invalido_sai_com_2"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "--ate sozinho tambem corta por hora",
+      "arquivo": "bin/forge-placar",
+      "de": "bool(args.desde or args.ate)",
+      "para": "bool(args.desde)",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_corte_por_hora_do_merge"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "p75 de um item so e o proprio total",
+      "arquivo": "bin/forge-placar",
+      "de": "if len(totais) > 1 else totais[0]",
+      "para": "if len(totais) > 0 else totais[0]",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_media_mediana_e_p75"
+      ]
+    }
+  ]
+}

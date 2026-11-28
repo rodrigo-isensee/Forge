@@ -2,6 +2,14 @@
 """Forge: uma linha por pedido em curso, para a statusLine do Claude Code (S3, 0.44.1). Só biblioteca padrão.
 
 Uso: forge-status [--raiz DIR] [--max N]
+     forge-status --maquina
+  --maquina (MP2, MP8): a visão da máquina para o dono, do registro que os hooks gravam (`hooks/_maquina.py`; só a sessão viva
+  conta). Uma linha por projeto ativo, `<projeto> · <pasta> · Forge <versão> · agentes <uso> de <parte> (peso <p>) · decisões
+  pendentes <n> · <k> sessões · batimento há <m> min`: o uso e o peso de `agentes.json` (MP3), a parte como o hook a calcula (com
+  um projeto, o teto inteiro; com mais, o teto x peso ÷ soma dos pesos), a versão de `.forge/versao` (no clone do Forge, a do
+  plugin), as decisões contadas como o `forge-check decisoes --abertas` (só a contagem). Sem nenhum: `forge: nenhum projeto ativo
+  na máquina`. Depois, as linhas `máquina:` com núcleos, carga, memória, disco, tarefas pesadas (MP4) e se o escape
+  `FORGE_CARGA_LIVRE` vale (MP5: só com um projeto ativo). Do outro projeto só se leem a versão e a contagem; nada vai à rede.
   Na statusLine, o JSON da entrada traz a pasta (`workspace.current_dir` ou `cwd`); sem ele, vale --raiz ou a pasta atual.
   Por pedido de docs/pedidos/<id>.md: `<id> · <coluna do KANBAN.md> · PR #<n> · <hora> <última linha do ## Histórico>`. A coluna é a
   seção do quadro em que a coluna Pedido do cartão cita o id; o PR é o último `PR #<n>` citado no pedido. Pedido em "Pronto" fica
@@ -11,8 +19,10 @@ Oferecida no modelo de projeto (templates/projeto/CLAUDE.md), não ligada à for
 """
 import argparse
 import json
+import math
 import re
 import sys
+import time
 from pathlib import Path
 
 FECHADAS = frozenset({"Pronto"})
@@ -22,6 +32,7 @@ ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 TETO_DE_BYTES = 1_000_000
 CORTE = 60
+VERSAO = re.compile(r"\b\d+\.\d+\.\d+\b")
 
 
 def ler(arq):
@@ -29,6 +40,10 @@ def ler(arq):
         return arq.read_bytes()[:TETO_DE_BYTES].decode("utf-8", errors="replace")
     except OSError:
         return ""
+
+
+def sem_controle(texto):
+    return re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", texto)  # C0, DEL e C1 (review da 0.44.1)
 
 
 def colunas(kanban):
@@ -52,18 +67,100 @@ def linhas(raiz, maximo):
         ultimo = historico[-1] if historico else ("", "--:--", "sem histórico")
         if coluna not in FECHADAS:
             pr = f" · PR #{prs[-1]}" if prs else ""
-            texto_ = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", ultimo[2])[:CORTE]  # C0, DEL e C1 (review da 0.44.1)
+            texto_ = sem_controle(ultimo[2])[:CORTE]
             pedidos.append((ultimo[0] + ultimo[1], f"{arq.stem} · {coluna}{pr} · {ultimo[1]} {texto_}"))
     pedidos.sort(reverse=True)
     saida = [linha for _, linha in pedidos[:maximo]] or ["forge: nenhum pedido em curso"]
     return saida + [f"+{len(pedidos) - maximo}"] * (len(pedidos) > maximo)
 
 
+def versao_do_projeto(pasta):
+    """MP8: `.forge/versao` do projeto ou, no clone do Forge, a do plugin; só o número (X.Y.Z), sem seguir link (nem no
+    arquivo nem na pasta `.forge` ou `.claude-plugin`); senão `?`."""
+    import _maquina
+    for nome in (".forge/versao", ".claude-plugin/plugin.json"):
+        if (Path(pasta) / nome).parent.is_symlink():  # A1 da segurança: o O_NOFOLLOW só vale no último componente
+            continue
+        try:
+            bruto = _maquina.ler_regular(Path(pasta) / nome, 4096)
+        except (OSError, ValueError):
+            continue
+        achado = VERSAO.search(bruto)
+        if achado:
+            return achado.group(0)
+    return "?"
+
+
+def pendentes(pasta):
+    """MP8: quantas decisões abertas ao dono o projeto tem, pelo leitor do `forge-check decisoes --abertas`; ilegível, `?`."""
+    import forge_dono
+    linhas, codigo = forge_dono.cmd_abertas(pasta)  # o arquivo ilegível ele já põe fora; pasta por link: código 1
+    return "?" if codigo else str(sum(linha.startswith("aberta:") for linha in linhas))
+
+
+def projetos(vivas, usos, total, agora):
+    """MP8: uma linha por projeto (a pasta da cópia principal) com as sessões vivas dele; a parte como o MP3 a calcula."""
+    from agentes import peso_valido
+    grupos = {}
+    for s in vivas.values():
+        if isinstance(s.get("pasta"), str) and Path(s["pasta"]).is_absolute():  # como o MP3: sem a pasta, fora da conta
+            grupos.setdefault(s["pasta"], []).append(s)
+    entradas = {p: usos[p] if isinstance(usos.get(p), dict) else {} for p in grupos}  # fora da forma: uso 0, peso 1
+    pesos = {p: peso_valido(entradas[p].get("peso")) for p in grupos}
+    saida = []
+    for pasta, sessoes in grupos.items():
+        uso = entradas[pasta].get("uso", 0)
+        parte = total if len(grupos) < 2 else max(1, math.floor(total * pesos[pasta] / sum(pesos.values())))
+        minutos = int((agora - max(s["batimento"] for s in sessoes)) // 60)
+        saida.append(sem_controle(f"{sessoes[0].get('projeto')} · {pasta} · Forge {versao_do_projeto(pasta)} · agentes "
+                                  f"{uso} de {parte} (peso {pesos[pasta]:g}) · decisões pendentes {pendentes(pasta)} · "
+                                  f"{len(sessoes)} sessões · batimento há {minutos} min")[:300])
+    return sorted(saida) or ["forge: nenhum projeto ativo na máquina"]
+
+
+def maquina():
+    """MP2 e MP8: os projetos com sessão viva no registro da máquina (o mesmo filtro dos hooks) e a medida da máquina."""
+    raiz = Path(__file__).resolve().parent.parent
+    sys.path[:0] = [str(raiz / "hooks"), str(raiz / "bin")]
+    import _maquina
+    from _comum import ler_projetos_ativos
+    from agentes import USO_DA_MAQUINA, medir, nucleos, teto_adaptativo
+    from forge_disco import LIMIAR_DISCO, uso_do_disco
+    from pesado import pid_vivo, vagas, vez_viva
+    agora, pasta = time.time(), _maquina.caminho_da_pasta()
+    lidos = []
+    for nome in (_maquina.ATIVOS, USO_DA_MAQUINA, "pesado.json"):
+        try:
+            dados = json.loads(_maquina.ler_regular(pasta / nome, _maquina.TETO_DE_BYTES))  # segurança A4
+        except (ValueError, OSError, RecursionError):
+            dados = {}
+        lidos.append(dados if isinstance(dados, dict) else {})
+    ativos, usos, vezes = lidos
+    vivas = _maquina.vivas(ativos.get("sessoes"), agora, pid_vivo)
+    carga, livre, total, nproc = *medir(), nucleos()
+    teto = teto_adaptativo(carga, livre, total, nproc)
+    memoria = f"memória {livre:.1f} de {total:.1f} GB disponíveis" if livre is not None else "memória sem leitura"
+    nomes = ler_projetos_ativos(str(pasta / _maquina.ATIVOS))
+    escape = ("FORGE_CARGA_LIVRE recusado: registro de projetos ilegível" if nomes is None
+              else f"FORGE_CARGA_LIVRE recusado: {len(nomes)} projetos ativos, a trava de memória vale sempre"
+              if len(nomes) > 1 else "FORGE_CARGA_LIVRE vale (um projeto ativo ou nenhum; só o dono)")
+    pesadas = sum(vez_viva(t, agora) for t in vezes.values())
+    return projetos(vivas, usos, teto, agora) + [
+        f"máquina: {nproc or '?'} núcleos · carga {carga if carga is not None else '?'} · {memoria} · disco "
+        f"{uso_do_disco(Path.home())}% (recusa cópia nova acima de {LIMIAR_DISCO}%) · tarefas pesadas {pesadas} de {vagas()}"
+        f" · teto {teto} agentes", f"máquina: {escape}"]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="forge-status", description="uma linha por pedido em curso, para a statusLine")
     ap.add_argument("--raiz", default=".")
     ap.add_argument("--max", type=int, default=3)
+    ap.add_argument("--maquina", action="store_true",
+                    help="visão da máquina: projetos ativos, agentes, carga, memória, disco, versão e decisões pendentes")
     a = ap.parse_args(argv)
+    if a.maquina:
+        print("\n".join(maquina()))
+        return 0
     try:
         entrada = json.loads(("{}" if sys.stdin.isatty() else sys.stdin.read(TETO_DE_BYTES)) or "{}")
         pasta = entrada.get("workspace", {}).get("current_dir") or entrada.get("cwd") or a.raiz

@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "V11",
+      "guarda": "as variáveis da própria ferramenta (SEM_HOOKS) chegam ao filho",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "**(extra or {})",
+      "para": "**({} or {})",
+      "testes": [
+        "tests.test_sempre_atual.ModeloComUpgradeDeVerdade.test_hook_de_commit_do_projeto_nao_roda_no_upgrade"
+      ]
+    },
+    {
+      "id": "V12",
+      "guarda": "busca que passa do prazo diz prazo",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return False, \"prazo\" if rc is None else \"busca: \" + saida",
+      "para": "return False, \"prazo\" if False else \"busca: \" + saida",
+      "testes": [
+        "tests.test_sempre_atual.OrigemDaTag.test_busca_no_prazo_esgotado_reprova"
+      ]
+    },
+    {
+      "id": "H8",
+      "guarda": "só a opção curta conta como letra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "curtas = {c for a in args if re.fullmatch(r\"-[a-zA-Z0-9]+\", a) for c in a[1:]}",
+      "para": "curtas = {c for a in args if a.startswith(\"-\") for c in a[1:]}",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    },
+    {
+      "id": "H9",
+      "guarda": "só a opção longa entra em longas",
+      "arquivo": "hooks/conformidade.py",
+      "de": "longas = {a.split(\"=\", 1)[0] for a in args if a.startswith(\"--\")}",
+      "para": "longas = {a.split(\"=\", 1)[0] for a in args if True}",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    },
+    {
+      "id": "H10",
+      "guarda": "opção longa de lista (--contains) é leitura",
+      "arquivo": "hooks/conformidade.py",
+      "de": "leitura = curtas & set(\"lvn\") or longas & {",
+      "para": "leitura = curtas & set(\"lvn\") or set() & {",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    },
+    {
+      "id": "H11",
+      "guarda": "opção longa de mudar a tag ao lado da de lista barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "so_opcoes_de_leitura = curtas <= TAG_SO_LEITURA_CURTAS and longas <= TAG_SO_LEITURA_LONGAS",
+      "para": "so_opcoes_de_leitura = curtas <= TAG_SO_LEITURA_CURTAS",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    },
+    {
+      "id": "H12",
+      "guarda": "envio sem posicional (git push --tags) não quebra o hook",
+      "arquivo": "hooks/conformidade.py",
+      "de": "posicionais[0] if posicionais else None",
+      "para": "posicionais[0] if True else None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    },
+    {
+      "id": "H13",
+      "guarda": "com --repo, o primeiro posicional é refspec",
+      "arquivo": "hooks/conformidade.py",
+      "de": "refs = posicionais  #",
+      "para": "refs = posicionais[1:]  #",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    }
+  ]
+}

@@ -26,8 +26,8 @@
       "id": "U3",
       "guarda": "D1: --ligar-sandbox não segue link",
       "arquivo": "bin/forge-upgrade",
-      "de": "    if alvo.is_symlink():",
-      "para": "    if not alvo.is_symlink():",
+      "de": "alvo.parent.is_symlink() or alvo.is_symlink():",
+      "para": "alvo.parent.is_symlink():",
       "testes": [
         "tests.test_forge.ForgeUpgrade.test_ligar_sandbox_recusa_link_e_json_que_nao_e_objeto"
       ]

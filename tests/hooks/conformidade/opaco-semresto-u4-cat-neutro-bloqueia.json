@@ -1,0 +1,32 @@
+{
+  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO, volta da E1.232 (U4, lista positiva): `cat` de arquivo não é da lista positiva e recusa também com origem neutra (o arquivo pode ter `.git`); falso positivo aceito, antes livre pelo U3.",
+  "arquivos": {
+    "x": "x\n",
+    "config": "c\n",
+    "pre-push": "p\n",
+    "lugar.txt": "docs\n",
+    "docs/a.md": "a\n",
+    "hooks/pre-push": "p\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp x \"$(cat lugar.txt)\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o hook só libera o valor que calcula"
+  }
+}

@@ -2,15 +2,35 @@
 sumiu (T-51a): cada trecho que o `tests/config.json` exigia do Jarvis na base b2580c6 segue exigido, no Jarvis ou na skill
 para onde foi, e o texto de cada um existe lá; o núcleo manda ler cada skill nova."""
 import json
+import os
 import re
+import shutil
+import sys
+import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from apoio_jarvis import (INDICE_DAS_REGRAS, conjunto_do_jarvis, ids_da_tabela, problemas_das_diretrizes, problemas_das_regras,  # noqa: E402
+                          skills_citadas, skills_sem_ordem_de_leitura)
 
 RAIZ = Path(__file__).resolve().parent.parent
 CONFIG = json.loads((RAIZ / "tests" / "config.json").read_text(encoding="utf-8"))
 ANTES = json.loads((RAIZ / "tests" / "fixtures" / "jarvis-invariantes-b2580c6.json").read_text(encoding="utf-8"))
 JARVIS = "agents/jarvis.md"
-SKILLS_NOVAS = ("briefs-e-conferencia", "trabalho-em-paralelo", "falar-com-o-dono")
+SKILLS_L51 = ("briefs-e-conferencia", "trabalho-em-paralelo", "falar-com-o-dono")
+# Folga do texto do Jarvis (v047, P2): o ponteiro pelo caminho também é invariante para a skill nova `fluxo-do-pedido`.
+SKILLS_COM_PONTEIRO = SKILLS_L51 + ("fluxo-do-pedido",)
+DIRETRIZES = json.loads((RAIZ / "tests" / "fixtures" / "diretrizes-do-dono.json").read_text(encoding="utf-8"))["diretrizes"]
+# P4 (decisões do dono de 14/11 08:16 e 08:38): pendentes 2, 11, 23, 24, 26, 27 e 28, cada uma com o seu cartão; só desce.
+# A 29 virou de fábrica com o FOCO-NAS-DECISOES.
+# v047 (afrouxa, liberação do dono para o plano v047): 8 = as 7 da P4 menos a 26 (fábrica, INTEGRACAO-EM-LOTE) mais a 30 e a
+# 31, que nasceram depois da P4; não é regressão: a 27 segue pendente com o RELEASE-EM-1H. Só desce.
+# DIR-28-SANDBOX-NO-JARVIS (v0478 E151.1): a 28 virou de fábrica (conferência do sandbox no agents/jarvis.md): 7.
+MAX_PENDENTES = 7
+# P3: a mensagem do núcleo manda mover, não reduzir (diretriz 25).
+MOVA = ("não apague nem resuma regra (diretriz 25): mova o detalhe para uma skill que o Jarvis manda ler e deixe o resumo; "
+        "não suba o teto")
 # 0.43.1 (decisões do dono de 2026-11-08, "Faça tudo"): o brief é selado pela ferramenta, a entrega é conferida por ela e as
 # perguntas ao dono passavam a ser juntadas numa só mensagem (revisto na 0.46, uma a uma). Estes trechos descreviam a conferência manual pelo agente conferente (mensagem, hash, Base-sha,
 # passada única, autoconferência) e a pergunta uma por vez: saem por mudança de processo, não por afrouxamento. O que eles
@@ -34,7 +54,7 @@ def ler(rel):
 
 
 def arquivos_do_nucleo():
-    return [JARVIS] + [f"skills/{nome}/SKILL.md" for nome in SKILLS_NOVAS]
+    return list(conjunto_do_jarvis())
 
 
 class NucleoCurtoDoJarvis(unittest.TestCase):
@@ -53,14 +73,14 @@ class NucleoCurtoDoJarvis(unittest.TestCase):
 
     def test_o_nucleo_manda_ler_cada_skill_no_passo_dela(self):
         nucleo = ler(JARVIS)
-        for nome in SKILLS_NOVAS:
+        for nome in SKILLS_COM_PONTEIRO:
             with self.subTest(skill=nome):
                 self.assertIn(f"skills/{nome}/SKILL.md", nucleo)
                 self.assertIn(f"skills/{nome}/SKILL\\.md", CONFIG["invariantes"][JARVIS])  # o ponteiro também é invariante
 
     def test_o_nucleo_ficou_curto_e_as_skills_tem_o_texto_que_saiu(self):
         self.assertLess(len(ler(JARVIS)), 24000)  # 29.092 bytes na base
-        for nome in SKILLS_NOVAS:
+        for nome in SKILLS_L51:
             with self.subTest(skill=nome):
                 texto = ler(f"skills/{nome}/SKILL.md")
                 self.assertGreater(len(texto), 1000)
@@ -100,7 +120,7 @@ class OrcamentoDeInstrucao(unittest.TestCase):
         arquivos = [RAIZ / JARVIS, *sorted((RAIZ / "docs" / "regras").glob("*.md"))]
         self.assertGreaterEqual(len(arquivos), 14)  # AV5: seis regras viraram trechos de R-LIMITES.md e uma linha do README
         total = sum(len(a.read_text(encoding="utf-8")) for a in arquivos)
-        self.assertLessEqual(total, ORCAMENTO_0431)
+        self.assertLessEqual(total, ORCAMENTO_0431, f"núcleo: passa do teto em {total - ORCAMENTO_0431}; {MOVA}")
 
     def test_toda_regra_tem_revisao_e_medida(self):  # decisão 10: `Revisar em:` e `Medida:` no começo da linha
         regras = sorted((RAIZ / "docs" / "regras").glob("R-*.md"))
@@ -127,10 +147,11 @@ class RevalidaMesmaInstancia(unittest.TestCase):
         passo5 = next(l for l in nucleo.splitlines() if l.startswith("5. **Conferência da entrega e code review:**"))
         self.assertRegex(passo5, r"revalidação de um parecer.*retoma a instância que o deu \(`SendMessage`")
         self.assertIn("sem a instância (sessão reiniciada), abra uma nova com o mesmo brief", passo5)
+        self.assertIn("só com `revalida: sim` no `forge-check parecer delta <parecer>`", passo5)  # META85-FC-RESTOS A2
 
     def test_o_nucleo_segue_no_teto(self):
-        nucleo = ler(JARVIS)
-        self.assertLessEqual(len(nucleo), ORCAMENTO["agentes"]["jarvis"]["teto"]["agente_caracteres"])
+        nucleo, teto = ler(JARVIS), ORCAMENTO["agentes"]["jarvis"]["teto"]["agente_caracteres"]
+        self.assertLessEqual(len(nucleo), teto, f"{JARVIS}: passa do teto em {len(nucleo) - teto}; {MOVA}")
         self.assertLessEqual(len(nucleo.splitlines()), 110)
 
 
@@ -196,6 +217,213 @@ class WorktreeAntesDeDelegar(unittest.TestCase):
     def test_a_skill_da_o_clone_local_como_saida_quando_a_worktree_nao_grava(self):
         skill = ler("skills/briefs-e-conferencia/SKILL.md")
         self.assertRegex(skill, r"(?s)não gravável.*clone local.*~/\.forge-contrib/wt/<nome>-c.*origin/develop")
+
+
+class PresencaDasRegrasEDasDiretrizes(unittest.TestCase):
+    """Folga do texto do Jarvis (v047, P4; diretriz 25): cada regra com ID e cada diretriz de fábrica seguem presentes no Jarvis
+    ou no que ele manda ler; cada skill que o Jarvis cita vem com a ordem de leitura ("leia" ou "antes de"). Falta reprova e diz
+    onde procurar; o teste não corrige sozinho."""
+
+    def test_o_conjunto_e_calculado_e_traz_as_skills_novas(self):
+        conjunto = conjunto_do_jarvis()
+        self.assertGreaterEqual(len(conjunto), 20)
+        for rel in ("skills/fluxo-do-pedido/SKILL.md", "skills/kanban-metricas/SKILL.md", "docs/regras/R-DECISAO.md",
+                    INDICE_DAS_REGRAS, "docs/economia-de-tokens.md"):
+            with self.subTest(arquivo=rel):
+                self.assertIn(rel, conjunto)
+
+    def test_cada_skill_citada_pelo_jarvis_traz_a_ordem_de_leitura(self):
+        self.assertGreaterEqual(len(skills_citadas(ler(JARVIS))), 8)
+        self.assertEqual(skills_sem_ordem_de_leitura(), [])
+
+    def test_cada_regra_com_id_aparece_e_tem_texto(self):
+        self.assertGreaterEqual(len(ids_da_tabela()), 17)
+        self.assertEqual(problemas_das_regras(RAIZ, conjunto_do_jarvis()), [])
+
+    def test_cada_diretriz_tem_entrada_e_a_de_fabrica_aparece(self):
+        self.assertGreaterEqual(len(DIRETRIZES), 29)
+        self.assertEqual(problemas_das_diretrizes(DIRETRIZES, conjunto_do_jarvis(), MAX_PENDENTES), [])
+
+    def test_cada_numero_do_arquivo_do_dono_tem_entrada(self):
+        # O arquivo do dono fica fora do git; sem ele (no CI), roda contra o exemplo neutro do repositório, sem pulo (E2.672).
+        arquivo = os.environ.get("FORGE_DIRETRIZES_DONO", "")
+        if not arquivo or not Path(arquivo).is_file():
+            arquivo = RAIZ / "tests" / "fixtures" / "diretrizes-do-dono-exemplo.md"
+        numeros = [int(n) for n in re.findall(r"^(\d+)\. ", Path(arquivo).read_text(encoding="utf-8"), re.M)]
+        self.assertTrue(numeros, "nenhum número no arquivo do dono")
+        self.assertEqual(problemas_das_diretrizes(DIRETRIZES, conjunto_do_jarvis(), MAX_PENDENTES, numeros), [])
+
+
+class FocoNasDecisoes(unittest.TestCase):
+    """FOCO-NAS-DECISOES (diretriz 29 do dono, com a correção de 14/11): o detalhe na skill falar-com-o-dono, no Jarvis o resumo e
+    a ordem de leitura (diretriz 25), e o modelo de projeto leva a regra a todo projeto novo."""
+
+    def test_o_jarvis_traz_o_resumo_e_manda_ler_a_skill_antes_de_responder(self):
+        linha = next(l for l in ler(JARVIS).splitlines() if l.startswith("- **Pedido de decisões** (diretriz 29):"))
+        for trecho in ("uma a uma", "sem aviso de andamento no meio", "o time segue",
+                       "Leia `${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md` antes de responder a um pedido de decisões"):
+            with self.subTest(trecho=trecho):
+                self.assertIn(trecho, linha)
+
+    def test_a_skill_traz_o_detalhe_inteiro(self):
+        paragrafo = next(l for l in ler("skills/falar-com-o-dono/SKILL.md").splitlines()
+                         if l.startswith("**Pedido de decisões (diretriz 29):**"))
+        for trecho in ('"me traga as decisões", "o que precisa de mim" ou "quais as pendências"', "faça só isso",
+                       "sem disparo, cartão, registro, conferência nem andamento antes",
+                       'Leia só as perguntas abertas (`PERGUNTA:` e "precisa de você", nos pedidos e no quadro, numa consulta)',
+                       "Responda já: a lista curta de todas as decisões pendentes, da de maior peso para a menor",
+                       "a primeira pergunta completa (contexto simples, opções, recomendação, o que acontece sem decisão)",
+                       "Uma a uma, cada resposta por `forge-check anotar` e a próxima logo", "O time não para",
+                       "sem aviso ao dono entre as perguntas (resumo no fim)", "o que depende de uma decisão espera só ela",
+                       'Sem pendência: "Não há decisão sua pendente", numa linha'):
+            with self.subTest(trecho=trecho):
+                self.assertIn(trecho, paragrafo)
+
+    def test_o_modelo_de_projeto_leva_a_regra(self):
+        modelo = next(l for l in ler("templates/projeto/CLAUDE.md").splitlines() if l.startswith("- `R-DECISAO`"))
+        self.assertIn("Pedido de decisões do usuário: o Jarvis responde já, só com elas, por peso e uma a uma (skill `falar-com-o-dono`)",
+                      modelo)
+
+
+class SandboxNoPrimeiroComando(unittest.TestCase):
+    """DIR-28-SANDBOX-NO-JARVIS (diretriz 28, v0478 E151.1): a conferência do sandbox no primeiro comando vive no agents/jarvis.md,
+    não só no modelo de projeto; o detalhe (como conferir, o comando de reabrir) fica em falar-com-o-dono/nao-trava.md."""
+
+    def test_o_jarvis_traz_a_regra_na_linha_que_manda_ler_o_detalhe(self):
+        linha = next(l for l in ler(JARVIS).splitlines() if l.startswith("- **Pedido de decisões** (diretriz 29):"))
+        regra = "Sandbox (diretriz 28): confira-o no primeiro comando; se falhar, pare e dê ao dono o comando para reabrir."
+        self.assertIn(regra, linha)
+        self.assertIn("skills/falar-com-o-dono/nao-trava.md", linha.split(regra, 1)[1])
+
+    def test_o_detalhe_traz_o_modo_automatico_e_o_comando_de_reabrir(self):
+        detalhe = " ".join(ler("skills/falar-com-o-dono/nao-trava.md").split())
+        for trecho in ("No primeiro comando da sessão o Jarvis confere o sandbox do Bash", "--permission-mode auto",
+                       "com o comando para reabrir a sessão", "O dono nunca aprova comando a comando"):
+            with self.subTest(trecho=trecho):
+                self.assertIn(trecho, detalhe)
+
+class MutantesDaPresenca(unittest.TestCase):
+    """P4, item 7: cada mutante numa árvore sintética reprova (lista completa, AR-1)."""
+
+    JARVIS_OK = "Leia `${CLAUDE_PLUGIN_ROOT}/skills/s1/SKILL.md` antes de agir; `R-UM` e `R-DOIS`.\n"
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-presenca-"))
+        self.escrever("agents/jarvis.md", self.JARVIS_OK)
+        self.escrever("skills/s1/SKILL.md", "Detalhe da skill: veja também a skill `s2`.\n")
+        self.escrever("skills/s2/SKILL.md", "Cada pergunta ao dono traz a origem do item.\n")
+        self.escrever("docs/regras/R-UM.md", "Texto da regra um.\n")
+        self.escrever(INDICE_DAS_REGRAS, "| ID | Regra |\n|---|---|\n| [`R-UM`](R-UM.md) | Um |\n| `R-DOIS` | Dois |\n\n"
+                      "**`R-DOIS` (regra só de hook):** texto da regra dois.\n")
+        self.tabela = {"1": {"onde": "fabrica", "trechos": ["traz a origem do item"]},
+                       "2": {"onde": "sessao", "motivo": "vale só na sessão do Forge"},
+                       "3": {"onde": "pendente", "cartao": "CARTAO-3", "trechos": ["texto que ainda não entrou na fábrica"]}}
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def escrever(self, rel, texto):
+        (self.tmp / rel).parent.mkdir(parents=True, exist_ok=True)
+        (self.tmp / rel).write_text(texto, encoding="utf-8")
+
+    def diretrizes(self, tabela=None, numeros=()):
+        return problemas_das_diretrizes(tabela or self.tabela, conjunto_do_jarvis(self.tmp), 1, numeros)
+
+    def test_a_arvore_sintetica_passa(self):
+        self.assertEqual(sorted(conjunto_do_jarvis(self.tmp)), ["agents/jarvis.md", "docs/regras/R-UM.md", INDICE_DAS_REGRAS,
+                                                                "skills/s1/SKILL.md", "skills/s2/SKILL.md"])
+        self.assertEqual((self.diretrizes(numeros=[1, 2, 3]), skills_sem_ordem_de_leitura(self.tmp)), ([], []))
+        self.assertEqual(problemas_das_regras(self.tmp, conjunto_do_jarvis(self.tmp)), [])
+
+    def test_apagar_o_trecho_reprova_e_diz_onde_procurar(self):
+        self.escrever("skills/s2/SKILL.md", "Outro texto.\n")
+        erro = self.diretrizes()
+        self.assertEqual(len(erro), 1)
+        self.assertIn("diretriz 1: 'traz a origem do item' não está em agents/jarvis.md nem nas skills que ele manda ler", erro[0])
+        self.assertIn("não apague (diretriz 25)", erro[0])
+
+    def test_tirar_a_citacao_da_skill_reprova(self):
+        self.escrever("skills/s1/SKILL.md", "Detalhe da skill, sem citar outra.\n")
+        self.assertIn("diretriz 1: 'traz a origem do item' não está", self.diretrizes()[0])
+
+    def test_citar_sem_leia_nem_antes_de_reprova(self):
+        self.escrever("agents/jarvis.md", "Veja `${CLAUDE_PLUGIN_ROOT}/skills/s1/SKILL.md`; `R-UM` e `R-DOIS`.\n")
+        self.assertEqual(skills_sem_ordem_de_leitura(self.tmp), ["s1"])
+
+    def test_id_no_readme_sem_texto_reprova(self):
+        self.escrever(INDICE_DAS_REGRAS, "| [`R-UM`](R-UM.md) | Um |\n| `R-DOIS` | Dois |\n")
+        self.assertEqual(problemas_das_regras(self.tmp, conjunto_do_jarvis(self.tmp)), ["R-DOIS: sem texto em docs/regras/"])
+
+    def test_id_fora_do_conjunto_reprova(self):
+        self.escrever("agents/jarvis.md", "Leia `${CLAUDE_PLUGIN_ROOT}/skills/s1/SKILL.md` antes de agir; `R-UM`.\n")
+        self.assertEqual(problemas_das_regras(self.tmp, conjunto_do_jarvis(self.tmp)),
+                         ["R-DOIS: não aparece no Jarvis nem nas skills citadas"])
+
+    def test_id_que_some_do_jarvis_reprova_com_o_indice_no_conjunto(self):  # A1 e A2 do QA e da segurança (v047)
+        self.escrever("agents/jarvis.md", "Leia `${CLAUDE_PLUGIN_ROOT}/skills/s1/SKILL.md` antes de agir; `R-DOIS`.\n")
+        self.assertIn(INDICE_DAS_REGRAS, conjunto_do_jarvis(self.tmp))
+        self.assertEqual(problemas_das_regras(self.tmp, conjunto_do_jarvis(self.tmp)),
+                         ["R-UM: não aparece no Jarvis nem nas skills citadas"])
+        self.escrever("skills/s2/SKILL.md", "Cada pergunta ao dono traz a origem do item; `R-UM`.\n")
+        self.assertEqual(problemas_das_regras(self.tmp, conjunto_do_jarvis(self.tmp)), [])
+
+    def test_numero_do_arquivo_do_dono_sem_entrada_reprova(self):
+        self.assertEqual(self.diretrizes(numeros=[1, 2, 3, 4]), ["diretriz 4 do arquivo do dono sem entrada"])
+
+    def test_buraco_na_numeracao_reprova(self):
+        tabela = dict(self.tabela)
+        del tabela["2"]
+        self.assertEqual(self.diretrizes(tabela), ["diretriz 2: buraco na numeração"])
+
+    def test_pendente_que_ja_aparece_reprova(self):
+        tabela = dict(self.tabela, **{"3": {"onde": "pendente", "cartao": "CARTAO-3", "trechos": ["traz a origem do item"]}})
+        self.assertEqual(self.diretrizes(tabela), ["diretriz 3: pendente com o trecho 'traz a origem do item' já presente; passe a fabrica"])
+
+    def test_trecho_curto_reprova(self):
+        tabela = dict(self.tabela, **{"1": {"onde": "fabrica", "trechos": ["a origem do item"]}})
+        self.assertEqual(self.diretrizes(tabela), ["diretriz 1: trecho com menos de 20 caracteres: 'a origem do item'"])
+
+    def test_pendente_acima_do_maximo_sem_cartao_ou_onde_desconhecido_reprova(self):
+        tabela = dict(self.tabela, **{"2": {"onde": "pendente", "cartao": ""}, "4": {"onde": "talvez"},
+                                      "5": {"onde": "fabrica"}, "6": {"onde": "sessao", "motivo": "curto"}})
+        self.assertEqual(self.diretrizes(tabela), ["diretriz 2: pendente sem cartão", "diretriz 4: onde = 'talvez', esperava fabrica, "
+                                                   "sessao ou pendente", "diretriz 5: de fábrica sem trecho", "diretriz 6: de sessão sem motivo",
+                                                   "2 diretrizes pendentes, máximo 1: pendente só desce"])
+
+
+class RespostaATodaMensagemDoDono(unittest.TestCase):
+    """v047 E2.180, RESPOSTA-A-TODA-MENSAGEM-DO-DONO (ERRO-JARVIS 14/11 06:08 e 12:30: 'No response requested.' ao 'continue' do
+    dono e ao relatório de um agente, com os portões parados): a skill que o Jarvis lê a cada mensagem do dono manda resposta e ação."""
+
+    def setUp(self):
+        self.skill = ler("skills/falar-com-o-dono/SKILL.md")
+
+    def test_toda_mensagem_tem_resposta_e_o_passo_seguinte(self):
+        # v047 E2.652: o parágrafo inteiro mudou para toda-mensagem.md (diretriz 25), e a SKILL.md manda lê-lo
+        self.assertIn("${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/toda-mensagem.md", self.skill)
+        regra = next(l for l in ler("skills/falar-com-o-dono/toda-mensagem.md").splitlines()
+                     if l.startswith("**Toda mensagem do dono tem resposta e ação:**"))
+        self.assertIn('até "continue" ou "ok", recebe no mesmo turno a resposta e o passo seguinte', regra)
+        self.assertIn("só quando um agente termina sem nada para o dono", regra)
+        self.assertIn("mesmo então o passo seguinte do time anda", regra)
+
+    def test_a_skill_e_lida_a_cada_mensagem_e_o_jarvis_a_cita(self):
+        self.assertRegex(self.skill.split("\n---", 1)[0], r"(?m)^description: .*Use a cada mensagem do dono")
+        self.assertIn("${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/SKILL.md", ler(JARVIS))
+
+
+class EtapaSoAposConferirDevelop(unittest.TestCase):
+    """v047 E2.180, ETAPA-SO-APOS-CONFERIR-DEVELOP (13/11: E3.2 e E5.3 abertas com o item já na develop; etapa entregue havia 3 h
+    quase delegada de novo): antes de abrir etapa, o Jarvis confere a develop. A trava é backlog em tests/evals/test_erros_por_papel.py."""
+
+    def test_a_skill_manda_conferir_a_develop_antes_de_abrir_a_etapa(self):
+        # v047 E2.652: o parágrafo inteiro mudou para conferir-develop.md (diretriz 25), e a SKILL.md manda lê-lo
+        self.assertIn("${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/conferir-develop.md", ler("skills/falar-com-o-dono/SKILL.md"))
+        regra = next(l for l in ler("skills/falar-com-o-dono/conferir-develop.md").splitlines()
+                     if l.startswith("**Etapa depois de conferir a develop:**"))
+        self.assertIn("antes de abrir ou delegar uma etapa, confira na `develop` se o item já foi entregue ou resolvido", regra)
+        self.assertIn("`git log origin/develop --grep '<cartão>'`", regra)
+        self.assertIn("sem delegar", regra)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,87 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PT-M1",
+      "guarda": "TMPDIR relativo ou vazio não vale",
+      "arquivo": "bin/forge-check",
+      "de": "    if not os.path.isabs(valor):\n        return None\n    real = os.path.realpath(valor)",
+      "para": "    if False:\n        return None\n    real = os.path.realpath(valor)",
+      "testes": [
+        "tests.test_forge_run.TmpdirDaProva.test_relativo_nao_vale"
+      ]
+    },
+    {
+      "id": "PT-M2",
+      "guarda": "TMPDIR inexistente não vale",
+      "arquivo": "bin/forge-check",
+      "de": "        info = os.stat(real)\n    except OSError:\n        return None",
+      "para": "        info = os.stat(real)\n    except OSError:\n        return real",
+      "testes": [
+        "tests.test_forge_run.TmpdirDaProva.test_inexistente_ou_arquivo_nao_vale"
+      ]
+    },
+    {
+      "id": "PT-M3",
+      "guarda": "TMPDIR que não é pasta não vale",
+      "arquivo": "bin/forge-check",
+      "de": "    if not stat.S_ISDIR(info.st_mode):\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_forge_run.TmpdirDaProva.test_inexistente_ou_arquivo_nao_vale"
+      ]
+    },
+    {
+      "id": "PT-M4",
+      "guarda": "TMPDIR de outro usuário não vale",
+      "arquivo": "bin/forge-check",
+      "de": "    if info.st_uid != os.getuid():\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_forge_run.TmpdirDaProva.test_pasta_de_outro_usuario_nao_vale"
+      ]
+    },
+    {
+      "id": "PT-M5",
+      "guarda": "TMPDIR sem escrita não vale",
+      "arquivo": "bin/forge-check",
+      "de": "    if not os.access(real, os.W_OK | os.X_OK):\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_forge_run.TmpdirDaProva.test_pasta_sem_escrita_nao_vale"
+      ]
+    },
+    {
+      "id": "PT-M6",
+      "guarda": "o clone da worktree conta como repositório",
+      "arquivo": "bin/forge-check",
+      "de": "[os.path.dirname(os.path.realpath(comum))] if not cod and comum else []",
+      "para": "[os.path.dirname(os.path.realpath(comum))] if False else []",
+      "testes": [
+        "tests.test_forge_run.TmpdirDaProva.test_dentro_do_clone_da_worktree_nao_vale"
+      ]
+    },
+    {
+      "id": "PT-M7",
+      "guarda": "TMPDIR dentro do repositório não vale",
+      "arquivo": "bin/forge-check",
+      "de": "    if any(os.path.commonpath([real, r]) == r for r in repos):\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_forge_run.TmpdirDaProva.test_dentro_da_worktree_nao_vale",
+        "tests.test_forge_run.TmpdirDaProva.test_dentro_do_clone_da_worktree_nao_vale"
+      ]
+    },
+    {
+      "id": "PT-M8",
+      "guarda": "a prova recebe o TMPDIR aceito",
+      "arquivo": "bin/forge-check",
+      "de": "    if tmpdir:\n        ambiente[\"TMPDIR\"] = tmpdir",
+      "para": "    if False:\n        ambiente[\"TMPDIR\"] = tmpdir",
+      "testes": [
+        "tests.test_forge_run.TmpdirDaProva.test_prova_recebe_o_tmpdir_gravavel"
+      ]
+    }
+  ]
+}

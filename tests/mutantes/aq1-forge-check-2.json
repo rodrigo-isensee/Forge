@@ -55,7 +55,7 @@
     {
       "id": "M14",
       "guarda": "escape registrar recusa origem fora da lista",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "(\"--controle-que-faltou\", controle, CONTROLES_QUE_FALTARAM), (\"--origem\", origem, ORIGENS)):",
       "para": "(\"--controle-que-faltou\", controle, CONTROLES_QUE_FALTARAM)):",
       "testes": [
@@ -65,7 +65,7 @@
     {
       "id": "M15",
       "guarda": "valor de origem fora da lista conta como nao-classificado",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "len(celulas) >= 8 and celulas[7] in ORIGENS else",
       "para": "len(celulas) >= 8 and True else",
       "testes": [

@@ -1,0 +1,97 @@
+{
+  "pedido": "v0481-f5-tamanho-1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "F5.1: o teto é inclusivo na recusa (150 passa, 151 recusa)",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "    if tem_motivo(corpo, total) or total <= TETO_DE_LINHAS_DE_CODIGO:",
+      "para": "    if tem_motivo(corpo, total) or total < TETO_DE_LINHAS_DE_CODIGO:",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_recusa_de_abertura",
+        "tests.test_forge_tamanho.NaAbertura.test_fronteira_150_passa_e_151_recusa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "F5.1/D1: a exceção do H1 no corpo libera a recusa",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "    if tem_motivo(corpo, total) or total <= TETO_DE_LINHAS_DE_CODIGO:",
+      "para": "    if total <= TETO_DE_LINHAS_DE_CODIGO:",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_recusa_de_abertura",
+        "tests.test_forge_tamanho.NaAbertura.test_fronteira_150_passa_e_151_recusa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "F5.1: a recusa traz o corte quando há corte",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "--previo\" if corte else \"\"",
+      "para": "--previo\" if False else \"\"",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_recusa_de_abertura"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "F5.1: ordem decrescente por linhas, empate pelo nome",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "key=lambda u: (-u[1], u[0])",
+      "para": "key=lambda u: u[0]",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_agrupa_o_maior_primeiro_no_primeiro_pr_em_que_cabe"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "F5.1: cabe até o teto inclusive",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "if p[0] + linhas <= teto)",
+      "para": "if p[0] + linhas < teto)",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_cabe_ate_o_teto_inclusive"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "F5.1: unidade sozinha acima do teto marcada para cortar à mão",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": " if linhas > teto else nome",
+      "para": " if False else nome",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_unidade_acima_do_teto_vira_pr_proprio_para_cortar_a_mao"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "F5.1: até 6 PRs no texto e 'e mais N' só acima disso",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": " if len(corte) > maximo else \"\"",
+      "para": " if len(corte) >= maximo else \"\"",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_texto_com_ate_6_prs_e_e_mais_n"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "F5.1: contexto vazio vira topo, não some; trecho sem contagem vale 1",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "nome = identificador.group(1) if identificador else \"topo\"",
+      "para": "nome = identificador.group(1) if True else \"topo\"",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_linhas_por_funcao_do_cabecalho",
+        "tests.test_forge_tamanho.NaAbertura.test_arquivo_grande_sem_contexto_vira_topo_para_cortar_a_mao"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_tamanho.py",
+      "trecho": "contexto.split(\"(\")[0].strip() or \"topo\"",
+      "motivo": "guarda da base trocada pela do identificador (A1 da segurança, E38.11): `if identificador else \"topo\"`, provada pelo M8",
+      "linha_base": 58
+    }
+  ]
+}

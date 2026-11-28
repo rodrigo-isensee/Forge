@@ -1,0 +1,66 @@
+{
+  "pedido": "v0474-e348",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E3.48: a etapa coberta nunca vai ao Fora do escopo",
+      "arquivo": "bin/forge-check",
+      "de": "if e != coberta and (coberta or papel != papel_destino)]",
+      "para": "if (coberta or papel != papel_destino)]",
+      "testes": [
+        "tests.test_etapa_do_brief.GerarComCumpridas.test_feitas_e_abertas_vao_so_pelo_id"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E3.48: com --cobre, a outra etapa do mesmo papel vai ao Fora do escopo pelo id",
+      "arquivo": "bin/forge-check",
+      "de": "if e != coberta and (coberta or papel != papel_destino)]",
+      "para": "if e != coberta and (papel != papel_destino)]",
+      "testes": [
+        "tests.test_forge.ConferirBrief.test_gerar_cita_as_decisoes_por_referencia_e_traz_a_marca_e_as_provas"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E3.48: pedido sem outra etapa diz que não tem (o fallback do `or` na linha mudada)",
+      "arquivo": "bin/forge-check",
+      "de": "for linha in linhas_de_ids_do_fora(etapas)] or [\"- (o pedido não tem outra etapa)\"]",
+      "para": "for linha in linhas_de_ids_do_fora(etapas)] or []",
+      "testes": [
+        "tests.test_etapa_do_brief.GerarComCumpridas.test_pedido_sem_outra_etapa_diz_que_nao_tem"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E3.48: com a etapa coberta, o proximo do brief leva --etapa dela, nunca o pedido inteiro",
+      "arquivo": "bin/forge-check",
+      "de": "so_a_etapa = f\"--etapa {coberta}\" if coberta else",
+      "para": "so_a_etapa = f\"--etapa {coberta}\" if False else",
+      "testes": [
+        "tests.test_brief_tamanho.BriefDePedidoGrande.test_proximo_so_da_etapa_do_cobre"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E3.48: o brief de portão traz o formato do bloco ## Achados",
+      "arquivo": "bin/forge-check",
+      "de": "saida += [LINHA_DE_PARALELO, LINHA_DOS_ACHADOS]",
+      "para": "saida += [LINHA_DE_PARALELO]",
+      "testes": [
+        "tests.test_brief_tamanho.BriefDePedidoGrande.test_portao_traz_o_formato_dos_achados_e_o_autor_nao"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E3.48: a linha curta do erro recorrente, tal como o gerar a escreve, passa na conferência",
+      "arquivo": "bin/forge-check",
+      "de": "em (\\d+) · evita: (.+)$\")",
+      "para": "em (\\d+) entregas · evita: (.+)$\")",
+      "testes": [
+        "tests.test_erros_no_brief.LinhasDoDestino.test_o_brief_com_as_linhas_passa_na_conferencia_e_a_edicao_a_mao_reprova"
+      ]
+    }
+  ]
+}

@@ -7,9 +7,13 @@ Uso: scripts/placar-mutacao.py --desde TAG [--versao VERSÃO]
   Nome fora de `tests/mutantes/<nome>.json` (sem `-` no início) ou link simbólico sai `recusada: <spec>`.
   Roda `bin/forge-mutante -- <spec>` uma vez por spec (ele recusa specs de pedidos diferentes juntas) e conta as linhas
   de veredito por padrão fechado, sem ecoar a saída dele. Imprime uma linha por spec e o total:
-  `placar: <versão> mortos=<n> sobreviveu=<n> equivalente=<n> invalido=<n> sem-veredito=<n> specs=<n>`; spec com rc
-  diferente de zero acrescenta ` falhas=<n> (<spec>, ...)` (a contagem dela não é confiável).
-  `aviso: ...` quando --desde não é tag neste clone ou não é a tag da release imediatamente anterior à --versao.
+  `placar: <versão> mortos=<n> sobreviveu=<n> equivalente=<n> invalido=<n> sem-veredito=<n> sem-veredito-pulado=<n>
+  specs=<n>`; spec com rc diferente de zero acrescenta ` falhas=<n> (<spec>, ...)` (a contagem dela não é confiável).
+  `sem-veredito-pulado` é o sem veredito por teste declarado pulado, fora de `sem-veredito`: o sobrevivente com teste
+  pulado deixou de contar em `sobreviveu` (v0478), e a queda dessa coluna pode vir daí, não de teste mais forte.
+  `aviso: ...` quando --desde não é tag neste clone ou não é a tag da release imediatamente anterior à --versao. A marca
+  anterior na develop (o último commit do HEAD que mudou a versão do `.claude-plugin/plugin.json`) vale como a tag, sem
+  aviso: a tag fica no merge da main, fora do histórico da develop (PLACAR-DESDE-MARCA, v0478 E138.3).
 Saída: 0 sempre que mediu (sobrevivente e spec envelhecida são dado do placar); 2 se TAG não é commit.
 Roda dentro da trava da suíte (`R-TETO`, pesado): cada spec é uma rodada do `forge-mutante`.
 """
@@ -27,6 +31,8 @@ LINHA = re.compile(r"^\S+ · (morreu|sobreviveu|equivalente|inválido|sem veredi
                    r"|^(equivalente): \S+ · ", re.MULTILINE)
 CLASSES = {"morreu": "mortos", "sobreviveu": "sobreviveu", "equivalente": "equivalente", "inválido": "invalido",
            "sem veredito": "sem-veredito", "controle vermelho": "sem-veredito"}
+PULADO = re.compile(r"^\S+ · sem veredito · \S+ · teste declarado pulado: ", re.MULTILINE)
+COLUNAS = (*dict.fromkeys(CLASSES.values()), "sem-veredito-pulado")
 
 
 def git(raiz, *args):
@@ -44,8 +50,16 @@ def specs_novas(raiz, base):
     return aceitas, recusadas
 
 
-def aviso_do_desde(raiz, desde, versao):
-    """Aviso (ou None) se `desde` não é tag no clone ou não é a release imediatamente anterior à `versao`."""
+def marca_anterior(raiz):
+    """Último commit do HEAD que mudou a versão do manifesto: a marca da release anterior na develop ("" se não há)."""
+    return git(raiz, "log", "-1", "--format=%H", "-G", '"version"', "HEAD", "--", ".claude-plugin/plugin.json").stdout.strip()
+
+
+def aviso_do_desde(raiz, desde, versao, commit):
+    """Aviso (ou None) se `desde` não é tag no clone ou não é a release imediatamente anterior à `versao`; o `commit`
+    de `desde` igual à marca anterior na develop não avisa."""
+    if commit == marca_anterior(raiz):
+        return None
     if git(raiz, "rev-parse", "--verify", "--quiet", "--end-of-options", f"refs/tags/{desde}").returncode:
         return f"aviso: --desde {desde} não é tag neste clone (confira o fetch das tags)"
     alvo = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", versao)
@@ -61,28 +75,30 @@ def aviso_do_desde(raiz, desde, versao):
 
 
 def contar(saida):
-    conta = dict.fromkeys(CLASSES.values(), 0)
+    conta = dict.fromkeys(COLUNAS, 0)
     for achado in LINHA.findall(saida):
         conta[CLASSES["".join(achado)]] += 1
+    conta["sem-veredito-pulado"] = len(PULADO.findall(saida))  # conta própria, sem misturar com o outro sem veredito
+    conta["sem-veredito"] -= conta["sem-veredito-pulado"]
     return conta
 
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="placar-mutacao.py", description="Placar de mutação da release (não é portão).")
-    p.add_argument("--desde", required=True, help="tag da release anterior")
+    p.add_argument("--desde", required=True, help="tag ou marca (commit na develop) da release anterior")
     p.add_argument("--versao", default="próxima", help="versão que o placar mede")
     a = p.parse_args(argv)
     raiz = Path(git(Path.cwd(), "rev-parse", "--show-toplevel").stdout.strip())
     base = git(raiz, "rev-parse", "--verify", "--end-of-options", f"{a.desde}^{{commit}}")
     if a.desde.startswith("-") or base.returncode:  # R-3
         p.error(f"--desde não é commit: {a.desde!r}")
-    if aviso := aviso_do_desde(raiz, a.desde, a.versao):
+    if aviso := aviso_do_desde(raiz, a.desde, a.versao, base.stdout.strip()):
         print(aviso)
     novas, recusadas = specs_novas(raiz, base.stdout.strip())
     for linha in [f"recusada: {n!r}" for n in recusadas] + [f"fora da amostra: {n}" for n in novas[TETO_DE_SPECS:]]:
         print(linha)
     amostra = [AMOSTRA, *novas[:TETO_DE_SPECS]]
-    total = dict.fromkeys(CLASSES.values(), 0)
+    total = dict.fromkeys(COLUNAS, 0)
     falhas = []
     for spec in amostra:  # uma rodada por spec, R-1: `--` antes do caminho
         feito = subprocess.run([sys.executable, str(raiz / "bin" / "forge-mutante"), "--", spec], cwd=raiz,

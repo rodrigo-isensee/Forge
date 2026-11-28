@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
@@ -139,6 +140,79 @@ class PqCitaORun(unittest.TestCase):
         (linha, reprova), = self.conferir("git log | head -1")
         self.assertFalse(reprova, linha)
         self.assertIn("não reexecutada", linha)
+
+
+class TmpdirDaProva(unittest.TestCase):
+    """E2.316: a prova `cmd` recebe o TMPDIR do ambiente (o mktemp dela não cai no /tmp somente leitura do sandbox), só se é
+    pasta absoluta do próprio usuário, gravável e fora do repositório; nenhuma outra variável nova."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fc = SourceFileLoader("forge_check_tmpdir", FORGE_CHECK).load_module()
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-prova-tmpdir-")).resolve()
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.repo, self.fora = self.tmp / "repo", self.tmp / "fora"
+        self.repo.mkdir()
+        self.fora.mkdir()
+        git(self.repo, "init", "-q")
+        git(self.repo, "commit", "-q", "--allow-empty", "-m", "x")
+
+    def com_tmpdir(self, valor):
+        return mock.patch.dict(os.environ, {"TMPDIR": str(valor)})
+
+    def rodar(self, codigo):
+        script = self.fc.carregar_reexecutar_provas()
+        return self.fc.rodar_prova(script, [sys.executable, "-I", "-c", codigo], self.fc.espera_do_script(script, "rc=0"), self.repo)
+
+    def test_prova_recebe_o_tmpdir_gravavel(self):
+        with self.com_tmpdir(self.fora):
+            linha, reprova = self.rodar(f"import os, sys; sys.exit(os.environ.get('TMPDIR') != {str(self.fora)!r})")
+        self.assertEqual((linha, reprova), ("ok", False))
+
+    def test_sem_tmpdir_a_prova_roda_sem_ele(self):
+        with mock.patch.dict(os.environ):
+            os.environ.pop("TMPDIR", None)
+            linha, reprova = self.rodar("import os, sys; sys.exit('TMPDIR' in os.environ)")
+        self.assertEqual((linha, reprova), ("ok", False))
+
+    def test_relativo_nao_vale(self):
+        antes = os.getcwd()
+        os.chdir(self.tmp)
+        self.addCleanup(os.chdir, antes)
+        with self.com_tmpdir("fora"):
+            self.assertIsNone(self.fc.tmpdir_da_prova(self.repo))
+
+    def test_inexistente_ou_arquivo_nao_vale(self):
+        arquivo = self.fora / "a"
+        arquivo.write_text("x")
+        arquivo.chmod(0o700)  # gravável e executável: só a guarda de pasta o recusa (PT-M3)
+        for valor in (self.fora / "nao-existe", arquivo):
+            with self.subTest(str(valor)), self.com_tmpdir(valor):
+                self.assertIsNone(self.fc.tmpdir_da_prova(self.repo))
+
+    def test_pasta_de_outro_usuario_nao_vale(self):
+        with self.com_tmpdir(self.fora), mock.patch("os.getuid", return_value=self.fora.stat().st_uid + 1):
+            self.assertIsNone(self.fc.tmpdir_da_prova(self.repo))
+
+    def test_pasta_sem_escrita_nao_vale(self):
+        with self.com_tmpdir(self.fora), mock.patch("os.access", return_value=False):
+            self.assertIsNone(self.fc.tmpdir_da_prova(self.repo))
+
+    def test_dentro_da_worktree_nao_vale(self):
+        (self.repo / "t").mkdir()
+        with self.com_tmpdir(self.repo / "t"):
+            self.assertIsNone(self.fc.tmpdir_da_prova(self.repo))
+
+    def test_dentro_do_clone_da_worktree_nao_vale(self):
+        wt = self.tmp / "wt"
+        git(self.repo, "worktree", "add", "-q", "--detach", str(wt))
+        (self.repo / "t").mkdir()
+        with self.com_tmpdir(self.repo / "t"):
+            self.assertIsNone(self.fc.tmpdir_da_prova(wt))
+        with self.com_tmpdir(self.fora):
+            self.assertEqual(self.fc.tmpdir_da_prova(wt), str(self.fora))
 
 
 if __name__ == "__main__":

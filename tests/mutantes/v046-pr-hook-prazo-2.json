@@ -37,8 +37,8 @@
       "id": "M12",
       "guarda": "PR-HOOK-PRAZO: o pré-voo (--previo) não grava resultado",
       "arquivo": "bin/forge-check",
-      "de": "    if a.cmd == \"pr\" and not getattr(a, \"previo\", False) and branch_do_pr is None:",
-      "para": "    if a.cmd == \"pr\" and branch_do_pr is None:",
+      "de": "    gravar = not getattr(a, \"previo\", False) and not sem_checks and branch_do_pr is None",
+      "para": "    gravar = not sem_checks and branch_do_pr is None",
       "testes": [
         "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_previo_e_head_sem_branch_nao_gravam"
       ]
@@ -47,8 +47,8 @@
       "id": "M13",
       "guarda": "PR-HOOK-PRAZO: o aprovado gravado libera sem refazer a checagem",
       "arquivo": "hooks/parecer.py",
-      "de": "    if estado == \"aprovado\":\n        return\n",
-      "para": "    if False:\n        return\n",
+      "de": "if estado == \"aprovado\" and (gravado == EXIGE or e_clone_do_forge(raiz)):\n        return",
+      "para": "if False:\n        return",
       "testes": [
         "tests.test_pr_hook_prazo.PrHookPrazo.test_aprovado_do_head_libera_so_lendo_dentro_do_prazo"
       ]
@@ -67,8 +67,8 @@
       "id": "M15",
       "guarda": "PR-HOOK-PRAZO: sem o aprovado gravado, recusa mesmo sem violação",
       "arquivo": "hooks/parecer.py",
-      "de": "    if motivo:  # PR-HOOK-PRAZO",
-      "para": "    if False:  # PR-HOOK-PRAZO",
+      "de": "if motivo and gravado == EXIGE:  # PR-HOOK-PRAZO",
+      "para": "if False:  # PR-HOOK-PRAZO",
       "testes": [
         "tests.test_pr_hook_prazo.PrHookPrazo.test_sem_resultado_recusa_mesmo_sem_violacao"
       ]
@@ -77,7 +77,7 @@
       "id": "M16",
       "guarda": "PR-HOOK-PRAZO: o gh pr create exige o resultado gravado",
       "arquivo": "hooks/parecer.py",
-      "de": "if forge else \"\", gravado=True)",
+      "de": "if forge else \"\", gravado=EXIGE)",
       "para": "if forge else \"\", gravado=False)",
       "testes": [
         "tests.test_pr_hook_prazo.PrHookPrazo.test_sem_resultado_recusa_mesmo_sem_violacao"

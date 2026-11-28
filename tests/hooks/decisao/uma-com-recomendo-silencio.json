@@ -1,0 +1,13 @@
+{
+  "descricao": "ANTI-ALUC-F4-HOOK-DECISAO (E172.15, R-DECISAO): um grupo de opções com \"Recomendo\": o decisao cala, código 0, sem stdout.",
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "agent_type": "forge:jarvis",
+    "transcript_path": "{tmp}/t.jsonl",
+    "last_assistant_message": "Qual caminho?\nA) manter\nB) trocar\nRecomendo A: menos risco."
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

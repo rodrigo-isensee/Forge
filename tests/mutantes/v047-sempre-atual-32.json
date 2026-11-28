@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S169",
+      "guarda": "forge_sempre_atual.py:872 decide por `tipo == \"voltou\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if tipo == \"voltou\":",
+      "para": "if not (tipo == \"voltou\"):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S170",
+      "guarda": "forge_sempre_atual.py:874 decide por `tipo == \"volta-falhou\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if tipo == \"volta-falhou\":",
+      "para": "if not (tipo == \"volta-falhou\"):",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_linha_da_rodada_sai_no_terminal_e_a_pasta_neutra_some"
+      ]
+    },
+    {
+      "id": "S171",
+      "guarda": "forge_sempre_atual.py:877 decide por `tipo == \"falhou\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if tipo == \"falhou\":",
+      "para": "if not (tipo == \"falhou\"):",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_linha_da_rodada_sai_no_terminal_e_a_pasta_neutra_some"
+      ]
+    },
+    {
+      "id": "S172",
+      "guarda": "forge_sempre_atual.py:878 decide por `e[\"versao\"]`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "versoes = sorted({e[\"versao\"] for e in self.escopos if e[\"versao\"]})",
+      "para": "versoes = sorted({e[\"versao\"] for e in self.escopos if not (e[\"versao\"])})",
+      "testes": [
+        "tests.test_sempre_atual.RamosSemMundo.test_linha_de_cada_mensagem"
+      ]
+    },
+    {
+      "id": "S173",
+      "guarda": "forge_sempre_atual.py:879 decide por `versoes`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "seguindo = f\"; segue na {versoes[0]}\" if versoes else \"\"",
+      "para": "seguindo = f\"; segue na {versoes[0]}\" if not (versoes) else \"\"",
+      "testes": [
+        "tests.test_sempre_atual.Falhas.test_lista_que_nao_e_json_registra_falhou_lista"
+      ]
+    },
+    {
+      "id": "S174",
+      "guarda": "forge_sempre_atual.py:880 decide por `resto[0] in (\"rede\", \"prazo\")`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return \"Forge: sem rede\" + seguindo if resto[0] in (\"rede\", \"prazo\") else f\"Forge: não atualizou ({resto[0]})\" + seguindo",
+      "para": "return \"Forge: sem rede\" + seguindo if not (resto[0] in (\"rede\", \"prazo\")) else f\"Forge: não atualizou ({resto[0]})\" + seguindo",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_linha_da_rodada_sai_no_terminal_e_a_pasta_neutra_some"
+      ]
+    },
+    {
+      "id": "S175",
+      "guarda": "forge_sempre_atual.py:881 decide por `m[0] == \"atualizado\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "atualizados = [m for m in self.mensagem if m[0] == \"atualizado\"]",
+      "para": "atualizados = [m for m in self.mensagem if not (m[0] == \"atualizado\")]",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S176",
+      "guarda": "forge_sempre_atual.py:882 decide por `atualizados`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if atualizados:",
+      "para": "if not (atualizados):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "pedido": "v0479-limpeza-fim-item",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: PR de fork com o mesmo nome não encerra o item (A1)",
+      "arquivo": "bin/forge-copia",
+      "de": "        if len(campos) == 2 and campos[1] == \"false\":",
+      "para": "        if campos:",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_pr_fechado_de_fork_com_o_mesmo_nome_nao_encerra_o_item"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: limpeza conferida de novo logo antes de apagar (A2)",
+      "arquivo": "bin/forge-copia",
+      "de": "    if depois:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_escrita_durante_a_consulta_ao_gh_fica"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: cópia suja fica antes da consulta ao gh",
+      "arquivo": "bin/forge-copia",
+      "de": "    if antes:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_copia_suja_fica"
+      ]
+    }
+  ]
+}

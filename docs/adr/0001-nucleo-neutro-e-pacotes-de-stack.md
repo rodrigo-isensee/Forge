@@ -18,7 +18,8 @@ Restrições do mecanismo de plugins do Claude Code (manifesto `plugin.json`), a
    - `skills/<nome>/SKILL.md`: convenções da stack;
    - `seguranca.md`: checklist de segurança da stack, que a skill `cyber-security` do núcleo manda aplicar;
    - `pronto.md`: o comando "pronto" sugerido para o `forge-init` e o que ele precisa verificar;
-   - `pesados.json` (opcional): lista JSON dos comandos pesados padrão (hook `pesado`), que o `forge-init` grava em `.forge/config.json`.
+   - `pesados.json` (opcional): lista JSON dos comandos pesados padrão (hook `pesado`), que o `forge-init` grava em `.forge/config.json`;
+   - `instalar.json` (opcional): `detecta` (lista com o lockfile da stack; sem ele não instala) e `comandos` (lista de argv, instalação congelada ou com hash), que o `forge-copia --instalar` roda na cópia com o ambiente sem credencial.
 3. **`stacks/node-react`** recebe o conteúdo atual: agentes `node-backend` e `react-frontend`, skills de mesmo nome e os checklists de API Node, front React e banco que hoje estão na skill `cyber-security`.
 4. **Registro no manifesto:** `plugin.json` lista explicitamente cada agente (núcleo e stacks) em `agents` e cada pasta de skills de stack em `skills`. Um teste estrutural confere que todo `.md` de `agents/` e de `stacks/*/agents/` está listado e vice-versa.
 5. **Compatibilidade:** os agentes de stack mantêm o `name` atual; `forge:node-backend` e `forge:react-frontend` continuam existindo. Como todas as stacks vivem no mesmo plugin, o nome de um agente de stack leva a tecnologia (ex.: `node-backend`, nunca `backend`) para não colidir com o de outra stack.

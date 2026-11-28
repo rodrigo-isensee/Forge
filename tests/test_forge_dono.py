@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import unittest.mock
 from importlib.machinery import SourceFileLoader
@@ -19,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from test_selo_e_entrega import PEDIDO as PEDIDO_DO_SELO, Repositorio  # noqa: E402
 from test_voltas import FORGE_CHECK, Raiz  # noqa: E402
+from test_decisor import commitar, parecer_da_seguranca  # noqa: E402
 
 PERGUNTA = ('# p\n\n## Decisões do usuário (registro literal)\nPERGUNTA AO DONO (2026-11-09 10:00): duas questões → '
             '"1a) usar a fila [recomendada] [reversível] 1b) usar o banco 2a) arquivar a branch velha [recomendada] [irreversível] 2b) manter"\n')
@@ -294,9 +296,10 @@ class BaseCamadas(unittest.TestCase):
     def sha(self):
         return hashlib.sha256(self.arq.read_bytes()).hexdigest()
 
-    def anotar(self, tipo, literal, contexto=None, confere=None):
+    def anotar(self, tipo, literal, contexto=None, confere=None, tipo_pergunta="custo"):
         try:
-            return fc.cmd_anotar(self.tmp, "p", tipo, literal, contexto, False, confere)
+            return fc.cmd_anotar(self.tmp, "p", tipo, literal, contexto, False, confere,
+                                 tipo_pergunta=tipo_pergunta if tipo == "pergunta" else None)  # D5: a pergunta declara o tipo
         except Exception as erro:  # noqa: BLE001 - recusar é sair com rc 2 e a mensagem, nunca quebrar
             self.fail(f"anotar levantou {erro!r}")
 
@@ -667,6 +670,7 @@ class ModeloDeProjeto(SelarConfere):  # CT-E6-19, CT-E7-10, CT-E8-18: as três c
         return arq
 
     def anotar(self, tipo, literal, *extra):
+        extra += ("--tipo-pergunta", "custo") if tipo == "pergunta" else ()  # D5: a pergunta declara o tipo
         return self.rodar("anotar", "--pedido", "exemplo", "--tipo", tipo, "--literal", literal, *extra)
 
     def test_trava_de_origem(self):  # CT-E6-10, CT-E6-01
@@ -687,6 +691,271 @@ class ModeloDeProjeto(SelarConfere):  # CT-E6-19, CT-E7-10, CT-E8-18: as três c
         antes = self.pedido()
         rc, saida = self.anotar("decisao", "sim")
         self.assertEqual((rc, self.pedido()), (2, antes), saida)
+
+
+class PerguntasAbertas(unittest.TestCase):  # diretriz 29 (FOCO-NAS-DECISOES, v047 E1.135): `cmd_abertas`, só leitura
+    QUADRO = ("# Quadro\n\n## Pronto\n| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
+              "| FORA-DO-PAINEL | não é do dono | docs/pedidos/a.md | dono | 2026-11-01 | 2026-11-01 | — |\n\n"
+              "## Aguardando o dono (PA-6: ação · comando · destrava · desde)\n"
+              "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
+              "| TOKEN-X | decidir o token · recomendação A: o bot · ação: responder | docs/pedidos/b.md | dono | 2026-11-02 | 2026-11-02T08:30-0300 | — |\n")
+
+    def setUp(self):
+        self.raiz = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.raiz)
+        (self.raiz / "docs" / "pedidos").mkdir(parents=True)
+        sys.path.insert(0, str(Path(FORGE_CHECK).parent))
+        self.addCleanup(sys.path.remove, str(Path(FORGE_CHECK).parent))
+        import forge_dono  # noqa: PLC0415
+        self.dono = forge_dono
+
+    def pedido(self, nome, *linhas):
+        (self.raiz / "docs" / "pedidos" / f"{nome}.md").write_text("# p\n\n## Decisões\n" + "\n".join(linhas) + "\n", encoding="utf-8")
+
+    def abertas(self):
+        linhas, rc = self.dono.cmd_abertas(self.raiz)
+        self.assertEqual(rc, 0, linhas)
+        return linhas
+
+    def test_aberta_sai_com_pedido_hora_pergunta_e_recomendada(self):
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): contexto → "1a) usar a fila [recomendada] [reversível] 1b) usar o banco"')
+        self.assertEqual(self.abertas(), ["aberta: outro | a | 2026-11-03 10:00 | 1a) usar a fila [recomendada] [reversível] 1b) usar o "
+                                          "banco | recomendada: 1a) usar a fila", "abertas: total=1"])
+
+    def test_respondida_sai_e_decisao_anterior_nao_responde(self):
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "pode A?"', "DECISÃO DO DONO (2026-11-03 10:00): sim",
+                    'PERGUNTA AO DONO (2026-11-03 11:00): → "pode B? Recomendação: não, espera a C"',
+                    "DECISÃO DO DONO (2026-11-03 10:30): a outra")
+        self.assertEqual(self.abertas(), ["aberta: outro | a | 2026-11-03 11:00 | pode B? Recomendação: não, espera a C | "
+                                          "recomendada: não, espera a C", "abertas: total=1"])
+
+    def test_painel_do_quadro_entra_e_o_resto_do_quadro_nao(self):
+        (self.raiz / "KANBAN.md").write_text(self.QUADRO, encoding="utf-8")
+        self.assertEqual(self.abertas(), ["aberta: outro | b | 2026-11-02 08:30 | TOKEN-X: decidir o token · recomendação A: o bot · "
+                                          "ação: responder | recomendada: A: o bot", "abertas: total=1"])
+
+    def test_sem_pendencia_uma_linha(self):
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "pode?"', "DECISÃO DO DONO (2026-11-04 09:00): pode")
+        self.assertEqual(self.abertas(), ["Não há decisão sua pendente"])
+
+    def test_ordem_por_peso_e_depois_a_mais_antiga(self):
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-05 10:00): → "muda o escopo da 0.48?"',
+                    'PERGUNTA AO DONO (2026-11-06 10:00): → "apaga a branch velha? irreversível"',
+                    'PERGUNTA AO DONO (2026-11-01 10:00): → "renomeia o cartão?"',
+                    'PERGUNTA AO DONO (2026-11-07 10:00): → "assina o serviço pago?"',
+                    'PERGUNTA AO DONO (2026-11-02 10:00): → "tira o item do escopo?"')
+        pesos = [(l.split(" | ")[0], l.split(" | ")[2]) for l in self.abertas()[:-1]]
+        self.assertEqual(pesos, [("aberta: irreversível", "2026-11-06 10:00"), ("aberta: dinheiro", "2026-11-07 10:00"),
+                                 ("aberta: escopo", "2026-11-02 10:00"), ("aberta: escopo", "2026-11-05 10:00"),
+                                 ("aberta: outro", "2026-11-01 10:00")])
+
+    def test_formas_do_registro_com_prefixo_aspas_e_sem_parenteses(self):
+        self.pedido("a", '- 2026-11-03 09:00: PERGUNTA AO DONO: quem faz a E1.6?', '- 2026-11-03 09:30: DECISÃO DO DONO "A" no H1',
+                    'PERGUNTA AO DONO (2026-11-03 ~10h15): → "pode C?"', 'DECISÃO DO DONO 2026-11-03 10:20: "sim"',
+                    'PERGUNTA AO DONO (2026-11-04 08:00): → "pode D?"')
+        self.pedido("b", '- 2026-11-05 07:00: PERGUNTA AO DONO: com prefixo e sem decisão?')
+        self.assertEqual([l.split(" | ")[1:4] for l in self.abertas()[:-1]],
+                         [["a", "2026-11-04 08:00", "pode D?"], ["b", "2026-11-05 07:00", "com prefixo e sem decisão?"]])
+
+    def test_pergunta_longa_sai_cortada_numa_linha(self):
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "' + "palavra " * 40 + '"')
+        pergunta = self.abertas()[0].split(" | ")[3]
+        self.assertEqual((len(pergunta), pergunta[-1]), (200, "…"))
+
+    def test_cartao_sem_data_sai_com_traco(self):
+        (self.raiz / "KANBAN.md").write_text(self.QUADRO.replace("2026-11-02T08:30-0300", "sem data"), encoding="utf-8")
+        self.assertEqual(self.abertas()[0].split(" | ")[2], "—")
+
+    def test_link_e_arquivo_ilegivel_ficam_fora(self):
+        fora = self.raiz / "fora.md"
+        fora.write_text('PERGUNTA AO DONO (2026-11-03 10:00): → "de fora"\n' + self.QUADRO, encoding="utf-8")
+        (self.raiz / "docs" / "pedidos" / "link.md").symlink_to(fora)
+        (self.raiz / "KANBAN.md").symlink_to(fora)
+        (self.raiz / "docs" / "pedidos" / "ruim.md").write_bytes(b"PERGUNTA AO DONO (2026-11-03 10:00): \xff\n")
+        self.assertEqual(self.abertas(), ["abertas: aviso: ruim.md ilegível (UnicodeDecodeError); fora da lista",
+                                          "Não há decisão sua pendente"])
+
+
+    def test_cada_decisao_fecha_no_maximo_uma_pergunta(self):  # review A1, sonda S1
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "1) pode A?"', 'PERGUNTA AO DONO (2026-11-03 10:05): → "2) pode B?"',
+                    'DECISÃO DO DONO (2026-11-03 10:10): pergunta 1 de 10:00 → "sim"')
+        self.pedido("b", 'PERGUNTA AO DONO (2026-11-03 10:00): → "pode C?"', 'PERGUNTA AO DONO (2026-11-03 10:05): → "pode D?"',
+                    'DECISÃO DO DONO (2026-11-03 10:10): "sim"')
+        self.assertEqual([l.split(" | ")[1:4] for l in self.abertas()[:-1]],
+                         [["b", "2026-11-03 10:00", "pode C?"], ["a", "2026-11-03 10:05", "2) pode B?"]])
+
+    def test_decisao_sobre_outro_assunto_nao_fecha_a_pergunta(self):  # review A1, sonda S2: outra fala do dono entre as duas
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-13 08:52): pendente → "pode fechar essa rota?"',
+                    "ORDEM DO DONO (2026-11-13 10:56): registre a queda", 'DECISÃO DO DONO (2026-11-13 13:48): "teto de agentes 16"',
+                    'PERGUNTA AO DONO (2026-11-13 14:00): → "pode E?"', 'DECISÃO DO DONO (2026-11-13 14:05): pergunta de 09:00 → "sim"')
+        self.assertEqual([l.split(" | ")[2:4] for l in self.abertas()[:-1]],
+                         [["2026-11-13 08:52", "pode fechar essa rota?"], ["2026-11-13 14:00", "pode E?"]])
+
+    def test_forma_antiga_pergunta_dois_pontos(self):  # review A3
+        self.pedido("a", "PERGUNTA: (2026-10-19 16:30) PA-8 em paralelo?", "PERGUNTA: nenhuma", 'PERGUNTA: 2026-10-17 · Q1 de 3 · resposta: "A"',
+                    "- 2026-10-20 09:00: PERGUNTA: D1 branch padrão? → \"B\".", "PERGUNTA: (2026-10-21) PA-5? (respondida: A)",
+                    "PERGUNTA: (dono, 2026-10-22 12:00) risco 2: juntar a4 e a5?", "DECISÃO DO DONO (2026-10-22 12:10): A")
+        self.assertEqual([l.split(" | ")[2:4] for l in self.abertas()[:-1]], [["2026-10-19 16:30", "PA-8 em paralelo?"]])
+
+    def test_quadro_ilegivel_vira_aviso(self):  # QA A1, bug V047-PA-01
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "pode A?"')
+        (self.raiz / "KANBAN.md").write_text(self.QUADRO, encoding="utf-8")
+        abrir = Path.open
+
+        def open_(caminho, *args, **kw):  # a leitura com teto (A2 da segurança, MP8) abre pelo Path.open
+            if caminho.name == "KANBAN.md":
+                raise PermissionError(13, "Permission denied")
+            return abrir(caminho, *args, **kw)
+        with unittest.mock.patch.object(Path, "open", open_):
+            linhas = self.abertas()
+        self.assertEqual([linhas[0], linhas[-1]], ["abertas: aviso: KANBAN.md ilegível (PermissionError); fora da lista", "abertas: total=1"])
+
+    def test_pasta_de_pedidos_por_link_e_recusada(self):  # segurança A1
+        fora = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, fora)
+        (fora / "pedidos").mkdir()
+        (fora / "pedidos" / "y.md").write_text('PERGUNTA AO DONO (2026-11-03 10:00): → "de fora"\n', encoding="utf-8")
+        shutil.rmtree(self.raiz / "docs")
+        (self.raiz / "docs").symlink_to(fora)
+        self.assertEqual(self.dono.cmd_abertas(self.raiz), (["abertas: erro: docs/pedidos ou docs é link simbólico; recusado"], 1))
+        (self.raiz / "docs").unlink()
+        (self.raiz / "docs").mkdir()
+        (self.raiz / "docs" / "pedidos").symlink_to(fora / "pedidos")
+        self.assertEqual(self.dono.cmd_abertas(self.raiz)[1], 1)
+
+    def test_linha_longa_nao_trava(self):  # segurança A2: o trecho depois da data era quadrático (8 mil espaços, 1,8 s)
+        texto = "PERGUNTA AO DONO (2026-11-03" + " " * 12000 + "x\nPERGUNTA AO DONO" + " " * 12000 + "x\n"
+        inicio = time.perf_counter()
+        self.assertEqual(self.dono.perguntas_do_pedido("a", texto), [])
+        self.assertLess(time.perf_counter() - inicio, 1.0)
+
+
+class FiltroDaPergunta(BaseCamadas):  # D5 (v0480, E173.3): a pergunta declara o tipo e tem mais de uma opção por questão
+    DUAS = "1a) manter o prazo [recomendada] [reversível] · 1b) adiar"
+
+    def test_sem_tipo_ou_tipo_fora_da_lista_e_recusada(self):
+        for tipo in (None, "", "outro", "Custo", "custo "):
+            with self.subTest(tipo=tipo):
+                self.assertIn("--tipo-pergunta", self.recusa_tipo(tipo, self.DUAS))
+
+    def test_cada_tipo_da_lista_grava_o_tipo_antes_do_contexto(self):
+        self.assertEqual(len(dono.TIPOS_DA_PERGUNTA), 7)
+        for tipo in dono.TIPOS_DA_PERGUNTA:
+            with self.subTest(tipo=tipo):
+                linhas, rc = self.anotar("pergunta", self.DUAS, "prazo do item", tipo_pergunta=tipo)
+                self.assertEqual(rc, 0, linhas)
+                self.assertRegex(self.ultima(), rf'^PERGUNTA AO DONO \([^)]*\): tipo={tipo} · prazo do item → "1a\) manter')
+        self.assertEqual(dono.ultima_pergunta(self.arq.read_text(encoding="utf-8"))[1]["b"], "adiar")  # o O4 segue lendo a linha
+
+    def test_pergunta_sem_opcoes_e_recusada(self):
+        self.assertIn("não tem opções", self.recusa("pergunta", "posso seguir com o prazo?"))
+
+    def test_questao_com_uma_opcao_so_e_recusada(self):
+        for literal in ("1a) manter o prazo [recomendada]", self.DUAS + " 2a) arquivar a branch [recomendada]"):
+            with self.subTest(literal=literal):
+                self.assertIn("uma opção só", self.recusa("pergunta", literal))
+
+    def test_tipo_pergunta_fora_da_pergunta_e_recusado(self):
+        for tipo, extra in (("decisao", {"confere": "mede"}), ("historico", {}), ("ordem", {})):
+            with self.subTest(tipo=tipo):
+                antes = self.sha()
+                linhas, rc = fc.cmd_anotar(self.tmp, "p", tipo, "x", None, cartao="E1" if tipo == "ordem" else None,
+                                           tipo_pergunta="custo", **extra)
+                self.assertEqual((rc, self.sha()), (2, antes), linhas)
+                self.assertIn("--tipo-pergunta vai com --tipo pergunta", linhas[0])
+
+    def test_o_corte_sem_origem_segue_recusado_com_o_tipo(self):  # E6 continua depois do D5
+        self.assertIn("(E6)", self.recusa("pergunta", CORTE_SEM))
+        self.assertIn("--tipo-pergunta", self.recusa_tipo(None, CORTE_SEM))  # sem o tipo, a recusa do D5 vem antes da E6
+
+    def test_cli_sem_tipo_pergunta_nao_grava(self):
+        antes = self.sha()
+        rc, saida = self.rodar("anotar", "--pedido", "p", "--tipo", "pergunta", "--literal", self.DUAS)
+        self.assertEqual((rc, self.sha()), (2, antes), saida)
+        rc, saida = self.rodar("anotar", "--pedido", "p", "--tipo", "pergunta", "--tipo-pergunta", "main", "--literal", self.DUAS)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("tipo=main", self.ultima())
+
+    def recusa_tipo(self, tipo, literal):
+        antes = self.sha()
+        linhas, rc = self.anotar("pergunta", literal, tipo_pergunta=tipo)
+        self.assertEqual((rc, self.sha()), (2, antes), linhas)
+        return linhas[0]
+
+
+class SoApertaComSeguranca(unittest.TestCase):  # D5 (v0480, E173.3): o decisor só decide o que só aperta, com a segurança por escrito
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-d5-")).resolve()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.decisor = SourceFileLoader("forge_decisor_d5", str(Path(FORGE_CHECK).parent / "forge_decisor.py")).load_module()
+        self.seguranca = self.tmp / "docs" / "security"
+        commitar(self.tmp, {"docs/security/ok.md": parecer_da_seguranca("Só aperta: nome\n", pedido="p")})  # A1 do #863: pelo git
+
+    def registrar(self, **troca):
+        campos = {"acao": "registrar", "pedido": "p", "porta": "nome", "criterio": "R-PROVA", "fato": "f", "porque": "p",
+                  "como_mudar": "c", "custo_reverter": "um commit", "irreversivel": "nao", "dinheiro": "nao", "escopo": "nao",
+                  "alternativas_piores": "sim", "reversivel": "sim", "erro_barato": "sim", "so_aperta": "sim",
+                  "seguranca": "docs/security/ok.md", **troca}
+        saida = io.StringIO()
+        with contextlib.redirect_stdout(saida):
+            rc = self.decisor.executar(argparse.Namespace(**campos), self.tmp)
+        return rc, saida.getvalue()
+
+    def pergunta(self, motivo, **troca):
+        rc, saida = self.registrar(**troca)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(motivo, saida)
+
+    def test_so_aperta_com_confirmacao_decide(self):
+        rc, saida = self.registrar()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("decidido: nome — R-PROVA — f", saida)
+        registro = (self.tmp / "docs" / "kanban" / "decisoes-obvias.jsonl").read_text(encoding="utf-8")
+        self.assertIn('"seguranca": "docs/security/ok.md"', registro)
+
+    def test_nao_so_aperta_vira_pergunta(self):
+        self.pergunta("condição não atendida: so_aperta", so_aperta="nao")
+
+    def test_sem_so_aperta_nao_grava(self):
+        rc, saida = self.registrar(so_aperta="")
+        self.assertEqual(rc, 2, saida)
+        self.assertIn("--so-aperta", saida)
+        self.assertFalse((self.tmp / "docs" / "kanban").exists())
+
+    def test_confirmacao_fora_de_docs_security_vira_pergunta(self):
+        valido = parecer_da_seguranca("Só aperta: nome\n", pedido="p")  # o mesmo parecer válido, fora do lugar: só o caminho reprova
+        commitar(self.tmp, {"docs/outro.md": valido, "docs/security/ok.txt": valido, "docs/security/sub/ok.md": valido})
+        for caminho in ("", "docs/outro.md", "docs/security/../outro.md", "/x/docs/security/ok.md", "docs/security/ok.txt",
+                        "docs/security/sub/ok.md"):
+            with self.subTest(caminho=caminho):
+                self.pergunta("condição não atendida: seguranca", seguranca=caminho)
+
+    def test_confirmacao_ausente_ou_link_vira_pergunta(self):
+        os.symlink(self.seguranca / "ok.md", self.seguranca / "link.md")
+        for caminho in ("docs/security/nao-existe.md", "docs/security/link.md"):
+            with self.subTest(caminho=caminho):
+                self.pergunta("condição não atendida: seguranca", seguranca=caminho)
+
+    def test_pasta_da_seguranca_por_link_vira_pergunta(self):
+        real = self.tmp / "fora"
+        real.mkdir()
+        shutil.copy(self.seguranca / "ok.md", real / "ok.md")  # o mesmo parecer válido, só que pela pasta com link
+        shutil.rmtree(self.seguranca)
+        os.symlink(real, self.seguranca)
+        self.pergunta("condição não atendida: seguranca")
+
+    def test_confirmacao_sem_a_frase_ou_negada_vira_pergunta(self):
+        for corpo in ("parecer: aprovado\n", "o item não só aperta, também afrouxa\n", "nao so aperta\n", "Confirmo: SO APERTA.\n"):
+            with self.subTest(corpo=corpo):
+                commitar(self.tmp, {"docs/security/ok.md": parecer_da_seguranca(corpo, pedido="p")})
+                self.pergunta("condição não atendida: seguranca")
+        commitar(self.tmp, {"docs/security/ok.md": parecer_da_seguranca("Só aperta: nome\n", pedido="p")})
+        self.assertEqual(self.registrar()[0], 0)
+
+    def test_confirmacao_grande_demais_vira_pergunta(self):
+        corpo = "Só aperta: nome\n" + "x" * self.decisor.TETO_DA_CONFIRMACAO
+        commitar(self.tmp, {"docs/security/ok.md": parecer_da_seguranca(corpo, pedido="p")})
+        self.pergunta("condição não atendida: seguranca")
 
 
 if __name__ == "__main__":

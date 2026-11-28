@@ -1,0 +1,63 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "GH-API-ARQUIVO-TROCADO (A4 da E3.4): graphql que lê arquivo com outro comando na linha recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "if acompanhado and any(",
+      "para": "if False and any(",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_graphql_fora_do_clone_e_arquivo_trocado_na_linha"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "GH-API-ARQUIVO-TROCADO (A4 da E3.4): outro comando na linha marca a linha acompanhada",
+      "arquivo": "hooks/parecer.py",
+      "de": "aqui = acompanhado or sum(",
+      "para": "aqui = acompanhado or 0 * sum(",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_graphql_fora_do_clone_e_arquivo_trocado_na_linha"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "GH-API-ARQUIVO-TROCADO (A4 da E3.4): a marca da linha de fora vale para o gh numa substituição",
+      "arquivo": "hooks/parecer.py",
+      "de": "acompanhado_dentro = acompanhado_dentro or aqui",
+      "para": "acompanhado_dentro = acompanhado_dentro",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_graphql_fora_do_clone_e_arquivo_trocado_na_linha"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "GH-API-ARQUIVO-TROCADO (A4 da E3.4): o cd não conta como outro comando",
+      "arquivo": "hooks/parecer.py",
+      "de": "if not (parte and parte[0] == \"cd\")",
+      "para": "if True",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_graphql_fora_do_clone_e_arquivo_trocado_na_linha"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "GRAPHQL-FORA-DO-CLONE: o pronto_por_graphql só confere o graphql que muda com o clone do Forge como alvo",
+      "arquivo": "hooks/parecer.py",
+      "de": "if not graphql_no_clone(hook, pasta, args):",
+      "para": "if True:",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_graphql_fora_do_clone_e_arquivo_trocado_na_linha"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/parecer.py",
+      "trecho": "not e_clone_do_forge(hook.projeto(pasta, clone_do_forge=True",
+      "motivo": "movida: a condicao virou graphql_no_clone (return e_clone_do_forge(raiz)), e o if not graphql_no_clone tem o mutante M21"
+    }
+  ]
+}

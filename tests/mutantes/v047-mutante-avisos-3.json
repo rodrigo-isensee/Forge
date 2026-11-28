@@ -6,8 +6,8 @@
       "id": "CF17",
       "guarda": "E1.140: sem desencontro, a saída diz que conferiu",
       "arquivo": "bin/forge-mutante",
-      "de": "\"\\n\".join(saida) or \"conferidas:",
-      "para": "\"\\n\".join(saida) and \"conferidas:",
+      "de": "\"\\n\".join(saida) or (f\"conferidas:",
+      "para": "\"\\n\".join(saida) and (f\"conferidas:",
       "testes": [
         "tests.test_forge_mutante.Conferir.test_de_no_lugar_sai_0_e_de_que_sumiu_depois_da_spec_sai_1_com_a_spec_e_o_trecho"
       ]

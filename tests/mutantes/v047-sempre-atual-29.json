@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S145",
+      "guarda": "forge_sempre_atual.py:791 decide por `not (isinstance(bom, dict) and bom.get(\"versao\") == e[\"versao\"]) or ve`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not (isinstance(bom, dict) and bom.get(\"versao\") == e[\"versao\"]) or versao is None or install is None:",
+      "para": "if not (not (isinstance(bom, dict) and bom.get(\"versao\") == e[\"versao\"]) or versao is None or install is None):",
+      "testes": [
+        "tests.test_sempre_atual.Modelo.test_escopo_de_usuario_que_subiu_prepara_a_branch"
+      ]
+    },
+    {
+      "id": "S146",
+      "guarda": "forge_sempre_atual.py:793 decide por `self.git_do_projeto([\"remote\", \"get-url\", \"origin\"], PRAZO_LEITURA)[0]`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if self.git_do_projeto([\"remote\", \"get-url\", \"origin\"], PRAZO_LEITURA)[0] != 0:",
+      "para": "if not (self.git_do_projeto([\"remote\", \"get-url\", \"origin\"], PRAZO_LEITURA)[0] != 0):",
+      "testes": [
+        "tests.test_sempre_atual.Modelo.test_escopo_de_usuario_que_subiu_prepara_a_branch"
+      ]
+    },
+    {
+      "id": "S147",
+      "guarda": "forge_sempre_atual.py:796 decide por `rc != 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.git_do_projeto([\"fetch\", \"--quiet\", \"--no-tags\", \"origin\", \"develop\"])\n        if rc != 0:\n            return self.extra_modelo(\"fetch: \" + saida)",
+      "para": "rc, saida = self.git_do_projeto([\"fetch\", \"--quiet\", \"--no-tags\", \"origin\", \"develop\"])\n        if not (rc != 0):\n            return self.extra_modelo(\"fetch: \" + saida)",
+      "testes": [
+        "tests.test_sempre_atual.Estado.test_registro_tem_sete_colunas_e_guarda_so_as_ultimas_500"
+      ]
+    },
+    {
+      "id": "S148",
+      "guarda": "forge_sempre_atual.py:799 decide por `rc == 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "modelo = versao_tupla(atual) if rc == 0 else None",
+      "para": "modelo = versao_tupla(atual) if not (rc == 0) else None",
+      "testes": [
+        "tests.test_sempre_atual.Modelo.test_escopo_de_usuario_que_subiu_prepara_a_branch"
+      ]
+    },
+    {
+      "id": "S149",
+      "guarda": "forge_sempre_atual.py:800 decide por `modelo is None or versao <= modelo`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if modelo is None or versao <= modelo:",
+      "para": "if not (modelo is None or versao <= modelo):",
+      "testes": [
+        "tests.test_sempre_atual.Modelo.test_escopo_de_usuario_que_subiu_prepara_a_branch"
+      ]
+    },
+    {
+      "id": "S150",
+      "guarda": "forge_sempre_atual.py:803 decide por `self.git_do_projeto([\"rev-parse\", \"--verify\", \"-q\", f\"refs/heads/{ramo`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if self.git_do_projeto([\"rev-parse\", \"--verify\", \"-q\", f\"refs/heads/{ramo}\"], PRAZO_LEITURA)[0] == 0:",
+      "para": "if not (self.git_do_projeto([\"rev-parse\", \"--verify\", \"-q\", f\"refs/heads/{ramo}\"], PRAZO_LEITURA)[0] == 0):",
+      "testes": [
+        "tests.test_sempre_atual.Modelo.test_escopo_de_usuario_que_subiu_prepara_a_branch"
+      ]
+    },
+    {
+      "id": "S151",
+      "guarda": "forge_sempre_atual.py:806 decide por `rc == 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.git_do_projeto([\"ls-remote\", \"--exit-code\", \"--heads\", \"origin\", ramo])\n        if rc == 0:\n            return",
+      "para": "rc, saida = self.git_do_projeto([\"ls-remote\", \"--exit-code\", \"--heads\", \"origin\", ramo])\n        if not (rc == 0):\n            return",
+      "testes": [
+        "tests.test_sempre_atual.Modelo.test_escopo_de_usuario_que_subiu_prepara_a_branch"
+      ]
+    },
+    {
+      "id": "S152",
+      "guarda": "forge_sempre_atual.py:808 decide por `rc != 2`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if rc != 2:",
+      "para": "if not (rc != 2):",
+      "testes": [
+        "tests.test_sempre_atual.Estado.test_registro_tem_sete_colunas_e_guarda_so_as_ultimas_500"
+      ]
+    }
+  ]
+}

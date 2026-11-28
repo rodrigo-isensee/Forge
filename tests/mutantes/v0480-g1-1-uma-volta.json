@@ -1,0 +1,16 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M6",
+      "guarda": "a conferência recusa a numeração que recomeça ou pula",
+      "arquivo": "bin/forge-check",
+      "de": "    if n != n_anterior + 1:  # G1.1: o brief à mão não recomeça a contagem nem a pula",
+      "para": "    if False:  # G1.1: o brief à mão não recomeça a contagem nem a pula",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_conferencia_recusa_a_numeracao_contornada"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "linha anexada fica antes das linhas em branco do fim da secao",
+      "arquivo": "bin/forge-changelog",
+      "de": "            while fim > mesmo[0] + 1 and not linhas[fim - 1].strip():\n",
+      "para": "            while False:\n",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_linha_em_branco_entre_secoes_fica_depois_da_linha_anexada"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "secao nova entra antes do tipo seguinte na ordem",
+      "arquivo": "bin/forge-changelog",
+      "de": "            pos = depois[0] if depois else len(linhas)\n",
+      "para": "            pos = depois[0] if not depois else len(linhas)\n",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_junta_na_secao_de_cada_tipo_cria_a_que_falta_e_apaga"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "release com --anexar vai ao modo de anexar",
+      "arquivo": "bin/forge-changelog",
+      "de": "    if args.anexar:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_junta_na_secao_de_cada_tipo_cria_a_que_falta_e_apaga"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "cabecalho de tipo aceita espaco no fim",
+      "arquivo": "bin/forge-changelog",
+      "de": "if (m := re.fullmatch(r\"### (\\w+)\\s*\", l))]",
+      "para": "if (m := re.fullmatch(r\"### (\\w+)\", l))]",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_cabecalho_com_espaco_no_fim_e_tipo_fora_da_lista_sao_respeitados"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "so a secao do mesmo tipo recebe as linhas",
+      "arquivo": "bin/forge-changelog",
+      "de": "mesmo = [i for i, t in cabecalhos if t == tipo]",
+      "para": "mesmo = [i for i, t in cabecalhos if t != tipo]",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_junta_na_secao_de_cada_tipo_cria_a_que_falta_e_apaga"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "fim da secao e o proximo cabecalho depois dela",
+      "arquivo": "bin/forge-changelog",
+      "de": "if i > mesmo[0]), len(linhas))",
+      "para": "if i >= mesmo[0]), len(linhas))",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_junta_na_secao_de_cada_tipo_cria_a_que_falta_e_apaga"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "tipo fora da lista nao entra na ordem",
+      "arquivo": "bin/forge-changelog",
+      "de": "if t in TIPOS and TIPOS.index(t) > TIPOS.index(tipo)]",
+      "para": "if TIPOS.index(t) > TIPOS.index(tipo)]",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_cabecalho_com_espaco_no_fim_e_tipo_fora_da_lista_sao_respeitados"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "entrada vazia nao ganha linha em branco",
+      "arquivo": "bin/forge-changelog",
+      "de": "split(\"\\n\") if corpo.strip() else [], agrupado)",
+      "para": "split(\"\\n\") if True else [], agrupado)",
+      "testes": [
+        "tests.test_changelog.ReleaseAnexar.test_entrada_vazia_recebe_a_secao"
+      ]
+    }
+  ]
+}

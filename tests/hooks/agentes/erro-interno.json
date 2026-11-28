@@ -1,5 +1,5 @@
 {
-  "descricao": "Estado corrompido: libera (saída 0) e registra em erros.log.",
+  "descricao": "Estado corrompido (HOOK-ESTADO-ILEGIVEL-LIBERA, A1): recusa o disparo com R-TETO (antes liberava) e registra em erros.log; o nome fica, porque todo hook tem o caso `erro-interno`.",
   "estado": {
     "agentes.json": "{corrompido"
   },
@@ -14,7 +14,18 @@
     }
   },
   "esperado": {
-    "codigo": 0,
-    "erros_log": "agentes JSONDecodeError"
+    "codigo": 2,
+    "stderr": "R-TETO: registro de agentes ilegível",
+    "erros_log": "agentes EstadoIlegivel",
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "{corrompido"
+        ],
+        "ausente": [
+          "Explore"
+        ]
+      }
+    }
   }
 }

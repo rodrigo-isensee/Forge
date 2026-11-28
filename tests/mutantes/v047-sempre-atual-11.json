@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S1",
+      "guarda": "forge-atualizar:193 decide por `git(projeto, \"add\", \"--\", rel)[0] == 0 and git(projeto, \"commit\", \"-q\"`",
+      "arquivo": "bin/forge-atualizar",
+      "de": "ligou = (git(projeto, \"add\", \"--\", rel)[0] == 0 and\n                     git(projeto, \"commit\", \"-q\", \"-m\", f\"chore(forge): liga o {local} ao {hook} do projeto\", \"--\", rel)[0] == 0)",
+      "para": "ligou = (not (git(projeto, \"add\", \"--\", rel)[0] == 0 and\n                     git(projeto, \"commit\", \"-q\", \"-m\", f\"chore(forge): liga o {local} ao {hook} do projeto\", \"--\", rel)[0] == 0))",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_liga_a_chamada_no_hook_de_shell_do_projeto_num_commit_a_parte"
+      ]
+    },
+    {
+      "id": "S2",
+      "guarda": "forge-atualizar:195 decide por `not ligou`",
+      "arquivo": "bin/forge-atualizar",
+      "de": "if not ligou:  # nada fica pela metade: desfaz a mudança no arquivo e no índice",
+      "para": "if ligou:  # nada fica pela metade: desfaz a mudança no arquivo e no índice",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_commit_da_ligacao_recusado_desfaz_o_hook_e_so_avisa"
+      ]
+    },
+    {
+      "id": "S3",
+      "guarda": "forge-atualizar:213 decide por `deu`",
+      "arquivo": "bin/forge-atualizar",
+      "de": "if deu:  # a fixação do dono vai para o estado da ferramenta: a abertura seguinte do atalho a respeita (ADR 0017, item 11)",
+      "para": "if not (deu):  # a fixação do dono vai para o estado da ferramenta: a abertura seguinte do atalho a respeita (ADR 0017, item 11)",
+      "testes": [
+        "tests.test_atualizar.FixacaoDoDono.test_atualizar_solta_so_a_fixacao_do_dono"
+      ]
+    },
+    {
+      "id": "S4",
+      "guarda": "forge-atualizar:215 decide por `not gravou`",
+      "arquivo": "bin/forge-atualizar",
+      "de": "if not gravou:",
+      "para": "if gravou:",
+      "testes": [
+        "tests.test_atualizar.FixacaoDoDono.test_fixar_sem_pasta_de_estado_avisa_e_nao_falha"
+      ]
+    },
+    {
+      "id": "S5",
+      "guarda": "forge-sempre-atual:13 decide por `__name__ == \"__main__\"`",
+      "arquivo": "bin/forge-sempre-atual",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if not (__name__ == \"__main__\"):",
+      "testes": [
+        "tests.test_oraculo_sempre_atual.Abertura.test_recusa_dentro_do_claude"
+      ]
+    },
+    {
+      "id": "S6",
+      "guarda": "forge-voltar-versao:134 decide por `not gravou`",
+      "arquivo": "bin/forge-voltar-versao",
+      "de": "if not gravou:",
+      "para": "if gravou:",
+      "testes": [
+        "tests.test_atualizar.FixacaoDoDono.test_voltar_versao_grava_a_fixacao_do_dono_na_versao_de_antes"
+      ]
+    },
+    {
+      "id": "S7",
+      "guarda": "forge_sempre_atual.py:93 decide por `isinstance(texto, str)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "achou = VERSAO.fullmatch(str(texto).strip()) if isinstance(texto, str) else None",
+      "para": "achou = VERSAO.fullmatch(str(texto).strip()) if not (isinstance(texto, str)) else None",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S8",
+      "guarda": "forge_sempre_atual.py:94 decide por `achou`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return tuple(int(x) for x in achou.groups()) if achou else None",
+      "para": "return tuple(int(x) for x in achou.groups()) if not (achou) else None",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    }
+  ]
+}

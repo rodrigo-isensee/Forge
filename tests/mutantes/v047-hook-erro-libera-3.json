@@ -56,8 +56,8 @@
       "id": "M22",
       "guarda": "C7: sem projeto, o agentes não age (nem o R-BRIEF)",
       "arquivo": "hooks/agentes.py",
-      "de": "    if raiz is None:\n        return\n    try:",
-      "para": "    if False:\n        return\n    try:",
+      "de": "    if raiz is None:\n        return\n    pasta_ilegivel = False",
+      "para": "    if False:\n        return\n    pasta_ilegivel = False",
       "testes": [
         "tests.test_hook_erro_libera.HookErroLibera.test_fixtures_do_agentes"
       ]

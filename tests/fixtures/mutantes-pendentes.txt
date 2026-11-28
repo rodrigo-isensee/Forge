@@ -1,0 +1,32 @@
+# Specs de tests/mutantes/ com o `de` fora da fonte atual que ainda faltam alinhar (AR-12, v047 E2.215).
+# A catraca de tests/test_forge_mutante.py (ConferirTodas) só deixa a lista encolher: a spec nova fora do lugar reprova,
+# e a que voltou a conferir sai daqui no mesmo commit. Uma linha por mutante, na forma da saída do
+# `bin/forge-mutante --conferir --todas`: `tests/mutantes/<spec>.json: <id>`.
+#
+# O trecho aparece mais de uma vez no arquivo (outro commit repetiu a linha): o `de` precisa de mais contexto.
+tests/mutantes/acelera-p3c-rotulados-funcao-2.json: M22
+tests/mutantes/hk3-parecer-pasta-14.json: M103
+tests/mutantes/hk3-parecer-pasta-14.json: M104
+tests/mutantes/hk3-parecer-pasta-14.json: M105
+tests/mutantes/hk3-parecer-pasta-15.json: M106
+tests/mutantes/hooks-corpus-rapido.json: M2
+tests/mutantes/hooks-corpus-rapido.json: M5
+tests/mutantes/lote-fc-seguranca-1.json: M5
+tests/mutantes/lote-l08-e19.json: M49
+tests/mutantes/lote-m8-hook.json: M6
+tests/mutantes/lote-unico-032-l32-2.json: M15
+tests/mutantes/lote-unico-032-l49.json: M7
+tests/mutantes/pesado-trava-fundo.json: M4
+tests/mutantes/pn4-decisao-aprovacao.json: M2
+tests/mutantes/prepush-projeto-trava-2.json: M8
+tests/mutantes/prepush-projeto-trava-2.json: M9
+tests/mutantes/s8-verde-protegido.json: M3
+tests/mutantes/t1-conf-escopo.json: M14
+tests/mutantes/v0441-o4-resposta.json: M12
+tests/mutantes/v0441-o4-resposta.json: M14
+tests/mutantes/v0441-review-3.json: M22
+tests/mutantes/v0451-n1n3.json: A5
+tests/mutantes/v0457-escopo-ponto-3.json: M17
+tests/mutantes/v0457-escopo-ponto-3.json: M20
+tests/mutantes/z075-prepush-relogio.json: M1
+tests/mutantes/z075-prepush-relogio.json: M2

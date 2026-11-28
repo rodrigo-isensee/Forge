@@ -47,8 +47,8 @@
       "id": "M6",
       "guarda": "trecho do equivalente que nao aparece uma vez so e invalido",
       "arquivo": "bin/forge-mutante",
-      "de": "    if n != 1:\n        return f",
-      "para": "    if n < 1:\n        return f",
+      "de": "        n = texto.count(de)\n        if n != 1:",
+      "para": "        n = texto.count(de)\n        if n < 1:",
       "testes": [
         "tests.test_forge_mutante.Execucao.test_equivalente_com_o_trecho_ausente_ou_repetido_sai_2"
       ]
@@ -57,8 +57,8 @@
       "id": "M7",
       "guarda": "equivalente invalido da rc 2",
       "arquivo": "bin/forge-mutante",
-      "de": "codigo = codigo if valido else 2\n",
-      "para": "codigo = codigo if True else 2\n",
+      "de": "0 if valido else 2, False",
+      "para": "0, False",
       "testes": [
         "tests.test_forge_mutante.Execucao.test_equivalente_com_o_trecho_ausente_ou_repetido_sai_2"
       ]
@@ -67,8 +67,8 @@
       "id": "M8",
       "guarda": "o equivalente nao roda (nao vira controle nem mutante)",
       "arquivo": "bin/forge-mutante",
-      "de": "codigo = codigo if valido else 2\n                continue",
-      "para": "codigo = codigo if valido else 2",
+      "de": "        return linha, 0 if valido else 2, False\n",
+      "para": "        pass\n",
       "testes": [
         "tests.test_forge_mutante.Execucao.test_equivalente_declarado_nao_roda_nao_da_rc_1_e_sai_na_linha_propria"
       ]
@@ -107,8 +107,8 @@
       "id": "M12",
       "guarda": "a rodada separa o equivalente antes de montar a copia",
       "arquivo": "bin/forge-mutante",
-      "de": "            if \"equivalente\" in m:\n                linha,",
-      "para": "            if \"equivalente\" in {}:\n                linha,",
+      "de": "if \"equivalente\" in m and \"testes\" not in m:\n        linha",
+      "para": "if \"equivalente\" in {} and \"testes\" not in m:\n        linha",
       "testes": [
         "tests.test_forge_mutante.Execucao.test_equivalente_declarado_nao_roda_nao_da_rc_1_e_sai_na_linha_propria"
       ]
@@ -117,12 +117,9 @@
       "id": "M13",
       "guarda": "a spec com chave fora do conjunto e recusada",
       "arquivo": "bin/forge-mutante",
-      "de": "or set(m) != chaves:",
-      "para": "or set(m) == chaves:",
-      "testes": [
-        "tests.test_forge_mutante.ValidacaoDaSpec.test_spec_valida",
-        "tests.test_forge_mutante.ValidacaoDaSpec.test_equivalente_sem_justificativa_ou_com_testes_e_invalido"
-      ]
+      "de": "or not obrigatorias <= set(m) <= chaves:",
+      "para": "or obrigatorias <= set(m) <= chaves:",
+      "testes": ["tests.test_forge_mutante.ValidacaoDaSpec.test_spec_valida", "tests.test_forge_mutante.ValidacaoDaSpec.test_equivalente_sem_justificativa_ou_com_testes_mal_formados_e_invalido"]
     }
   ]
 }

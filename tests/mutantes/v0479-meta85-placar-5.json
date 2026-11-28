@@ -1,0 +1,16 @@
+{
+  "pedido": "v0479-meta85-placar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M50",
+      "guarda": "hora do merge com Z vira deslocamento numérico",
+      "arquivo": "bin/forge-placar",
+      "de": "hora[:-1] + \"+00:00\" if hora.endswith(\"Z\") else hora",
+      "para": "hora[:-1] + \"+00:00\" if hora.endswith(\"X\") else hora",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_merge_em_utc_sai_com_deslocamento_numerico_mesmo_com_git_que_escreve_z"
+      ]
+    }
+  ]
+}

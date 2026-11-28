@@ -1,0 +1,83 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP25",
+      "guarda": "AE7.1 executar: caso que o head mudou conta como removido",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if corpus_head.get(i) != linha)",
+      "para": "if i not in corpus_head)",
+      "testes": [
+        "tests.test_comparar.Corpus.test_caso_que_o_head_mudou_roda_como_a_base_o_escreveu"
+      ]
+    },
+    {
+      "id": "CMP26",
+      "guarda": "AE7.1 executar: extração que falha",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "None if lado_base is None else medir(ctx, raiz, head, casos, sessao)\n    if lado_head is None:",
+      "para": "None if lado_base is None else medir(ctx, raiz, head, casos, sessao)\n    if False:",
+      "testes": [
+        "tests.test_comparar.Refs.test_archive_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP27",
+      "guarda": "AE7.1 executar: só o head que libera mais conta",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "        if h > b or reescreve:",
+      "para": "        if h != b or reescreve:",
+      "testes": [
+        "tests.test_comparar.Medida.test_head_que_aperta_nao_conta"
+      ]
+    },
+    {
+      "id": "CMP28",
+      "guarda": "AE7.1 executar: caso removido dá rc 1",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    return 1 if novos or removidos else 0",
+      "para": "    return 1 if novos else 0",
+      "testes": [
+        "tests.test_comparar.Corpus.test_tirar_caso_sem_afrouxar_ainda_recusa"
+      ]
+    },
+    {
+      "id": "CMP29",
+      "guarda": "AE7.1 forge-check: subcomando comparar",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"comparar\":  # AE7.1: em bin/forge_comparar.py",
+      "para": "    if False:  # AE7.1: em bin/forge_comparar.py",
+      "testes": [
+        "tests.test_comparar.Subcomando.test_forge_check_comparar"
+      ]
+    },
+    {
+      "id": "CMP30",
+      "guarda": "AE7.1 veredito: decision block sem hookSpecificOutput é recusa",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "(saida.get(\"hookSpecificOutput\") or {})",
+      "para": "(saida.get(\"hookSpecificOutput\") or None)",
+      "testes": [
+        "tests.test_comparar.Medida.test_block_sem_hook_specific_output_e_recusa"
+      ]
+    },
+    {
+      "id": "CMP31",
+      "guarda": "AE7.1 rodar_caso: variável da lista ausente do ambiente não derruba",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "for k in AMBIENTE if k in os.environ}, HOME=str(home), TMPDIR=str(arvore.parent",
+      "para": "for k in AMBIENTE if k in os.environ or True}, HOME=str(home), TMPDIR=str(arvore.parent",
+      "testes": [
+        "tests.test_comparar.ComoOClaudeCode.test_variavel_da_lista_ausente_nao_derruba"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_comparar.py",
+      "trecho": "os.cpu_count() or 1",
+      "motivo": "teto do pool (R-TETO): o número de trabalhadores muda só o tempo, nunca o veredito de um caso; o mutante seria equivalente"
+    }
+  ]
+}

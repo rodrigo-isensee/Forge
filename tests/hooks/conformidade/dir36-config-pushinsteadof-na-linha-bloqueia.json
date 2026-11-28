@@ -1,0 +1,31 @@
+{
+  "descricao": "Diretriz 36 (R-CONTRIB, E3.202, review A1): `git config url.<Forge>.pushInsteadOf <projeto>` reescreve o envio para o Forge: recusado (reescrita falha fechado).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git config url.https://github.com/rodrigo-isensee/Forge.git.pushInsteadOf https://github.com/acme/proj.git && git push https://github.com/acme/proj.git HEAD:melhoria/x"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB"
+  },
+  "git": [
+    {
+      "config": {
+        "remote.origin.url": "https://github.com/acme/proj.git"
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "descricao": "H2-AUTOR-FICA-ATE-O-MERGE (Z10, R-TETO): com o autor retomado por SendMessage, o disparo de escrita na branch dele é recusado.",
+  "arquivos": {
+    "docs/briefs/x.md": "Agente destino: forge:tech-lead\nPedido: p1\nBranch: melhoria/a   Base: develop\n\n## Objetivo\nFazer.\n"
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [],
+      "autores": [
+        {
+          "id": "a0123456789abcdef",
+          "desde": "{agora-60}",
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ]
+    }
+  },
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "SendMessage",
+        "tool_use_id": "toolu_1",
+        "tool_input": {
+          "to": "a0123456789abcdef",
+          "message": "continue"
+        }
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_2",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Corrigir o CI",
+      "prompt": "Execute docs/briefs/x.md"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: melhoria/a ocupada por SendMessage"
+  }
+}

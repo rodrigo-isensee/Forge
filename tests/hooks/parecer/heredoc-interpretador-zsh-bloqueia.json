@@ -1,0 +1,18 @@
+{
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP, caso verdadeiro: o zsh lê o ~/.zshenv antes do corpo; só sh, bash e dash são o shell da entrada, recusa mesmo com o corpo só de echo.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "zsh <<'EOF'\necho \"gh pr merge 12\"\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: `zsh (fora da lista de programas)`"
+  }
+}

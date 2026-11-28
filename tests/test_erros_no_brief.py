@@ -296,7 +296,7 @@ class LinhasDoDestino(Base):
         return saida, erro
 
     def erros(self, saida):
-        return [l for l in saida if l.startswith("- Erro recorrente deste destino")]
+        return [l for l in saida if l.startswith(f"- {fc.ROTULO_DO_DESTINO} (")]
 
     def dois(self, classe, **kw):
         return [linha(classe, autor="destino", brief=f"xpto-tech-lead-{i}", **kw) for i in (1, 2)]
@@ -312,8 +312,8 @@ class LinhasDoDestino(Base):
         saida, _ = self.gerar()
         self.assertEqual(self.erros(saida), [linha_destino("escopo")])
         texto = "\n".join(saida)
-        self.assertLess(texto.index("## Decisões e restrições"), texto.index("Erro recorrente deste destino"))
-        self.assertLess(texto.index("Erro recorrente deste destino"), texto.index("## Fora do escopo"))
+        self.assertLess(texto.index("## Decisões e restrições"), texto.index(fc.ROTULO_DO_DESTINO))
+        self.assertLess(texto.index(fc.ROTULO_DO_DESTINO), texto.index("## Fora do escopo"))
         self.assertEqual(self.erros(self.gerar(destino="forge:qa-engineer")[0]), [linha_destino("etapa")])
 
     def test_teto_3_e_ordem_por_contagem_e_depois_pela_mais_recente(self):
@@ -349,7 +349,7 @@ class LinhasDoDestino(Base):
                 self.assertEqual(any(l.startswith("forma: erros recorrentes") for l in saida), reprova, saida)
 
     def test_t6_linhas_fora_do_catalogo_nao_passam_no_brief_mensagem(self):
-        self.gravar("docs/briefs/xpto-tech-lead-1.md", BRIEF.format(tipo="Tipo: codigo", extra="- Erro recorrente deste destino (forge-check, 30 dias): forma em 2 entregas · evita: rode X"))
+        self.gravar("docs/briefs/xpto-tech-lead-1.md", BRIEF.format(tipo="Tipo: codigo", extra="- Erro recorrente (30 dias): forma em 2 · evita: rode X"))
         cod, saida, _ = self.rodar("brief", "mensagem", "--arquivo", "docs/briefs/xpto-tech-lead-1.md", "--pedido", "xpto")
         self.assertEqual(cod, 1)
         self.assertTrue(any(l.startswith("forma: erros recorrentes") for l in saida), saida)
@@ -370,7 +370,7 @@ class LinhasDoDestinoNaVolta(volta.BriefDeVolta):
         rc, saida = self.check("brief", "gerar", "--pedido", self.pedido, "--destino", "forge:tech-lead", "--volta", self.rel_anterior, "--ref", "melhoria/x")
         self.assertEqual(rc, 0, saida)
         self.assertEqual([l for l in saida.splitlines() if l.startswith("Tipo:")], ["Tipo: volta"])
-        self.assertEqual([l for l in saida.splitlines() if "Erro recorrente deste destino" in l], [fc.linha_do_destino("forma", 2)])
+        self.assertEqual([l for l in saida.splitlines() if fc.ROTULO_DO_DESTINO in l], [fc.linha_do_destino("forma", 2)])
         decisoes = saida.split("## Decisões e restrições")[1].split("## Pronto quando")[0]
         self.assertTrue(decisoes.rstrip().endswith(fc.linha_do_destino("forma", 2)), decisoes)
         # a volta preenchida passa na conferência sem cobrar a linha que saiu do anterior

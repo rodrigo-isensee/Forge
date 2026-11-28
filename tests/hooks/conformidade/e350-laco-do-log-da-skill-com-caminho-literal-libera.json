@@ -1,0 +1,24 @@
+{
+  "descricao": "E3.50: laço de espera do log da skill esperar-estado, com o caminho literal, passa mesmo com .forge/ no caminho.",
+  "arquivos": {
+    "docs/a.md": "parecer\n",
+    "docs/reviews/a.md": "## Achados\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "for i in $(seq 1 5); do grep -q '^rc=' /root/.forge-contrib/run/.forge/envio.log 2>/dev/null && break; sleep 30; done; echo \"fim=$(grep -m 1 '^rc=' /root/.forge-contrib/run/.forge/envio.log 2>/dev/null || echo teto)\"; test -f /root/.forge-contrib/run/.forge/envio.log && grep -q '^rc=' /root/.forge-contrib/run/.forge/envio.log"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

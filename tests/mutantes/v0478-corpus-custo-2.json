@@ -1,0 +1,46 @@
+{
+  "pedido": "v0478-corpus-custo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "a espera do Popen.wait da biblioteca padrão não conta como sono do hook (mutante: conta, e o corpus reprova sem regressão)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if not sys._getframe(1).f_code.co_filename.startswith(_biblioteca):",
+      "para": "if True:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_corpus_nos_dois_hooks"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a leitura soma só as linhas de sono (mutante: nenhuma)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "for linha in linhas if linha.startswith(\"sono \")",
+      "para": "for linha in linhas if False",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_contador_anota_execucao_subprocesso_e_sono_de_cada_filho"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o sitecustomize só conta com a pasta do contador no ambiente (mutante: nunca conta)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if _pasta:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_contador_anota_execucao_subprocesso_e_sono_de_cada_filho"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "o teto é inclusivo: o trabalho na medida mais o ruído passa (mutante: >= reprova no teto)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if trabalho[nome] > teto:",
+      "para": "if trabalho[nome] >= teto:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_no_teto_nao_ha_excesso"
+      ]
+    }
+  ]
+}

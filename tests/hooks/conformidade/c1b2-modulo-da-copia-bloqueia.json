@@ -1,0 +1,24 @@
+{
+  "descricao": "C1b-2 (M10.1): o bin/forge_pareceres.py de uma cópia, pela pasta corrente do python, publicaria pelo código da branch",
+  "arquivos": {
+    "bin/forge_pareceres.py": "CONTEXTOS = {}\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd bin && python3 -c 'import forge_pareceres'"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "forge_pareceres.py de uma cópia"
+  }
+}

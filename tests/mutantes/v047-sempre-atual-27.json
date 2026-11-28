@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S129",
+      "guarda": "forge_sempre_atual.py:721 decide por `bom`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "elif bom:",
+      "para": "elif not (bom):",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_fixacao_gravada_antes_de_mexer_no_catalogo"
+      ]
+    },
+    {
+      "id": "S130",
+      "guarda": "forge_sempre_atual.py:735 decide por `versao_tupla(b[\"versao\"]) or (0,)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "para = versao_texto(max(versao_tupla(b[\"versao\"]) or (0,) for _, b, _ in reprovados))",
+      "para": "para = versao_texto(max(not (versao_tupla(b[\"versao\"]) or (0,)) for _, b, _ in reprovados))",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_fixacao_gravada_antes_de_mexer_no_catalogo"
+      ]
+    },
+    {
+      "id": "S131",
+      "guarda": "forge_sempre_atual.py:744 decide por `rc != 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.atualizar_escopo(e)\n                if rc != 0:\n                    self.falhar([e], \"prazo\" if rc is None else \"update\", saida)",
+      "para": "rc, saida = self.atualizar_escopo(e)\n                if not (rc != 0):\n                    self.falhar([e], \"prazo\" if rc is None else \"update\", saida)",
+      "testes": [
+        "tests.test_sempre_atual.RamosSemMundo.test_volta_com_update_recusado_registra_a_falha_do_update"
+      ]
+    },
+    {
+      "id": "S132",
+      "guarda": "forge_sempre_atual.py:745 decide por `rc is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if rc != 0:\n                    self.falhar([e], \"prazo\" if rc is None else \"update\", saida)\n                    self.res.pop(e[\"chave\"], None)",
+      "para": "if rc != 0:\n                    self.falhar([e], \"prazo\" if not (rc is None) else \"update\", saida)\n                    self.res.pop(e[\"chave\"], None)",
+      "testes": [
+        "tests.test_sempre_atual.RamosSemMundo.test_volta_com_update_recusado_registra_a_falha_do_update"
+      ]
+    },
+    {
+      "id": "S133",
+      "guarda": "forge_sempre_atual.py:748 decide por `novos or []`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "for n in novos or []:",
+      "para": "for n in not (novos or []):",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_volta_so_de_quem_tem_ultima_boa"
+      ]
+    },
+    {
+      "id": "S134",
+      "guarda": "forge_sempre_atual.py:749 decide por `e[\"chave\"] == n[\"chave\"]`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "alvo = next((e for e in escopos if e[\"chave\"] == n[\"chave\"]), None)",
+      "para": "alvo = next((e for e in escopos if not (e[\"chave\"] == n[\"chave\"])), None)",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_volta_so_de_quem_tem_ultima_boa"
+      ]
+    },
+    {
+      "id": "S135",
+      "guarda": "forge_sempre_atual.py:750 decide por `alvo is not None and n[\"versao\"] == para`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if alvo is not None and n[\"versao\"] == para:",
+      "para": "if not (alvo is not None and n[\"versao\"] == para):",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_volta_so_de_quem_tem_ultima_boa"
+      ]
+    },
+    {
+      "id": "S136",
+      "guarda": "forge_sempre_atual.py:752 decide por `voltou`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if voltou:",
+      "para": "if not (voltou):",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_volta_so_de_quem_tem_ultima_boa"
+      ]
+    }
+  ]
+}

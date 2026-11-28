@@ -1,0 +1,86 @@
+{
+  "pedido": "v0475-dir36",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "diretriz 36 (R-CONTRIB): gh api repositories/<id> que muda algo falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "caminho.lower().startswith(\"repositories/\")",
+      "para": "caminho.lower().startswith(\"repositories-x/\")",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "diretriz 36 (R-CONTRIB): git switch --track cria branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(\"--create\", \"--force-create\", \"--orphan\", \"--track\")",
+      "para": "(\"--create\", \"--force-create\", \"--orphan\")",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "diretriz 36 (R-CONTRIB): git checkout -t cria branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"checkout\": (re.compile(r\"-[a-zA-Z]*[bBt][a-zA-Z]*\")",
+      "para": "\"checkout\": (re.compile(r\"-[a-zA-Z]*[bB][a-zA-Z]*\")",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "diretriz 36 (R-CONTRIB): git branch --sort não liga a lista: com nome cria",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"--merged\", \"--no-merged\", \"--points-at\"}",
+      "para": "\"--merged\", \"--no-merged\", \"--points-at\", \"--sort\"}",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "diretriz 36 (R-CONTRIB): gh api que muda algo no Forge é recusado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if alvo:\n            self.barrar(\"R-CONTRIB\", f\"gh api que muda",
+      "para": "        if False:\n            self.barrar(\"R-CONTRIB\", f\"gh api que muda",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "diretriz 36 (R-CONTRIB): gh release create no Forge é recusado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"label\", \"release\", \"workflow\"",
+      "para": "\"label\", \"workflow\"",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "diretriz 36 (R-CONTRIB): gh issue create no Forge diz que a sugestão é da pessoa, com forge sugerir",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if grupo == \"issue\" and sub == \"create\":\n            # Issue nova",
+      "para": "if grupo == \"issue\" and sub == \"create-x\":\n            # Issue nova",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_contrib"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "diretriz 36 (R-CONTRIB): git -C <clone do Forge> commit é recusado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if palavras[i] == \"-C\" and i + 1 < len(palavras):",
+      "para": "if palavras[i] == \"-C-x\" and i + 1 < len(palavras):",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    }
+  ]
+}

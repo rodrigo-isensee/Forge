@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-d1-integrador-laco",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): lista ilegível para no C1",
+      "arquivo": "bin/forge-fechar",
+      "de": "    || die \"parou no passo C1: não consegui ler os PRs abertos",
+      "para": "    || true \"parou no passo C1: não consegui ler os PRs abertos",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_lista_ilegivel_para"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): PR em conflito não entra e é conferido como parado",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$mergeable\" = CONFLICTING ] || [ \"${ruins:-0}\" != 0 ]; then",
+      "para": "if [ \"$mergeable\" = CONFLICTINGX ] || [ \"${ruins:-0}\" != 0 ]; then",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_parado_ha_mais_de_2_h_avisa_e_nao_entra"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): PR vermelho não entra e é conferido como parado",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$mergeable\" = CONFLICTING ] || [ \"${ruins:-0}\" != 0 ]; then",
+      "para": "if [ \"$mergeable\" = CONFLICTING ] || [ \"${ruins:-0}\" != 99 ]; then",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_parado_ha_mais_de_2_h_avisa_e_nao_entra"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): leitura da data que falha não derruba o laço",
+      "arquivo": "bin/forge-fechar",
+      "de": "--jq '.commits[-1].committedDate // \"\"')\" || data=\"\"",
+      "para": "--jq '.commits[-1].committedDate // \"\"')\"",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_parado_ha_mais_de_2_h_avisa_e_nao_entra"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): data ilegível não derruba o laço",
+      "arquivo": "bin/forge-fechar",
+      "de": "seg=\"$(segundos_de \"$data\")\" || seg=\"\"",
+      "para": "seg=\"$(segundos_de \"$data\")\"",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_parado_ha_mais_de_2_h_avisa_e_nao_entra"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): parado é mais de 2 h, não 2 h exatas",
+      "arquivo": "bin/forge-fechar",
+      "de": "-gt 7200 ]; then",
+      "para": "-ge 7200 ]; then",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_parado_ha_mais_de_2_h_avisa_e_nao_entra"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): o aviso diz conflito ou vermelho",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$mergeable\" = CONFLICTING ] && echo \"em conflito\"",
+      "para": "[ \"$mergeable\" = X ] && echo \"em conflito\"",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_parado_ha_mais_de_2_h_avisa_e_nao_entra"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): vermelho ou em conflito não vai ao merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "      fi\n      continue\n    fi\n    case \"$br\"",
+      "para": "      fi\n    fi\n    case \"$br\"",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_parado_ha_mais_de_2_h_avisa_e_nao_entra"
+      ]
+    }
+  ]
+}

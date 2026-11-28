@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-recibo-contador",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "troca fora da forma no MultiEdit não conta",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "        texto = trocar(texto, edicao) if isinstance(edicao, dict) else None",
+      "para": "        texto = trocar(texto, edicao) if True else None",
+      "testes": [
+        "tests.test_hook_ordens_teto.MultiEdit.test_troca_que_falha_ou_fora_da_forma_passa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a 1.ª troca que falha encerra o MultiEdit",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "        if texto is None:\n            return None",
+      "para": "        if False:\n            return None",
+      "testes": [
+        "tests.test_hook_ordens_teto.MultiEdit.test_troca_que_falha_ou_fora_da_forma_passa"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "só o PreToolUse age",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "    if hook.campo(\"hook_event_name\") != \"PreToolUse\" or hook.campo(\"tool_name\") not in FERRAMENTAS:",
+      "para": "    if hook.campo(\"tool_name\") not in FERRAMENTAS:",
+      "testes": [
+        "tests.test_hook_ordens_teto.Write.test_outro_evento_ou_outra_ferramenta_passa"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "fora de projeto do Forge: silêncio",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "    if hook.projeto(hook.cwd(), clone_do_forge=True) is None:",
+      "para": "    if hook.projeto(hook.cwd(), clone_do_forge=True) is not None:",
+      "testes": [
+        "tests.test_hook_ordens_teto.Write.test_16_linhas_recusa_com_as_contagens_e_15_passa"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "só o arquivo de ordens é lido e contado",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "    texto = depois(hook, *achado) if achado else None",
+      "para": "    texto = depois(hook, *achado) if not achado else None",
+      "testes": [
+        "tests.test_hook_ordens_teto.Write.test_16_linhas_recusa_com_as_contagens_e_15_passa"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "texto desconhecido não conta",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "    if texto is None:\n        return\n    linhas",
+      "para": "    if False:\n        return\n    linhas",
+      "testes": [
+        "tests.test_hook_ordens_teto.Edit.test_trecho_ausente_ou_vazio_ou_arquivo_ausente_passa"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "dentro do teto passa; acima recusa",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "    if no_teto(linhas)[1] is None or",
+      "para": "    if no_teto(linhas)[1] is not None or",
+      "testes": [
+        "tests.test_hook_ordens_teto.Write.test_2001_caracteres_recusa_e_2000_passa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o hook só roda como programa",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "\nif __name__ == \"__main__\":",
+      "para": "\nif False:",
+      "testes": [
+        "tests.test_hook_ordens_teto.Write.test_16_linhas_recusa_com_as_contagens_e_15_passa"
+      ]
+    }
+  ]
+}

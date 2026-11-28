@@ -1,0 +1,166 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "proc incoerente (outro namespace de pid) conta como dúvida",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "    if not proc_coerente():",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_sempre_atual.ProcFalso.test_proc_incoerente_e_duvida"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "cwd ilegível de claude vivo conta como dúvida",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        except OSError:\n            achados[\"duvida\"] = True\n            continue\n        if comm == \"claude\":",
+      "para": "        except OSError:\n            continue\n        if comm == \"claude\":",
+      "testes": [
+        "tests.test_sempre_atual.ProcFalso.test_cwd_ilegivel_de_claude_e_duvida_e_processo_que_sumiu_nao"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "agente vigente com claude vivo adia",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        if lido[0] > 0:",
+      "para": "        if lido[0] > 99:",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_agente_vigente_com_claude_vivo_adia"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "agentes.json ilegível com claude vivo adia (dúvida)",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        if lido is None:\n            return \"duvida:leitura-dos-agentes\"",
+      "para": "        if False:\n            return \"duvida:leitura-dos-agentes\"",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_agentes_ilegivel_com_claude_vivo_e_duvida"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "trava pesado viva adia",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        if lido[1]:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_trava_pesado_viva_adia"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "integração em curso adia sozinha",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        if any(dentro(c, raiz) for c in procs[\"fechar\"]):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_integracao_em_curso_adia_sem_claude"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "sem claude vivo os agentes de registro velho não adiam",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        if not any(dentro(c, raiz) for c in procs[\"claude\"]):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_claude_vivo_sem_trabalho_nao_adia_e_sem_claude_o_registro_velho_tambem_nao"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "pasta órfã não é âncora nem código a executar",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        return None if (real / \".orphaned_at\").exists() else caminho",
+      "para": "        return caminho",
+      "testes": [
+        "tests.test_sempre_atual.Ancora.test_instalacao_so_aceita_pasta_do_cache_nao_orfa"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "installPath fora do cache ou por link simbólico não vale",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": " or not fv.pasta_do_forge_valida(real, raiz):",
+      "para": ":",
+      "testes": [
+        "tests.test_sempre_atual.Ancora.test_instalacao_so_aceita_pasta_do_cache_nao_orfa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "GH_TOKEN e variável de segredo não chegam aos filhos",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if k in HERDA or k.startswith(HERDA_PREFIXO)}",
+      "para": "if k not in (\"__nenhuma__\",)}",
+      "testes": [
+        "tests.test_sempre_atual.Funcoes.test_ambiente_dos_filhos_e_lista_positiva"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "update só depois de o ref lido ser igual ao alvo",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        if self.ref_atual() != tag:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_sempre_atual.Catalogo.test_update_so_depois_de_o_ref_lido_ser_o_alvo"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "versão instalada mais nova que a publicada não é rebaixada sem fixação",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "            if atual is not None and atual > alvo and not fix:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_instalada_mais_nova_que_a_publicada_nao_desce_sem_fixacao"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "checagem sem conclusão (prazo) não volta a versão",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "            elif ok is None:",
+      "para": "            elif False:",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_prazo_da_checagem_nao_volta_nem_grava_como_boa"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "catálogo sem tag publicada registra falhou:sem-tag",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        if ultima is None:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_sem_tag_publicada_registra_e_nao_mexe"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "HEAD do remoto que não é a main não atualiza",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "achou.group(1) != \"refs/heads/main\"",
+      "para": "achou.group(1) != \"refs/heads/develop\"",
+      "testes": [
+        "tests.test_sempre_atual.Catalogo.test_branch_padrao_que_nao_e_main_nao_atualiza"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "escopo de usuário que não subiu não prepara a branch do modelo",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": " and x[\"chave\"] in mudaram]",
+      "para": "]",
+      "testes": [
+        "tests.test_sempre_atual.Modelo.test_escopo_de_usuario_sem_subida_nao_prepara_branch"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-s1-gancho",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "rc diferente de 0 não injeta a saída",
+      "arquivo": "hooks/estado.py",
+      "de": "if r.returncode != 0 or not linhas:",
+      "para": "if not linhas:",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_rc_diferente_de_zero_manda_rodar_o_comando"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "sem linha status: não injeta a saída",
+      "arquivo": "hooks/estado.py",
+      "de": "if r.returncode != 0 or not linhas:",
+      "para": "if r.returncode != 0:",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_sem_linha_status_manda_rodar_o_comando"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "só as linhas status: entram no contexto",
+      "arquivo": "hooks/estado.py",
+      "de": "if linha.startswith(\"status: \")]",
+      "para": "if True]",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_pergunta_do_estado_injeta_a_linha_fixa_e_so_as_linhas_status"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "o acento sai antes de comparar",
+      "arquivo": "hooks/estado.py",
+      "de": "if not unicodedata.combining(c))",
+      "para": "if True)",
+      "testes": [
+        "tests.test_hook_estado.Termos.test_outras_mensagens"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "a pontuação vira espaço antes de comparar",
+      "arquivo": "hooks/estado.py",
+      "de": "c if c.isalnum() else \" \"",
+      "para": "c if True else \" \"",
+      "testes": [
+        "tests.test_hook_estado.Termos.test_perguntas_do_estado"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o motivo diz o rc ou a falta da linha status:",
+      "arquivo": "hooks/estado.py",
+      "de": "f\"rc {r.returncode}\" if r.returncode else \"sem linha status:\"",
+      "para": "f\"rc {r.returncode}\" if True else \"sem linha status:\"",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_sem_linha_status_manda_rodar_o_comando"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "com motivo, a linha de rodar o comando e nunca a saída",
+      "arquivo": "hooks/estado.py",
+      "de": "if motivo is None else",
+      "para": "if True else",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_rc_diferente_de_zero_manda_rodar_o_comando"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o hook roda quando chamado como script",
+      "arquivo": "hooks/estado.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_pergunta_do_estado_injeta_a_linha_fixa_e_so_as_linhas_status"
+      ]
+    }
+  ]
+}

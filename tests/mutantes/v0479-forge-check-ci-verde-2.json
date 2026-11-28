@@ -1,0 +1,90 @@
+{
+  "pedido": "v0479-forge-check-ci-verde",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "falta_na_prova: parecer sem `commit:`",
+      "arquivo": "bin/forge-check",
+      "de": "commit = campos.get(\"commit\") or \"\"\n    provas",
+      "para": "commit = campos.get(\"commit\")\n    provas",
+      "testes": [
+        "tests.test_forge_check_pr.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "falta_na_prova: sem a linha da prova",
+      "arquivo": "bin/forge-check",
+      "de": "    if not provas:\n        return f\"sem a linha",
+      "para": "    if provas:\n        return f\"sem a linha",
+      "testes": [
+        "tests.test_forge_check_pr.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale",
+        "tests.test_forge_check_pr.ProvaDaSuite.test_prova_que_cobre_os_modulos_do_diff_vale"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "falta_na_prova: módulos ilegíveis não aprovam a prova",
+      "arquivo": "bin/forge-check",
+      "de": "    if tocados is None:\n        return \"os módulos",
+      "para": "    if tocados is not None:\n        return \"os módulos",
+      "testes": [
+        "tests.test_forge_check_pr.ProvaDaSuite.test_prova_que_cobre_os_modulos_do_diff_vale",
+        "tests.test_forge_check_pr.ProvaDaSuite.test_base_ou_git_ilegivel_falha_fechado"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "falta_na_prova: a prova cobre todos os módulos de teste do diff",
+      "arquivo": "bin/forge-check",
+      "de": "    if any(tocados <= set(rodados) for rodados in provas):",
+      "para": "    if any(bool(tocados & set(rodados)) for rodados in provas):",
+      "testes": [
+        "tests.test_forge_check_pr.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "suite_do_parecer: só no Forge",
+      "arquivo": "bin/forge-check",
+      "de": "    if not e_o_forge(Path(raiz)):\n        return []\n    sem_ci = ",
+      "para": "    if False:\n        return []\n    sem_ci = ",
+      "testes": [
+        "tests.test_forge_check_pr.SuiteNoCmdPr.test_fora_do_forge_nada_muda"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "suite_do_parecer: adiar só avisa, sem ler o gh",
+      "arquivo": "bin/forge-check",
+      "de": "    if adiar:\n        print(f\"aviso: {linha}",
+      "para": "    if False:\n        print(f\"aviso: {linha}",
+      "testes": [
+        "tests.test_forge_check_pr.SuiteNoCmdPr.test_adiar_so_avisa_sem_ler_o_gh",
+        "tests.test_forge_check_pr.SuitePeloPrDaCli.test_previo_so_avisa",
+        "tests.test_forge_check_pr.SuitePeloPrDaCli.test_passo_1_do_fechar_so_avisa"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "suite_do_parecer: o CI é lido uma vez",
+      "arquivo": "bin/forge-check",
+      "de": "    if \"verde\" not in ci:\n",
+      "para": "    if \"verde\" in ci:\n",
+      "testes": [
+        "tests.test_forge_check_pr.SuiteNoCmdPr.test_sem_prova_e_sem_ci_verde_reprova"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "suite_do_parecer: o CI é o do head da ref",
+      "arquivo": "bin/forge-check",
+      "de": "sha_do_commit(raiz, ref or \"HEAD\"))\n    return sem_ci + ([] if ci",
+      "para": "sha_do_commit(raiz, ref))\n    return sem_ci + ([] if ci",
+      "testes": [
+        "tests.test_forge_check_pr.SuiteNoCmdPr.test_sem_prova_e_sem_ci_verde_reprova"
+      ]
+    }
+  ]
+}

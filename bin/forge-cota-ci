@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""Forge: aviso de minutos do Actions perto do fim (R-CUSTO). Só leitura, sem custo, só biblioteca padrão.
+
+Uso: forge-cota-ci [--dono NOME] [--limite PCT]
+  Lê o uso do mês por `gh api` (GET, com o token que o `gh` já tem; nenhum token ou escopo novo) e diz o uso e o percentual da
+  franquia gratuita. Acima de LIMITE (padrão 80) avisa. Sem permissão ou sem resposta legível: `não verificável` e o comando
+  para o dono rodar. O dono vem do `origin`, salvo --dono. Variável FORGE_COTA_CI_ENDPOINT troca o endpoint (teste).
+Saída: 0 abaixo do limite ou não verificável; 1 acima do limite (aviso); 2 uso errado.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+
+LIMITE_PADRAO = 80.0
+
+
+LOGIN = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})")
+
+
+def dono_do_origin():
+    r = subprocess.run(["git", "remote", "get-url", "origin"], capture_output=True, text=True)
+    m = re.search(r"github\.com[:/]([^/]+)/", r.stdout)
+    return m.group(1) if m else ""
+
+
+def login_valido(dono):
+    """O dono entra no comando impresso: só o formato de login do GitHub."""
+    return bool(LOGIN.fullmatch(dono))
+
+
+def consultar(endpoint):
+    """(corpo JSON ou None, motivo): uma leitura GET pelo gh."""
+    try:
+        r = subprocess.run(["gh", "api", endpoint], capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return None, f"gh indisponível ({type(e).__name__})"
+    if r.returncode:
+        return None, (r.stderr.strip().splitlines() or ["sem resposta"])[0]
+    try:
+        d = json.loads(r.stdout)
+    except ValueError:
+        return None, "resposta não é JSON"
+    if not isinstance(d, dict):
+        return None, "resposta inesperada"
+    return d, ""
+
+
+def numero(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def avaliar(d, limite):
+    """(rc, texto) a partir da resposta total_minutes_used / included_minutes."""
+    usado, incluido = d.get("total_minutes_used"), d.get("included_minutes")
+    if not (numero(usado) and numero(incluido)):
+        return 0, "não verificável: a resposta não traz total_minutes_used e included_minutes"
+    if incluido <= 0:
+        return 0, f"não verificável: franquia incluída é {incluido:g} (plano sem minutos incluídos)"
+    pct = usado * 100.0 / incluido
+    linha = f"minutos do Actions no mês: {usado:g} de {incluido:g} ({pct:.1f}%)"
+    if pct > limite:
+        return 1, f"AVISO {linha}: acima de {limite:g}% da franquia gratuita (R-CUSTO); abra cartão de melhoria e corte o passo redundante"
+    return 0, f"ok {linha}"
+
+
+def main(argv):
+    dono, limite, i = "", LIMITE_PADRAO, 0
+    while i < len(argv):
+        if argv[i] in ("--dono", "--limite") and i + 1 < len(argv):
+            if argv[i] == "--dono":
+                dono = argv[i + 1]
+            else:
+                try:
+                    limite = float(argv[i + 1])
+                except ValueError:
+                    print("forge-cota-ci: --limite quer um número", file=sys.stderr)
+                    return 2
+            i += 2
+        else:
+            print("uso: forge-cota-ci [--dono NOME] [--limite PCT]", file=sys.stderr)
+            return 2
+    dono = dono or dono_do_origin()
+    troca = os.environ.get("FORGE_COTA_CI_ENDPOINT")
+    if not troca and not dono:
+        print("não verificável: dono do repositório desconhecido; rode `forge-cota-ci --dono <nome>`")
+        return 0
+    if not troca and not login_valido(dono):
+        print("não verificável: o dono não tem formato de login do GitHub; rode `forge-cota-ci --dono <nome>`")
+        return 0
+    endpoints = [troca] if troca else [f"/users/{dono}/settings/billing/actions", f"/orgs/{dono}/settings/billing/actions"]
+    motivos = []
+    for ep in endpoints:
+        d, motivo = consultar(ep)
+        if d is not None:
+            rc, texto = avaliar(d, limite)
+            print(texto)
+            return rc
+        motivos.append(motivo)
+    onde = "veja os minutos do mês em Settings > Billing and plans (Actions) no navegador, com a conta dona do repositório"
+    print(f"não verificável: sem permissão ou sem resposta ({' | '.join(motivos)}). Para o dono: {onde}"
+          + ("" if troca else f"; ou rode `gh api /users/{dono}/settings/billing/actions` (organização: /orgs/{dono}/...)"))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

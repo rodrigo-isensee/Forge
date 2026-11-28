@@ -69,7 +69,7 @@
       "de": "if soltas:",
       "para": "if not soltas:",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2"
+        "tests.test_forge_mutante.Cobertura.test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1"
       ]
     }
   ]

@@ -1,0 +1,21 @@
+{
+  "descricao": "Diretriz 36 (R-CONTRIB): a branch melhoria/<projeto>-<tema> não se envia ao Forge; a recusa diz a forma aceita.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git -C {tmp}/home/.forge-contrib/proj push origin melhoria/proj-tema"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "forge sugerir --guardar"
+  }
+}

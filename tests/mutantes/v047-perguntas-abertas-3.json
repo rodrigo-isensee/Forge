@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PA-M16",
+      "guarda": "decisão que cita `pergunta N de HH:MM` fecha a citada",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if citada := CITACAO.search(corpo):",
+      "para": "    if citada := None:",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_cada_decisao_fecha_no_maximo_uma_pergunta"
+      ]
+    },
+    {
+      "id": "PA-M17",
+      "guarda": "a citada é a da hora citada, não a mais recente",
+      "arquivo": "bin/forge_dono.py",
+      "de": "for p in reversed(abertas) if p[0][1:] == citada.groups()), None)",
+      "para": "for p in reversed(abertas) if True), None)",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_cada_decisao_fecha_no_maximo_uma_pergunta"
+      ]
+    },
+    {
+      "id": "PA-M18",
+      "guarda": "citação sem aberta daquela hora não fecha nada",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if p[0][1:] == citada.groups()), None)",
+      "para": "if p[0][1:] == citada.groups()), abertas[-1] if abertas else None)",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_decisao_sobre_outro_assunto_nao_fecha_a_pergunta"
+      ]
+    },
+    {
+      "id": "PA-M19",
+      "guarda": "forma antiga respondida na linha não fica aberta",
+      "arquivo": "bin/forge_dono.py",
+      "de": " and not (frase == \"PERGUNTA\" and RESPONDIDA_NA_LINHA.search(corpo)):",
+      "para": ":",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_forma_antiga_pergunta_dois_pontos"
+      ]
+    },
+    {
+      "id": "PA-M20",
+      "guarda": "a forma antiga `PERGUNTA:` é pergunta",
+      "arquivo": "bin/forge_dono.py",
+      "de": "        if frase in (\"PERGUNTA AO DONO\", \"PERGUNTA\") and",
+      "para": "        if frase in (\"PERGUNTA AO DONO\",) and",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_forma_antiga_pergunta_dois_pontos"
+      ]
+    },
+    {
+      "id": "PA-M21",
+      "guarda": "na forma antiga, a data do começo do corpo vale",
+      "arquivo": "bin/forge_dono.py",
+      "de": "and not m[\"dia1\"] and (antiga := DATA_DO_CORPO.match(corpo)):",
+      "para": "and not m[\"dia1\"] and (antiga := None):",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_forma_antiga_pergunta_dois_pontos"
+      ]
+    },
+    {
+      "id": "PA-M22",
+      "guarda": "pasta docs/pedidos por link é recusada",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if pasta.is_symlink() or pasta.parent.is_symlink():  # A1 da segurança",
+      "para": "    if pasta.parent.is_symlink():  # A1 da segurança",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_pasta_de_pedidos_por_link_e_recusada"
+      ]
+    },
+    {
+      "id": "PA-M23",
+      "guarda": "pasta docs por link é recusada",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if pasta.is_symlink() or pasta.parent.is_symlink():  # A1 da segurança",
+      "para": "    if pasta.is_symlink():  # A1 da segurança",
+      "testes": [
+        "tests.test_forge_dono.PerguntasAbertas.test_pasta_de_pedidos_por_link_e_recusada"
+      ]
+    }
+  ]
+}

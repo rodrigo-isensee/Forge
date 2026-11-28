@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O28",
+      "guarda": "A10: o corpo em crase também conta como de mais de um comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for c in [m[\"sub\"] or m[\"crase\"] or \"\"])",
+      "para": "for c in [m[\"sub\"] or \"\"])",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_colado"
+      ]
+    },
+    {
+      "id": "O29",
+      "guarda": "A9: cada `$(` do texto dá um corpo (o aninhado sem aspas vem da linha)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    while i >= 0:",
+      "para": "    while False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O30",
+      "guarda": "A9: o corpo vai até o `)` que fecha o `$(`, não até o fim da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        while j < len(texto) and fundo:",
+      "para": "        while j < len(texto):",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O31",
+      "guarda": "A9: o `)` que fecha não entra no corpo (`$(mktemp -d)` sem aspas na lista positiva)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        corpos.append(texto[i + 2:j - (not fundo)])",
+      "para": "        corpos.append(texto[i + 2:j - (not True)])",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O32",
+      "guarda": "A9: o valor da atribuição para no espaço ou separador fora de aspas e parênteses",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    while j < len(texto) and (aspa or fundo or not (texto[j].isspace() or texto[j] in \";&|)\")):",
+      "para": "    while j < len(texto):",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O33",
+      "guarda": "A9: dentro de aspas, o valor segue até a aspa que fecha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if aspa:\n            aspa = None if c == aspa",
+      "para": "        if False:\n            aspa = None if c == aspa",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O34",
+      "guarda": "A9: a aspa igual fecha a citação",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            aspa = None if c == aspa else aspa",
+      "para": "            aspa = None if False else aspa",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O35",
+      "guarda": "A9, U1: `*` do curinga casa qualquer trecho (`.g*`)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"\".join(\".*\" if c == \"*\" else",
+      "para": "\"\".join(\".*\" if False else",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    }
+  ]
+}

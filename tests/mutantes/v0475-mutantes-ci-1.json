@@ -1,0 +1,153 @@
+{
+  "pedido": "v0475-mutantes-ci",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "guarda": "caractere de controle vira espaco",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "c.isprintable()",
+      "para": "True",
+      "testes": [
+        "tests.test_falhas_no_resumo.Texto.test_caractere_de_controle_vira_espaco"
+      ],
+      "id": "MC1"
+    },
+    {
+      "guarda": "corte so acima do teto",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "len(texto) <= teto",
+      "para": "len(texto) < teto",
+      "testes": [
+        "tests.test_falhas_no_resumo.Texto.test_corte_so_acima_do_teto"
+      ],
+      "id": "MC2"
+    },
+    {
+      "guarda": "caminho absoluto ou relativo",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "p.is_absolute()",
+      "para": "True",
+      "testes": [
+        "tests.test_falhas_no_resumo.Leitor.test_quadro_fora_do_repositorio_ou_com_ponto_ponto_fica_sem_arquivo"
+      ],
+      "id": "MC3"
+    },
+    {
+      "guarda": "a classe marca o fim do modulo",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "parte[:1].isupper()",
+      "para": "False",
+      "testes": [
+        "tests.test_falhas_no_resumo.Texto.test_modulo_do_id"
+      ],
+      "id": "MC4"
+    },
+    {
+      "guarda": "classe na primeira parte devolve o completo",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "\".\".join(partes[:i]) or completo",
+      "para": "\".\".join(partes[:i])",
+      "testes": [
+        "tests.test_falhas_no_resumo.Texto.test_modulo_do_id"
+      ],
+      "id": "MC5"
+    },
+    {
+      "guarda": "nome do teste so sai se for o ultimo e houver mais de uma parte",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "partes[-1] == nome and len(partes) > 1",
+      "para": "partes[-1] == nome",
+      "testes": [
+        "tests.test_falhas_no_resumo.Texto.test_modulo_do_id"
+      ],
+      "id": "MC6"
+    },
+    {
+      "guarda": "varredura para no fim das linhas",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "i < len(linhas)",
+      "para": "True",
+      "testes": [
+        "tests.test_falhas_no_resumo.Blocos.test_cabecalho_na_primeira_linha_nao_e_bloco"
+      ],
+      "id": "MC7"
+    },
+    {
+      "guarda": "cabecalho na primeira linha nao e bloco",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "i > 0 and SEPARADOR",
+      "para": "i >= 0 and SEPARADOR",
+      "testes": [
+        "tests.test_falhas_no_resumo.Blocos.test_cabecalho_na_primeira_linha_nao_e_bloco"
+      ],
+      "id": "MC8"
+    },
+    {
+      "guarda": "so o separador de igual abre bloco",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "SEPARADOR.match(linhas[i - 1]).group(0)[0] == \"=\"",
+      "para": "True",
+      "testes": [
+        "tests.test_falhas_no_resumo.Blocos.test_so_separador_de_igual_abre_bloco"
+      ],
+      "id": "MC9"
+    },
+    {
+      "guarda": "bloco vai ate o fim do registro",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "fim < len(linhas) and ",
+      "para": "",
+      "testes": [
+        "tests.test_falhas_no_resumo.Blocos.test_bloco_que_vai_ate_o_fim_do_registro"
+      ],
+      "id": "MC10"
+    },
+    {
+      "guarda": "traco dentro do bloco nao o fecha",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": " and linhas[fim][0] == \"=\"",
+      "para": "",
+      "testes": [
+        "tests.test_falhas_no_resumo.Blocos.test_traco_dentro_do_bloco_nao_fecha_o_bloco"
+      ],
+      "id": "MC11"
+    },
+    {
+      "guarda": "linha em branco nao e erro",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "not linha.strip()",
+      "para": "False",
+      "testes": [
+        "tests.test_falhas_no_resumo.ErroDoBloco.test_linha_em_branco_nao_conta_como_erro"
+      ],
+      "id": "MC12"
+    },
+    {
+      "guarda": "linha com tab e recuada",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "(\" \", \"\\t\")",
+      "para": "(\" \",)",
+      "testes": [
+        "tests.test_falhas_no_resumo.ErroDoBloco.test_linha_com_tab_e_recuada"
+      ],
+      "id": "MC13"
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "trecho": "m.group(4) or \"\"",
+      "motivo": "equivalente: o subgrupo ausente e None, que e falso como a string vazia; so o texto da chave de deduplicacao muda e ela nao sai"
+    },
+    {
+      "arquivo": "scripts/suite-partes.py",
+      "trecho": "modulo_do_id(i, conjunto) is not None",
+      "motivo": "esperado_da_parte foi removida: a divisao agora e por unidade e a guarda por ID e esperado_por_unidade/completude_da_divisao, com mutantes proprios"
+    },
+    {
+      "arquivo": "scripts/suite-partes.py",
+      "trecho": "k.startswith(nome + \".\")",
+      "motivo": "pesos_por_modulo foi removida: o peso por modulo deu lugar a unidade_do_id sobre sp.separadas, com mutantes proprios"
+    }
+  ]
+}

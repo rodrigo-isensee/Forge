@@ -34,8 +34,8 @@
       "id": "M3",
       "guarda": "so o comando simples que comeca pela ferramenta conta (citar nao conta)",
       "arquivo": "hooks/pesado.py",
-      "de": "return inicio.split()[:1] == [padrao] and not",
-      "para": "return padrao in inicio and not",
+      "de": "return comeca_com(inicio, padrao) and not leve_pelos_argumentos(inicio, padrao)",
+      "para": "return padrao in inicio and not leve_pelos_argumentos(inicio, padrao)",
       "testes": [
         "tests.test_hooks.PesadoClassePelosArgumentos.test_formas_leves_e_citacoes_nao_sao_pesadas"
       ]
@@ -44,8 +44,8 @@
       "id": "M4",
       "guarda": "forge-testes e forge-mutante tem regras leves proprias",
       "arquivo": "hooks/pesado.py",
-      "de": "    if nome in PELOS_ARGUMENTOS[:2]:",
-      "para": "    if False:",
+      "de": "if padrao in PELOS_ARGUMENTOS[:2]:",
+      "para": "if False:",
       "testes": [
         "tests.test_hooks.PesadoClassePelosArgumentos.test_formas_leves_e_citacoes_nao_sao_pesadas"
       ]
@@ -54,8 +54,8 @@
       "id": "M5",
       "guarda": "--completa e --vermelho em qualquer posicao: classificar pelo primeiro argumento (A3)",
       "arquivo": "hooks/pesado.py",
-      "de": "for a in argumentos for o in",
-      "para": "for a in argumentos[:1] for o in",
+      "de": "all(opcao_leve(a) for a in argumentos if",
+      "para": "all(opcao_leve(a) for a in argumentos[:1] if",
       "testes": [
         "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_completa_ou_vermelho_em_qualquer_posicao_e_pesado"
       ]
@@ -74,40 +74,43 @@
       "id": "M7",
       "guarda": "os demais pesados seguem casando pelo prefixo do comando simples",
       "arquivo": "hooks/pesado.py",
-      "de": "return inicio == padrao or inicio.startswith(padrao + \" \")",
-      "para": "return inicio == padrao and inicio.startswith(padrao + \" \")",
+      "de": "    return comeca_com(inicio, padrao)\n",
+      "para": "    return inicio == padrao\n",
       "testes": [
         "tests.test_hooks.Hooks.test_suite_do_forge_e_pesada"
       ]
     },
     {
       "id": "A1-prefixo",
-      "guarda": "opcao abreviada pelo argparse (--comp, --verm) conta como a opcao inteira (A1 do review g1)",
+      "guarda": "opcao abreviada pelo argparse (--comp, --verm) conta como a opcao inteira (A1 do review g1); desde a E64.1 vale pela lista leve do forge-testes",
       "arquivo": "hooks/pesado.py",
       "de": "return len(nome) > 2 and opcao.startswith(nome)",
       "para": "return len(nome) > 2 and opcao == nome",
       "testes": [
-        "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado"
+        "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado",
+        "tests.test_forge_pesado.FormasLevesDoForgeTestes.test_formas_da_lista_seguem_leves"
       ]
     },
     {
       "id": "A1-igual",
-      "guarda": "a forma --opcao=valor conta como a opcao (A1 do review g1)",
+      "guarda": "a forma --opcao=valor conta como a opcao (A1 do review g1); desde a E64.1 vale pela lista leve do forge-testes",
       "arquivo": "hooks/pesado.py",
       "de": "nome = argumento.split(\"=\", 1)[0]",
       "para": "nome = argumento",
       "testes": [
-        "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado"
+        "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado",
+        "tests.test_forge_pesado.FormasLevesDoForgeTestes.test_formas_da_lista_seguem_leves"
       ]
     },
     {
       "id": "A1-separador",
-      "guarda": "o separador -- sozinho nao e prefixo de opcao (forge-testes -- caminho segue leve)",
+      "guarda": "o separador -- sozinho segue leve (forge-testes -- caminho); desde a E64.1 quem o garante e a tupla de opcao_leve, antes do pede_opcao",
       "arquivo": "hooks/pesado.py",
-      "de": "return len(nome) > 2 and opcao",
-      "para": "return opcao",
+      "de": "in (\"--\", \"-k\"):",
+      "para": "in (\"-k\",):",
       "testes": [
-        "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado"
+        "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado",
+        "tests.test_forge_pesado.FormasLevesDoForgeTestes.test_formas_da_lista_seguem_leves"
       ]
     }
   ]

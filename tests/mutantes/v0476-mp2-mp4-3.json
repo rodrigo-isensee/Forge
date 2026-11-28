@@ -1,0 +1,86 @@
+{
+  "pedido": "v0476-mp2-mp4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "P7",
+      "guarda": "MP4: o Post solta a vaga da máquina mesmo sem a trava do projeto",
+      "arquivo": "hooks/pesado.py",
+      "de": "if solta(_maquina.ler(\"pesado.json\").get(str(hook.run())), uso):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_post_de_outro_uso_mantem_e_dono_morto_sai"
+      ]
+    },
+    {
+      "id": "P8",
+      "guarda": "MP4: máquina cheia não dá a vez na chegada",
+      "arquivo": "hooks/pesado.py",
+      "de": "        if not ocupada(hook, trava, uso, agora) and not maquina_cheia(hook, uso, agora) \\\n                and frente_parada(fila_viva(",
+      "para": "        if not ocupada(hook, trava, uso, agora) \\\n                and frente_parada(fila_viva(",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_bateria_de_outro_projeto_espera_a_vaga_da_maquina"
+      ]
+    },
+    {
+      "id": "P9",
+      "guarda": "MP4: máquina cheia não dá a vez na fila",
+      "arquivo": "hooks/pesado.py",
+      "de": "and not maquina_cheia(hook, uso, agora) \\\n                        and frente_parada(vivas, agora, senha):",
+      "para": "\\\n                        and frente_parada(vivas, agora, senha):",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_bateria_de_outro_projeto_espera_a_vaga_da_maquina"
+      ]
+    },
+    {
+      "id": "P10",
+      "guarda": "MP4: o Post só solta (grava null) a trava do projeto do mesmo uso",
+      "arquivo": "hooks/pesado.py",
+      "de": "            if solta(trava, uso):\n                gravar_json(arquivo, None)",
+      "para": "            if True:\n                gravar_json(arquivo, None)",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_post_de_outro_uso_mantem_e_dono_morto_sai"
+      ]
+    },
+    {
+      "id": "S1",
+      "guarda": "MP2/MP8: arquivo da máquina ilegível no status vale vazio",
+      "arquivo": "bin/forge-status",
+      "de": "        except (ValueError, OSError, RecursionError):\n            dados = {}",
+      "para": "        except (ValueError, OSError, RecursionError):\n            raise",
+      "testes": [
+        "tests.test_maquina.Registro.test_registro_ilegivel_recomeca"
+      ]
+    },
+    {
+      "id": "S2",
+      "guarda": "MP2: --maquina lista os projetos ativos",
+      "arquivo": "bin/forge-status",
+      "de": "    if a.maquina:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_maquina.Registro.test_dois_projetos_ativos_e_o_status_lista"
+      ]
+    },
+    {
+      "id": "S3",
+      "guarda": "MP2: sem sessão viva, o status diz nenhum",
+      "arquivo": "bin/forge-status",
+      "de": "return sorted(saida) or [\"forge: nenhum projeto ativo na máquina\"]",
+      "para": "return sorted(saida)",
+      "testes": [
+        "tests.test_maquina.Registro.test_sessao_que_para_de_bater_ou_fecha_some"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "MP2: sem FORGE_MAQUINA, a pasta é a do registro que o meta e o agentes leem (MP1, MP5)",
+      "arquivo": "hooks/_maquina.py",
+      "de": "os.environ.get(\"FORGE_MAQUINA\") or PASTA",
+      "para": "os.environ.get(\"FORGE_MAQUINA\") or \"~\"",
+      "testes": [
+        "tests.test_maquina.Registro.test_a_pasta_e_a_do_registro_que_o_meta_e_o_agentes_leem"
+      ]
+    }
+  ]
+}

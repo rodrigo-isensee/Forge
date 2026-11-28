@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "--ids sem SPEC é recusado (mutante: passa calado)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if args.ids is not None and not args.spec:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_ids_vem_com_spec_e_aparece_na_ajuda"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "--ids escolhe os mutantes (mutante: a escolha nunca se aplica)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if args.ids is not None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_ids_roda_so_os_mutantes_pedidos"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "--ids: a recusa sai 2 sem rodar (mutante: segue com None)",
+      "arquivo": "bin/forge-mutante",
+      "de": "specs = escolher(specs, args.ids)\n        if specs is None:",
+      "para": "specs = escolher(specs, args.ids)\n        if False:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_id_que_a_spec_nao_declara_recusa_com_a_lista_e_nada_roda"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "--ids: a recusa lista o id que falta (mutante: lista os que existem)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if i not in todos]",
+      "para": "if i in todos]",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_id_que_a_spec_nao_declara_recusa_com_a_lista_e_nada_roda"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "--ids: id que a spec não declara recusa (mutante: nunca recusa)",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if faltam:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_id_que_a_spec_nao_declara_recusa_com_a_lista_e_nada_roda"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "--ids: só os pedidos rodam (mutante: todos rodam)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if m[\"id\"] in pedidos]",
+      "para": "if m[\"id\"] in todos]",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_ids_roda_so_os_mutantes_pedidos"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a condição nova cruza pelo modo das cópias (mutante: o modo da apagada repetida, trecho único)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if nova is not None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_vale_para_cada_condicao_nova_com_o_mesmo_trecho"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "toda ocorrência do trecho cai numa cópia da condição (mutante: basta uma no nó)",
+      "arquivo": "bin/forge-mutante",
+      "de": "return no_no and all(",
+      "para": "return no_no or all(",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_de_trecho_comum_nao_libera_outra_condicao_copia_fora_do_hunk_nem_comentario"
+      ]
+    }
+  ]
+}

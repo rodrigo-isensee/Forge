@@ -1,0 +1,67 @@
+{
+ "pedido": "v0475-ci-custo",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M17",
+   "guarda": "a skill aponta para o modelo",
+   "arquivo": "skills/ci-cd/ci-de-projeto-privado.md",
+   "de": "templates/projeto/.github/workflows/ci.yml` (copiado",
+   "para": "templates/projeto/ci.yml` (copiado",
+   "testes": [
+    "tests.test_modelo_ci.Entrega.test_skill_aponta_para_o_modelo_e_explica_o_porque"
+   ]
+  },
+  {
+   "id": "M18",
+   "guarda": "a skill ensina o grupo por número",
+   "arquivo": "skills/ci-cd/ci-de-projeto-privado.md",
+   "de": "`concurrency` com `github.event.pull_request.number || github.ref`",
+   "para": "`concurrency` por branch",
+   "testes": [
+    "tests.test_modelo_ci.Entrega.test_skill_aponta_para_o_modelo_e_explica_o_porque"
+   ]
+  },
+  {
+   "id": "M19",
+   "guarda": "forge-init roda o teste do modelo",
+   "arquivo": "bin/forge-testes",
+   "de": "\"test_stack_python\", \"test_modelo_ci\", \"test_sandbox_controle\", \"test_varredura_divida\")),",
+   "para": "\"test_stack_python\", \"test_sandbox_controle\", \"test_varredura_divida\")),",
+   "testes": [
+    "tests.test_testes_tocados.MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo"
+   ]
+  },
+  {
+   "id": "M20",
+   "guarda": "texto do Forge roda o teste do modelo",
+   "arquivo": "bin/forge-testes",
+   "de": "\"test_erros_no_brief\", \"test_modelo_ci\",\n",
+   "para": "\"test_erros_no_brief\",\n",
+   "testes": [
+    "tests.test_testes_tocados.MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo"
+   ]
+  },
+  {
+   "id": "M21",
+   "guarda": "detecção lista a origem da renomeação",
+   "arquivo": "templates/projeto/.github/workflows/ci.yml",
+   "de": "git diff --no-renames --name-only",
+   "para": "git diff --name-only",
+   "testes": [
+    "tests.test_modelo_ci.Deteccao.test_renomear_codigo_para_documento_roda_a_suite",
+    "tests.test_modelo_ci.Deteccao.test_deteccao_usa_no_renames"
+   ]
+  },
+  {
+   "id": "M22",
+   "guarda": "a skill cita --no-renames",
+   "arquivo": "skills/ci-cd/ci-de-projeto-privado.md",
+   "de": "com `git diff --no-renames --name-only` (sem",
+   "para": "com `git diff --name-only` (sem",
+   "testes": [
+    "tests.test_modelo_ci.Entrega.test_skill_aponta_para_o_modelo_e_explica_o_porque"
+   ]
+  }
+ ]
+}

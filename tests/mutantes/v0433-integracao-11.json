@@ -46,8 +46,8 @@
       "id": "I165",
       "guarda": "hooks/agentes.py:260 NOTA_COM_ORDEM.search(texto.split('<<<BRIEF', 1)[0]) (negada)",
       "arquivo": "hooks/agentes.py",
-      "de": "    if NOTA_COM_ORDEM.search(texto.split(\"<<<BRIEF\", 1)[0]):  # EJ 64: só o cabeçalho; o corpo do brief citado não conta",
-      "para": "    if not (NOTA_COM_ORDEM.search(texto.split(\"<<<BRIEF\", 1)[0])):  # EJ 64: só o cabeçalho; o corpo do brief citado não conta",
+      "de": "if nota_com_ordem(texto.split(\"<<<BRIEF\", 1)[0]):",
+      "para": "if not (nota_com_ordem(texto.split(\"<<<BRIEF\", 1)[0])):",
       "testes": [
         "tests.test_agentes_clone",
         "tests.evals.test_regressao_forma"
@@ -87,22 +87,11 @@
       ]
     },
     {
-      "id": "I169",
-      "guarda": "hooks/agentes.py:497 hook._run or hook.run() (negada)",
-      "arquivo": "hooks/agentes.py",
-      "de": "        pasta = hook._run or hook.run()",
-      "para": "        pasta = not (hook._run or hook.run())",
-      "testes": [
-        "tests.test_agentes_clone",
-        "tests.evals.test_regressao_forma"
-      ]
-    },
-    {
       "id": "I170",
       "guarda": "hooks/agentes.py:499 os.path.lexists(log) (negada)",
       "arquivo": "hooks/agentes.py",
-      "de": "        estado = os.lstat(log) if os.path.lexists(log) else None",
-      "para": "        estado = os.lstat(log) if not (os.path.lexists(log)) else None",
+      "de": "estado = os.lstat(log) if os.path.lexists(log) else None",
+      "para": "estado = os.lstat(log) if not (os.path.lexists(log)) else None",
       "testes": [
         "tests.test_agentes_clone",
         "tests.evals.test_regressao_forma"
@@ -112,8 +101,8 @@
       "id": "I171",
       "guarda": "hooks/agentes.py:500 estado and stat.S_ISREG(estado.st_mode) and (estado.st_size > LIMITE_LOG) (negada)",
       "arquivo": "hooks/agentes.py",
-      "de": "        if estado and stat.S_ISREG(estado.st_mode) and estado.st_size > LIMITE_LOG:",
-      "para": "        if not (estado and stat.S_ISREG(estado.st_mode) and estado.st_size > LIMITE_LOG):",
+      "de": "if estado and stat.S_ISREG(estado.st_mode) and estado.st_size > LIMITE_LOG:",
+      "para": "if not (estado and stat.S_ISREG(estado.st_mode) and estado.st_size > LIMITE_LOG):",
       "testes": [
         "tests.test_agentes_clone",
         "tests.evals.test_regressao_forma"
@@ -123,8 +112,8 @@
       "id": "I172",
       "guarda": "hooks/agentes.py:507 stat.S_ISREG(os.fstat(fd).st_mode) (negada)",
       "arquivo": "hooks/agentes.py",
-      "de": "            if stat.S_ISREG(os.fstat(fd).st_mode):",
-      "para": "            if not (stat.S_ISREG(os.fstat(fd).st_mode)):",
+      "de": "if stat.S_ISREG(os.fstat(fd).st_mode):",
+      "para": "if not (stat.S_ISREG(os.fstat(fd).st_mode)):",
       "testes": [
         "tests.test_agentes_clone",
         "tests.evals.test_regressao_forma"

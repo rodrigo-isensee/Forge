@@ -1,0 +1,17 @@
+{
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP: sh <<'EOF' cujo corpo só ecoa o texto de gh pr merge: o corpo é a chamada que o shell roda, e nela o gh pr merge é argumento do echo; libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "sh <<'EOF'\necho \"depois: gh pr merge 12\"\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

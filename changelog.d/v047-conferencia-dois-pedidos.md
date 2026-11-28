@@ -1,2 +1,0 @@
-### Corrigido
-- Conferência com briefs de dois pedidos na branch (CONFERENCIA-DOIS-PEDIDOS, v047 E1.277): sem arquivo do pedido do argumento (a release), a conferência do head é do único pedido com brief de codigo na branch, e sem esse um só segue a falha fechada; na entrega de código, o parecer de portão da branch é anexo quando um brief selado do portão (deste pedido ou de outro que cita a branch) o declara e manda o pedido: e o commit: dele. Destrava o passo 1c da promoção da 0.47.1 (melhoria/mp1311-554-revalidacao).

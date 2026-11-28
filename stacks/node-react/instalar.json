@@ -1,0 +1,1 @@
+{"detecta": ["pnpm-lock.yaml"], "comandos": [["pnpm", "install", "--frozen-lockfile"]]}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-d1-integrador-laco",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): --laco liga o modo laço na leitura dos argumentos",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$laco\" = 1 ]; then\n  # Os itens",
+      "para": "if [ \"$laco\" = 9 ]; then\n  # Os itens",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_recusa_o_que_nao_e_do_laco"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): --laco recusa item, --ref, --lote e as opções do item",
+      "arquivo": "bin/forge-fechar",
+      "de": "a cada grupo.\n  if [ \"${#posicionais[@]}\" != 0 ]",
+      "para": "a cada grupo.\n  if [ \"${#posicionais[@]}\" = 99 ]",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_recusa_o_que_nao_e_do_laco"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): data vazia não vira a meia-noite de hoje",
+      "arquivo": "bin/forge-fechar",
+      "de": "  [ -n \"$1\" ] || return 1\n  date -u -d",
+      "para": "  [ -n \"x\" ] || return 1\n  date -u -d",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_parado_ha_mais_de_2_h_avisa_e_nao_entra"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): a data do GitHub é lida pelo GNU date",
+      "arquivo": "bin/forge-fechar",
+      "de": "date -u -d \"$1\" +%s 2>/dev/null || date -u -j",
+      "para": "false || date -u -j",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_parado_ha_mais_de_2_h_avisa_e_nao_entra"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): arquivo sem frontmatter não é parecer",
+      "arquivo": "bin/forge-fechar",
+      "de": "'NR == 1 && $0 != \"---\" {exit} NR > 1",
+      "para": "'NR > 1",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_so_entram_os_aprovados_com_um_pedido_so"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): só o frontmatter do parecer conta",
+      "arquivo": "bin/forge-fechar",
+      "de": "{exit} NR > 1 && $0 == \"---\" {exit}\n",
+      "para": "{exit}\n",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_so_entram_os_aprovados_com_um_pedido_so"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): branch: só pelo nome inteiro",
+      "arquivo": "bin/forge-fechar",
+      "de": "$0 == b {ok = 1}",
+      "para": "index($0, b) {ok = 1}",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_so_entram_os_aprovados_com_um_pedido_so"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): um pedido só, nome seguro",
+      "arquivo": "bin/forge-fechar",
+      "de": "[[ \"$peds\" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]] || return 1",
+      "para": "[[ -n \"$peds\" ]] || return 1",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_so_entram_os_aprovados_com_um_pedido_so"
+      ]
+    }
+  ]
+}

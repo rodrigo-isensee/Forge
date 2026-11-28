@@ -4,12 +4,16 @@ Por arquivo: caracteres, palavras da frase mais longa e média de palavras por f
 tamanho da `description:` do cabeçalho e ocorrências de sinônimo proibido (um conceito, um nome: dono, cartão, revisor). Prosa é o
 arquivo sem o cabeçalho, os blocos cercados, as tabelas e os títulos; item de lista abre frase. A linha de base fica em
 tests/fixtures/metricas-texto.json: medida acima do teto reprova. `python3 tests/test_metricas_texto.py --gravar` baixa os tetos
-para a medida atual e acrescenta os arquivos novos; nunca sobe um teto (subir é afrouxar: edite o arquivo e diga no PR)."""
+para a medida atual e acrescenta os arquivos novos; nunca sobe um teto (subir é afrouxar: edite o arquivo e diga no PR).
+Folga do texto do Jarvis (v047, P3; diretriz 25): no que o Jarvis lê ou é mandado ler, a mensagem manda mover, não reduzir."""
 import json
 import re
 import sys
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from apoio_jarvis import conjunto_do_jarvis  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 LINHA_DE_BASE = RAIZ / "tests" / "fixtures" / "metricas-texto.json"
@@ -22,6 +26,9 @@ FIM_DE_FRASE = re.compile(r"(?<=[.;!?])\s+(?=[A-ZÀ-Ú`*\"(\[])")
 ITEM = re.compile(r"^\s*(?:[-*]|\d+\.)\s+")
 COLUNAS = 100
 METRICAS = ("caracteres", "frase_max", "frase_media_x10", "linhas_longas", "descricao", "sinonimos")
+REDUZA = "reduza o texto; subir o teto é afrouxar"
+MOVA = ("não apague nem resuma regra (diretriz 25): mova o detalhe para uma skill que o Jarvis manda ler e deixe o resumo; "
+        "não suba o teto")
 
 
 def arquivos(raiz=RAIZ):
@@ -61,10 +68,11 @@ def medidas(raiz=RAIZ):
     return {rel: medir((raiz / rel).read_text(encoding="utf-8")) for rel in arquivos(raiz)}
 
 
-def estouros(medido, tetos):
-    """Uma linha por arquivo sem linha de base e por métrica acima do teto."""
+def estouros(medido, tetos, do_jarvis=frozenset()):
+    """Uma linha por arquivo sem linha de base e por métrica acima do teto; no arquivo de `do_jarvis`, a mensagem manda mover."""
     erros = [f"{rel}: sem linha de base (rode python3 tests/test_metricas_texto.py --gravar)" for rel in medido if rel not in tetos]
-    return erros + [f"{rel}: {m} = {valores[m]} passa do teto {tetos[rel][m]} (reduza o texto; subir o teto é afrouxar)"
+    return erros + [f"{rel}: {m} = {valores[m]} passa do teto {tetos[rel][m]} em {valores[m] - tetos[rel][m]} "
+                    f"({MOVA if rel in do_jarvis else REDUZA})"
                     for rel, valores in medido.items() if rel in tetos for m in METRICAS if valores[m] > tetos[rel][m]]
 
 
@@ -77,7 +85,7 @@ class MetricasDoTexto(unittest.TestCase):
     def test_nenhuma_metrica_passa_do_teto(self):
         medido = medidas()
         self.assertGreaterEqual(len(medido), 30)
-        self.assertEqual(estouros(medido, json.loads(LINHA_DE_BASE.read_text(encoding="utf-8"))), [])
+        self.assertEqual(estouros(medido, json.loads(LINHA_DE_BASE.read_text(encoding="utf-8")), set(conjunto_do_jarvis())), [])
 
     def test_o_teto_so_desce_e_a_medida_acusa_cada_metrica(self):
         texto = ("---\nname: x\ndescription: " + "d" * 30 + "\n---\n# Título\n\n- Um item curto. Outra frase aqui;\n"
@@ -86,8 +94,10 @@ class MetricasDoTexto(unittest.TestCase):
         self.assertEqual((m["descricao"], m["linhas_longas"], m["sinonimos"], m["frase_max"]), (30, 2, 2, 20))
         self.assertEqual(m["frase_media_x10"], round(10 * (3 + 3 + 20 + 6) / 4))
         tetos = {"a.md": dict(m, caracteres=10), "c.md": dict(m)}
-        self.assertEqual(estouros({"a.md": m}, tetos), [f"a.md: caracteres = {len(texto)} passa do teto 10 (reduza o texto; "
-                                                        "subir o teto é afrouxar)"])
+        self.assertEqual(estouros({"a.md": m}, tetos), [f"a.md: caracteres = {len(texto)} passa do teto 10 em {len(texto) - 10} "
+                                                        "(reduza o texto; subir o teto é afrouxar)"])
+        self.assertEqual(estouros({"a.md": m}, tetos, {"a.md"}), [f"a.md: caracteres = {len(texto)} passa do teto 10 em {len(texto) - 10}"
+                                                                  f" ({MOVA})"])
         self.assertIn("b.md: sem linha de base", estouros({"b.md": m}, tetos)[0])
         novos = baixar(tetos, {"a.md": dict(m, sinonimos=0), "b.md": m})
         self.assertEqual(novos["a.md"]["caracteres"], 10, "o teto nunca sobe")

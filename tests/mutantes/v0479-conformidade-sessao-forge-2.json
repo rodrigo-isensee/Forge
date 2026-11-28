@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-conformidade-sessao-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "E51.6: a recusa do teto da chamada com ação crítica é marcada TRAVA_NO_TETO",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                                              \"prazo\", CONTORNO_DO_TETO, trava=TRAVA_NO_TETO)",
+      "para": "                                              \"prazo\", CONTORNO_DO_TETO)",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "E51.6: a recusa da reavaliação pelo shell (eval, bash -c) é marcada TRAVA_OPACA",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                        contorno_da_reavaliacao(self.reavaliacao), trava=TRAVA_OPACA)",
+      "para": "                        contorno_da_reavaliacao(self.reavaliacao))",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "E51.6: a recusa do heredoc fora da gramática é marcada TRAVA_OPACA",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                            CONTORNO_DA_GRAMATICA, trava=TRAVA_OPACA)",
+      "para": "                            CONTORNO_DA_GRAMATICA)",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "E51.6: a recusa da construção não modelada (variável, ${) é marcada TRAVA_OPACA",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                        trava=TRAVA_OPACA)",
+      "para": "                        )",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "E51.6: a recusa da tag no repositório do Forge é marcada TRAVA",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                        \"só o release.yml cria a tag, sobre a main; para ler, use git tag -l\", trava=TRAVA)",
+      "para": "                        \"só o release.yml cria a tag, sobre a main; para ler, use git tag -l\")",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "E51.6: a recusa do envio de tag para o Forge é marcada TRAVA",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                        \"envie só a branch; a tag nasce do release.yml, sobre a main\", trava=TRAVA)",
+      "para": "                        \"envie só a branch; a tag nasce do release.yml, sobre a main\")",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "E51.6: a recusa do push direto para develop e homolog é marcada TRAVA",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                            \"main\", trava=TRAVA, alvo=d)",
+      "para": "                            \"main\", alvo=d)",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "E51.6: a recusa marcada TRAVA_NO_TETO é lida pelo texto da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if trava == TRAVA_NO_TETO:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    }
+  ]
+}

@@ -26,8 +26,8 @@
       "id": "I147",
       "guarda": "bin/forge_governanca.py:445 pastas (negada)",
       "arquivo": "bin/forge_governanca.py",
-      "de": "    custos = tokens_por_item(pastas, raiz_pedidos) if pastas else None",
-      "para": "    custos = tokens_por_item(pastas, raiz_pedidos) if not (pastas) else None",
+      "de": "custos = tokens_por_item(pastas, raiz_pedidos, avisos) if pastas else None",
+      "para": "custos = tokens_por_item(pastas, raiz_pedidos, avisos) if not (pastas) else None",
       "testes": [
         "tests.test_governanca"
       ]
@@ -86,8 +86,8 @@
       "id": "I153",
       "guarda": "bin/forge_governanca.py:478 arquivos (negada)",
       "arquivo": "bin/forge_governanca.py",
-      "de": "            \"espera_por_portao\": portoes if arquivos else None}, avisos",
-      "para": "            \"espera_por_portao\": portoes if not (arquivos) else None}, avisos",
+      "de": "\"espera_por_portao\": portoes if arquivos else None",
+      "para": "\"espera_por_portao\": portoes if not (arquivos) else None",
       "testes": [
         "tests.test_governanca"
       ]
@@ -96,8 +96,8 @@
       "id": "I154",
       "guarda": "bin/forge_governanca.py:497 i.get('tokens') is None (negada)",
       "arquivo": "bin/forge_governanca.py",
-      "de": "                 f\"tokens={'-' if i.get('tokens') is None else i['tokens']}\")",
-      "para": "                 f\"tokens={'-' if not (i.get('tokens') is None) else i['tokens']}\")",
+      "de": "tokens={'-' if i.get('tokens') is None else i['tokens']}",
+      "para": "tokens={'-' if not (i.get('tokens') is None) else i['tokens']}",
       "testes": [
         "tests.test_governanca"
       ]
@@ -106,8 +106,8 @@
       "id": "I155",
       "guarda": "bin/forge_governanca.py:507 r.get('tokens') is None (negada)",
       "arquivo": "bin/forge_governanca.py",
-      "de": "                         f\"merito(declarada)={_contagem(r['merito_declarado'])} tokens={'-' if r.get('tokens') is None else r['tokens']}\")",
-      "para": "                         f\"merito(declarada)={_contagem(r['merito_declarado'])} tokens={'-' if not (r.get('tokens') is None) else r['tokens']}\")",
+      "de": "tokens={'-' if r.get('tokens') is None else r['tokens']}",
+      "para": "tokens={'-' if not (r.get('tokens') is None) else r['tokens']}",
       "testes": [
         "tests.test_governanca"
       ]

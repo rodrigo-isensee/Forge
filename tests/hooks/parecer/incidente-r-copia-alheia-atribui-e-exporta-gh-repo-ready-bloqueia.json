@@ -1,0 +1,53 @@
+{
+  "descricao": "GH-REPO-EXPORTADO (A5 da E3.8, sonda S9): numa cópia alheia, GH_REPO mexido antes na linha é repositório indicado que o hook não lê: recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop",
+        "remote.origin.url": "git@github.com:dono/forge.git"
+      }
+    }
+  ],
+  "repos": {
+    "alheio": {
+      "remotos": {
+        "origin": "git@github.com:outro/coisa.git"
+      },
+      "arquivos": {
+        "m.txt": "mutation { markPullRequestReadyForReview(input: {pullRequestId: \"PR_1\"}) { clientMutationId } }\n",
+        "q.graphql": "mutation { markPullRequestReadyForReview(input: {pullRequestId: \"PR_1\"}) { clientMutationId } }\n",
+        "l.graphql": "query { viewer { login } }\n"
+      }
+    }
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/alheio",
+    "tool_input": {
+      "command": "GH_REPO=dono/forge; export GH_REPO; gh pr ready feature/x"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: gh pr fora de um clone com GH_REPO mexido"
+  }
+}

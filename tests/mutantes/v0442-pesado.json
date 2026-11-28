@@ -16,8 +16,8 @@
    "id": "M2",
    "guarda": "pega a vez so sendo o primeiro da fila e livre",
    "arquivo": "hooks/pesado.py",
-   "de": "                if not ocupada(hook, trava, uso, agora) and vivas[:1] == [senha]:",
-   "para": "                if not ocupada(hook, trava, uso, agora) and vivas[:1] == []:",
+   "de": "                        and frente_parada(vivas, agora, senha):",
+   "para": "                        and False:",
    "testes": [
     "tests.test_pesado_fila.Fila.test_espera_a_vez_e_pega_quando_solta"
    ]
@@ -66,8 +66,8 @@
    "id": "M7",
    "guarda": "fila nao vazia nao pula",
    "arquivo": "hooks/pesado.py",
-   "de": " and not fila_viva(hook.run() / \"pesado.fila\"):",
-   "para": " and True:",
+   "de": "                and frente_parada(fila_viva(pasta_da_fila()), agora):",
+   "para": "                and True:",
    "testes": [
     "tests.test_pesado_fila.Fila.test_quem_esta_na_fila_tem_a_vez_mesmo_livre"
    ]
@@ -101,13 +101,6 @@
    "testes": [
     "tests.test_pesado_fila.Fila.test_aguardando_o_dono_so_na_secao"
    ]
-  }
- ],
- "isentas": [
-  {
-   "arquivo": "hooks/pesado.py",
-   "trecho": "c.is_symlink()",
-   "motivo": "defesa contra link na pasta da fila; sem cenário de teste"
   }
  ]
 }

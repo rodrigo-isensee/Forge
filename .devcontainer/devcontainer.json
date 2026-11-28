@@ -1,18 +1,31 @@
-// Forge: definição mínima do container de desenvolvimento (P9 da 0.43.1).
-// Ao recriar o container, só /workspaces, ~/.claude e ~/.vscode-server sobrevivem. Depois de recriar, o dono roda
-// à mão `bash /workspaces/Forge/scripts/preparar-estacao.sh --container` (idempotente). Não há postStartCommand:
-// ele rodaria como root, fora do sandbox, um script que o agente pode editar (B2 do review de segurança da 0.43.1).
-// O script refaz: gh, tmux e shellcheck, o link ~/Forge, a área ~/.forge-contrib como link para
-// /workspaces/.forge-contrib, a configuração do gh em ~/.claude/gh, a cópia vigente e o dev-marketplace.
-// O script nunca apaga dados; a saída diz o que fez e o que falta (ex.: o login do gh, que é manual).
-// A imagem é a base Ubuntu 24.04 dos dev containers, a mesma versão do sistema em uso; o volume nomeado
-// guarda ~/.claude (a credencial do gh fica em ~/.claude/gh, com permissão 700).
+// Forge: definição mínima do container de desenvolvimento (P9 da 0.43.1; E2.54 da 0.47.2).
+// Ao recriar o container, só /workspaces, ~/.claude e ~/.vscode-server sobrevivem. A cada início o postStartCommand
+// refaz sozinho, sem o dono, o essencial: gh (apt oficial), o link ~/.forge-contrib para /workspaces/.forge-contrib e o
+// core.hooksPath. O login do gh sobrevive em ~/.claude/gh (link ~/.config/gh); sem ele, o Jarvis dá o comando ao abrir.
+// O script é idempotente e nunca apaga dados.
+// DEVCONTAINER-SEM-GH (v0481 E35.6, opção 1 do dono): o comando baixa o script de preparo da main pelo GitHub, sem o gh (que o
+// próprio script instala): clone raso e público com credential.helper vazio e GIT_TERMINAL_PROMPT=0, e a URL fixa neste arquivo
+// (não vem da cópia de trabalho). Nada que roda como root vem de /workspaces/Forge, que o agente grava no sandbox: como root, só
+// roda o que está na main do remoto, que passa por PR e pelo merge do dono (a defesa B2 da 0.43.1). O script roda com
+// FORGE_PREPARO_ESSENCIAL=1 (sem a cópia vigente nem o dev-marketplace, que ficam no comando manual
+// `bash /workspaces/Forge/scripts/preparar-estacao.sh --container`); a guarda do grep recusa uma main antiga, sem essa marca.
+// O preparo cria ~/.config/gh, instala gh e tmux e refaz o link ~/.forge-contrib; cada passo é idempotente. Faltou algo, ou o
+// clone falhou (sem rede, main antiga): o comando avisa em ERRO e sai com 1, sem "; true" engolindo; o container sobe do mesmo jeito.
+// A garantia real é esta (nada de arquivo gravável pelo agente rodando como root), não o hook: na sessão do Forge o hook libera a
+// escrita deste arquivo, e uma troca dele aparece como mudança em vigor, revisada em PR, e só vale ao recriar o container.
+// Nenhum segredo aqui, e o GH_TOKEN da máquina do dono NÃO entra no container (remoteEnv o repassaria, com o escopo
+// workflow, a todo processo, inclusive a sessão do agente). Login do dono: gh auth login -s repo,workflow --web (escopo
+// mínimo repo e workflow, que o push de .github/ pede); o token do bot (ADR 0009) não leva workflow.
+// A imagem é a base Ubuntu 24.04 dos dev containers; o volume nomeado guarda ~/.claude.
+// shutdownAction none (D2 da BP3): fechar o VS Code não para o container, e o tmux com o Jarvis segue vivo.
 {
   "name": "Forge",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "remoteUser": "root",
+  "shutdownAction": "none",
   "workspaceFolder": "/workspaces/Forge",
   "mounts": [
     "source=forge-claude,target=/root/.claude,type=volume"
-  ]
+  ],
+  "postStartCommand": "d=$(mktemp -d); GIT_TERMINAL_PROMPT=0 git -c credential.helper= clone -q --depth 1 --branch main --single-branch -- https://github.com/rodrigo-isensee/Forge.git \"$d/r\" && grep -q 'FORGE_PREPARO_ESSENCIAL:-0' \"$d/r/scripts/preparar-estacao.sh\" && FORGE_PREPARO_ESSENCIAL=1 bash \"$d/r/scripts/preparar-estacao.sh\" --container < /dev/null; rc=$?; rm -rf \"$d\"; [ $rc = 0 ] || { echo 'ERRO: o preparo do container falhou (veja as linhas erro: acima ou o clone da main); rode bash /workspaces/Forge/scripts/preparar-estacao.sh --container' >&2; exit 1; }"
 }

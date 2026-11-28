@@ -1,0 +1,26 @@
+{
+  "pedido": "v047-pos-release",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PR17",
+      "guarda": "E2.223: os passos rodam na raiz do projeto",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "cd \"$raiz\" || recusar",
+      "para": "cd / || recusar",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_passos_recebem_o_alvo_e_rodam_na_raiz_do_projeto"
+      ]
+    },
+    {
+      "id": "PR18",
+      "guarda": "E2.223: alvo-variavel ausente ou inválida é recusada",
+      "arquivo": "templates/projeto/scripts/pos-release",
+      "de": "[[ \"$variavel\" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] ||",
+      "para": "true ||",
+      "testes": [
+        "tests.test_pos_release.PosRelease.test_recusa_arquivo_sem_passo_sem_regra_de_ensaio_ou_sem_variavel"
+      ]
+    }
+  ]
+}

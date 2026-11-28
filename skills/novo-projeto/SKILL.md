@@ -24,7 +24,7 @@ Em `.forge/perfil` (fora do git): `experiente` se ela programa; senão, o padrã
 1. **Objetivo:** "Em uma frase, o que o projeto faz (ou vai fazer)?" No adotado, proponha a frase que leu e peça o "sim".
 2. **Quem usa:** "Quem vai usar? [padrão: só eu]"
 3. **O que não pode quebrar:** "Existe algo que nunca pode acontecer? Ex.: perder um pedido de cliente. [padrão: nada por ora; anotamos quando surgir]"
-4. **Ritmo:** "O time vai devagar e gasta menos, no meio-termo ou rápido e gasta mais: qual prefere? [padrão: meio-termo]" Grave com `forge ritmo <econômico|acelerado>` quando houver `.forge/`.
+4. **Ritmo:** "O time vai devagar e gasta menos, no meio-termo ou rápido e gasta mais: qual prefere? [padrão: meio-termo]" Com `.forge/`, o dono roda `forge ritmo <valor>` fora do sandbox.
 
 Stack, comando de pronto e o resto técnico o time decide e registra como suposição (`R-DECISAO`): no adotado, pelo que o projeto já usa (stack sem pacote em `${CLAUDE_PLUGIN_ROOT}/stacks/`: nunca `node-react`; diga que o Forge ainda não tem o pacote, registre a pendência e pare a adoção); no novo, `node-react` e o comando de `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`.
 

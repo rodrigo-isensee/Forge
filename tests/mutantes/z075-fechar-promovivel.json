@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "aviso quando FORGE_PROMOVER vem sem o modo de teste",
       "arquivo": "bin/forge-fechar",
-      "de": "${FORGE_GH:-}${FORGE_PROMOVER:-}\" ]",
-      "para": "${FORGE_GH:-}\" ]",
+      "de": "${FORGE_GH:-}${FORGE_PROMOVER:-}${FORGE_FECHAR_ITEM:-}\" ]",
+      "para": "${FORGE_GH:-}${FORGE_FECHAR_ITEM:-}\" ]",
       "testes": [
         "tests.test_fechar.Fechar.test_1c_forge_promover_sem_o_modo_de_teste_e_ignorado_com_aviso"
       ]
@@ -116,8 +116,8 @@
       "id": "M12",
       "guarda": "o 1c roda antes do PR e do merge (pulado equivale a rodar depois do passo 6)",
       "arquivo": "bin/forge-fechar",
-      "de": "promovivel \"$sha_conferido\"",
-      "para": ": \"$sha_conferido\"",
+      "de": "promovivel \"$sha_1c\"",
+      "para": ": \"$sha_1c\"",
       "testes": [
         "tests.test_fechar.Fechar.test_1c_rc_diferente_de_0_ou_prazo_para_sem_pr_nem_merge"
       ]
@@ -139,7 +139,7 @@
       "de": "passo \"1c\" \"python3 -I",
       "para": ": \"1c\" \"python3 -I",
       "testes": [
-        "tests.test_fechar.Fechar.test_1c_no_dry_run_e_fora_da_base_develop_nao_roda"
+        "tests.test_fechar.Fechar.test_1c_no_dry_run_roda_o_conferir_ref_contra_a_homolog_local_sem_busca"
       ]
     }
   ]

@@ -1,0 +1,87 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M58",
+      "guarda": "D4: a indireta ${!n:=v} mexe em todos",
+      "arquivo": "hooks/parecer.py",
+      "de": "if m.group(1):  # `${!n:=v}`",
+      "para": "if False:  # `${!n:=v}`",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_por_expansao"
+      ]
+    },
+    {
+      "id": "M59",
+      "guarda": "D4: só o nome sensível ou GIT_* da expansão conta",
+      "arquivo": "hooks/parecer.py",
+      "de": "if nome in SENSIVEIS or nome.startswith(\"GIT_\"))",
+      "para": "if True)",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_por_expansao"
+      ]
+    },
+    {
+      "id": "M60",
+      "guarda": "D4: todo GIT_* da expansão conta",
+      "arquivo": "hooks/parecer.py",
+      "de": "if nome in SENSIVEIS or nome.startswith(\"GIT_\"))",
+      "para": "if nome in SENSIVEIS)",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_por_expansao"
+      ]
+    },
+    {
+      "id": "M61",
+      "guarda": "D4: a forma ${N=v}, sem os dois-pontos",
+      "arquivo": "hooks/parecer.py",
+      "de": "(?:\\[[^]}]*\\])?:?=\")",
+      "para": "(?:\\[[^]}]*\\])?:=\")",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_por_expansao"
+      ]
+    },
+    {
+      "id": "M62",
+      "guarda": "D4: a linha começa com as mexidas por expansão e por aritmética",
+      "arquivo": "hooks/parecer.py",
+      "de": "SEM_AMBIENTE._replace(mexidas=mexidas_do_texto(textos))",
+      "para": "SEM_AMBIENTE",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa"
+      ]
+    },
+    {
+      "id": "M63",
+      "guarda": "D4 (A9): as mexidas saem de cada forma que o shell lê, não só do texto cru",
+      "arquivo": "hooks/parecer.py",
+      "de": "mexidas=mexidas_do_texto(textos))",
+      "para": "mexidas=mexidas_do_texto([comando]))",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa"
+      ]
+    },
+    {
+      "id": "M64",
+      "guarda": "D4 (A10): a atribuição aritmética soma às mexidas",
+      "arquivo": "hooks/parecer.py",
+      "de": "mexidas_por_expansao(t) | mexidas_por_aritmetica(t)",
+      "para": "mexidas_por_expansao(t)",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_cada_forma_que_o_shell_le",
+        "tests.test_hooks_parecer_matriz.MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa"
+      ]
+    },
+    {
+      "id": "M65",
+      "guarda": "D4 (A10): `++N` e `--N` atribuem",
+      "arquivo": "hooks/parecer.py",
+      "de": "r\"|(?:\\+\\+|--)\\s*([A-Za-z_]\\w*)\")",
+      "para": "r\"|(?!)([A-Za-z_]\\w*)\")",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_aritmetica"
+      ]
+    }
+  ]
+}

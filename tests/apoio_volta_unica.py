@@ -1,6 +1,7 @@
 """Apoio da classe do corpus da volta única (LOTE-LEITURA-HOOK): o corpus, as constantes, o gerador e os auxiliares
 que os módulos `tests/test_hooks_volta_*.py` compartilham. Não é módulo de teste (HOOKS-CORPUS-RAPIDO)."""
 
+import ast
 import concurrent.futures
 import contextlib
 import functools
@@ -16,6 +17,7 @@ import signal
 import string
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -114,6 +116,191 @@ class MedidaDeCpu:
         return f"CPU {self.cpu:.2f} s, relógio {self.relogio:.2f} s"
 
 
+# CORPUS-CUSTO-CONTADOR (v0478 E41.1): o portão de custo do corpus conta trabalho, e não segundos de CPU. O mesmo lote
+# (557 execuções do hook, 4631 chamadas de subprocesso) gastou 125,5 s de CPU com a máquina livre e 142,1 s sob carga
+# na máquina do autor, e 127 s e 185 s no CI: a CPU de cada chamada cresce com a disputa de cache e de núcleo, e o
+# número de chamadas não. Cada processo Python do hook carrega este `sitecustomize` (pelo `PYTHONPATH` do fixture) e
+# anota no seu registro a própria execução, cada subprocesso que abre (pelos eventos de auditoria) e cada `time.sleep`
+# do código do hook (a espera do `Popen.wait` da biblioteca padrão, que varia com a máquina, fica fora).
+# Volta única (v0478 E41.5): também os passos do interpretador no código do repositório (o do hook e o do
+# `bin/forge-check` que ele carrega), por `sys.monitoring` (Python 3.12+): cada chamada que esse código faz (a função
+# Python ou C), cada função dele que começa e cada volta de laço (o salto para trás). A CPU gasta no Python do hook vira
+# passo contado: a chamada a mais (o `sum(range(20000000))` da sonda S1 do review) e a volta de laço a mais. Não vira
+# passo o trabalho de dentro de uma chamada C que já existia (a regex que ficou catastrófica no motor `re`, o mesmo
+# `sum` sobre um iterável maior). Só liga com as duas variáveis do contador no ambiente do teste: em produção não há
+# `sitecustomize` nem variável, e o contador só conta (as funções devolvem `None` ou `DISABLE`, nada da decisão muda).
+# A contagem é a mesma de uma rodada para outra só com duas coisas fora dela: o `HOME` do hook é uma pasta vazia do
+# contador (com o `HOME` de quem roda, o `forge-check` lia os briefs de `~/.forge-contrib`, que mudam com a máquina e com
+# o tempo, e o CI não tem), e a entrada que vai até o prazo de produção roda sem os passos do interpretador (ela anda
+# até o prazo tanto quanto a máquina deixa).
+SITE_DO_CONTADOR = """\
+import os, sys, time
+_pasta = os.environ.get("FORGE_TESTE_TRABALHO")
+if _pasta:
+    _registro, _dormir = os.path.join(_pasta, str(os.getpid())), time.sleep
+    _alvo = os.environ.pop("FORGE_TESTE_TRABALHO_AMBIENTE", "")  # só o hook o recebe; os filhos herdam o ambiente cheio
+    if _alvo.isdigit():
+        for _i in range(int(_alvo) - len(os.environ)):
+            os.environ[f"ENCHIMENTO_DO_CONTADOR_{_i}"] = ""
+    def _anotar(linha):
+        fd = os.open(_registro, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        try:
+            os.write(fd, (linha + "\\n").encode())
+        finally:
+            os.close(fd)
+    def _contar(evento, argumentos):
+        if evento in ("subprocess.Popen", "os.system", "os.posix_spawn", "os.exec", "os.fork", "os.forkpty"):
+            _anotar("subprocesso")
+    _biblioteca = os.path.dirname(os.__file__) + os.sep
+    def _sono(segundos):  # o evento `time.sleep` da auditoria só existe do Python 3.13 em diante
+        if not sys._getframe(1).f_code.co_filename.startswith(_biblioteca):  # a espera do `subprocess` não é do hook
+            _anotar(f"sono {float(segundos)!r}")
+        _dormir(segundos)
+    _anotar("execucao")
+    sys.addaudithook(_contar)
+    time.sleep = _sono
+    _codigo, _monitor = os.environ.get("FORGE_TESTE_TRABALHO_CODIGO"), getattr(sys, "monitoring", None)
+    if _codigo and _monitor:  # o trabalho do interpretador: só o código do repositório, que é o do hook
+        import atexit
+        _prefixo, _fora, _passos = os.path.join(_codigo, ""), _monitor.DISABLE, [0]
+        def _chamada(codigo, deslocamento, chamado, primeiro):  # cada chamada feita pelo hook, Python ou C
+            if not codigo.co_filename.startswith(_prefixo):  # chamada de fora do hook: o lugar deixa de avisar
+                return _fora
+            _passos[0] += 1
+        def _inicio(codigo, deslocamento):  # cada função do hook que começa, também quando a biblioteca a chama
+            if not codigo.co_filename.startswith(_prefixo):  # função de fora do hook
+                return _fora
+            _passos[0] += 1
+        def _salto(codigo, origem, destino):  # cada volta de laço do hook (o salto para trás)
+            if destino > origem or not codigo.co_filename.startswith(_prefixo):
+                return _fora
+            _passos[0] += 1
+        _eventos, _ferramenta = _monitor.events, _monitor.PROFILER_ID
+        _monitor.use_tool_id(_ferramenta, "forge-contador")
+        _monitor.register_callback(_ferramenta, _eventos.CALL, _chamada)
+        _monitor.register_callback(_ferramenta, _eventos.PY_START, _inicio)
+        _monitor.register_callback(_ferramenta, _eventos.JUMP, _salto)
+        _monitor.set_events(_ferramenta, _eventos.CALL | _eventos.PY_START | _eventos.JUMP)
+        if _alvo:
+            _anotar(f"ambiente {len(os.environ)}")
+        atexit.register(lambda: _anotar(f"interpretador {_passos[0]}"))
+"""
+# A medida (v0478 E41.5): 10 rodadas do lote sob carga de 12 laços, no Python 3.12, com o tmp a 2 níveis da raiz
+# (`/tmp/claude-0`) e 234 variáveis no ambiente do hook, deram 557 execuções, 4631 subprocessos e 5860121 passos do
+# interpretador em todas (ruído 0; com o `HOME` de quem roda, os subprocessos variavam de 4631 a 4633; o
+# registro das rodadas está em tests/provas/v0479-corpus-custo.md). Os passos crescem 460 por nível a mais do tmp (o
+# hook sobe as pastas-mãe do caminho do caso): 1 e 4 níveis a mais deram 5860581 e 5861961. E crescem 2 por variável
+# do ambiente do hook a cada subprocesso (o `git` do `forge-check` copia o ambiente, variável por variável): 1 variável a
+# mais deu 5869383, 9262 a mais (2 x 4631); desde o E45.73 o ambiente do hook é fixo (abaixo). O teto é a medida mais o ruído, sem folga: corpus novo, hook mudado ou outro
+# custo pedem medida nova (a mensagem do teste traz a contagem). Medida nova (v0478 E41.10): a develop em cf097822
+# mudou o `hooks/_comum.py`, o `hooks/agentes.py` e o `forge-check`, e os passos foram de 5860121 a 5893967, nas mesmas
+# condições (registro em tests/provas/v0479-corpus-custo.md). Medida nova (v0478 E50.25): o `hooks/conformidade.py` e o
+# `forge-check` do v0479-entrega-parecer-mesclado levaram os passos de 5893967 a 5895051, nas mesmas condições. O
+# teto subiu +1084 passos (0,02%) com autorização do dono em 20/11 19:09 só para este item (DECISÃO DO DONO no pedido
+# v0478), não precedente: outro aumento pede medida nova e autorização própria.
+# Soma do E50 e do E51 (v0478 E51.30): interpretador 5893967 -> 5897219 (+3252). Autorizações do dono, cada uma só para o seu
+# item e não precedente (DECISÃO DO DONO no pedido v0478): E50 +1084 em 20/11 às 19:09; E51 +2168 em 20/11 às 19:55. O
+# dono pediu aviso só se o total passar de +3300; prova em tests/provas/v0479-corpus-custo.md, "Soma do E50 e do E51".
+# E63.1 (CONFORMIDADE-SEGURANCA, três cartões do hooks/conformidade.py): 5897219 -> 5902634 (+5415 passos, 0,092%; os
+# subprocessos seguem 4631). Abaixo de 0,1%: decisão do time (tech-lead) com a confirmação escrita da segurança no
+# parecer da etapa (brief v0478-tech-lead-481); prova em tests/provas/v0479-corpus-custo.md, "E63.1".
+# E63.5 (volta única dos portões da trilha): 5902634 -> 5902697 (+63; total sobre 5897219: +5478 passos, 0,093%; os
+# subprocessos seguem 4631); prova em tests/provas/v0479-corpus-custo.md, "E63.5".
+# C1b-3 (v0481 E45.19, pasta de controle do Forge com quem vazio): 5902697 -> 5903562 (+865, medidos no CI do #940;
+# total sobre 5897219: +6343 passos, 0,108%). Acima de 0,1%: autorizado pelo dono em 27/11 às 14:11 só para este item
+# (DECISÃO DO DONO no pedido v0481), não precedente; prova em tests/provas/v0479-corpus-custo.md, "C1b-3".
+# C1b-3 com o #938 (v0481 E45.30): 5903562 -> 5906303 (+2741, medidos no CI do #940 com a develop; total sobre
+# 5897219: +9084 passos, 0,154%). Autorizado pelo dono em 27/11 às 15:39; até 0,5% no total o time decide registrando
+# cada aumento; prova em tests/provas/v0479-corpus-custo.md, "C1b-3 com o #938".
+# C1b-3 com a develop em e950baeb (v0481 E45.68): 5906303 -> 5906549 (+246, medidos no CI do #940, run 46113149896;
+# total sobre 5897219: +9330 passos, 0,158%). Decisão do time, abaixo de 0,5% no total; prova em
+# tests/provas/v0479-corpus-custo.md, "C1b-3 com a develop em e950baeb".
+# Ambiente fixo (v0481 E45.73): o acerto de 2 x 4631 passos por variável errava a inclinação (a real é 2 x 4508, os
+# subprocessos do corpus hoje), e o teto mudava com as variáveis do runner (132 ou 133). O contador completa o ambiente
+# do hook até 256 variáveis (`FORGE_TESTE_TRABALHO_AMBIENTE`), e o número de variáveis de quem roda sai da conta: 137,
+# 242 e 243 herdadas deram os mesmos 6081660 passos (tmp a 2 níveis), a nova medida, sem folga. O código do #940 com a
+# develop em 1ced5c09 (o #952) custa +1851 sobre o teto anterior (run 46134894622: 4973152 com 133 variáveis contra os
+# 4971301 do mesmo código sem a develop nova); total sobre 5897219: +11181 passos, 0,190%. Decisão do time, abaixo de
+# 0,5% no total; prova em tests/provas/v0479-corpus-custo.md, "Ambiente fixo".
+# C1b-2 (v0481 E45.44, o #944 com a develop em ed6e6dbf, o #940 e o #956; remedido igual com a develop em c11e3809, o
+# #947 e o #957, e em ae194fa9, o #958): 6081660 -> 6089793 (+8133, medidos na máquina do autor, 256 variáveis, tmp
+# a 2 níveis; total sobre 5897219: +19314 passos, 0,328%). Decisão do dono em 28/11 às 10:06 (opção A): sobe só o
+# medido, dentro de 0,5%; prova em tests/provas/v0479-corpus-custo.md, "C1b-2".
+MEDIDA_DO_CORPUS = {"python": "3.12", "profundidade_do_tmp": 2, "variaveis_do_ambiente": 256,
+                    "execucoes": 557, "subprocessos": 4631, "interpretador": 6089793}
+PASSOS_POR_NIVEL_DO_TMP = 460
+RUIDO_DO_CORPUS = {"subprocessos": 0, "interpretador": 0}
+
+
+class ContadorDeTrabalho:
+    """O trabalho dos processos Python lançados com `ambiente()`: execuções, subprocessos abertos, segundos de sono
+    pedidos e passos do interpretador no código do repositório. Conta, e não cronometra: a carga da máquina não muda o
+    número (o ruído que sobra está medido em `RUIDO_DO_CORPUS`)."""
+
+    def __init__(self, pasta):
+        self.site, self.registros, self.casa = Path(pasta) / "site", Path(pasta) / "registros", Path(pasta) / "casa"
+        self.site.mkdir()
+        self.registros.mkdir()
+        self.casa.mkdir()
+        (self.site / "sitecustomize.py").write_text(SITE_DO_CONTADOR, encoding="utf-8")
+
+    def ambiente(self, interpretador=True):
+        """`interpretador=False`: sem os passos do interpretador, para a decisão que vai até o prazo de produção (o
+        quanto ela anda antes do prazo depende da velocidade da máquina; o prazo é o teto dela, conferido no caso)."""
+        ambiente = {"PYTHONPATH": str(self.site), "FORGE_TESTE_TRABALHO": str(self.registros), "HOME": str(self.casa),
+                    "FORGE_TESTE_TRABALHO_AMBIENTE": str(MEDIDA_DO_CORPUS["variaveis_do_ambiente"])}
+        return {**ambiente, "FORGE_TESTE_TRABALHO_CODIGO": str(RAIZ)} if interpretador else ambiente
+
+    def ler(self):
+        linhas = [linha for registro in self.registros.iterdir() for linha in registro.read_text(encoding="utf-8").splitlines()]
+        return {"execucoes": linhas.count("execucao"), "subprocessos": linhas.count("subprocesso"),
+                "sono": sum(float(linha.split()[1]) for linha in linhas if linha.startswith("sono ")),
+                "interpretador": sum(int(linha.split()[1]) for linha in linhas if linha.startswith("interpretador ")),
+                "ambiente": max((int(linha.split()[1]) for linha in linhas if linha.startswith("ambiente ")), default=0)}
+
+
+def execucoes_do_corpus(casos):
+    """As execuções do hook que os casos (nome, Fixture) declaram: cada passo e a entrada principal, uma vez cada."""
+    return sum(len(f.dados.get("passos", [])) + 1 for _, f in casos)
+
+
+def profundidade_do_tmp():
+    """Os níveis da pasta temporária abaixo da raiz do disco (`/tmp` é 1), pelo caminho real."""
+    return len(Path(os.path.realpath(tempfile.gettempdir())).parts) - 1
+
+
+def excessos_de_trabalho(trabalho, execucoes, python=None, profundidade=None):
+    """O que passa do teto do corpus em `trabalho` (de `ContadorDeTrabalho.ler`): execuções diferentes das declaradas
+    (o driver que roda um caso duas vezes, ou pula um), corpus diferente do medido, subprocessos e passos do
+    interpretador acima da medida mais o ruído (`MEDIDA_DO_CORPUS`, `RUIDO_DO_CORPUS`) e qualquer sono pedido. Os passos
+    do interpretador só se conferem no Python da medida (`python`, por padrão o que roda), com a medida acertada pela
+    `profundidade` do tmp (por padrão a de quem roda). O hook roda com o ambiente completado até as variáveis da medida
+    (`ContadorDeTrabalho.ambiente`); outro número em `trabalho["ambiente"]` é excesso. Lista vazia: dentro do custo."""
+    python = python or "{}.{}".format(*sys.version_info[:2])
+    profundidade = profundidade_do_tmp() if profundidade is None else profundidade
+    excessos = []
+    if trabalho["execucoes"] != execucoes:
+        excessos.append(f"{trabalho['execucoes']} execuções do hook, e o corpus declara {execucoes}")
+    if execucoes != MEDIDA_DO_CORPUS["execucoes"]:
+        excessos.append(f"o corpus declara {execucoes} execuções, e a medida do teto é de {MEDIDA_DO_CORPUS['execucoes']}:"
+                        " meça de novo (CORPUS-CUSTO-CONTADOR) e troque MEDIDA_DO_CORPUS e RUIDO_DO_CORPUS")
+    for nome, ruido in RUIDO_DO_CORPUS.items():
+        if nome == "interpretador" and python != MEDIDA_DO_CORPUS["python"]:
+            continue
+        medida = MEDIDA_DO_CORPUS[nome]
+        if nome == "interpretador":
+            medida += PASSOS_POR_NIVEL_DO_TMP * (profundidade - MEDIDA_DO_CORPUS["profundidade_do_tmp"])
+            if trabalho["ambiente"] != MEDIDA_DO_CORPUS["variaveis_do_ambiente"]:
+                excessos.append(f"o hook viu {trabalho['ambiente']} variáveis no ambiente, e a medida é com "
+                                f"{MEDIDA_DO_CORPUS['variaveis_do_ambiente']}: o ambiente de quem roda passa delas")
+        teto = medida + ruido
+        if trabalho[nome] > teto:
+            excessos.append(f"{trabalho[nome]} {nome}, acima do teto de {teto} (medida {medida} mais o ruído {ruido})")
+    if trabalho["sono"] > 0:
+        excessos.append(f"{trabalho['sono']:.3f} s de sono pedidos pelo hook")
+    return excessos
+
+
 # LOTE-LEITURA-HOOK, volta única (docs/propostas/lote-leitura-hook-volta-unica.md, seções 3 a 5): o corpus das classes
 # R, N, S, H, V, L e F nos dois hooks, o oráculo das redireções (T6) e o enumerador de programas (T7). A marca `fecha`
 # de um caso é a regra (M1 a M5) em cujo commit ele passa a dar o resultado esperado: até lá o teste exige o resultado
@@ -162,6 +349,7 @@ class BaseVoltaUnica:
     executar_em_lote = Hooks.executar_em_lote
     _pasta_temporaria = Hooks._pasta_temporaria
     depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+    contador_de_trabalho = None  # `ContadorDeTrabalho` do teste de custo do corpus; sem ele, o hook roda sem contar
 
     def conferir_marca(self, fecha, passou, saida):
         """Sem marca, o caso tem de passar; com marca, tem de falhar (a regra da marca ainda não entrou)."""
@@ -174,8 +362,10 @@ class BaseVoltaUnica:
     def executar_fixture(self, f, tmp, outro_pid, montado=None):
         raiz, entrada = montado or f.montar(tmp, outro_pid)
         proc = montar_proc(tmp, None)
-        extra = {"FORGE_NPROC": "8"}
+        extra = {"FORGE_NPROC": "8", **(self.contador_de_trabalho.ambiente() if self.contador_de_trabalho else {})}
         f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
+        if f.dados.get("prazo_de_producao") and self.contador_de_trabalho:
+            extra = {"FORGE_NPROC": "8", **self.contador_de_trabalho.ambiente(interpretador=False)}
         r = rodar(f.hook, entrada, raiz, proc, extra, como_o_claude_code=bool(f.dados.get("prazo_de_producao")))
         codigo = f.dados["esperado"]["codigo"]
         if codigo == 0:
@@ -1187,3 +1377,43 @@ print(json.dumps(saida))
         finally:
             signal.setitimer(signal.ITIMER_REAL, 0)
             signal.signal(signal.SIGALRM, anterior)
+
+
+def nomes_do_executar(arvore):
+    """Os nomes que o import dá a `_comum.executar` num módulo: (apelidos da função, nomes do módulo `_comum`)."""
+    apelidos, modulos = {"executar"}, {"_comum"}
+    for no in ast.walk(arvore):
+        if isinstance(no, ast.ImportFrom) and no.module == "_comum":
+            apelidos |= {a.asname or a.name for a in no.names if a.name == "executar"}
+        elif isinstance(no, ast.Import):
+            modulos |= {a.asname or a.name for a in no.names if a.name == "_comum"}
+    return apelidos, modulos
+
+
+def chamadas_do_executar(arvore):
+    """As chamadas a `_comum.executar` num módulo, também pelos nomes que o import dá a ela: `from _comum import executar
+    as rodar` (apelido) e `import _comum as c` com `c.executar(...)` (atributo do módulo); o nome `executar` solto vale."""
+    apelidos, modulos = nomes_do_executar(arvore)
+    return [n for n in ast.walk(arvore) if isinstance(n, ast.Call)
+            and (isinstance(n.func, ast.Name) and n.func.id in apelidos
+                 or isinstance(n.func, ast.Attribute) and n.func.attr == "executar"
+                 and isinstance(n.func.value, ast.Name) and n.func.value.id in modulos)]
+
+
+def referencias_ao_executar_fora_de_chamada(arvore):
+    """Os nós que citam o `executar` de `_comum` sem ser a chamada direta: o nome ou o apelido solto (`x = executar`,
+    `partial(executar, ...)`), qualquer atributo `.executar` (`importlib.import_module("_comum").executar`) e a cadeia
+    `"executar"` (`getattr(c, "executar")`). Por essas formas o `relogio=` e o `armar=` passariam sem aparecer numa chamada."""
+    apelidos, _ = nomes_do_executar(arvore)
+    diretas = {id(n.func) for n in chamadas_do_executar(arvore)}
+    achadas = []
+    for no in ast.walk(arvore):
+        if id(no) in diretas:
+            continue
+        if isinstance(no, ast.Name) and no.id in apelidos:
+            achadas.append(no)
+        elif isinstance(no, ast.Attribute) and no.attr == "executar":
+            achadas.append(no)
+        elif isinstance(no, ast.Constant) and no.value == "executar":
+            achadas.append(no)
+    return achadas

@@ -1,0 +1,26 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O97",
+      "guarda": "U4: a aspa dupla abre e fecha a citação na palavra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            aspas, i = not aspas, i + 1",
+      "para": "            aspas, i = False, i + 1",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O98",
+      "guarda": "U4: a saída sozinha num componente nunca é o .git (não vira curinga)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"_\" if c == SEM_VALOR else",
+      "para": "\"_\" if False else",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

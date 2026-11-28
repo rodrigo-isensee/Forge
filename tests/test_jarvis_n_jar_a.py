@@ -10,12 +10,13 @@ from apoio_regra_id import RAIZ, ids, ler  # noqa: E402
 
 TETO = json.loads((RAIZ / "tests" / "config.json").read_text(encoding="utf-8"))["limite_linhas"]["agente"]
 REGRAS = {"skills/trabalho-em-paralelo/SKILL.md": {"R-FLUXO", "R-TETO", "R-WIP"},
-          "skills/falar-com-o-dono/SKILL.md": {"R-DECISAO", "R-CUSTO"}}
+          "skills/falar-com-o-dono/SKILL.md": {"R-DECISAO"},
+          "skills/falar-com-o-dono/pergunta-pendente.md": {"R-DECISAO", "R-CUSTO", "R-CONFORMIDADE"}}
 
 
 class TextoDoNJarA(unittest.TestCase):
     def test_as_skills_citam_as_regras_das_decisoes(self):
-        self.assertEqual(len(REGRAS), 2)
+        self.assertEqual(len(REGRAS), 3)
         for rel, esperadas in REGRAS.items():
             with self.subTest(arquivo=rel):
                 self.assertLessEqual(esperadas, ids(ler(rel)))

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0475-dir36",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "diretriz 36 (R-CONTRIB): `-c remote.*.url|pushurl` e `insteadOf` na linha entram no destino do envio",
+      "arquivo": "hooks/conformidade.py",
+      "de": "troca += [palavras[i + 1]] if CONFIG_DO_DESTINO.fullmatch(palavras[i + 1]) else []",
+      "para": "troca += [palavras[i + 1]] if CONFIG_DO_DESTINO.fullmatch(\"x\") else []",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "diretriz 36 (R-CONTRIB): git subtree push passa pelo envio",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif sub == \"subtree\" and args[:1] == [\"push\"]:",
+      "para": "elif sub == \"subtree\" and args[:1] == [\"push-x\"]:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "diretriz 36 (R-CONTRIB): git push --repo <url> é o repositório do envio",
+      "arquivo": "hooks/conformidade.py",
+      "de": "repo = a if pulo == \"--repo\" else repo",
+      "para": "repo = a if pulo == \"--repo-x\" else repo",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "diretriz 36 (R-CONTRIB): git push --repo=<url> é o repositório do envio",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif \"=\" in a and abreviacao_de(a, (\"--repo\",)):",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "diretriz 36 (R-CONTRIB): insteadOf na linha: o hook não confirma o destino e falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "duvida = next((c for c in troca if c.lower().startswith(\"url.\") or \"$\" in c",
+      "para": "duvida = next((c for c in troca if \"$\" in c",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "diretriz 36 (R-CONTRIB): `-c remote.<n>.url=<Forge>` na linha é envio ao Forge",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or parecer.aponta_para_o_forge(c.split(\"=\", 1)[1])",
+      "para": "or False",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "diretriz 36 (R-CONTRIB): o destino trocado na linha que aponta ao Forge, ou ilegível, é recusado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if duvida:  # na dúvida",
+      "para": "        if False:  # na dúvida",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "diretriz 36 (R-CONTRIB): git fetch com destino grava ref no clone do Forge",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or sub == \"fetch\" and any(",
+      "para": "or sub == \"fetch-x\" and any(",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    }
+  ]
+}

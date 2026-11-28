@@ -1,0 +1,30 @@
+{
+  "descricao": "PESADO-VERSOES-FORA-DA-FILA: o teste dirigido pelas opções da lista fechada segue leve com a trava ocupada.",
+  "config": {
+    "pesados": [
+      "bin/forge-testes"
+    ]
+  },
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_outro}",
+      "comando": "bin/forge-testes --completa",
+      "desde": "{agora-120}",
+      "tool_use_id": "toolu_1"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "bin/forge-testes --afetados --base origin/develop -k pesado"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "env": {
+    "FORGE_PESADO_ESPERA_S": "0"
+  }
+}

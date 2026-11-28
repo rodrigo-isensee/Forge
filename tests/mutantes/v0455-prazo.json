@@ -6,7 +6,7 @@
       "id": "P1",
       "guarda": "o prazo do merge é maior que o comum",
       "arquivo": "hooks/_comum.py",
-      "de": "PRAZO_DO_MERGE_S = 8.0",
+      "de": "PRAZO_DO_MERGE_S = 7.5",
       "para": "PRAZO_DO_MERGE_S = 3.0",
       "testes": [
         "tests.test_hooks.Hooks.test_prazo_do_merge",
@@ -70,24 +70,22 @@
     },
     {
       "id": "P7",
-      "guarda": "sem getitimer não se estende",
+      "guarda": "sem vigia armado (sem setitimer ou fora da thread principal) não se estende",
       "arquivo": "hooks/_comum.py",
-      "de": "    if not hasattr(signal, \"getitimer\") or signal.getitimer",
-      "para": "    if not (not hasattr(signal, \"getitimer\")) or signal.getitimer",
+      "de": "        yield False\n",
+      "para": "        yield True\n",
       "testes": [
-        "tests.test_hooks.Hooks.test_prazo_do_merge",
-        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_fora_da_thread_principal_o_vigia_nao_arma_nem_estende"
       ]
     },
     {
       "id": "P8",
       "guarda": "só o vigia armado se estende",
       "arquivo": "hooks/_comum.py",
-      "de": "signal.getitimer(signal.ITIMER_REAL)[0] <= 0:",
-      "para": "not (signal.getitimer(signal.ITIMER_REAL)[0] <= 0):",
+      "de": "                if armado and prazo_longo",
+      "para": "                if prazo_longo",
       "testes": [
-        "tests.test_hooks.Hooks.test_prazo_do_merge",
-        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_fora_da_thread_principal_o_vigia_nao_arma_nem_estende"
       ]
     },
     {
@@ -105,19 +103,20 @@
       "id": "P10",
       "guarda": "o alarme é rearmado com o prazo longo",
       "arquivo": "hooks/_comum.py",
-      "de": "    signal.setitimer(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S - (time.monotonic() - inicio), 0.001))",
-      "para": "    signal.setitimer(signal.ITIMER_REAL, max(PRAZO_DA_DECISAO_S - (time.monotonic() - inicio), 0.001))",
+      "de": "    armar(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S - (relogio() - inicio), 0.001))",
+      "para": "    armar(signal.ITIMER_REAL, max(PRAZO_DA_DECISAO_S - (relogio() - inicio), 0.001))",
       "testes": [
         "tests.test_hooks.Hooks.test_prazo_do_merge",
-        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
+        "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json",
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_s1_recusa_no_prazo_longo_libera_dentro_e_recusa_na_fronteira"
       ]
     },
     {
       "id": "P11",
-      "guarda": "o vigia arma com a regra e o marcador",
+      "guarda": "o vigia arma com a regra do prazo (com ou sem o marcador, VIGIA-AGENTES-PESADO)",
       "arquivo": "hooks/_comum.py",
-      "de": "        hook.prazo_s = PRAZO_DA_DECISAO_S if regra_do_prazo and critico is not None else None",
-      "para": "        hook.prazo_s = PRAZO_DA_DECISAO_S if not (regra_do_prazo and critico is not None) else None",
+      "de": "        hook.prazo_s = max(prazo_do_hook or 0, PRAZO_DA_DECISAO_S) if regra_do_prazo else None",
+      "para": "        hook.prazo_s = max(prazo_do_hook or 0, PRAZO_DA_DECISAO_S) if not regra_do_prazo else None",
       "testes": [
         "tests.test_hooks.Hooks.test_prazo_do_merge",
         "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"
@@ -127,8 +126,8 @@
       "id": "P12",
       "guarda": "o prazo longo só com o vigia e o regex",
       "arquivo": "hooks/_comum.py",
-      "de": "                if hook.prazo_s and prazo_longo is not None:",
-      "para": "                if not (hook.prazo_s and prazo_longo is not None):",
+      "de": "                if armado and prazo_longo is not None:",
+      "para": "                if not (armado and prazo_longo is not None):",
       "testes": [
         "tests.test_hooks.Hooks.test_prazo_do_merge",
         "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"

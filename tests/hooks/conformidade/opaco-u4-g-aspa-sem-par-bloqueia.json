@@ -1,0 +1,40 @@
+{
+  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO, redesenho da E1.322 (lista fechada dos comandos da linha, `linha_conhecida`): guarda: o corpo de `$(…)` que o shlex não lê (a aspa entre parênteses deixa o corte com aspa sem par) recusa.",
+  "arquivos": {
+    "x": "x\n",
+    "config": "c\n",
+    "pre-push": "p\n",
+    "lugar.txt": "docs\n",
+    "docs/a.md": "a\n",
+    "hooks/pre-push": "p\n",
+    "lugar2.txt": ".git/config\n",
+    "f.sh": "date(){ echo .git/config; }\n",
+    "g.sh": "echo(){ builtin printf .git/config; }\n",
+    "h.sh": "printf(){ builtin echo .git/config; }\n",
+    "e.sh": "echo(){ printf %s .git/config; }\n",
+    "d": "#!/bin/sh\necho .git/config\n",
+    "bin/date": "#!/bin/sh\necho .git/config\n",
+    "bin/echo": "#!/bin/sh\necho .git/config\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo a > \"$(date)\" \"$(echo ')')\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o hook só libera o valor que calcula"
+  }
+}

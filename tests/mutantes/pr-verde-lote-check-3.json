@@ -6,7 +6,7 @@
       "id": "M17",
       "guarda": "QA A1: sem a guarda, conflito em arquivo livre (parecer) no merge simulado invalidaria o parecer",
       "arquivo": "bin/forge-check",
-      "de": "            if livre(nome, ignorar):\n                continue\n",
+      "de": "            if not desatualiza(nome, ignorar):\n                continue\n",
       "para": "            if False:\n                continue\n",
       "testes": [
         "tests.test_forge.PrAposMergeDaBase.test_conflito_em_arquivo_livre_nao_invalida"

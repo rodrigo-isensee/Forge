@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O117",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): palavra da gramática mantém a posição de comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif p in PALAVRAS_DA_GRAMATICA:",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O118",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): `}`, `fi` e `done` fecham a posição de comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif p in FIM_DA_GRAMATICA:",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O119",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): `function` é palavra da gramática",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif p == \"function\":",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_d2b"
+      ]
+    },
+    {
+      "id": "O120",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): a atribuição na posição de comando não é comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif m := ATRIBUICAO.match(p):",
+      "para": "        elif False and (m := ATRIBUICAO.match(p)):",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O121",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): atribuição só de nome minúsculo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if not NOME_INOFENSIVO.fullmatch(m[\"nome\"]):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O122",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): comando fora da lista e das funções da linha recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif p in COMANDOS_INOFENSIVOS or p in funcoes:",
+      "para": "        elif True:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O123",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): a palavra que o hook não reconhece recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            return False\n    return all(linha_conhecida",
+      "para": "            pass\n    return all(linha_conhecida",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O124",
+      "guarda": "E1.322, lista fechada da linha (`linha_conhecida`): os comandos de dentro de `$(…)` e da crase passam pela lista",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return all(linha_conhecida(corpo, funcoes) for corpo in corpos_de_substituicao(texto))",
+      "para": "    return True",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

@@ -26,8 +26,8 @@
       "id": "M112",
       "guarda": "o arquivo de shell sai nao coberto pelo nome",
       "arquivo": "bin/forge-mutante",
-      "de": "saida.append(f\"não coberto: {arquivo}\")\n                continue",
-      "para": "saida.append(f\"coberto: {arquivo}\")\n                continue",
+      "de": "por_arquivo.append(([f\"não coberto: {arquivo}\"], {}))",
+      "para": "por_arquivo.append(([f\"coberto: {arquivo}\"], {}))",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_arquivo_de_shell_sai_nao_coberto_uma_vez_sem_olhar_a_linha"
       ]
@@ -36,8 +36,8 @@
       "id": "M113",
       "guarda": "o arquivo de shell nao segue para a analise linha a linha",
       "arquivo": "bin/forge-mutante",
-      "de": "saida.append(f\"não coberto: {arquivo}\")\n                continue",
-      "para": "saida.append(f\"não coberto: {arquivo}\")\n                pass",
+      "de": "[f\"não coberto: {arquivo}\"], {}))\n                continue",
+      "para": "[f\"não coberto: {arquivo}\"], {}))\n                pass",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_arquivo_de_shell_sai_nao_coberto_uma_vez_sem_olhar_a_linha"
       ]
@@ -49,7 +49,7 @@
       "de": "if soltas:",
       "para": "if not soltas:",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_para_arquivo_de_shell_e_solta_e_sai_2"
+        "tests.test_forge_mutante.Cobertura.test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1"
       ]
     }
   ]

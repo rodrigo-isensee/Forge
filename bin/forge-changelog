@@ -5,6 +5,8 @@ Uso: forge-changelog novo <Adicionado|Alterado|Corrigido> "<texto>"   grava em c
      forge-changelog release <versão> <data>                          junta os fragmentos em CHANGELOG.md, os apaga e grava a versão
                                                                       nos plugin.json (raiz e dev/, se existirem); no clone
                                                                       do Forge, imprime a medida da versão (placar e bench)
+     forge-changelog release --anexar <versão>                        junta os fragmentos à entrada já existente da versão,
+                                                                      na seção de cada tipo, e os apaga (reabrir a versão)
      forge-changelog conferir-release                                 gate da main: sobrou fragmento em changelog.d/?
      forge-changelog conferir --base REF [--branch=B]                 checagem do CI: o PR deixou entrada de changelog?
                                                                       Em melhoria/*, fragmento novo tem o nome da branch
@@ -176,15 +178,30 @@ def gravar_versao(manifestos):
 
 
 def release(args):
+    if args.anexar:
+        if args.versao or args.data:
+            sys.exit("Com --anexar, só a versão: forge-changelog release --anexar <versão>.")
+        anexar(args.anexar)
+        return
+    if not args.versao or not args.data:
+        sys.exit("Uso: forge-changelog release <versão> <data> (ou release --anexar <versão>).")
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.versao):
         sys.exit("Versão no formato X.Y.Z.")
+    maior, menor, patch = (int(n) for n in args.versao.split("."))
+    if patch > 9:
+        sys.exit(f"Versão {args.versao} recusada: o patch vai até 9 (VERSAO-PATCH-ATE-9); depois de {maior}.{menor}.9 "
+                 f"vem {maior}.{menor + 1}.0. Nada foi gravado.")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", args.data):
         sys.exit("Data no formato AAAA-MM-DD.")
     caminho = Path("CHANGELOG.md")
     conferir_caminho(caminho, "CHANGELOG.md", Path.cwd().resolve())
     texto = caminho.read_text(encoding="utf-8")
     if re.search(rf"^## \[{re.escape(args.versao)}\]", texto, re.M):
-        sys.exit(f"CHANGELOG.md já tem a versão {args.versao}.")
+        sys.exit(f"CHANGELOG.md já tem a versão {args.versao} (entrada '## [{args.versao}]'); nada foi gravado. Por quê: a "
+                 "release abre uma entrada nova, e uma segunda entrada da mesma versão deixaria o changelog ambíguo para a "
+                 "tag e a release. Como destravar: fragmento que chegou depois da versão fechada vai para a entrada "
+                 f"existente com `bin/forge-changelog release --anexar {args.versao}`; mudança de versão nova pede outro "
+                 "número X.Y.Z, ainda sem entrada no CHANGELOG.md.")
     m = SECAO_NAO_PUBLICADO.search(texto)
     if not m:
         sys.exit("CHANGELOG.md sem a seção '## [Não publicado]'.")
@@ -212,14 +229,64 @@ def release(args):
     avisar_medidas(Path.cwd(), args.versao)
 
 
+def anexar_por_tipo(linhas, agrupado):
+    """Põe as linhas de cada tipo no fim da seção `### <tipo>` da entrada; sem a seção, cria-a na ordem de TIPOS."""
+    for tipo in TIPOS:
+        if not agrupado[tipo]:
+            continue
+        cabecalhos = [(i, m.group(1)) for i, l in enumerate(linhas) if (m := re.fullmatch(r"### (\w+)\s*", l))]
+        mesmo = [i for i, t in cabecalhos if t == tipo]
+        if mesmo:
+            fim = next((i for i, _ in cabecalhos if i > mesmo[0]), len(linhas))
+            while fim > mesmo[0] + 1 and not linhas[fim - 1].strip():
+                fim -= 1
+            linhas[fim:fim] = agrupado[tipo]
+        else:
+            depois = [i for i, t in cabecalhos if t in TIPOS and TIPOS.index(t) > TIPOS.index(tipo)]
+            pos = depois[0] if depois else len(linhas)
+            linhas[pos:pos] = [f"### {tipo}", *agrupado[tipo]]
+    return linhas
+
+
+def anexar(versao):
+    """`release --anexar`: junta os fragmentos à entrada `## [versao]` que já está no CHANGELOG.md e os apaga. Não mexe
+    nos manifestos (a versão já foi gravada) nem em `[Não publicado]`; recusa versão que não está no CHANGELOG."""
+    if not re.fullmatch(r"\d+\.\d+\.\d+", versao):
+        sys.exit("Versão no formato X.Y.Z.")
+    caminho = Path("CHANGELOG.md")
+    conferir_caminho(caminho, "CHANGELOG.md", Path.cwd().resolve())
+    texto = caminho.read_text(encoding="utf-8")
+    m = re.search(rf"^## \[{re.escape(versao)}\][^\n]*\n(.*?)(?=^## |\Z)", texto, re.M | re.S)
+    if not m:
+        sys.exit(f"CHANGELOG.md não tem a versão {versao}; para uma versão nova, use release <versão> <data>.")
+    conferir_pasta_de_fragmentos()
+    arquivos = fragmentos()
+    if not arquivos:
+        sys.exit(f"Nada a anexar: sem fragmentos em {PASTA}/.")
+    agrupado = {t: [] for t in TIPOS}
+    for a in arquivos:
+        for tipo, linhas in ler_fragmento(a.read_text(encoding="utf-8"), str(a)).items():
+            agrupado[tipo].extend(linhas)
+    corpo = m.group(1)
+    sobra = corpo[len(corpo.rstrip("\n")):]
+    linhas = anexar_por_tipo(corpo.rstrip("\n").split("\n") if corpo.strip() else [], agrupado)
+    caminho.write_text(texto[:m.start(1)] + "\n".join(linhas) + (sobra or "\n") + texto[m.end(1):], encoding="utf-8")
+    for a in arquivos:
+        a.unlink()
+    print(f"[{versao}]: {len(arquivos)} fragmento(s) anexado(s) à entrada existente e apagado(s)")
+
+
 def avisar_medidas(raiz, versao):
     """v046 E7 (decisão do dono de 12/11): o placar de mutação (M-5) e o bench (BENCH-POR-RELEASE) rodam uma vez por
     versão, aqui na release, nunca no PR. Só no clone do Forge, onde mora o placar; só avisa, nunca muda a saída."""
     if not (raiz / "scripts" / "placar-mutacao.py").is_file():
         return
-    tag = subprocess.run(["git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*"], cwd=raiz,
-                         capture_output=True, text=True)
-    anterior = shlex.quote(tag.stdout.strip()) if tag.returncode == 0 and tag.stdout.strip() else "<tag da release anterior>"
+    # PLACAR-DESDE-MARCA (v0478 E138.3): a janela começa na marca anterior, o último commit do HEAD que mudou a versão do
+    # manifesto; a tag só entra se está nesse commit (na develop, a tag fica no merge da main, fora do histórico).
+    rodar = lambda *args: subprocess.run(["git", *args], cwd=raiz, capture_output=True, text=True).stdout.split()
+    marca = rodar("log", "-1", "--format=%H", "-G", '"version"', "HEAD", "--", ".claude-plugin/plugin.json")
+    tags = rodar("tag", "--points-at", marca[0], "--sort=-v:refname", "--list", "v[0-9]*") if marca else []
+    anterior = shlex.quote((tags or marca)[0]) if tags or marca else "<marca da release anterior>"
     print(f"medida da versão {versao} (uma vez por versão, não é portão; R-TETO):")
     print(f"  placar: scripts/placar-mutacao.py --desde {anterior} --versao {versao} (docs/engineering/placar-mutacao.md)")
     print(f"  bench: a linha da {versao} em bench-versoes.md e metricas-velocidade.md, na área do Jarvis")
@@ -331,8 +398,9 @@ def main():
     p.add_argument("texto")
     p.set_defaults(f=novo)
     p = sub.add_parser("release")
-    p.add_argument("versao")
-    p.add_argument("data")
+    p.add_argument("versao", nargs="?", default="")
+    p.add_argument("data", nargs="?", default="")
+    p.add_argument("--anexar", default="", metavar="VERSAO")
     p.set_defaults(f=release)
     p = sub.add_parser("conferir")
     p.add_argument("--base", required=True)

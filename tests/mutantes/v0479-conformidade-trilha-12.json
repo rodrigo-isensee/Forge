@@ -1,0 +1,46 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Z1",
+      "guarda": "a barra com quebra de linha é juntada antes de procurar o controle (E63.9, A1 do review)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        texto = juntar_continuacoes(linha) if \"\\\\\\n\" in linha else linha\n",
+      "para": "        texto = juntar_continuacoes(linha) if False else linha\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "Z2",
+      "guarda": "o nome atribuído a dois valores não vale como literal (E63.9, A12)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return usos[0][1:] if usos and len(set(usos)) == 1 and usos[0] else None\n",
+      "para": "    return usos[0][1:] if usos and usos[0] else None\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "Z3",
+      "guarda": "o nome que a linha não atribui conta como `/dev/` (E63.9, A12)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    nome = re.sub(r\"\\$([A-Za-z_]\\w*)\", lambda m: literal_atribuido(m.group(1), linha) or \"/dev/\", alvo.valor)\n",
+      "para": "    nome = re.sub(r\"\\$([A-Za-z_]\\w*)\", lambda m: literal_atribuido(m.group(1), linha) or \"\", alvo.valor)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "Z4",
+      "guarda": "o `$` que sobra (`$1`, `$?`) não é arquivo (E63.9, A12)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return \"$\" not in nome and not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()\n",
+      "para": "    return not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    }
+  ]
+}

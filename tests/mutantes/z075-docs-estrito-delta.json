@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "estrito em todos os documentos (fora do delta também)",
       "arquivo": "bin/forge-check",
-      "de": "estrito=rel in (delta or ())",
-      "para": "estrito=True",
+      "de": "estrito = rel in (delta or ())",
+      "para": "estrito = True",
       "testes": [
         "tests.test_volta_por_delta.DocsEstritoNoDelta.test_parecer_antigo_fora_do_delta_no_formato_antigo_passa"
       ]
@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "estrito em nenhum documento (o delta não chega ao validar_documento)",
       "arquivo": "bin/forge-check",
-      "de": "estrito=rel in (delta or ())",
-      "para": "estrito=False",
+      "de": "estrito = rel in (delta or ())",
+      "para": "estrito = False",
       "testes": [
         "tests.test_volta_por_delta.DocsEstritoNoDelta.test_parecer_novo_commitado_ou_nao_reprova_com_achado_acima_do_teto"
       ]
@@ -26,7 +26,7 @@
       "id": "M3",
       "guarda": "delta pelo HEAD~1 no lugar do merge-base com a origin/develop",
       "arquivo": "bin/forge-check",
-      "de": "\"--merge-base\", \"origin/develop\", \"--\", bruto=True)",
+      "de": "\"--merge-base\", base, \"--\", bruto=True)",
       "para": "\"HEAD~1\", \"--\", bruto=True)",
       "testes": [
         "tests.test_volta_por_delta.DocsEstritoNoDelta.test_parecer_novo_commitado_ou_nao_reprova_com_achado_acima_do_teto"
@@ -76,8 +76,8 @@
       "id": "M8",
       "guarda": "sem a base sai o aviso no stderr",
       "arquivo": "bin/forge-check",
-      "de": "    if delta is None:\n        print(\"aviso: docs: base ilegível",
-      "para": "    if False:\n        print(\"aviso: docs: base ilegível",
+      "de": "        if delta is None:\n            print(\"aviso: docs: base ilegível",
+      "para": "        if False:\n            print(\"aviso: docs: base ilegível",
       "testes": [
         "tests.test_volta_por_delta.DocsEstritoNoDelta.test_sem_origin_develop_avisa_e_segue_o_modo_de_hoje"
       ]

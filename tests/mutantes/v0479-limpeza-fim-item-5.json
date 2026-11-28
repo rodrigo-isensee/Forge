@@ -1,0 +1,47 @@
+{
+  "pedido": "v0479-limpeza-fim-item",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M28",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM (E68.12): --limpar sem prova de fim do item recusa como antes",
+      "arquivo": "bin/forge-fechar",
+      "de": "    fim_sem_merge || die \"parou no --limpar: sem prova de merge: nenhum PR MERGED",
+      "para": "    true || die \"parou no --limpar: sem prova de merge: nenhum PR MERGED",
+      "testes": [
+        "tests.test_fechar.Fechar.test_c3_limpar_sem_prova_de_pr_merged_recusa_e_nao_apaga_nada",
+        "tests.test_forge_fechar.LimparSemMerge.test_sem_pr_e_sem_vazio_sim_recusa_como_antes_e_a_copia_fica"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM (E68.12): só PR CLOSED do próprio repositório é prova",
+      "arquivo": "bin/forge-fechar",
+      "de": "awk '$2==\"CLOSED\" && $5==\"false\" {f=1} END {exit !f}' && return 0",
+      "para": "awk '$2==\"CLOSED\" {f=1} END {exit !f}' && return 0",
+      "testes": [
+        "tests.test_forge_fechar.LimparSemMerge.test_pr_fechado_de_fork_nao_e_prova_e_a_copia_fica"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM (E68.12): forge-check vazio que falha não é prova",
+      "arquivo": "bin/forge-fechar",
+      "de": "--base \"$base\" 2>/dev/null)\" || return 1",
+      "para": "--base \"$base\" 2>/dev/null)\" || true",
+      "testes": [
+        "tests.test_forge_fechar.LimparSemMerge.test_forge_check_vazio_que_falha_nao_e_prova"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM (E68.12): só `vazio: sim` é prova",
+      "arquivo": "bin/forge-fechar",
+      "de": "  [ \"${v#vazio: sim}\" != \"$v\" ]",
+      "para": "  [ -n \"$v\" ]",
+      "testes": [
+        "tests.test_forge_fechar.LimparSemMerge.test_vazio_nao_recusa_como_antes_e_a_copia_fica"
+      ]
+    }
+  ]
+}

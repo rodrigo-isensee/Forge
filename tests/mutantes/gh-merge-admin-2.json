@@ -56,8 +56,8 @@
       "id": "G17",
       "guarda": "o -R sem valor no fim da linha não quebra o leitor",
       "arquivo": "hooks/parecer.py",
-      "de": "repo_pr, j = (toks[j + 1] if j + 1 < len(toks) else None), j + 2",
-      "para": "repo_pr, j = toks[j + 1], j + 2",
+      "de": "repo_pr = toks[j + 1] if j + 1 < len(toks) else None",
+      "para": "repo_pr = toks[j + 1]",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
@@ -106,8 +106,8 @@
       "id": "G22",
       "guarda": "o valor do -R entre pr e o subcomando é lido quando existe",
       "arquivo": "hooks/parecer.py",
-      "de": "repo_pr, j = (toks[j + 1] if j + 1 < len(toks) else None), j + 2",
-      "para": "repo_pr, j = (toks[j + 1] if False else None), j + 2",
+      "de": "repo_pr = toks[j + 1] if j + 1 < len(toks) else None",
+      "para": "repo_pr = toks[j + 1] if False else None",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]

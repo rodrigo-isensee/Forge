@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "o Base-sha como Desde deixa de valer e a entrega sem conferida volta a travar",
       "arquivo": "bin/forge-check",
-      "de": "if desde_e_a_base(raiz, texto, desde, base_sha, head):",
-      "para": "if False:",
+      "de": "if desde_e_a_base(raiz, texto, desde, base_sha, head, base_ref):  # P-N1: o intervalo",
+      "para": "if False:  # P-N1: o intervalo",
       "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_sem_conferida_o_base_sha_vale_como_a_branch_inteira"]
     },
     {
@@ -22,41 +22,25 @@
       "id": "M3",
       "guarda": "o Base-sha vale como Desde mesmo com a ultima conferida ancestral do head",
       "arquivo": "bin/forge-check",
-      "de": "not (conferidas and e_ancestral(raiz, conferidas[-1], head))",
-      "para": "True",
+      "de": "return not da_branch and e_ancestral(raiz, base_sha, head)",
+      "para": "return True and e_ancestral(raiz, base_sha, head)",
       "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_com_conferida_no_historico_o_base_sha_segue_recusado"]
     },
     {
       "id": "M4",
       "guarda": "a branch que nao nasce do Base-sha passa a aceitar o Base-sha como Desde",
       "arquivo": "bin/forge-check",
-      "de": "and e_ancestral(raiz, base_sha, head))",
-      "para": "and True)",
+      "de": "return not da_branch and e_ancestral(raiz, base_sha, head)",
+      "para": "return not da_branch and True",
       "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_branch_que_nao_nasce_do_base_sha_segue_recusada"]
-    },
-    {
-      "id": "M5",
-      "guarda": "decide a primeira conferida do Historico, nao a ultima, e a branch nova depois do squash volta a travar",
-      "arquivo": "bin/forge-check",
-      "de": "e_ancestral(raiz, conferidas[-1], head)",
-      "para": "e_ancestral(raiz, conferidas[0], head)",
-      "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_conferida_de_branch_anterior_fora_do_head_aceita_o_base_sha"]
     },
     {
       "id": "M6",
       "guarda": "a linha da base fixada pelo dono passa a contar como conferida",
       "arquivo": "bin/forge-check",
-      "de": "for c, o in bases_do_pedido(texto) if o == \"conferida\"]",
-      "para": "for c, o in bases_do_pedido(texto) if True]",
+      "de": "if o == \"conferida\" and e_ancestral(raiz, c, head) and not ja_na_base(raiz, c, base_sha, base_ref)]",
+      "para": "if True and e_ancestral(raiz, c, head) and not ja_na_base(raiz, c, base_sha, base_ref)]",
       "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_conferida_de_branch_anterior_fora_do_head_aceita_o_base_sha"]
-    },
-    {
-      "id": "M7",
-      "guarda": "sem conferida no Historico a mensagem passa a emitir o Base-sha no lugar da base fixada pelo dono",
-      "arquivo": "bin/forge-check",
-      "de": "squash = (any(o == \"conferida\" for _, o in bases)",
-      "para": "squash = (True",
-      "testes": ["tests.test_mensagem_conferente.DesdeNaBranchNova.test_sem_conferida_fica_o_comportamento_de_hoje"]
     },
     {
       "id": "M8",
@@ -70,16 +54,16 @@
       "id": "M9",
       "guarda": "a mensagem le a ancestralidade na raiz, nao na worktree da entrega",
       "arquivo": "bin/forge-check",
-      "de": "base_sha_como_desde(a.worktree,",
-      "para": "base_sha_como_desde(raiz,",
+      "de": "escolhido = desde_da_branch(a.worktree,",
+      "para": "escolhido = desde_da_branch(raiz,",
       "testes": ["tests.test_mensagem_conferente.DesdeNaBranchNova.test_conferida_fora_do_head_da_o_base_sha"]
     },
     {
       "id": "M10",
       "guarda": "o entrega aceita o Base-sha como Desde mesmo com a ultima conferida ancestral do head",
       "arquivo": "bin/forge-check",
-      "de": "and base_sha_como_desde(raiz, texto, base_sha, head)",
-      "para": "and True",
+      "de": "return desde == base_sha and base_sha_como_desde(raiz, texto, base_sha, head, base_ref)",
+      "para": "return desde == base_sha and True",
       "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_com_conferida_no_historico_o_base_sha_segue_recusado"]
     }
   ]

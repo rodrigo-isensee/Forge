@@ -96,8 +96,8 @@
       "id": "M10",
       "guarda": "O4: palavra solta nunca vale para irreversivel",
       "arquivo": "bin/forge_dono.py",
-      "de": "        elif \"[irreversível]\" in questoes[n]",
-      "para": "        elif \"[irreversível]\" not in questoes[n]",
+      "de": "elif \"irreversivel\" in marcas(",
+      "para": "elif \"irreversivel\" not in marcas(",
       "testes": [
         "tests.test_forge_dono.Resposta.test_palavra_solta_aprova_a_recomendada_e_nunca_a_irreversivel"
       ]

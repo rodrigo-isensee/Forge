@@ -46,8 +46,8 @@
       "id": "B5",
       "guarda": "espera que não é texto é erro",
       "arquivo": "tests/bancada/bancada.py",
-      "de": "        if \"espera\" in caso and not isinstance(caso[\"espera\"], str):",
-      "para": "        if False:",
+      "de": "if \"espera\" in caso and not (isinstance(caso[\"espera\"], str) and all(alternativas(caso[\"espera\"]))):",
+      "para": "if False:",
       "testes": [
         "tests.test_bancada.Bancada.test_validacao_recusa_forma_errada"
       ]
@@ -127,8 +127,8 @@
       "id": "B13",
       "guarda": "ok diz se a resposta contém a espera",
       "arquivo": "tests/bancada/bancada.py",
-      "de": "ok = caso[\"espera\"] in resposta if",
-      "para": "ok = caso[\"espera\"] not in resposta if",
+      "de": "ok = atende(caso[\"espera\"], resposta) if",
+      "para": "ok = not atende(caso[\"espera\"], resposta) if",
       "testes": [
         "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera"
       ]
@@ -137,8 +137,8 @@
       "id": "B14",
       "guarda": "ok só é medido quando o caso tem espera",
       "arquivo": "tests/bancada/bancada.py",
-      "de": "in resposta if \"espera\" in caso else None",
-      "para": "in resposta if \"espera\" not in caso else None",
+      "de": "resposta) if \"espera\" in caso else None",
+      "para": "resposta) if \"espera\" not in caso else None",
       "testes": [
         "tests.test_bancada.Bancada.test_executar_mede_tokens_tempo_e_espera"
       ]

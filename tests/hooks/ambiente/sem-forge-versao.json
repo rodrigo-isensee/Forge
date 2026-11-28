@@ -1,0 +1,17 @@
+{
+  "descricao": "Projeto sem .forge/versao: o ambiente não age e não escreve nada no contexto do SessionStart.",
+  "forge": false,
+  "arquivos": {
+    ".claude/settings.json": "{}\n"
+  },
+  "entrada": {
+    "hook_event_name": "SessionStart",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "source": "startup"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

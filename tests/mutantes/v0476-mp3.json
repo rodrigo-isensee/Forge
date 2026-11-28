@@ -1,0 +1,88 @@
+{
+  "pedido": "v0476-mp3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "T1",
+      "guarda": "MP3: uso da máquina que não é objeto levanta",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if not isinstance(dados, dict):\n        raise Ilegivel(nome)",
+      "para": "    if False:\n        raise Ilegivel(nome)",
+      "testes": [
+        "tests.test_maquina_teto.FalhaFechada.test_registro_ou_uso_fora_da_forma_levanta"
+      ]
+    },
+    {
+      "id": "T2",
+      "guarda": "MP3: `sessoes` que não é objeto levanta",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if not isinstance(sessoes, dict):\n        raise Ilegivel(_maquina.ATIVOS)",
+      "para": "    if False:\n        raise Ilegivel(_maquina.ATIVOS)",
+      "testes": [
+        "tests.test_maquina_teto.FalhaFechada.test_registro_ou_uso_fora_da_forma_levanta"
+      ]
+    },
+    {
+      "id": "T3",
+      "guarda": "MP3: peso acima do máximo vale 1",
+      "arquivo": "hooks/agentes.py",
+      "de": "and 0 < valor <= PESO_MAXIMO else 1.0",
+      "para": "and 0 < valor else 1.0",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_o_peso_muda_a_parte"
+      ]
+    },
+    {
+      "id": "T4",
+      "guarda": "MP3: entrada de projeto que não é objeto levanta",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if not isinstance(entrada, dict):\n        raise Ilegivel(USO_DA_MAQUINA)",
+      "para": "    if False:\n        raise Ilegivel(USO_DA_MAQUINA)",
+      "testes": [
+        "tests.test_maquina_teto.FalhaFechada.test_registro_ou_uso_fora_da_forma_levanta"
+      ]
+    },
+    {
+      "id": "T5",
+      "guarda": "MP3: uso negativo ou booleano e espera fora da forma levantam",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if isinstance(uso, bool) or not isinstance(uso, int) or uso < 0 or not (espera is None or isinstance(espera, (int, float))):",
+      "para": "    if not isinstance(uso, int):",
+      "testes": [
+        "tests.test_maquina_teto.FalhaFechada.test_registro_ou_uso_fora_da_forma_levanta"
+      ]
+    },
+    {
+      "id": "T6",
+      "guarda": "MP3: máquina cheia com dois ou mais projetos recusa",
+      "arquivo": "hooks/agentes.py",
+      "de": "            if outros and ocupadas >= total:",
+      "para": "            if outros and ocupadas > total:",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_dois_ativos_um_parado_o_outro_usa_quase_tudo",
+        "tests.test_maquina_teto.QuatroCasos.test_o_parado_volta_e_ganha_a_proxima_vaga"
+      ]
+    },
+    {
+      "id": "T7",
+      "guarda": "MP3: só quem está dentro da parte deixa a espera",
+      "arquivo": "hooks/agentes.py",
+      "de": "espera = self.agora if meu < minha else None",
+      "para": "espera = self.agora if meu <= minha else None",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_na_parte_e_com_a_maquina_cheia_nao_deixa_espera"
+      ]
+    },
+    {
+      "id": "T8",
+      "guarda": "MP3: acima da parte, a espera de um credor recusa o disparo novo",
+      "arquivo": "hooks/agentes.py",
+      "de": "            elif outros and meu >= minha and credores:",
+      "para": "            elif outros and meu > minha and credores:",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_o_parado_volta_e_ganha_a_proxima_vaga",
+        "tests.test_maquina_teto.QuatroCasos.test_so_quem_esta_abaixo_da_parte_cobra_a_vaga"
+      ]
+    }
+  ]
+}

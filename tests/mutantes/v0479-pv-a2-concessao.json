@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PV-A2 (ADR 0018, Emenda PR-VERDE E1): o alvo item: passa pela conferência do item",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if campos[\"Alvos\"].startswith(\"item:\"):\n        achados += do_item(campos, corpo)",
+      "para": "    if False:\n        achados += do_item(campos, corpo)",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_abreviado_ausente_ramo_fora_da_forma_ou_ato_errado_e_adulterada"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "PV-A2 (E1): o alvo item: só serve ao ato do rótulo",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(campos[\"Ato\"] != \"rotulo-afrouxa-regra\", \"Ato do alvo item:",
+      "para": "(False, \"Ato do alvo item:",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_abreviado_ausente_ramo_fora_da_forma_ou_ato_errado_e_adulterada"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "PV-A2 (E1): Commit abreviado ou ausente é adulterada",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(not SHA40.fullmatch(campos.get(\"Commit\", \"\")),",
+      "para": "(False,",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_abreviado_ausente_ramo_fora_da_forma_ou_ato_errado_e_adulterada"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "PV-A2 (E1): Ramo fora da forma (opção do git, `..`, ausente) é adulterada",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(not RAMO.fullmatch(ramo), \"Ramo fora da forma\")",
+      "para": "(False, \"Ramo fora da forma\")",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_abreviado_ausente_ramo_fora_da_forma_ou_ato_errado_e_adulterada"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "PV-A2 (ADR 0018 A2): ativa só com item <CARTAO> na frase do ato",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(ativa and not no_ato,",
+      "para": "(False,",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_alvo_sem_marcador_fora_da_frase_ou_com_ressalva_nao_nasce_ativa"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "PV-A2 (item 5): palavra fora do vocabulário fechado não nasce ativa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(ativa and bool(fora),",
+      "para": "(False,",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_alvo_sem_marcador_fora_da_frase_ou_com_ressalva_nao_nasce_ativa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "PV-A2: git que falha vale como None (falha fechada)",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    return r.stdout if r.returncode == 0 else None",
+      "para": "    return r.stdout",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "PV-A2 (E1): Ramo sem ref no clone não ativa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if not ponta:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa"
+      ]
+    }
+  ]
+}

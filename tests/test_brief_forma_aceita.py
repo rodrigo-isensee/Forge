@@ -32,6 +32,16 @@ class FormasNoBrief(Base):
             self.assertIn(comando, saida)
         self.assertNotIn("--is-ancestor", saida)  # brief de código não traz o merge (tests/test_volta_por_delta.py)
 
+    def test_brief_traz_a_forma_do_heredoc_do_hook(self):  # E3.50: o texto único do hook, sem reescrita no brief
+        sys.path.insert(0, str(HOOKS))
+        try:
+            import _comum
+        finally:
+            sys.path.remove(str(HOOKS))
+        rc, saida = self.gerar("dev-exemplo", "--cobre", "E1.1", "--branch", "melhoria/x")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"- commit com mensagem em heredoc ({_comum.FORMA_DO_HEREDOC}):\n```\n", saida)
+
     def test_brief_de_review_nao_traz_a_secao(self):
         rc, saida = self.gerar("revisor-exemplo", "--cobre", "E1.2", "--etapa", "review", "--branch", "melhoria/x")
         self.assertEqual(rc, 0, saida)

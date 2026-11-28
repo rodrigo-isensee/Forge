@@ -16,20 +16,10 @@
       "id": "M2",
       "guarda": "FECHAR-REF-POR-NOME: sem a branch local o forge-check segue pelo sha do servidor",
       "arquivo": "bin/forge-fechar",
-      "de": "  ref_check=\"$sha_conferido\"\nfi",
-      "para": "  ref_check=\"$ref\"\nfi",
+      "de": "    ref_check=\"$sha_conferido\"\n  else",
+      "para": "    ref_check=\"$ref\"\n  else",
       "testes": [
         "tests.test_fechar_ref_por_nome.FecharRefPorNome.test_sem_branch_local_segue_pelo_sha_do_servidor"
-      ]
-    },
-    {
-      "id": "M3",
-      "guarda": "FECHAR-REF-POR-NOME: o dry-run sem branch local mostra o sha nao lido, nao o nome",
-      "arquivo": "bin/forge-fechar",
-      "de": "ref_dry=\"$sha_dry\"; }",
-      "para": "ref_dry=\"$ref\"; }",
-      "testes": [
-        "tests.test_fechar.Fechar.test_dry_run_sem_branch_local_marca_o_sha_como_nao_lido"
       ]
     },
     {
@@ -44,10 +34,10 @@
     },
     {
       "id": "M5",
-      "guarda": "FECHAR-REF-POR-NOME: o dry-run com a branch local mostra refs/heads/<branch>",
+      "guarda": "FECHAR-REF-POR-NOME: o passo 1 do dry-run mostra refs/heads/<branch>, nao o nome curto",
       "arquivo": "bin/forge-fechar",
-      "de": "  ref_dry=\"refs/heads/$ref\"\n",
-      "para": "  ref_dry=\"$ref\"\n",
+      "de": "passo 1 \"$check pr $pedido --ref refs/heads/$ref --base $base\"",
+      "para": "passo 1 \"$check pr $pedido --ref $ref --base $base\"",
       "testes": [
         "tests.test_fechar_ref_por_nome.FecharRefPorNome.test_dry_run_descreve_o_nome"
       ]

@@ -1,0 +1,19 @@
+{
+  "descricao": "M4.2 da F1 (C1b): comentário em PR por gh api grava pelo terminal o que só o `publicar` grava; o comentário comum vai pelo `gh pr comment`.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api repos/o/r/issues/3/comments -f body=oi"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: gh api que grava status ou comentário no PR pelo terminal (M4.2)"
+  }
+}

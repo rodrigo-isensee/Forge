@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S177",
+      "guarda": "forge_sempre_atual.py:883 decide por `m[3][\"escopo\"] == \"user\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "onde = \", \".join(dict.fromkeys(\"usuário\" if m[3][\"escopo\"] == \"user\" else os.path.basename(m[3][\"projeto\"]) for m in atualizados))",
+      "para": "onde = \", \".join(dict.fromkeys(\"usuário\" if not (m[3][\"escopo\"] == \"user\") else os.path.basename(m[3][\"projeto\"]) for m in atualizados))",
+      "testes": [
+        "tests.test_sempre_atual.RamosSemMundo.test_linha_de_cada_mensagem"
+      ]
+    },
+    {
+      "id": "S178",
+      "guarda": "forge_sempre_atual.py:885 decide por `any(r[\"resultado\"].startswith(\"adiado:\") for r in self.res.values())`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if any(r[\"resultado\"].startswith(\"adiado:\") for r in self.res.values()):",
+      "para": "if not (any(r[\"resultado\"].startswith(\"adiado:\") for r in self.res.values())):",
+      "testes": [
+        "tests.test_sempre_atual.RamosSemMundo.test_linha_de_cada_mensagem"
+      ]
+    },
+    {
+      "id": "S179",
+      "guarda": "forge_sempre_atual.py:891 decide por `not self.abrir_estado()`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not self.abrir_estado():",
+      "para": "if self.abrir_estado():",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S180",
+      "guarda": "forge_sempre_atual.py:897 decide por `trava is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "trava = self.travar()\n        if trava is None:\n            return 0",
+      "para": "trava = self.travar()\n        if not (trava is None):\n            return 0",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S181",
+      "guarda": "forge_sempre_atual.py:904 decide por `e[\"chave\"] not in self.res`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.falhar([e for e in self.escopos if e[\"chave\"] not in self.res], \"prazo\", \"orçamento da rodada esgotado\")",
+      "para": "self.falhar([e for e in self.escopos if not (e[\"chave\"] not in self.res)], \"prazo\", \"orçamento da rodada esgotado\")",
+      "testes": [
+        "tests.test_sempre_atual.FalhaDentro.test_prazo_estourado_mata_o_filho_e_segue"
+      ]
+    },
+    {
+      "id": "S182",
+      "guarda": "forge_sempre_atual.py:905 decide por `not self.escopos`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.falhar([e for e in self.escopos if e[\"chave\"] not in self.res], \"prazo\", \"orçamento da rodada esgotado\")\n                if not self.escopos:\n                    self.extras.append((\"-\", \"-\", \"-\", \"-\", \"falhou:prazo\"))",
+      "para": "self.falhar([e for e in self.escopos if e[\"chave\"] not in self.res], \"prazo\", \"orçamento da rodada esgotado\")\n                if self.escopos:\n                    self.extras.append((\"-\", \"-\", \"-\", \"-\", \"falhou:prazo\"))",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_prazo_sem_escopos_registra_prazo"
+      ]
+    },
+    {
+      "id": "S183",
+      "guarda": "forge_sempre_atual.py:908 decide por `e[\"chave\"] not in self.res`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.falhar([e for e in self.escopos if e[\"chave\"] not in self.res], \"interno\", f\"{type(erro).__name__}: {erro}\")",
+      "para": "self.falhar([e for e in self.escopos if not (e[\"chave\"] not in self.res)], \"interno\", f\"{type(erro).__name__}: {erro}\")",
+      "testes": [
+        "tests.test_sempre_atual.Falhas.test_erro_interno_vira_registro_e_nao_vaza_traceback"
+      ]
+    },
+    {
+      "id": "S184",
+      "guarda": "forge_sempre_atual.py:909 decide por `not self.escopos`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.falhar([e for e in self.escopos if e[\"chave\"] not in self.res], \"interno\", f\"{type(erro).__name__}: {erro}\")\n                if not self.escopos:\n                    self.extras.append((\"-\", \"-\", \"-\", \"-\", f\"falhou:interno:{resumo(f'{type(erro).__name__}: {erro}')}\"))",
+      "para": "self.falhar([e for e in self.escopos if e[\"chave\"] not in self.res], \"interno\", f\"{type(erro).__name__}: {erro}\")\n                if self.escopos:\n                    self.extras.append((\"-\", \"-\", \"-\", \"-\", f\"falhou:interno:{resumo(f'{type(erro).__name__}: {erro}')}\"))",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_erro_interno_sem_escopos_registra_o_erro"
+      ]
+    }
+  ]
+}

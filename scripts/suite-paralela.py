@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Forge: a suíte inteira (`python3 -m unittest discover -s tests`) dividida em até 4 processos (D4, R-TETO).
 
-Uso: python3 scripts/suite-paralela.py
+Uso: python3 scripts/suite-paralela.py [--medir MÓDULO]
 Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de rede nem de custo (R-CUSTO).
 
 - Divisão por unidade, por LPT sobre os pesos de `tests/pesos-d4.json` (unidade -> segundos); peso ausente vale a
@@ -33,6 +33,10 @@ Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de red
 - No CI (`GITHUB_STEP_SUMMARY`), o resumo do passo traz as unidades mais lentas, a soma, a maior unidade, o desequilíbrio
   e os módulos sem peso (só informa: nunca reprova, nem muda a divisão). O título de cada `::group::` traz os módulos.
 - FORGE_SUITE_MEDIR=1 regrava `tests/pesos-d4.json` com as durações de cada unidade da execução, se tudo passou.
+- `--medir MÓDULO` (v0478 E18.1) roda só esse módulo (nome do `discover`: `test_x` ou `pacote.test_x`), com as unidades
+  separadas dele, num processo e com a guarda de completude do módulo; verde, regrava em `tests/pesos-d4.json` só as
+  unidades dele. Módulo que a descoberta não acha sai 2; vermelho sai 1 sem regravar. Não pega a trava da suíte: um
+  módulo não é a suíte inteira (como o teste dirigido do autor).
 - Teto de pulados (T3): só no CI (GITHUB_ACTIONS=true), mais pulados que `teto_pulados` de `tests/config.json` (inteiro
   >= 0; ausente, de outro tipo ou ilegível reprova) é `FAILED`, antes de regravar pesos e carimbo; fora do CI só avisa.
   Na suíte em partes (`scripts/suite-partes.py --parte`), cada parte publica os pulados e o agregador do CI soma.
@@ -664,6 +668,7 @@ def montar_resumo(veredito, linhas, partes, relatorios, duracoes, pesos, total, 
     sem_peso = sorted(nomes - set(pesos))
     if sem_peso:
         texto.append(f"- sem peso em {PESOS.relative_to(RAIZ)}: {lista_curta(sem_peso, LIMITE_SEM_PESO)}")
+        texto.append("- vale a mediana; o PR não edita os pesos: a marca de versão os regera (E19.1)")
     return "\n".join(texto) + "\n"
 
 
@@ -915,10 +920,41 @@ def conferir_trava(caminho, donos):
         return f"não consegui conferir a trava {caminho}: {e}"
 
 
+def medir(nome):
+    """`--medir MÓDULO`: o peso de um módulo só (as unidades dele), regravado se ele passa; devolve o código de saída."""
+    os.chdir(RAIZ)
+    if nome not in modulos():
+        print(f"suite-paralela: --medir: {nome!r} não é módulo de {TESTES}/ (o nome do discover: test_x ou "
+              "pacote.test_x).", file=sys.stderr)
+        print("FAILED (módulo)")
+        return 2
+    plano, _, partes, da_divisao = dividir([nome], ler_pesos(), 1)
+    try:
+        _, relatorios, erros, _, _ = rodar_partes(partes, plano, time.monotonic(), ids(suite_do_modulo(nome)),
+                                                  estado_da_arvore())
+    except Interrompido as e:
+        return 128 + e.numero
+    erros = da_divisao + erros  # teste vermelho, processo sem relatório ou guarda de completude: o `resumir` já os conta
+    if erros:
+        for erro in erros:
+            print(f"suite-paralela: {erro}", file=sys.stderr)
+        print(f"suite-paralela: {nome} vermelho; pesos não regravados.", file=sys.stderr)
+        print("FAILED (medida)")
+        return 1
+    gravar_pesos(relatorios)
+    medidas = sorted(u for rel in relatorios for u in rel["duracoes"].items())
+    print(f"suite-paralela: pesos regravados em {PESOS.relative_to(RAIZ)}: "
+          + ", ".join(f"{u} {s} s" for u, s in medidas) + ".", file=sys.stderr)
+    print("OK")
+    return 0
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if len(argv) == 3 and argv[0] == "--processo":
         return processo(argv[1], argv[2])
+    if len(argv) == 2 and argv[0] == "--medir":
+        return medir(argv[1])
     if argv:
         print(__doc__.strip().splitlines()[2], file=sys.stderr)
         return 2

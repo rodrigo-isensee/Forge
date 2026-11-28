@@ -1,0 +1,76 @@
+{
+ "pedido": "v0478-mutante-pulado",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "P1",
+   "guarda": "o pulo de um subTest (`<id> [<desc>]`) conta como pulo do teste declarado",
+   "arquivo": "bin/forge-mutante",
+   "de": "or e[\"id\"].startswith(d + \" \")",
+   "para": "or False",
+   "testes": [
+    "tests.test_forge_mutante.Veredito.test_teste_declarado_pulado_e_sem_veredito_e_nunca_sobreviveu"
+   ]
+  },
+  {
+   "id": "P2",
+   "guarda": "declarado que só foi pulado é sem veredito, não inválido",
+   "arquivo": "bin/forge-mutante",
+   "de": "if not pulado_de([declarado], registro):",
+   "para": "if True:",
+   "testes": [
+    "tests.test_forge_mutante.Veredito.test_teste_declarado_pulado_e_sem_veredito_e_nunca_sobreviveu"
+   ]
+  },
+  {
+   "id": "P3",
+   "guarda": "com pulo e sem morte, o veredito é sem veredito, nunca sobreviveu",
+   "arquivo": "bin/forge-mutante",
+   "de": "if pulados and not erros:  #",
+   "para": "if False:  #",
+   "testes": [
+    "tests.test_forge_mutante.Veredito.test_teste_declarado_pulado_e_sem_veredito_e_nunca_sobreviveu"
+   ]
+  },
+  {
+   "id": "P7",
+   "guarda": "o erro que mata (controle verde) segue morte mesmo com teste pulado",
+   "arquivo": "bin/forge-mutante",
+   "de": "if pulados and not erros:  #",
+   "para": "if pulados:  #",
+   "testes": [
+    "tests.test_forge_mutante.Veredito.test_pulo_nao_esconde_a_morte_nem_o_teste_que_nao_rodou"
+   ]
+  },
+  {
+   "id": "P4",
+   "guarda": "o controle com teste pulado não é vermelho: o pulo decide-se no mutante",
+   "arquivo": "bin/forge-mutante",
+   "de": "resultado[0] in (\"sobreviveu\", \"sem veredito\")",
+   "para": "resultado[0] in (\"sobreviveu\",)",
+   "testes": [
+    "tests.test_forge_mutante.Execucao.test_teste_pulado_sai_2_sem_veredito_e_o_sobrevivente_segue_1"
+   ]
+  },
+  {
+   "id": "P5",
+   "guarda": "o sem veredito do pulo não passa pelo equivalente nem sai 0",
+   "arquivo": "bin/forge-mutante",
+   "de": "if classe == \"sem veredito\":  # o teste pulado",
+   "para": "if False:  # o teste pulado",
+   "testes": [
+    "tests.test_forge_mutante.Execucao.test_teste_pulado_sai_2_sem_veredito_e_o_sobrevivente_segue_1"
+   ]
+  },
+  {
+   "id": "P6",
+   "guarda": "sem veredito sai 2, nunca 0",
+   "arquivo": "bin/forge-mutante",
+   "de": "{onde} · {motivo}\", 2, True",
+   "para": "{onde} · {motivo}\", 0, True",
+   "testes": [
+    "tests.test_forge_mutante.Execucao.test_teste_pulado_sai_2_sem_veredito_e_o_sobrevivente_segue_1"
+   ]
+  }
+ ]
+}

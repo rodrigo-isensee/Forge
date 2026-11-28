@@ -1,0 +1,25 @@
+{
+  "descricao": "E3.50: $var em argumento de leitura com marcador crítico segue recusado (ADR 0011, item 2); a recusa diz a forma aceita.",
+  "arquivos": {
+    "docs/a.md": "parecer\n",
+    "docs/reviews/a.md": "## Achados\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "grep -n Achados docs/reviews/$P.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "Corrigir: valor literal no lugar de $P (caminho, branch, log)"
+  }
+}

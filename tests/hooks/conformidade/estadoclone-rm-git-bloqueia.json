@@ -1,0 +1,26 @@
+{
+  "descricao": "AGENTES-JSON-SEM-GUARDA (R-CONFORMIDADE): no clone do Forge, apagar o .git apaga o estado dos hooks: recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".forge/config.json": "{\"teto_agentes\": 2}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "rm -rf .git"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:qa-engineer"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o .git da raiz"
+  }
+}

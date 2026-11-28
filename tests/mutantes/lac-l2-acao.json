@@ -5,7 +5,7 @@
     {
       "id": "M1",
       "guarda": "o texto do assistente que cita o hook deixa de contar como ação",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "    if b.get(\"type\") == \"text\":",
       "para": "    if False:",
       "testes": [
@@ -15,7 +15,7 @@
     {
       "id": "M2",
       "guarda": "o texto que cita o hook com maiúscula deixa de contar como ação",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "str(b.get(\"text\")).lower()",
       "para": "str(b.get(\"text\"))",
       "testes": [
@@ -25,7 +25,7 @@
     {
       "id": "M3",
       "guarda": "ler `.forge/run/violacoes.jsonl` deixa de contar como ação",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "(\".forge/run/violacoes.jsonl\", \"forge doutor\"",
       "para": "(\"zz\", \"forge doutor\"",
       "testes": [
@@ -35,7 +35,7 @@
     {
       "id": "M4",
       "guarda": "rodar `forge doutor` deixa de contar como ação",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": ", \"forge doutor\", \"bin/forge-doutor\"))",
       "para": ", \"zz\", \"bin/forge-doutor\"))",
       "testes": [
@@ -45,7 +45,7 @@
     {
       "id": "M5",
       "guarda": "rodar `bin/forge-doutor` deixa de contar como ação",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": ", \"bin/forge-doutor\"))",
       "para": ", \"zz\"))",
       "testes": [
@@ -55,7 +55,7 @@
     {
       "id": "M6",
       "guarda": "a troca de arquivo deixa de zerar a janela e a ordem do aviso, e a leitura quebra",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "        if n != atual:\n            abertos, i, atual = [], 0, n",
       "para": "        if False:\n            abertos, i, atual = [], 0, n",
       "testes": [
@@ -65,7 +65,7 @@
     {
       "id": "M7",
       "guarda": "a mensagem que não é objeto deixa de ser pulada e a leitura quebra",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "msg = o.get(\"message\") if isinstance(o.get(\"message\"), dict) else {}\n        for b in msg.get(\"content\") if o.get(\"type\") == \"assistant\"",
       "para": "msg = o.get(\"message\") if True else {}\n        for b in msg.get(\"content\") if o.get(\"type\") == \"assistant\"",
       "testes": [
@@ -75,7 +75,7 @@
     {
       "id": "M8",
       "guarda": "a mensagem do usuário que cita o hook passa a contar como ação",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "if o.get(\"type\") == \"assistant\" and isinstance(msg.get(\"content\"), list)",
       "para": "if isinstance(msg.get(\"content\"), list)",
       "testes": [
@@ -85,7 +85,7 @@
     {
       "id": "M9",
       "guarda": "o conteúdo que não é lista deixa de ser pulado e a leitura quebra",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "if o.get(\"type\") == \"assistant\" and isinstance(msg.get(\"content\"), list)",
       "para": "if o.get(\"type\") == \"assistant\"",
       "testes": [
@@ -95,7 +95,7 @@
     {
       "id": "M10",
       "guarda": "o bloco que não é objeto deixa de ser trocado por vazio e a leitura quebra",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "b = b if isinstance(b, dict) else {}",
       "para": "b = b if True else {}",
       "testes": [
@@ -105,7 +105,7 @@
     {
       "id": "M11",
       "guarda": "o bloco seguinte sem ação apaga a ação já achada",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "aberto[0][2] = aberto[0][2] or acao",
       "para": "aberto[0][2] = acao",
       "testes": [
@@ -115,7 +115,7 @@
     {
       "id": "M12",
       "guarda": "o texto do assistente passa a gastar a janela como se fosse chamada de ferramenta",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "aberto[1] -= b.get(\"type\") == \"tool_use\"",
       "para": "aberto[1] -= 1",
       "testes": [
@@ -125,7 +125,7 @@
     {
       "id": "M13",
       "guarda": "a janela fecha uma chamada depois (4 em vez de 3)",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "abertos = [a for a in abertos if a[1] > 0]",
       "para": "abertos = [a for a in abertos if a[1] >= 0]",
       "testes": [
@@ -135,7 +135,7 @@
     {
       "id": "M14",
       "guarda": "janela de ação de 3 para 4 (mutante do desenho)",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "JANELA_DE_ACAO = 3\n",
       "para": "JANELA_DE_ACAO = 4\n",
       "testes": [
@@ -145,7 +145,7 @@
     {
       "id": "M15",
       "guarda": "a amostra negativa passa a imprimir quase todos os avisos",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "lista[:max(amostra, 0)]",
       "para": "lista[:amostra]",
       "testes": [

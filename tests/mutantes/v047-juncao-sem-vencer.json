@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "branch de integracao nao ganha a develop como base implicita (E2.201)",
       "arquivo": "bin/forge-check",
-      "de": "if branch and branch not in BASES_DO_FLUXO and base_do_delta(raiz, \"develop\", ref)[0]:",
-      "para": "if branch and base_do_delta(raiz, \"develop\", ref)[0]:",
+      "de": "    if branch and branch not in BASES_DO_FLUXO:\n        return base_do_delta(raiz, nome, ref)[0]",
+      "para": "    if branch:\n        return base_do_delta(raiz, nome, ref)[0]",
       "testes": [
         "tests.test_forge_check_base_igual.JuncaoSemBase.test_branch_de_integracao_segue_o_diff_literal"
       ]
@@ -26,10 +26,11 @@
       "id": "M3",
       "guarda": "sem --base a branch vem da ref ou do sha antes de decidir a base implicita (E2.201)",
       "arquivo": "bin/forge-check",
-      "de": "        branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or \"HEAD\"))\n        if branch and branch not in BASES_DO_FLUXO",
-      "para": "        branch = branch\n        if branch and branch not in BASES_DO_FLUXO",
+      "de": "    branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or \"HEAD\"))\n    if branch and branch not in BASES_DO_FLUXO:",
+      "para": "    branch = branch\n    if branch and branch not in BASES_DO_FLUXO:",
       "testes": [
-        "tests.test_forge_check_base_igual.JuncaoSemBase.test_merge_limpo_da_develop_nao_vence"
+        "tests.test_forge_check_base_igual.JuncaoSemBase.test_merge_limpo_da_develop_nao_vence",
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_branch_de_trabalho_pelo_sha_simula_a_base_como_o_pr"
       ]
     }
   ]

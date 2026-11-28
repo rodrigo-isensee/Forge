@@ -1,0 +1,66 @@
+{
+  "pedido": "v0479-entrega-parecer-mesclado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M19",
+      "guarda": "a GuardaDaProva confere a pasta de parecer pelo topo da cópia do Forge (E50.7, A3)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        achado = achado or self.parecer_no_topo(caminho)\n",
+      "para": "        achado = achado\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "só o topo que é cópia do Forge dá a forma relativa (E50.7, A3)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        rel = (relativo_ao_pai(caminho.as_posix(), topo) if e_clone_do_forge(topo) else None) or \"\"\n",
+      "para": "        rel = (relativo_ao_pai(caminho.as_posix(), topo) if topo else None) or \"\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "a pasta de parecer casa o caminho relativo ao topo (E50.7, A3)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if e[\"caminho\"] in CAMINHOS_DE_PARECER and casa(rel, e[\"caminho\"]):\n",
+      "para": "            if e[\"caminho\"] in CAMINHOS_DE_PARECER:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "o papel dono da pasta de parecer segue livre (E50.7, A3)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                return None if self.papel in e[\"quem\"] else (\n",
+      "para": "                return None if False else (\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "no clone, a recusa da pasta de parecer vale na GuardaDaProva (E50.7, A3)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if any(f\"{e['motivo']}: {e['caminho']}\" in o_que\n",
+      "para": "        if False and any(f\"{e['motivo']}: {e['caminho']}\" in o_que\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "só as recusas das pastas de parecer passam a valer, as outras regras de caminho seguem fora (E50.7)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "               for e in self.pol[\"caminhos\"] if e[\"caminho\"] in CAMINHOS_DE_PARECER):\n",
+      "para": "               for e in self.pol[\"caminhos\"]):\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    }
+  ]
+}

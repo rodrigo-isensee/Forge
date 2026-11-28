@@ -141,12 +141,9 @@ def resumo_do_changelog(texto, depois_de, ate):
     return linhas
 
 
-SUPERFICIES = {"projeto": "`forge atualizar`", "forge": "`jarvis-forge --atualizar-vigente` e reinicie a sessão do Forge"}
-
-
-def comando_de_atualizacao(superficie):
-    """O comando que a PESSOA roda para atualizar, conforme a superfície (projeto ou sessão do Forge). Nenhum agente o roda (R-CONFORMIDADE)."""
-    return SUPERFICIES[superficie]
+# FORGE-SEMPRE-ATUAL (ADR 0017, RD10): a versão nova entra sozinha na abertura seguinte; o aviso não manda comando ao dono.
+SUPERFICIES = {"projeto": "ela entra sozinha na próxima abertura do Jarvis sem trabalho em curso",
+               "forge": "a cópia vigente avança sozinha na próxima abertura da sessão do Forge"}
 
 
 def consultar_versao(limite):
@@ -164,8 +161,35 @@ def consultar_versao(limite):
 
 
 def texto_de_versao_nova(atual, nova, superficie="projeto"):
-    ponto = " com ponto de retorno" if superficie == "projeto" else ""
-    return f"Saiu a versão {nova} do Forge (você usa a {atual}). Para atualizar{ponto}, rode no terminal: {comando_de_atualizacao(superficie)}"
+    return f"Saiu a versão {nova} do Forge (você usa a {atual}); {SUPERFICIES[superficie]}. Nada a fazer."
+
+
+def texto_de_versao_parada(causa, dias, carregada, main, extra="", superficie="projeto"):
+    """Versão parada (v0478 E69.3, seção 4 do desenho aviso-versao-parada): a causa e o comando que a PESSOA roda, nunca
+    "Nada a fazer". `extra`: a instalada (`sessao-antiga`), as vezes (`adiada`) ou a etapa (`falhou`)."""
+    atalho, fora = ("jarvis-forge" if superficie == "forge" else "jarvis"), "num terminal fora do Claude: forge atualizar"
+    inicio, onde = f"Forge parado há {dias} dias", f"na {carregada} (main na {main})"
+    if causa == "sessao-antiga":
+        return f"{inicio}: esta sessão usa a {carregada} e a instalada já é a {extra}. Para atualizar: digite /exit e rode {atalho} no terminal."
+    if causa == "adiada":
+        return (f"{inicio} {onde}: a atualização foi adiada {extra} vezes por trabalho em curso. Para atualizar: quando o trabalho "
+                f"parar, digite /exit e rode {atalho}.")
+    if causa == "falhou":
+        return f"{inicio} {onde}: a atualização automática falhou ({extra}). Para atualizar, {fora}"
+    return f"{inicio}: você usa a {carregada} e a main está na {main}. Para atualizar: feche esta sessão e abra pelo {atalho}; ou, {fora}"
+
+
+def versao_instalada(casa_, projeto):
+    """A maior versão do `forge@forge` no escopo do usuário ou no do `projeto` (installed_plugins.json, só leitura), ou None."""
+    texto = _ler_limitado(Path(casa_) / ".claude" / "plugins" / "installed_plugins.json", LIMITE_INSTALADOS)
+    try:
+        entradas = json.loads(texto)["plugins"][PLUGIN]  # ausente: json.loads(None) levanta TypeError
+    except (ValueError, TypeError, KeyError):
+        return None
+    versoes = [versao_de(e.get("version", "")) for e in (entradas if isinstance(entradas, list) else [])
+               if isinstance(e, dict) and (e.get("scope") == "user" or e.get("projectPath") == str(projeto))]
+    versoes = [v for v in versoes if v]
+    return ".".join(map(str, max(versoes))) if versoes else None
 
 
 def aviso_de_versao_nova(limite, superficie="projeto"):
@@ -333,8 +357,9 @@ def instalar_plugin():
 
 
 def trocar_marketplace(fonte):
-    """Troca a marketplace do usuário por `fonte` e deixa o plugin instalado. (deu certo, saída)"""
-    claude(["plugin", "marketplace", "remove", MARKETPLACE, "--scope", "user"])
+    """Troca a marketplace do usuário por `fonte` e deixa o plugin instalado. (deu certo, saída). Nunca `marketplace remove`: ele
+    desinstala o plugin do usuário e dos projetos e apaga o `enabledPlugins` do `.claude/settings.json` versionado (FORGE-SEMPRE-ATUAL,
+    prova U3); o `add <url>#<tag> --scope user` sobre a marketplace existente sobe e desce a versão (prova U2) e mantém os projetos."""
     codigo, saida = claude(["plugin", "marketplace", "add", fonte, "--scope", "user"])
     if codigo != 0:
         return False, saida
@@ -379,10 +404,8 @@ def comandos_manuais(fonte):
 
 
 def devolver_original(original):
-    """Readiciona exatamente a fonte e o escopo de antes (se a marketplace era do escopo do usuário; senão só tira a do usuário)."""
-    if original["escopo"] != "user":
-        claude(["plugin", "marketplace", "remove", MARKETPLACE, "--scope", "user"])
-        return instalar_plugin()[0]
+    """Readiciona a fonte de antes por `add` sobre a existente (nunca `remove`, que desinstalaria os projetos). Escopo "outro": a fonte
+    de antes vinha de fora do settings do usuário; o `add` a declara também no escopo do usuário, que é o que o `forge atualizar` usa."""
     return trocar_marketplace(original["fonte"])[0]
 
 
@@ -543,6 +566,86 @@ def confirmar(pergunta):
     except EOFError:
         return False
     return resposta.strip().lower() in ("s", "sim")
+
+
+# Hooks do modelo que o hook do projeto não chama (Q2, E6.10) ----------------------------------
+SHELLS = ("sh", "bash", "dash")
+
+
+def _shell_do_hook(texto):
+    """True se a primeira linha é a de um hook de shell (`#!/bin/sh`, `#!/usr/bin/env bash`...)."""
+    primeira = texto.split("\n", 1)[0].strip()
+    if not primeira.startswith("#!"):
+        return False
+    partes = primeira[2:].split()
+    if partes and partes[0].endswith("/env"):
+        partes = partes[1:]
+    return bool(partes) and Path(partes[0]).name in SHELLS
+
+
+def hooks_sem_chamada(projeto, modelo):
+    """Os `<hook>.local` que o modelo (`templates/projeto/` da versão) entrega, que o projeto TEM e que o `<hook>` do projeto não
+    chama. Devolve [(hook, local, motivo)], motivo em `sem-hook` (o projeto não tem o `<hook>`), `nao-chama` (o `<hook>` não cita o
+    `.local`) ou `sem-exec` (o `.local` não é executável: o modelo só o roda se for). Só lê; nunca muda nada."""
+    achados = []
+    pasta_modelo, pasta = Path(modelo) / ".githooks", Path(projeto) / ".githooks"
+    if not pasta_modelo.is_dir():
+        return achados
+    for entrada in sorted(pasta_modelo.iterdir()):
+        if not entrada.name.endswith(".local") or len(entrada.name) <= 6:
+            continue
+        hook, local = entrada.name[:-6], pasta / entrada.name
+        if not local.is_file():
+            continue
+        alvo = pasta / hook
+        if not alvo.is_file():
+            achados.append((hook, entrada.name, "sem-hook"))
+            continue
+        try:
+            texto = alvo.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if entrada.name not in texto:
+            achados.append((hook, entrada.name, "nao-chama"))
+        elif not os.access(local, os.X_OK):
+            achados.append((hook, entrada.name, "sem-exec"))
+    return achados
+
+
+def ligar_hook(projeto, hook, local):
+    """Liga a chamada: põe, logo depois do `#!` do `<hook>` do projeto (shell, sem fim de linha do Windows), duas linhas que rodam o
+    `<local>` (o stdin do git não é entregue a ele). Nada é apagado nem reescrito; falha de qualquer tipo não muda o arquivo.
+    Devolve True se ligou."""
+    alvo = Path(projeto) / ".githooks" / hook
+    try:
+        texto = alvo.read_bytes().decode("utf-8")  # bytes: read_text trocaria o fim de linha do Windows e o `\r` sumiria
+    except (OSError, UnicodeDecodeError):
+        return False
+    if "\r" in texto or alvo.is_symlink() or not _shell_do_hook(texto):
+        return False
+    primeira, _, resto = texto.partition("\n")
+    chamada = (f"# Forge: roda o {local} que o modelo entrega (ligado pelo forge atualizar; o projeto o ajusta)\n"
+               f'if [ -x "$(dirname "$0")/{local}" ]; then "$(dirname "$0")/{local}" "$@" </dev/null || exit 1; fi\n')
+    try:
+        alvo.write_bytes((primeira + "\n" + chamada + resto).encode("utf-8"))
+    except OSError:
+        return False
+    return True
+
+
+def texto_do_hook_sem_chamada(hook, local, motivo, ligou=False):
+    """A frase para o dono, em linguagem simples."""
+    if ligou:
+        return (f"O arquivo .githooks/{local} que o Forge entrega não era chamado pelo .githooks/{hook} do projeto. Liguei a chamada "
+                f"(duas linhas no começo de .githooks/{hook}, nada apagado) e deixei num commit à parte; confira no pull request.")
+    if motivo == "sem-exec":
+        return f"O .githooks/{local} existe, mas não é executável, então o .githooks/{hook} não o roda. Para ligar: chmod +x .githooks/{local}"
+    if motivo == "sem-hook":
+        return (f"O projeto tem o .githooks/{local}, mas não tem o .githooks/{hook}, então ninguém o chama e a checagem não roda. "
+                f"Copie o .githooks/{hook} do modelo do Forge (templates/projeto/.githooks/{hook}) ou peça ao Jarvis.")
+    return (f"O .githooks/{local} que o Forge entrega não é chamado pelo .githooks/{hook} do projeto, então a checagem não roda. "
+            f"Não mexi no seu hook (não é um script de shell simples). Peça ao Jarvis para chamar o {local} dentro do {hook}, "
+            f"ou copie o {hook} do modelo (templates/projeto/.githooks/{hook}).")
 
 
 # Ponto de retorno ------------------------------------------------------------------------------

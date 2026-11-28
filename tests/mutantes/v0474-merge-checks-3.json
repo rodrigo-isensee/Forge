@@ -1,0 +1,36 @@
+{
+  "pedido": "v0474-merge-checks",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "o passo 4 le os exigidos do destino (E3.45)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  ler_exigidos_do_destino\n  inicio=$SECONDS",
+      "para": "  : ler_exigidos_do_destino\n  inicio=$SECONDS",
+      "testes": [
+        "tests.test_forge_fechar.FecharExigidosDoDestino.test_exigido_do_ruleset_ausente_para"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "o destino vem do baseRefName do PR (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "str(pr.get(\"baseRefName\") or \"\")",
+      "para": "str(pr.get(\"baseRefName\") and \"\")",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_exigido_do_ruleset_ausente_reprova"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "o exigido sem linha sai como ausente (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "'ausente' if not dele else 'fora de pass'",
+      "para": "'ausente' if dele else 'fora de pass'",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_exigido_do_ruleset_ausente_reprova"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "pedido": "v047-h4-atualiza-branch",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "H4: update-ref que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"$ramo\" \"$novo\" \"$remoto_sha\" || die",
+      "para": "\"$ramo\" \"$novo\" \"$remoto_sha\" || true",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_h4_falha_de_cada_passo_do_merge_para_sem_pr"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "H4: envio do merge recusado para (sem PR)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  git push origin \"$novo:$ramo\" || die",
+      "para": "  git push origin \"$novo:$ramo\" || true",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_h4_envio_recusado_para_sem_pr"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "H4: o código da cadeia recomeçada é o do fechamento",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"${args_originais[@]}\" --trazida || rc=$?",
+      "para": "\"${args_originais[@]}\" --trazida || rc=0",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_h4_cadeia_recomecada_que_para_sai_com_o_codigo_dela"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "H4: o fechamento sai com o código da cadeia recomeçada",
+      "arquivo": "bin/forge-fechar",
+      "de": "--trazida || rc=$?\n  exit \"$rc\"",
+      "para": "--trazida || rc=$?\n  exit 0",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_h4_cadeia_recomecada_que_para_sai_com_o_codigo_dela"
+      ]
+    }
+  ]
+}

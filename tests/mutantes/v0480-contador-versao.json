@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-contador-versao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "git que falha vira erro (saída 2)",
+      "arquivo": "bin/forge-contador",
+      "de": "    if r.returncode != 0:\n        raise Erro(f\"git",
+      "para": "    if False:\n        raise Erro(f\"git",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_ref_inexistente_e_erro"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "sem origin/develop nem develop, erro pedindo --ref",
+      "arquivo": "bin/forge-contador",
+      "de": "    raise Erro(\"nem origin/develop nem develop existem; passe --ref\")",
+      "para": "    return \"develop\"",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_sem_develop_e_erro"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "versão fora de X.Y.Z é erro",
+      "arquivo": "bin/forge-contador",
+      "de": "    if not m:\n        raise Erro(f\"versão ilegível",
+      "para": "    if False:\n        raise Erro(f\"versão ilegível",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_versao_ilegivel_e_erro"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "sem configuração, teto padrão; com ela, a chave teto_versao",
+      "arquivo": "bin/forge-contador",
+      "de": "    if not caminho.is_file():\n",
+      "para": "    if True:\n",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_teto_da_configuracao"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "configuração ilegível (JSON quebrado ou não objeto) é erro",
+      "arquivo": "bin/forge-contador",
+      "de": "    except (ValueError, AttributeError) as e:\n        raise Erro(f\"{caminho}: {e}\")",
+      "para": "    except (ZeroDivisionError,) as e:\n        raise Erro(f\"{caminho}: {e}\")",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_configuracao_ilegivel_e_erro"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "teto_versao só inteiro positivo (nem bool, nem texto)",
+      "arquivo": "bin/forge-contador",
+      "de": "    if type(valor) is not int or valor < 1:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_teto_invalido_e_erro"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o README de changelog.d não conta como item entregue",
+      "arquivo": "bin/forge-contador",
+      "de": "n.endswith(\".md\") and Path(n).name.lower() != \"readme.md\")",
+      "para": "n.endswith(\".md\"))",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_conta_fragmentos_sem_readme_e_sobe_o_patch"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "coluna aberta vazia segue aberta (movimento dela conta)",
+      "arquivo": "bin/forge-contador",
+      "de": "            if atual not in FECHADAS:\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_previsao_pela_vazao_liquida"
+      ]
+    }
+  ]
+}

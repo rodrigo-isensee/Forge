@@ -1,0 +1,170 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M35",
+      "guarda": "campo so desce em objeto",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "isinstance(obj, dict)",
+      "para": "True",
+      "testes": [
+        "tests.test_ci_rapido_guardas.CampoEExecucao.test_campo_so_desce_em_objeto_e_so_devolve_o_tipo_exato"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "campo devolve so o tipo exato (bool nao e int)",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "return obj if type(obj) is tipo else None",
+      "para": "return obj if isinstance(obj, tipo) else None",
+      "testes": [
+        "tests.test_ci_rapido_guardas.CampoEExecucao.test_campo_so_desce_em_objeto_e_so_devolve_o_tipo_exato"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "execucao com id inteiro",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "return (campo(execucao, \"id\", int) is not None",
+      "para": "return (True",
+      "testes": [
+        "tests.test_ci_rapido_guardas.CampoEExecucao.test_execucao_valida_exige_id_inteiro_e_cada_campo"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "perna sem nome nao quebra",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "campo(job, \"name\", str) or \"\"",
+      "para": "campo(job, \"name\", str)",
+      "testes": [
+        "tests.test_ci_rapido_guardas.CampoEExecucao.test_perna_valida_cada_exigencia"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "perna que casa o nome",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if not achado or campo(job, \"conclusion\", str)",
+      "para": "if campo(job, \"conclusion\", str)",
+      "testes": [
+        "tests.test_ci_rapido_guardas.CampoEExecucao.test_perna_valida_cada_exigencia"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "perna so em success",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "campo(job, \"conclusion\", str) != \"success\" or ",
+      "para": "",
+      "testes": [
+        "tests.test_ci_rapido_guardas.CampoEExecucao.test_perna_valida_cada_exigencia"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "perna com id inteiro",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": " or campo(job, \"id\", int) is None:",
+      "para": ":",
+      "testes": [
+        "tests.test_ci_rapido_guardas.CampoEExecucao.test_perna_valida_cada_exigencia"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "parte nao passa do total",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if k <= n else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_ci_rapido_guardas.CampoEExecucao.test_perna_valida_cada_exigencia"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "anotacao so com titulo forge-tempos",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "titulo and titulo.startswith(\"forge-tempos \") and mensagem",
+      "para": "titulo and mensagem",
+      "testes": [
+        "tests.test_ci_rapido_guardas.CampoEExecucao.test_anotacao_de_titulo_alheio_ou_sem_mensagem_e_descartada"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "anotacao precisa de mensagem",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "titulo and titulo.startswith(\"forge-tempos \") and mensagem",
+      "para": "titulo and titulo.startswith(\"forge-tempos \")",
+      "testes": [
+        "tests.test_ci_rapido_guardas.CampoEExecucao.test_anotacao_de_titulo_alheio_ou_sem_mensagem_e_descartada"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "o medido vale",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "        if unidade in medidos:",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GerarEColetar.test_gerar_usa_o_medido_depois_o_atual_e_ignora_o_que_nao_tem_nenhum"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "sem medida mantem o atual so se tinha",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "        elif unidade in atuais:",
+      "para": "        elif True:",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GerarEColetar.test_gerar_usa_o_medido_depois_o_atual_e_ignora_o_que_nao_tem_nenhum"
+      ]
+    },
+    {
+      "id": "M47",
+      "guarda": "lista de execucoes ausente nao quebra",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "\"workflow_runs\", list)\n                 or [] if execucao_valida(e, repo)",
+      "para": "\"workflow_runs\", list)\n                 if execucao_valida(e, repo)",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GerarEColetar.test_api_sem_lista_de_execucoes_ou_de_jobs_ou_de_anotacoes_nao_quebra"
+      ]
+    },
+    {
+      "id": "M48",
+      "guarda": "so execucao valida entra",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "                 or [] if execucao_valida(e, repo)][:limite]",
+      "para": "                 or [] if True][:limite]",
+      "testes": [
+        "tests.test_pesos_do_ci.Leitura.test_execucao_que_nao_e_push_na_develop_do_proprio_repositorio_nao_entra"
+      ]
+    },
+    {
+      "id": "M49",
+      "guarda": "lista de jobs ausente nao quebra",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "\"jobs\", list) or []",
+      "para": "\"jobs\", list)",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GerarEColetar.test_api_sem_lista_de_execucoes_ou_de_jobs_ou_de_anotacoes_nao_quebra"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "scripts/suite-partes.py",
+      "trecho": "modulo_do_id(i, conjunto) is not None",
+      "linha_base": 85,
+      "motivo": "esperado_da_parte foi removida: a divisao agora e por unidade e a guarda por ID e esperado_por_unidade/completude_da_divisao, com mutantes proprios"
+    },
+    {
+      "arquivo": "scripts/suite-partes.py",
+      "trecho": "k.startswith(nome + \".\")",
+      "linha_base": 120,
+      "motivo": "pesos_por_modulo foi removida: o peso por modulo deu lugar a unidade_do_id sobre sp.separadas, com mutantes proprios"
+    }
+  ]
+}

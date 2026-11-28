@@ -1,0 +1,116 @@
+{
+  "pedido": "v047-ambiente-sobrevive",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M3",
+      "guarda": "o postStart do modelo clona do remoto, não do work tree (ref local forjável)",
+      "arquivo": "templates/projeto/.devcontainer/devcontainer.json",
+      "de": "-- \\\"$u\\\" \\\"$d/r\\\"",
+      "para": "-- \\\"${containerWorkspaceFolder}\\\" \\\"$d/r\\\"",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_poststart_do_modelo_roda_so_a_main_do_remoto_nunca_o_ref_local_forjado"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o devcontainer do Forge não repassa o GH_TOKEN do dono (sem remoteEnv)",
+      "arquivo": ".devcontainer/devcontainer.json",
+      "de": "  \"mounts\": [",
+      "para": "  \"remoteEnv\": {\"GH_TOKEN\": \"${localEnv:GH_TOKEN}\"},\n  \"mounts\": [",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_devcontainer_do_forge_roda_o_preparo_da_copia_presente_sem_gh_e_sem_engolir_erro"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o devcontainer do modelo não repassa o GH_TOKEN do dono (sem remoteEnv)",
+      "arquivo": "templates/projeto/.devcontainer/devcontainer.json",
+      "de": "  \"mounts\": [",
+      "para": "  \"remoteEnv\": {\"GH_TOKEN\": \"${localEnv:GH_TOKEN}\"},\n  \"mounts\": [",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_devcontainer_do_modelo_segue_com_clone_raso_da_main"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o hook ambiente está registrado no SessionStart",
+      "arquivo": "hooks/hooks.json",
+      "de": "hooks/ambiente.py",
+      "para": "hooks/vigia.py",
+      "testes": [
+        "tests.test_ambiente_hook.AmbienteNoSessionStart.test_hooks_json_registra_o_ambiente_no_sessionstart"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o hook só age no SessionStart",
+      "arquivo": "hooks/ambiente.py",
+      "de": "hook.campo(\"hook_event_name\") != \"SessionStart\"",
+      "para": "hook.campo(\"hook_event_name\") == \"Nada\"",
+      "testes": [
+        "tests.test_ambiente_hook.AmbienteNoSessionStart.test_so_o_sessionstart_dentro_do_container_e_com_devcontainer"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o hook só age dentro do container",
+      "arquivo": "hooks/ambiente.py",
+      "de": "raiz is None or not no_container(raiz)",
+      "para": "raiz is None or False",
+      "testes": [
+        "tests.test_ambiente_hook.AmbienteNoSessionStart.test_so_o_sessionstart_dentro_do_container_e_com_devcontainer"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o hook roda o script do plugin, nunca o do work tree",
+      "arquivo": "hooks/ambiente.py",
+      "de": "PLUGIN / \"scripts\" / \"preparar-estacao.sh\"",
+      "para": "raiz / \"scripts\" / \"preparar-estacao.sh\"",
+      "testes": [
+        "tests.test_ambiente_hook.AmbienteNoSessionStart.test_nunca_roda_o_script_do_work_tree"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o hook de projeto exige o devcontainer.json",
+      "arquivo": "hooks/ambiente.py",
+      "de": "elif (raiz / \".devcontainer\" / \"devcontainer.json\").is_file():",
+      "para": "elif True:",
+      "testes": [
+        "tests.test_ambiente_hook.AmbienteNoSessionStart.test_so_o_sessionstart_dentro_do_container_e_com_devcontainer"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o hook só fala quando falta algo",
+      "arquivo": "hooks/ambiente.py",
+      "de": "    if linhas:\n",
+      "para": "    if True:\n",
+      "testes": [
+        "tests.test_ambiente_hook.AmbienteNoSessionStart.test_ambiente_em_ordem_fica_em_silencio"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "o hook distingue o clone do Forge do projeto",
+      "arquivo": "hooks/ambiente.py",
+      "de": "if e_clone_do_forge(raiz):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_ambiente_hook.AmbienteNoSessionStart.test_forge_faltando_poe_as_linhas_falta_com_o_comando_exato_no_contexto"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "estação: a chave do apt só vale com a impressão digital pinada",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "command grep -q \"^fpr:::::::::$CHAVE_GH_FPR:\"",
+      "para": "command grep -q \"^fpr\"",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_chave_do_apt_do_gh_so_e_instalada_com_a_impressao_digital_certa"
+      ]
+    }
+  ]
+}

@@ -14,7 +14,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "hooks"))
 sys.path.insert(0, str(RAIZ / "tests"))
 import pesado  # noqa: E402
-from test_hooks import Fixture, ambiente_limpo, lancador  # noqa: E402
+from test_hooks import PESADOS_DA_STACK, Fixture, ambiente_limpo, lancador  # noqa: E402
 
 
 class Fila(unittest.TestCase):
@@ -51,9 +51,9 @@ class Fila(unittest.TestCase):
         raiz, entrada = Fixture(RAIZ / "tests/hooks/pesado/teto-diz-a-posicao.json", dados).montar(tmp, os.getpid())
         trava = next(p for p in (raiz / ".forge" / "run", raiz / ".git" / "forge" / "run") if (p / "pesado.json").exists())
         (trava / "pesado.json").unlink()
-        _, preso = pesado.entrar_na_fila(trava / "pesado.fila", 0)
-        self.addCleanup(preso.close)
         env = dict(ambiente_limpo(), FORGE_PESADO_ESPERA_S="1")
+        _, preso = pesado.entrar_na_fila(Path(env["FORGE_MAQUINA"]) / "pesado.fila", 0)  # MP4: a fila é da máquina
+        self.addCleanup(preso.close)
         r = subprocess.run(lancador("pesado"), input=json.dumps(entrada), cwd=raiz, env=env, capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 2, "livre, mas outro está na fila na frente")
         self.assertIn("posição 2 de 2", r.stderr)
@@ -73,6 +73,44 @@ class Fila(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertGreater(time.monotonic() - t0, 1.0, "esperou a vez em vez de recusar")
         self.assertIn("toolu_9", trava.read_text(encoding="utf-8"))
+
+
+class TravaDeVinteMinutos(unittest.TestCase):
+    """MAQ-I9 (fatia 2): com o PID vivo, a trava de outra sessão vale até TRAVA_S = 1.200 s (a suíte em série vai a 693 s);
+    ocupada, a vez é pela fila (Orkastery 5), e `expiracao_horas` menor ainda limita."""
+
+    def rodar(self, idade, horas=None):
+        import tempfile
+        outro = subprocess.Popen([sys.executable, "-I", "-c", "import time; time.sleep(60)"], env=ambiente_limpo())
+        self.addCleanup(outro.wait)
+        self.addCleanup(outro.kill)
+        caminho = RAIZ / "tests/hooks/pesado/teto-diz-a-posicao.json"
+        dados = json.loads(caminho.read_text(encoding="utf-8"))
+        dados["estado"]["pesado.json"]["desde"] = f"{{agora-{idade}}}"
+        if horas is not None:
+            dados["config"] = {"pesados": PESADOS_DA_STACK, "expiracao_horas": horas}
+        raiz, entrada = Fixture(caminho, dados).montar(Path(tempfile.mkdtemp(prefix="forge-pesado-1200-")), outro.pid)
+        env = dict(ambiente_limpo(), FORGE_PESADO_ESPERA_S="1")
+        r = subprocess.run(lancador("pesado"), input=json.dumps(entrada), cwd=raiz, env=env, capture_output=True, text=True, timeout=60)
+        trava = next(p for p in (raiz / ".forge" / "run", raiz / ".git" / "forge" / "run") if (p / "pesado.json").exists())
+        return r, (trava / "pesado.json").read_text(encoding="utf-8")
+
+    def test_pid_vivo_ha_mais_de_10_min_segue_ocupado_e_vai_para_a_fila(self):
+        r, trava = self.rodar(700)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("há 11 min", r.stderr)
+        self.assertIn("posição 1 de 1", r.stderr)
+        self.assertNotIn("toolu_9", trava)
+
+    def test_pid_vivo_ha_mais_de_20_min_solta(self):
+        r, trava = self.rodar(1300)
+        self.assertEqual((r.returncode, r.stderr), (0, ""))
+        self.assertIn("toolu_9", trava)
+
+    def test_expiracao_menor_limita_os_20_min(self):
+        r, trava = self.rodar(1000, horas=0.25)  # 900 s de `expiracao_horas` valem sobre os 1.200 s
+        self.assertEqual((r.returncode, r.stderr), (0, ""))
+        self.assertIn("toolu_9", trava)
 
 
 if __name__ == "__main__":

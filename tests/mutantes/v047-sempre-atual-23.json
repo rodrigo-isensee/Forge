@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S97",
+      "guarda": "forge_sempre_atual.py:617 decide por `ref != tag and not self.catalogo(tag, pendentes)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if ref != tag and not self.catalogo(tag, pendentes):",
+      "para": "if not (ref != tag and not self.catalogo(tag, pendentes)):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S98",
+      "guarda": "forge_sempre_atual.py:621 decide por `rc != 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.atualizar_escopo(e)\n            if rc != 0:\n                self.falhar([e], \"prazo\" if rc is None else \"update\", saida)",
+      "para": "rc, saida = self.atualizar_escopo(e)\n            if not (rc != 0):\n                self.falhar([e], \"prazo\" if rc is None else \"update\", saida)",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_fixacao_gravada_antes_de_mexer_no_catalogo"
+      ]
+    },
+    {
+      "id": "S99",
+      "guarda": "forge_sempre_atual.py:622 decide por `rc is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if rc != 0:\n                self.falhar([e], \"prazo\" if rc is None else \"update\", saida)\n        novos = self.listar()",
+      "para": "if rc != 0:\n                self.falhar([e], \"prazo\" if not (rc is None) else \"update\", saida)\n        novos = self.listar()",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_update_recusado_registra_update"
+      ]
+    },
+    {
+      "id": "S100",
+      "guarda": "forge_sempre_atual.py:624 decide por `novos is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if novos is None:",
+      "para": "if not (novos is None):",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_fixacao_gravada_antes_de_mexer_no_catalogo"
+      ]
+    },
+    {
+      "id": "S101",
+      "guarda": "forge_sempre_atual.py:630 decide por `e[\"chave\"] in self.res`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "for e in pendentes:\n            if e[\"chave\"] in self.res:\n                continue",
+      "para": "for e in pendentes:\n            if not (e[\"chave\"] in self.res):\n                continue",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_fixacao_gravada_antes_de_mexer_no_catalogo"
+      ]
+    },
+    {
+      "id": "S102",
+      "guarda": "forge_sempre_atual.py:633 decide por `novo is None or versao_tupla(novo[\"versao\"]) != alvo`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if novo is None or versao_tupla(novo[\"versao\"]) != alvo:",
+      "para": "if not (novo is None or versao_tupla(novo[\"versao\"]) != alvo):",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_fixacao_gravada_antes_de_mexer_no_catalogo"
+      ]
+    },
+    {
+      "id": "S103",
+      "guarda": "forge_sempre_atual.py:634 decide por `novo`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.falhar([e], \"update\", f\"esperava {versao_texto(alvo)}, achou {novo['versao'] if novo else 'nada'}\")",
+      "para": "self.falhar([e], \"update\", f\"esperava {versao_texto(alvo)}, achou {novo['versao'] if not (novo) else 'nada'}\")",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_update_sem_efeito_diz_a_versao_achada"
+      ]
+    },
+    {
+      "id": "S104",
+      "guarda": "forge_sempre_atual.py:644 decide por `not doutor.is_file()`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not doutor.is_file():",
+      "para": "if doutor.is_file():",
+      "testes": [
+        "tests.test_sempre_atual.AncoraDentro.test_nunca_work_tree_nem_ref_local"
+      ]
+    }
+  ]
+}

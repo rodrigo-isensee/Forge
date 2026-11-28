@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-contador-versao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "sem origin/develop, cai na develop local",
+      "arquivo": "bin/forge-contador",
+      "de": "        if subprocess.run([\"git\", \"-C\", str(raiz), \"rev-parse\"",
+      "para": "        if False and subprocess.run([\"git\", \"-C\", str(raiz), \"rev-parse\"",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_conta_fragmentos_sem_readme_e_sobe_o_patch"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "com marca vX.Y.Z, parte dela; sem marca, de 0.0.0",
+      "arquivo": "bin/forge-contador",
+      "de": "texto = ultima_marca(raiz, ref) or \"0.0.0\"",
+      "para": "texto = \"0.0.0\"",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_sem_plugin_json_usa_a_ultima_marca"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "título de seção abre a coluna",
+      "arquivo": "bin/forge-contador",
+      "de": "        if linha.startswith(\"## \"):\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_so_quadro"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "coluna de origem aberta decide entrada e saída",
+      "arquivo": "bin/forge-contador",
+      "de": "        de_aberta = c[2] in colunas_abertas\n",
+      "para": "        de_aberta = True\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_previsao_pela_vazao_liquida"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "--ref passado vale sobre o padrão",
+      "arquivo": "bin/forge-contador",
+      "de": "        ref = a.ref or ref_padrao(a.raiz)",
+      "para": "        ref = ref_padrao(a.raiz)",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_ref_inexistente_e_erro"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "sem --quadro, só a linha da versão; com ele, o backlog",
+      "arquivo": "bin/forge-contador",
+      "de": "        if a.quadro:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_so_quadro"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "quadro sem aberto diz nenhum",
+      "arquivo": "bin/forge-contador",
+      "de": "if v > 0) or \"nenhum\"",
+      "para": "if v > 0)",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_quadro_vazio"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "com --historico, o dia e a previsão",
+      "arquivo": "bin/forge-contador",
+      "de": "            if a.historico:\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_previsao_pela_vazao_liquida"
+      ]
+    }
+  ]
+}

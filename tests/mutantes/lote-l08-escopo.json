@@ -16,8 +16,8 @@
       "id": "M61",
       "guarda": "o pr da linha de comando segue cobrando a conferência (padrão conferir=True)",
       "arquivo": "bin/forge-check",
-      "de": "def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True):",
-      "para": "def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=False):",
+      "de": "conferir=True, previo=False, sem_checks=False, adiar_suite=False):",
+      "para": "conferir=False, previo=False, sem_checks=False, adiar_suite=False):",
       "testes": [
         "tests.test_conf_escopo.MergeIntegracao.test_escopo_le_so_os_pareceres_e_o_pr_segue_cobrando_a_conferencia"
       ]

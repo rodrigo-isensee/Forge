@@ -116,8 +116,8 @@
       "id": "V25",
       "guarda": "bin/forge-check:7406 item is not None (negada)",
       "arquivo": "bin/forge-check",
-      "de": "    linhas = [f\"proximo: pedido {caminho_impresso(pedido_id)}\"] + (linhas_do_item(raiz, caminho, item) if item is not None else [])",
-      "para": "    linhas = [f\"proximo: pedido {caminho_impresso(pedido_id)}\"] + (linhas_do_item(raiz, caminho, item) if not (item is not None) else [])",
+      "de": "(linhas_do_item(raiz, caminho, item) if item is not None else [])",
+      "para": "(linhas_do_item(raiz, caminho, item) if not (item is not None) else [])",
       "testes": [
         "tests.test_proximo"
       ]

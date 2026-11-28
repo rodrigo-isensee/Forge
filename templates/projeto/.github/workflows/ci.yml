@@ -1,0 +1,94 @@
+# CI do projeto (modelo do Forge; skills/ci-cd/SKILL.md, "CI de projeto privado: minutos"). Neutro de stack (ADR 0001):
+# o comando vem do pronto da stack (stacks/<stack>/pronto.md); a toolchain e o cache da seção "CI" dela entram no passo marcado.
+# R-CUSTO: em projeto privado os minutos do Actions são a franquia gratuita. Por isso a suíte pesada roda só em pull request e
+# no push das branches do fluxo (develop, homolog, main), nunca no push de branch de trabalho (o PR já a roda).
+# Um workflow só, sem filtro de caminho: o job "mudanca" detecta se TODOS os arquivos alterados são documento; só então a
+# suíte é pulada, e o único check "ci" aceita o pulo. Na dúvida (sem base, erro de diff) a detecção diz "código" e a suíte roda.
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [develop, homolog, main]
+
+permissions:
+  contents: read
+
+# PR pelo número, push pela ref: validações distintas (push na develop e PR develop -> homolog) não se cancelam,
+# e um PR de fork com branch homônima não cancela a rodada alheia.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mudanca:
+    name: mudança
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    outputs:
+      so_documento: ${{ steps.detecta.outputs.so_documento }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detecta mudança só de documento
+        id: detecta
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CABECA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          so_documento=false
+          if [ -n "$BASE" ] && git cat-file -e "$BASE^{commit}" 2>/dev/null && arquivos=$(git diff --no-renames --name-only "$BASE...$CABECA" 2>/dev/null) && [ -n "$arquivos" ]; then
+            so_documento=true
+            while IFS= read -r arquivo; do
+              case "$arquivo" in
+                *.md | docs/*) ;;
+                *) so_documento=false ;;
+              esac
+            done <<< "$arquivos"
+          fi
+          echo "so_documento=$so_documento" >> "$GITHUB_OUTPUT"
+
+  suite:
+    name: suíte
+    needs: [mudanca]
+    if: needs.mudanca.outputs.so_documento != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      # Toolchain e cache da stack: copie da seção "CI" de stacks/<stack>/pronto.md (ações fixadas por SHA).
+      - name: Pronto
+        run: |
+          {{COMANDO_PRONTO}}
+
+  # Agregador de nome fixo e único: é este o check a exigir na proteção da branch (o dono configura, R-CONFORMIDADE).
+  # Passa com a suíte verde; a suíte pulada só vale quando a detecção provou "só documento".
+  ci:
+    name: ci
+    if: always()
+    needs: [mudanca, suite]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Suíte verde ou só documento
+        env:
+          MUDANCA: ${{ needs.mudanca.result }}
+          SO_DOCUMENTO: ${{ needs.mudanca.outputs.so_documento }}
+          SUITE: ${{ needs.suite.result }}
+        run: |
+          test "$MUDANCA" = "success" || exit 1
+          if [ "$SO_DOCUMENTO" = "true" ]; then
+            test "$SUITE" = "skipped"
+          else
+            test "$SUITE" = "success"
+          fi

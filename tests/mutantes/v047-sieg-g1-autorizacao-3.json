@@ -1,0 +1,76 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "G1.1a (ADR 0018 item 7): erro de leitura sai com rc 1",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "return 1 if erros or adulteradas else 0",
+      "para": "return 1 if adulteradas else 0",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_ilegivel_e_erro_e_nada_e_integro_por_ele"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "G1.1a (ADR 0018 item 7): campo ausente: só o que falta conta",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "faltam = [c for c in CAMPOS if c not in campos]",
+      "para": "faltam = [c for c in CAMPOS if c in campos]",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_integra_mostra_a_mensagem_inteira_validade_no_fuso_e_em_utc"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "G1.1a (ADR 0018 item 7): só o problema que falha entra na lista",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "Autoriza fora do texto fixo\")) if falha]",
+      "para": "Autoriza fora do texto fixo\")) if True]",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_integra_mostra_a_mensagem_inteira_validade_no_fuso_e_em_utc"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "G1.1a (ADR 0018 item 7): pasta ausente não é erro",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "for arq in sorted(pasta.iterdir()) if pasta.exists() else ()",
+      "para": "for arq in sorted(pasta.iterdir()) if True else ()",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_pasta_ausente_nada_e_so_concessao_e_listada"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "G1.1a (ADR 0018 item 7): U- e M- valem só pela presença, sem leitura",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if arq.name.startswith(LIDOS):",
+      "para": "if True:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_pasta_ausente_nada_e_so_concessao_e_listada"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "G1.1a (ADR 0018 item 7): só A- é listada como concessão",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "for n in lidos if n.startswith(\"A-\")),",
+      "para": "for n in lidos if True),",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_pasta_ausente_nada_e_so_concessao_e_listada"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "G1.1a (ADR 0018 item 7): o subcomando autorizacao chega ao módulo",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"autorizacao\":  #",
+      "para": "    if False:  #",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_forge_check_autorizacao_ler_aceita_so_o_gravado_por_ele"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M48",
+      "guarda": "G1.1c (ADR 0018): a retirada R-<n> tira a concessão",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if any(n.startswith(\"R-\") and",
+      "para": "    if False and any(n.startswith(\"R-\") and",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    },
+    {
+      "id": "M49",
+      "guarda": "G1.1c (ADR 0018): a retirada vale só para a concessão que ela nomeia",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "c.get(\"Retira\") == nome for",
+      "para": "c.get(\"Retira\") != nome for",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    },
+    {
+      "id": "M50",
+      "guarda": "G1.1c (ADR 0018): o uso U-<Id> gasta a de uso único",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if campos[\"Validade\"] == \"uso-unico\" and f\"U-{nome}\" in nomes:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "G1.1c (ADR 0018): só o U- com o Id exato gasta a concessão",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "and f\"U-{nome}\" in nomes:",
+      "para": "and any(n.startswith(f\"U-{nome}\") for n in nomes):",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "G1.1c (ADR 0018 item 5): confirmação não íntegra, de outro gravador ou de outra concessão não confirma",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if conf.get(\"Confirma\") != nome or conf.get(\"Sha256\") != sha(corpo) or conf.get(\"Gravado-por\") != gravador:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    },
+    {
+      "id": "M53",
+      "guarda": "G1.1c (ADR 0018 item 5): a confirmação tem de ser de fala posterior",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "instante(conf.get(\"Hora-da-fala\", \"\")) > instante(",
+      "para": "instante(conf.get(\"Hora-da-fala\", \"\")) >= instante(",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    },
+    {
+      "id": "M54",
+      "guarda": "G1.1c (ADR 0018 item 5): hora da confirmação ilegível não confirma (falha fechada)",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    except ValueError:\n        return False",
+      "para": "    except ValueError:\n        return True",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    },
+    {
+      "id": "M55",
+      "guarda": "G1.1c (ADR 0018 item 5): pendente confirmada vira ativa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "and not confirmada(nome, campos, lidos, gravador):",
+      "para": "and True:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    }
+  ]
+}

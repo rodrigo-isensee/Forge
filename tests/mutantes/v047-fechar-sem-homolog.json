@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FH-M1",
+      "guarda": "1c busca a homolog do servidor antes do promover, sempre (FECHAR-HOMOLOG-FRESCA, v0478)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if ! git fetch -q origin \"+refs/heads/homolog:refs/remotes/origin/homolog\"; then",
+      "para": "  if false; then",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_com_origin_homolog_velha_no_clone_busca_a_do_servidor_antes_do_promover"
+      ]
+    },
+    {
+      "id": "FH-M2",
+      "guarda": "busca da homolog que falha avisa",
+      "arquivo": "bin/forge-fechar",
+      "de": "      echo \"aviso: sem origin/homolog neste clone e a busca falhou (git fetch",
+      "para": "      true || echo \"aviso: sem origin/homolog neste clone e a busca falhou (git fetch",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_busca_da_homolog_que_falha_avisa_e_o_promover_decide"
+      ]
+    },
+    {
+      "id": "FH-M3",
+      "guarda": "passo 2 só dispensa o push com a remota ausente",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -z \"$remoto_sha\" ] && ja_no_alvo \"$sha_conferido\"; then",
+      "para": "if ja_no_alvo \"$sha_conferido\"; then",
+      "testes": [
+        "tests.test_fechar.Fechar.test_2_remota_com_outro_head_e_o_conferido_mesclado_continua_parando"
+      ]
+    },
+    {
+      "id": "FH-M4",
+      "guarda": "head já na base conta como mesclado",
+      "arquivo": "bin/forge-fechar",
+      "de": "  git merge-base --is-ancestor \"$1\" \"$base\" 2>/dev/null && return 0",
+      "para": "  false && return 0",
+      "testes": [
+        "tests.test_fechar.Fechar.test_2_remota_apagada_com_o_head_ja_na_base_nao_pede_push"
+      ]
+    },
+    {
+      "id": "FH-M5",
+      "guarda": "PR de fork não prova o merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "$4 == s && $5 != \"true\" {f = 1}",
+      "para": "$4 == s {f = 1}",
+      "testes": [
+        "tests.test_fechar.Fechar.test_2_remota_apagada_sem_merge_do_head_no_alvo_continua_pedindo_push"
+      ]
+    },
+    {
+      "id": "FH-M6",
+      "guarda": "só PR MERGED prova o merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "'$2 == \"MERGED\" && $3 == b && $4 == s",
+      "para": "'$3 == b && $4 == s",
+      "testes": [
+        "tests.test_fechar.Fechar.test_2_remota_apagada_sem_merge_do_head_no_alvo_continua_pedindo_push"
+      ]
+    },
+    {
+      "id": "FH-M7",
+      "guarda": "PR MERGED em outra base não prova o merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"MERGED\" && $3 == b && $4 == s && $5",
+      "para": "\"MERGED\" && $4 == s && $5",
+      "testes": [
+        "tests.test_fechar.Fechar.test_2_remota_apagada_sem_merge_do_head_no_alvo_continua_pedindo_push"
+      ]
+    },
+    {
+      "id": "FH-M8",
+      "guarda": "PR MERGED com outro head não prova o merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "$3 == b && $4 == s && $5 != \"true\"",
+      "para": "$3 == b && $5 != \"true\"",
+      "testes": [
+        "tests.test_fechar.Fechar.test_2_remota_apagada_sem_merge_do_head_no_alvo_continua_pedindo_push"
+      ]
+    }
+  ]
+}

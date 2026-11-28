@@ -1,0 +1,41 @@
+{
+  "descricao": "E51.1 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge (clone sem .forge/versao): o arquivo em vigor mudado desde o SessionStart é gravado em .forge/run/violacoes.jsonl.",
+  "forge": false,
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{raiz}",
+    "HOME": "{tmp}"
+  },
+  "arquivos": {
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1"
+      }
+    },
+    {
+      "gravar": {
+        ".githooks/pre-push": "#!/bin/sh\nexit 0\n"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": ".githooks/pre-push alterado",
+    "estado": {
+      "violacoes.jsonl": {
+        "contem": [
+          ".githooks/pre-push alterado"
+        ]
+      }
+    }
+  }
+}

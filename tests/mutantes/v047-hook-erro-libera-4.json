@@ -36,8 +36,8 @@
       "id": "M28",
       "guarda": "C6: a catraca compara o script, sem as opções do interpretador",
       "arquivo": "tests/catraca.py",
-      "de": "if not a.startswith(\"-\")]",
-      "para": "if not a.startswith(\"--\")]",
+      "de": "while j < len(depois) and depois[j].startswith(\"-\"):",
+      "para": "while j < len(depois) and depois[j].startswith(\"--\"):",
       "testes": [
         "tests.test_hook_erro_libera.HookErroLibera.test_catraca_compara_o_script_sem_as_opcoes_do_interpretador"
       ]
@@ -76,8 +76,8 @@
       "id": "M32",
       "guarda": "C7: sem recusa, o estado segue o caminho de sempre (o disparo liberado não recusa)",
       "arquivo": "hooks/agentes.py",
-      "de": "    if recusa is None:\n        atualizar_estado(",
-      "para": "    if recusa is not None:\n        atualizar_estado(",
+      "de": "    if recusa is None:\n        try:\n            atualizar_estado(",
+      "para": "    if recusa is not None:\n        try:\n            atualizar_estado(",
       "testes": [
         "tests.test_agentes_clone.RegistroNoClone.test_abaixo_do_teto_grava_a_reserva_no_diretorio_comum"
       ]

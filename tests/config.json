@@ -78,6 +78,9 @@
       ".github/workflows/ci.yml": [
         "\\bnpm\\b"
       ],
+      ".github/workflows/diario.yml": [
+        "\\bnpm\\b"
+      ],
       "scripts/preparar-estacao.sh": [
         "\\bNode(\\.js)?\\b",
         "\\bpnpm\\b"
@@ -99,7 +102,8 @@
     {"tipo": "trecho", "n": 7, "sha256": "6bff709e40e583c408e0585e149a68b4f368268b384189bce6194ebcf3800684"},
     {"tipo": "palavra", "n": 3, "sha256": "887539ae032b612757c3db85abb59a5021d6258e6238fe40556103f404d33dc0"},
     {"tipo": "palavra", "n": 3, "sha256": "227467f082ea66c3f9419cc76615ad680d56c5c167a7accbee3b4a9c94cb196e"},
-    {"tipo": "palavra", "n": 3, "sha256": "12c243f2ea0b6bc32902e349799d84f41c84822a39f2ce447bb1831eb4102ab7"}
+    {"tipo": "palavra", "n": 3, "sha256": "12c243f2ea0b6bc32902e349799d84f41c84822a39f2ce447bb1831eb4102ab7"},
+    {"tipo": "trecho", "n": 26, "sha256": "3d518989252aee08ea77b7d9fc207402e796a1f4bbb71d27343ebcd32fc3de50"}
   ],
   "anti_duplicacao": {
     "palavras": 12,
@@ -122,7 +126,9 @@
       "Sem credencial",
       "\\*\\*Aguardando o dono\\*\\* \\(topo do quadro\\)",
       "decisão ou ação do usuário vai para \"Aguardando o dono\"",
-      "aguardando o dono: N \\(o mais antigo desde"
+      "aguardando o dono: N \\(o mais antigo desde",
+      "O técnico \\(desenho, portões, integração, versão\\) é do `tech-lead`",
+      "skills/kanban-scrum/experimentos\\.md"
     ],
     "agents/conferente.md": [
       "origin/<Base>",
@@ -164,7 +170,7 @@
       "def leitura_valida","REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO",
       "def endpoint_normalizado", "conteudos_de_crase\\(", "GRAPHQL_DE_ROTULO", "TIMEOUT_DA_CONTA", "erro interno ao conferir o rótulo afrouxa-regra",
       "def rotulo_no_argumento", "def rotulos_removidos", "sub == \"clone\""],
-    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece nas perguntas que `R-DECISAO` não deixa delegar"],
+    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece nas perguntas que `R-DECISAO` não deixa delegar", "Fale só no marco", "modo foco da extensão do VSCode \\(Focus view", "não dá para dizer se é maior ou menor", "skills/modo-iniciante/numeros\\.md"],
     "docs/adr/_modelo.md": [
       "## Critério de reversão",
       "## Leituras",
@@ -184,20 +190,20 @@
       "critério de reversão"
     ],
     "agents/jarvis.md": [
-      "Última linha: `Melhoria vista:`",
+      "\\*\\*Recibo antes de acionar o time\\*\\* \\(mensagem no meio da rodada: na fala seguinte, antes de tudo\\)",
+      "\\*\\*Autor até o merge \\(H2\\):\\*\\* volta de review, QA, segurança, CI e conflito vai à mesma instância do autor",
+      "agente novo apenas se ele travou",
+      "skills/briefs-e-conferencia/autor-ate-o-merge\\.md",
+      "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez",
+      "skills/falar-com-o-dono/nao-trava\\.md",
+      "a versão fecha com 20 itens integrados \\(diretriz 34\\)",
       "o pedido só fecha com ela gravada",
+      "Teto do time \\(H6\\): até 20 agentes e 12 branches abertas",
+      "agente livre termina o que está aberto",
+      "skills/trabalho-em-paralelo/ritmo-e-corte\\.md",
       "Recibo antes de acionar o time",
-      "Marque cada item de escopo, fora do escopo e critério de pronto",
-      "vou fazer: \\.\\.\\.; não vou fazer: \\.\\.\\.; é isso\\?",
-      "frase literal entre aspas com as duas leituras",
-      "`NAO-ENTENDI:`",
       "brief único",
-      "comando de pronto do projeto verde, rodado da raiz do repositório",
       "## Fábrica × projeto: onde cada mudança vai",
-      "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",
-      "\\*\\*em qualquer projeto\\*\\*",
-      "\\*\\*Autonomia para melhorar o Forge e os projetos",
-      "uma mudança que tenha as duas partes vira \\*\\*dois PRs\\*\\*",
       "`R-MAIN`",
       "`R-FLUXO`",
       "`R-WIP`",
@@ -214,30 +220,55 @@
       "`R-CONTRIB`",
       "`R-SEGURANCA`",
       "teste de bloqueante",
-      "nunca sobe sozinho",
-      "estado em uma linha",
-      "só vale gravada",
       "## Triagem de cada pedido",
       "diga sempre ao usuário para qual agente passou",
+      "\\*\\*Vários projetos\\*\\* \\(diretriz 35\\)",
+      "skills/falar-com-o-dono/varios-projetos\\.md",
+      "no recibo e no aviso de marco, nunca em mensagem extra",
       "que são do `tech-lead`",
       "`R-PROVA`",
       "`R-BRIEF`",
-      "`PQ-1`",
       "Provas:",
       "`forge:conferente`",
+      "toca sempre o máximo de itens ao mesmo tempo",
+      "skills/briefs-e-conferencia/SKILL\\.md",
+      "skills/trabalho-em-paralelo/SKILL\\.md",
+      "skills/falar-com-o-dono/SKILL\\.md",
+      "skills/fluxo-do-pedido/SKILL\\.md",
+      "\\*\\*Falar só no marco:\\*\\*",
+      "quando algo dá errado e muda prazo ou risco",
+      "no máximo um resumo a cada 30 min",
+      "recibo e perguntas, sempre completos",
+      "ou ao pedido das decisões"
+    ],
+    "skills/fluxo-do-pedido/SKILL.md": [
+      "Última linha: `Melhoria vista:`",
+      "Marque cada item de escopo, fora do escopo e critério de pronto",
+      "vou fazer: \\.\\.\\.; não vou fazer: \\.\\.\\.; é isso\\?",
+      "frase literal entre aspas com as duas leituras",
+      "`NAO-ENTENDI:`",
+      "comando de pronto do projeto verde, rodado da raiz do repositório",
+      "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",
+      "\\*\\*em qualquer projeto\\*\\*",
+      "\\*\\*Autonomia para melhorar o Forge e os projetos",
+      "uma mudança que tenha as duas partes vira \\*\\*dois PRs\\*\\*",
+      "nunca sobe sozinho",
+      "estado em uma linha",
+      "só vale gravada",
+      "`PQ-1`",
       "Retira do escopo original",
       "\\*\\*Fora do escopo\\*\\*",
       "\\*\\*pedido × entregue\\*\\*",
       "docs/briefs/",
       "`## Etapas`",
-      "toca sempre o máximo de itens ao mesmo tempo",
       "vale para o Forge e para todos os projetos que o usam",
       "Na abertura de cada pedido, confira com o time se ele cabe num lote",
-      "skills/briefs-e-conferencia/SKILL\\.md",
-      "skills/trabalho-em-paralelo/SKILL\\.md",
-      "skills/falar-com-o-dono/SKILL\\.md"
+      "não contradiz o teste de bloqueante",
+      "sem passar pelo teste de bloqueante",
+      "Ordem ampla não confirma:\\*\\* diante de"
     ],
     "skills/briefs-e-conferencia/SKILL.md": [
+      "ao autor da branch, retomado por `SendMessage` até o merge \\(H2; comando e detalhe em `autor-ate-o-merge\\.md` nesta skill\\)",
       "forge-check brief selar --arquivo <brief> --pedido <p>",
       "forge-check brief gerar",
       "Nunca escreva essa linha à mão"
@@ -249,18 +280,57 @@
       "suba mais instâncias iguais dele",
       "\\*\\*Lote por arquivo:\\*\\*",
       "`R-DECISAO` painel \"Aguardando o dono\"",
-      "\\*\\*Integração contínua \\(D2\\):\\*\\*"
+      "\\*\\*Integração contínua \\(D2\\):\\*\\*",
+      "\\*\\*H1:\\*\\* até 150 linhas de código, fora testes e documentação; passa só se cortar mais deixa a suíte vermelha"
     ],
     "skills/falar-com-o-dono/SKILL.md": [
       "que não se oferece nas perguntas que `R-DECISAO` não deixa delegar",
-      "não contradiz o teste de bloqueante",
-      "sem passar pelo teste de bloqueante",
-      "Ordem ampla não confirma:\\*\\* diante de",
+      "\\*\\*Pedido de decisões \\(diretriz 29\\):\\*\\*",
+      "Não há decisão sua pendente",
       "Como perguntar",
       "Afrouxa o processo\\?",
       "decidam vocês",
       "\\*\\*Perguntas uma a uma \\(`R-DECISAO`\\):\\*\\*",
-      "Sem resposta, fica pendente\\."
+      "Sem resposta, fica pendente\\.",
+      "Responda já: a lista curta de todas as decisões pendentes, da de maior peso para a menor",
+      "faça só isso, sem disparo, cartão, registro, conferência nem andamento antes",
+      "Leia só as perguntas abertas \\(`PERGUNTA:` e \"precisa de você\", nos pedidos e no quadro, numa consulta\\)",
+      "a primeira\\s+pergunta completa \\(contexto simples, opções, recomendação, o que acontece sem decisão\\)",
+      "Uma a uma, cada resposta por `forge-check anotar` e a próxima logo",
+      "O time não para: o que não depende das respostas segue e é disparado",
+      "sem aviso ao dono entre as perguntas \\(resumo no fim\\); o que depende de uma decisão espera só ela",
+      "Sem pendência: \"Não há decisão sua pendente\", numa linha",
+      "skills/falar-com-o-dono/resposta-curta\\.md",
+      "skills/falar-com-o-dono/pergunta-pendente\\.md",
+      "skills/falar-com-o-dono/toda-mensagem\\.md",
+      "skills/falar-com-o-dono/conferir-develop\\.md",
+      "regra 12 de `docs/economia-de-tokens\\.md`"
+    ],
+    "skills/falar-com-o-dono/resposta-curta.md": [
+      "`decisoes --resposta` a lê; corte recomendado leva `origem:`, `procurado:`, `seguir:`, `não seguir:`",
+      "`aprovo` só vale para a recomendada `\\[reversível\\]`"
+    ],
+    "skills/falar-com-o-dono/pergunta-pendente.md": [
+      "\\*\\*Pergunta pendente não segura o tópico \\(Q2\\):\\*\\* segue-se a escolha recomendada como `suposição` \\(`muda com`, `custo de reverter`\\)",
+      "revertida, vira `suposição revertida` no `## Histórico`; trocadas 2 de 5, volta a esperar",
+      "Nunca vale para aceite de risco, gasto \\(`R-CUSTO`\\), `afrouxa-regra`, merge na main ou ato destrutivo: o dependente espera \\(`R-CONFORMIDADE`\\)"
+    ],
+    "skills/falar-com-o-dono/toda-mensagem.md": [
+      "até \"continue\" ou \"ok\", recebe no mesmo turno a resposta e o passo seguinte",
+      "Silêncio, só quando um agente termina sem nada para o dono, e mesmo então o passo seguinte do time anda",
+      "recibo na próxima fala do Jarvis, antes de qualquer outra coisa: o que ele pediu e \"vou fazer\" ou \"não vou fazer\""
+    ],
+    "skills/falar-com-o-dono/conferir-develop.md": [
+      "antes de abrir ou delegar uma etapa, confira na `develop` se o item já foi entregue ou resolvido \\(`git log origin/develop --grep '<cartão>'`\\)",
+      "se foi, feche-a no `## Histórico`, sem delegar"
+    ],
+    "skills/modo-iniciante/numeros.md": [
+      "`estimado`: some por componente",
+      "`não medido`: sem linha nem componente medido; não se escreve número"
+    ],
+    "skills/kanban-scrum/experimentos.md": [
+      "Critério de reversão",
+      "Uma mudança por vez em cada parte do processo"
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
@@ -287,6 +357,7 @@
     ],
     "templates/projeto/docs/engineering/protecao-de-branch.md": [
       "sem ator de bypass",
+      "\\*\\*Require merge queue\\*\\*",
       "`R-CONFORMIDADE`",
       "Enforcement status: \\*\\*Active\\*\\*"
     ],
@@ -302,7 +373,16 @@
       "vira pendência no parecer, não revisão manual"
     ],
     "agents/tech-lead.md": [
+      "\\(H2, o autor fica até o merge\\): review, QA, segurança, CI e conflito, os três portões numa volta única",
+      "skills/briefs-e-conferencia/autor-ate-o-merge\\.md",
+      "\\*\\*Tamanho por item \\(H1, decisão do dono\\):\\*\\*",
+      "Passa só se cortar mais deixa a suíte vermelha",
+      "skills/engineering-practices/tamanho-por-item\\.md",
+      "\\*\\*Versão \\(diretriz 34\\):\\*\\*",
       "`sem teste:` do `forge-check pr` pede justificativa no `## Sem teste` do PR",
+      "\\*\\*Ritmo e corte \\(diretrizes 32 e 33; H6\\):\\*\\*",
+      "skills/trabalho-em-paralelo/ritmo-e-corte\\.md",
+      "ritmo-e-corte\\.md` antes de abrir item novo ou juntar na `develop`",
       "suíte inteira roda só no CI",
       "Commite o parecer na branch revisada",
       "Fila de integração",
@@ -377,17 +457,19 @@
       "Nunca copie agentes ou skills do Forge",
       "Nada no Forge \\(CI, testes, scripts, fluxo\\) consome API paga ou serviço cobrado",
       "sem autorização expressa do usuário",
-      "projeto abre PR para a `develop` do Forge e nunca o mescla",
+      "\\*\\*Projeto nunca mexe no Forge, só sugere\\*\\*",
       "Nenhum portão tem exceção, nem para o dono",
       "`gh pr checks`",
-      "Sessão de outro projeto só propõe",
-      "criar \\*\\*uma\\*\\* branch própria `melhoria/<projeto>-<tema>`",
-      "resolver conflitos nem revalidar pareceres de PR alheio",
-      "fechar ou editar PR alheio; aplicar rótulos",
+      "não cria branch, não commita, não envia, não abre PR, não comenta nem rotula no repositório do Forge",
+      "vira só sugestão anonimizada, guardada com",
+      "vira issue só depois que o dono confirma",
+      "Quem implementa é sempre a sessão do Forge",
       "O rótulo `afrouxa-regra` é só do dono do Forge",
       "só cria ou renomeia um rótulo com esse nome",
       "aplicar ou delegar esse rótulo a um agente é \\*\\*proibido\\*\\*",
-      "avisa o usuário e \\*\\*para\\*\\*",
+      "barra branch, commit, envio e PR no Forge vindos de sessão de projeto",
+      "todo `gh` no Forge que não só lê",
+      "Decide pela raiz da sessão e, na dúvida sobre o alvo",
       "push sem arquivo protegido não o derruba"
     ],
     "docs/regras/R-QA.md": [
@@ -416,7 +498,8 @@
       "\\*\\*Uma passada:\\*\\*",
       "commit fora do domínio não o invalida",
       "Rigor por classe \\(`forge-check classe`\\)",
-      "Estilo, nome, estrutura e preferência são sugestão"
+      "Estilo, nome, estrutura e preferência são sugestão",
+      "a de review e QA vira cartão depois do merge; a de segurança é corrigida antes"
     ],
     "docs/regras/R-FLUXO.md": [
       "Fila de integração na `develop`",
@@ -435,7 +518,9 @@
       "\\*\\*Nunca\\*\\* apague `develop`, `homolog` nem `main`",
       "`git worktree prune`",
       "\\*\\*Fluxo contínuo:\\*\\*",
-      "a versão é uma tag e release sobre um commit da `develop`"
+      "a versão é uma tag e release sobre um commit da `develop`",
+      "Um merge por vez, testado sobre o topo",
+      "Topo vermelho: só o conserto, preso ao head revisado"
     ],
     "docs/regras/R-NEUTRO.md": [
       "nada específico de um projeto entra em agentes, skills, docs ou modelos"
@@ -494,7 +579,8 @@
       "conferir o diff contra a lista de `CA-n`",
       "no mesmo head do review",
       "## Mutantes declarados nos pedidos de controle",
-      "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado"
+      "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado",
+      "grave o JSON de cada caso ao terminar, em `relatorios/<rodada>/` no projeto, nunca em `/tmp`, que some; acrescente `relatorios/` ao `\\.gitignore` antes da rodada"
     ],
     "skills/cyber-security/SKILL.md": [
       "suíte inteira roda só no CI",
@@ -505,6 +591,9 @@
     ],
     "skills/engineering-practices/SKILL.md": [
       "suíte inteira roda só no CI",
+      "\\*\\*Tamanho por item \\(H1, decisão do dono; alinha o M14\\):\\*\\*",
+      "Passa só se cortar mais deixa a suíte vermelha",
+      "`tamanho-por-item\\.md` nesta skill",
       "comando de pronto do projeto \\(`CLAUDE.md`\\) verde, rodado da raiz do repositório",
       "nem conta como volta de `R-QA`",
       "## Definição de pronto",
@@ -520,8 +609,54 @@
       "critério de reversão",
       "Por que o existente não basta"
     ],
+    "skills/trabalho-em-paralelo/ritmo-e-corte.md": [
+      "\\*\\*Conserto da integração vermelha\\*\\*",
+      "nenhum portão é dispensado",
+      "merge preso ao head revisado",
+      "\\*\\*Lote\\*\\* \\(diretriz 26\\) é exceção declarada",
+      "## Ritmo diário \\(diretriz 32 do dono\\)",
+      "## Corte do trabalho por arquivo \\(diretriz 33 do dono\\)",
+      "## Teto do time \\(decisão do dono, H6\\)",
+      "Nunca junta sem os testes verdes nem pela exceção do GitHub",
+      "nunca para agentes diferentes em paralelo",
+      "no máximo 12 branches com trabalho aberto",
+      "Até 20 agentes ao mesmo tempo",
+      "Agente livre termina o que está aberto",
+      "## Versão com 20 itens \\(diretriz 34 do dono\\)",
+      "A versão fecha com 20 itens integrados na `develop`",
+      "o Jarvis avisa o dono numa linha quando ele fica verde"
+    ],
+    "skills/falar-com-o-dono/nao-trava.md": [
+      "\\*\\*Decisão pendente do dono não para o time:\\*\\*",
+      "Sem repetir \"sigo esperando\"",
+      "vira na hora o comando exato para o dono rodar",
+      "espera apenas o item bloqueado"
+    ],
+    "skills/falar-com-o-dono/varios-projetos.md": [
+      "começam por\\s+`Projeto: <nome>`",
+      "\"isto é para o projeto <X>\\?\"; nada é registrado",
+      "começa por `\\[<projeto>\\]`",
+      "recebe \"para qual\\s+projeto\\?\" e não vira ação",
+      "A allowlist não muda",
+      "não confirma o\\s+projeto nem põe prefixo",
+      "com um nome só,\\s+conta um projeto só e \\*\\*nada muda\\*\\*"
+    ],
+    "skills/engineering-practices/tamanho-por-item.md": [
+      "\\*\\*Decisão do dono \\(17/11, H1\\):\\*\\* até 150 linhas de código por item; testes e documentação não contam",
+      "ficam fora `tests/` inteira",
+      "uma classe de comportamento por PR em `hooks/`, com corpus próprio",
+      "\\*\\*Passar do teto:\\*\\* só se cortar mais deixa a suíte vermelha"
+    ],
+    "templates/projeto/.github/pull_request_template.md": [
+      "Até 150 linhas de código por item, fora testes e documentação",
+      "Passa só se cortar mais deixa a suíte vermelha: `teto: excedido, <n> linhas, <motivo>`"
+    ],
     "templates/projeto/CLAUDE.md": [
       "`R-MAIN`",
+      "\\*\\*Ritmo diário:\\*\\*",
+      "\\*\\*Corte por arquivo:\\*\\*",
+      "\\*\\*Teto do time:\\*\\*",
+      "a versão fecha quando a branch de integração soma 20 itens integrados, sem versão por dia",
       "`R-VERIFY`",
       "`R-COPIA`"
     ],
@@ -627,9 +762,25 @@
       "\\*\\*Nenhum agente desliga, enfraquece ou dribla um controle\\*\\*",
       "\\*\\*Arquivos em vigor\\*\\*"
     ],
-    "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"]
+    "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"],
+    "skills/briefs-e-conferencia/autor-ate-o-merge.md": [
+      "\\*\\*O autor fica com o item até o merge:\\*\\*",
+      "achado de review, de QA e de segurança, CI vermelho do PR e conflito com a base",
+      "\\*\\*Agente novo apenas se o autor travou:\\*\\*",
+      "\\*\\*Uma volta por rodada:\\*\\* os bloqueantes dos três portões \\(review, segurança e QA\\) no mesmo head viram um brief único",
+      "pare o agente novo e retome o autor por `SendMessage`, salvo se ele travou",
+      "`forge-check brief gerar --pedido <p> --volta <brief anterior> --ref <branch> --parecer <arquivo>\\.\\.\\.`",
+      "Recomendação não entra",
+      "salvo a de segurança, que entra por `--incluir <parecer>:A<n>` e é corrigida antes do merge"
+    ]
   },
   "invariantes_motivo": {
+    "skills/briefs-e-conferencia/autor-ate-o-merge.md": {"regra": "R-BRIEF", "porque": "sem o texto, a volta de review, QA, segurança, CI e conflito vai a um agente novo que relê tudo, e os três portões voltam em rodadas separadas (H2)"},
+    "skills/engineering-practices/tamanho-por-item.md": {"regra": "R-REVIEW", "porque": "sem o texto, somem a contagem do teto de 150 linhas de código por item e a única exceção decidida pelo dono (H1)"},
+    "templates/projeto/.github/pull_request_template.md": {"regra": "R-REVIEW", "porque": "sem o texto, o PR do projeto volta a contar teste no teto e a passar dele sem o motivo (H1)"},
+    "skills/falar-com-o-dono/varios-projetos.md": {"regra": "R-DECISAO", "porque": "sem o texto, com vários projetos na máquina o dono responde a decisão ou manda a ordem pelo Telegram ao Jarvis do projeto errado (diretriz 35, MP1 e MP7)"},
+    "skills/falar-com-o-dono/nao-trava.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis para o time à espera de decisão do dono ou de bloqueio de ambiente e repete \"sigo esperando\" (diretriz 34)"},
+    "skills/trabalho-em-paralelo/ritmo-e-corte.md": {"regra": "R-FLUXO", "porque": "sem o texto, somem o ritmo diário, o corte por arquivo e o teto do H6 que o Jarvis manda ler (diretrizes 32 e 33)"},
     "docs/fechamento-integrador.md": {"regra": "R-FLUXO", "porque": "sem o texto, o autor abre PR só para rodar o CI e o PR acaba fechado e reaberto, uma rodada a mais (decisão Q9 do dono)"},
     "docs/regras/R-SEGURANCA.md": {"regra": "R-SEGURANCA", "porque": "sem o texto, a mudança com gatilho de segurança segue sem o parecer do security-engineer"},
     "docs/regras/R-LIMITES.md": {"regra": "R-LIMITES", "porque": "sem o texto, o agente poderia enviar ou mesclar na main, pular os hooks com --no-verify ou --force, ligar API paga sem autorização, mesclar no Forge a partir de um projeto ou copiar agentes e skills para o projeto"},
@@ -647,7 +798,14 @@
     "skills/briefs-e-conferencia/SKILL.md": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis delega sem brief gravado e aceita a entrega sem a conferência do conferente"},
     "skills/trabalho-em-paralelo/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis dispara tarefas pesadas em paralelo sem a série por arquivo e sem o quadro com hora real"},
     "skills/esperar-estado/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o agente espera a trava pesada por kill -0 num pid de outro namespace e solta a espera antes da hora"},
-    "skills/falar-com-o-dono/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis pergunta ao dono fora do formato e trata ordem ampla como confirmação"}
+    "skills/falar-com-o-dono/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis pergunta ao dono fora do formato e trata ordem ampla como confirmação"},
+    "skills/fluxo-do-pedido/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis aciona o time sem recibo, registra o pedido sem as marcas e perde o trecho movido do núcleo (diretriz 25)"},
+    "skills/falar-com-o-dono/pergunta-pendente.md": {"regra": "R-DECISAO", "porque": "sem o texto, a pergunta pendente segura o tópico, ou a suposição provisória passa a cobrir risco, gasto, afrouxa-regra, main e ato destrutivo (Q2, diretriz 25)"},
+    "skills/falar-com-o-dono/toda-mensagem.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis deixa sem resposta nem passo seguinte o \"continue\" ou o \"ok\" do dono e o time para (diretriz 25)"},
+    "skills/falar-com-o-dono/conferir-develop.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis abre ou delega de novo uma etapa já entregue na develop (diretriz 25)"},
+    "skills/falar-com-o-dono/resposta-curta.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis oferece corte recomendado sem origem, procurado, seguir e não seguir, e a resposta curta deixa de ser lida por decisoes --resposta (diretriz 25)"},
+    "skills/modo-iniciante/numeros.md": {"regra": "R-DECISAO", "porque": "sem o texto, o custo de cada opção da pergunta ao dono sai sem a regra de medido, estimado e não medido, e o número pode ser inventado (diretriz 25)"},
+    "skills/kanban-scrum/experimentos.md": {"regra": "R-DECISAO", "porque": "sem o texto, o experimento de melhoria entra sem métrica nem critério de reversão e mais de uma mudança por vez (diretriz 25)"}
   },
   "invariantes_sem_motivo": {
     "skills/kanban-scrum/SKILL.md": 5,
@@ -660,7 +818,7 @@
     "templates/projeto/docs/architecture/adr/_modelo.md": 3,
     "skills/engineering-practices/SKILL.md": 5,
     "docs/melhoria-continua.md": 2,
-    "agents/jarvis.md": 49,
+    "agents/jarvis.md": 27,
     "templates/projeto/docs/pedidos/_modelo.md": 16,
     "docs/protecao-de-branch.md": 3,
     "templates/projeto/docs/engineering/protecao-de-branch.md": 3,
@@ -686,6 +844,15 @@
     "scripts/jarvis-forge": 2
   },
   "invariantes_motivo_trecho": {
+    "templates/projeto/docs/engineering/protecao-de-branch.md": {
+      "\\*\\*Require merge queue\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto de organização não liga a fila nativa e o PR testado sobre a integração velha entra (BP2 D6)"}
+    },
+    "templates/projeto/CLAUDE.md": {
+      "\\*\\*Ritmo diário:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo não recebe o ritmo diário: junção contínua e a versão para a main (diretriz 32)"},
+      "a versão fecha quando a branch de integração soma 20 itens integrados, sem versão por dia": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo não recebe o fechamento da versão com 20 itens integrados e volta a fechar versão por dia (diretriz 34, ordem do dono de 26/11)"},
+      "\\*\\*Corte por arquivo:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo divide o mesmo arquivo entre agentes em paralelo e colhe conflito no fim (diretriz 33)"},
+      "\\*\\*Teto do time:\\*\\*": {"regra": "R-TETO", "porque": "sem o texto, o projeto novo não recebe o teto de 20 agentes e 12 branches abertas do H6"}
+    },
     "agents/agile-coach.md": {
       "Triagem termina com o `KANBAN.md` atualizado; backlog ou plano dito ao dono sai da contagem do quadro, conferida com a última triagem; plano ou pedido substituído vai para `arquivo/`": {"regra": "R-DECISAO", "porque": "sem o texto, o agile-coach leva ao dono backlog ou plano velho e o quadro fica fora da triagem (diretriz 20)"}
     },
@@ -704,18 +871,61 @@
       "flock -w \"\\$espera\" 9": {"regra": "R-TETO", "porque": "sem a espera limitada na trava, duas checagens pesadas do projeto rodam juntas ou um envio espera para sempre"}
     },
     "skills/engineering-practices/SKILL.md": {
+      "\\*\\*Tamanho por item \\(H1, decisão do dono; alinha o M14\\):\\*\\*": {"regra": "R-REVIEW", "porque": "sem o texto, a skill volta ao teto por risco e o item grande passa sem corte nem motivo (H1)"},
+      "Passa só se cortar mais deixa a suíte vermelha": {"regra": "R-REVIEW", "porque": "sem o texto, a exceção do H1 deixa de ser a única e o teto vira orientação"},
+      "`tamanho-por-item\\.md` nesta skill": {"regra": "R-REVIEW", "porque": "sem o apontamento, a skill perde a contagem do H1 e o que conta no Forge, movidos pelo teto de caracteres (diretriz 25)"},
       "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},
       "o autor roda o oráculo e não o edita": {"regra": "R-CONFORMIDADE", "porque": "sem o texto, o autor trata o oráculo do portão como teste seu e o ajusta para passar (EXT-1)"}
     },
     "skills/qa-testing/SKILL.md": {
-      "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado": {"regra": "R-QA", "porque": "sem o texto, o parecer lê só o git log e aceita o oráculo apagado da história por reset ou rebase (EXT-1, C-2)"}
+      "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado": {"regra": "R-QA", "porque": "sem o texto, o parecer lê só o git log e aceita o oráculo apagado da história por reset ou rebase (EXT-1, C-2)"},
+      "grave o JSON de cada caso ao terminar, em `relatorios/<rodada>/` no projeto, nunca em `/tmp`, que some; acrescente `relatorios/` ao `\\.gitignore` antes da rodada": {"regra": "R-QA", "porque": "sem o texto, a rodada longa de suíte ou E2E grava o resultado em /tmp ou só no fim e perde o que já rodou quando a sessão cai (K165)"}
     },
     "agents/jarvis.md": {
+      "\\*\\*Recibo antes de acionar o time\\*\\* \\(mensagem no meio da rodada: na fala seguinte, antes de tudo\\)": {"regra": "R-DECISAO", "porque": "sem o texto, a mensagem do dono que chega no meio da rodada fica sem recibo e some atrás do andamento (RECIBO-NO-MEIO-DA-RODADA)"},
+      "\\*\\*Autor até o merge \\(H2\\):\\*\\* volta de review, QA, segurança, CI e conflito vai à mesma instância do autor": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis manda a volta de review, QA, segurança, CI ou conflito a um agente novo, que relê tudo (H2)"},
+      "agente novo apenas se ele travou": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis abre instância nova com o autor ainda retomável e dobra os agentes por item (H2)"},
+      "skills/briefs-e-conferencia/autor-ate-o-merge\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o Jarvis perde o detalhe do H2 (quando o autor travou, o aviso do hook e a volta única), movido pelo teto de caracteres (diretriz 25)"},
+      "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis segura o time por uma decisão pendente e repete a pergunta ao dono (diretriz 34)"},
+      "skills/falar-com-o-dono/nao-trava\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o Jarvis perde o detalhe de não travar e do comando exato no bloqueio de ambiente (diretriz 34)"},
+      "a versão fecha com 20 itens integrados \\(diretriz 34\\)": {"regra": "R-FLUXO", "porque": "sem o texto, a versão volta a sair por dia ou parcial, fora dos 20 itens combinados com o dono (diretriz 34)"},
+      "Teto do time \\(H6\\): até 20 agentes e 12 branches abertas": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis abre branch nova acima de 12 e as branches abertas se acumulam sem terminar (decisão do dono no H6)"},
+      "agente livre termina o que está aberto": {"regra": "R-TETO", "porque": "sem o texto, o agente livre abre item novo e a revisão, o conserto e o teste vermelho das branches abertas ficam parados (H6)"},
+      "skills/trabalho-em-paralelo/ritmo-e-corte\\.md": {"regra": "R-FLUXO", "porque": "sem o apontamento, o Jarvis perde o detalhe do ritmo diário e do corte por arquivo (diretrizes 32 e 33 do dono)"},
       "skills/briefs-e-conferencia/SKILL\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o texto de briefs e conferência"},
       "skills/trabalho-em-paralelo/SKILL\\.md": {"regra": "R-TETO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda a série por arquivo e o teto"},
-      "skills/falar-com-o-dono/SKILL\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o formato da pergunta ao dono"}
+      "skills/falar-com-o-dono/SKILL\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o formato da pergunta ao dono"},
+      "skills/fluxo-do-pedido/SKILL\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o recibo, o registro do pedido e a tabela do time"},
+      "\\*\\*Falar só no marco:\\*\\*": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis volta a relatar cada etapa ao dono (40 mensagens por hora medidas em 13/11; diretriz 24)"},
+      "quando algo dá errado e muda prazo ou risco": {"regra": "R-DECISAO", "porque": "sem o texto, o problema que muda prazo ou risco fica no resumo de 30 min em vez de chegar ao dono na hora (diretriz 24)"},
+      "no máximo um resumo a cada 30 min": {"regra": "R-DECISAO", "porque": "sem o texto, o andamento sem marco volta a chegar ao dono a cada etapa, e não num resumo só do que mudou (diretriz 24)"},
+      "recibo e perguntas, sempre completos": {"regra": "R-DECISAO", "porque": "sem o texto, o corte do andamento encolhe também o recibo e as perguntas, que o dono quer completos (diretriz 24)"},
+      "ou ao pedido das decisões": {"regra": "R-DECISAO", "porque": "sem o apontamento, o Jarvis atende ao pedido das decisões sem ler a skill do foco total e responde depois de outras tarefas (diretriz 29)"},
+      "no recibo e no aviso de marco, nunca em mensagem extra": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis volta a avisar o dono a cada agente acionado em mensagem extra, ou deixa de dizer no recibo e no marco para qual agente passou (decisão do dono de 16/11 09:52)"},
+      "\\*\\*Vários projetos\\*\\* \\(diretriz 35\\)": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis com mais de um projeto ativo responde sem dizer de qual projeto é, e o dono decide no projeto errado (diretriz 35)"},
+      "skills/falar-com-o-dono/varios-projetos\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o Jarvis perde o detalhe de confirmar o projeto, do prefixo no Telegram e da exceção da sessão do Forge (diretriz 35)"},
+      "diga sempre ao usuário para qual agente passou": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis passa o trabalho a um agente sem dizer ao usuário a quem passou, e o dono perde quem responde por cada etapa (decisão do dono de 16/11 09:52)"}
+    },
+    "skills/modo-iniciante/SKILL.md": {
+      "Fale só no marco": {"regra": "R-DECISAO", "porque": "sem o texto, o modo iniciante manda resumir cada etapa ao dono, contra a fala só no marco do Jarvis (diretriz 24)"},
+      "modo foco da extensão do VSCode \\(Focus view": {"regra": "R-DECISAO", "porque": "sem o texto, o dono iniciante não fica sabendo do modo foco, que recolhe comandos e agentes em linhas fechadas (diretriz 24)"},
+      "não dá para dizer se é maior ou menor": {"regra": "R-DECISAO", "porque": "sem o texto, o exemplo deixa de mostrar o custo em palavras (maior ou menor) quando a opção não foi medida (A4 do review, diretriz 25)"},
+      "skills/modo-iniciante/numeros\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, a skill perde o caminho dos números da pergunta, movidos pelo teto de caracteres (diretriz 25)"}
+    },
+    "skills/kanban-scrum/SKILL.md": {
+      "O técnico \\(desenho, portões, integração, versão\\) é do `tech-lead`": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis perde quem decide o técnico e quem cuida do aprendizado com os erros, frase movida do Jarvis pelo teto (A2 do review, diretriz 25)"},
+      "skills/kanban-scrum/experimentos\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, a skill perde o caminho do formato dos experimentos de melhoria, movido pelo teto de caracteres (diretriz 25)"}
     },
     "agents/tech-lead.md": {
+      "ritmo-e-corte\\.md` antes de abrir item novo ou juntar na `develop`": {"regra": "R-FLUXO", "porque": "sem o texto, o tech-lead abre item ou junta na develop sem ler o ritmo e o corte, que o Jarvis já lê nesse gatilho (TECH-LEAD-GATILHO-RITMO)"},
+      "\\(H2, o autor fica até o merge\\): review, QA, segurança, CI e conflito, os três portões numa volta única": {"regra": "R-BRIEF", "porque": "sem o texto, o tech-lead autor deixa a branch na volta de CI ou conflito e os portões voltam em rodadas separadas (H2)"},
+      "skills/briefs-e-conferencia/autor-ate-o-merge\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o tech-lead perde o detalhe do H2, movido pelo teto de caracteres (diretriz 25)"},
+      "\\*\\*Tamanho por item \\(H1, decisão do dono\\):\\*\\*": {"regra": "R-REVIEW", "porque": "sem o texto, o tech-lead deixa passar item acima de 150 linhas de código sem cortar antes de começar (H1)"},
+      "Passa só se cortar mais deixa a suíte vermelha": {"regra": "R-REVIEW", "porque": "sem o texto, o teto do H1 volta a ser orientação e o item grande passa sem o motivo no PR"},
+      "skills/engineering-practices/tamanho-por-item\\.md": {"regra": "R-REVIEW", "porque": "sem o apontamento, o tech-lead perde a contagem do H1 e o que conta no Forge, movidos pelo teto de caracteres (diretriz 25)"},
+      "\\*\\*Versão \\(diretriz 34\\):\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o tech-lead marca a versão uma vez só de manhã e o que está verde na develop espera (diretriz 34)"},
+      "\\*\\*Ritmo e corte \\(diretrizes 32 e 33; H6\\):\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o tech-lead junta sem lote, divide o mesmo arquivo entre agentes e abre conflito no fim (diretrizes 32 e 33)"},
+      "skills/trabalho-em-paralelo/ritmo-e-corte\\.md": {"regra": "R-FLUXO", "porque": "sem o apontamento, o tech-lead perde o detalhe do ritmo, do corte por arquivo e do teto do H6, movido pelo teto de caracteres (diretriz 25)"},
       "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},
       "`sem teste:` do `forge-check pr` pede justificativa no `## Sem teste` do PR": {"regra": "R-REVIEW", "porque": "sem o texto, o review aceita código mudado sem teste e sem justificativa, e o aviso do T1 vira ruído que ninguém lê"}
     },

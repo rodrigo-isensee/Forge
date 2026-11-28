@@ -70,43 +70,20 @@
     },
     {
       "id": "I55",
-      "guarda": "hooks/agentes.py:394 a.get('id') (negada)",
+      "guarda": "hooks/agentes.py prazo_do_registro registro.get('id') (negada)",
       "arquivo": "hooks/agentes.py",
-      "de": "                prazo = hook.expira_s() if a.get(\"id\") else min(RESERVA_S, hook.expira_s())",
-      "para": "                prazo = hook.expira_s() if not (a.get(\"id\")) else min(RESERVA_S, hook.expira_s())",
+      "de": "return expira_s if registro.get(\"id\") and",
+      "para": "return expira_s if not (registro.get(\"id\")) and",
       "testes": [
-        "tests.test_agentes_hash_brief",
-        "tests.test_selo_e_entrega"
+        "tests.test_hooks_agentes_autor.Autores.test_prazo_unico_por_registro"
       ]
     },
     {
       "id": "I56",
       "guarda": "hooks/agentes.py:420 tipo == CONFERENTE (negada)",
       "arquivo": "hooks/agentes.py",
-      "de": "    if tipo == CONFERENTE:",
-      "para": "    if not (tipo == CONFERENTE):",
-      "testes": [
-        "tests.test_agentes_hash_brief",
-        "tests.test_selo_e_entrega"
-      ]
-    },
-    {
-      "id": "I57",
-      "guarda": "hooks/agentes.py:422 tipo.startswith('forge:') or tipo in papeis_do_forge() (negada)",
-      "arquivo": "hooks/agentes.py",
-      "de": "    if tipo.startswith(\"forge:\") or tipo in papeis_do_forge():",
-      "para": "    if not (tipo.startswith(\"forge:\") or tipo in papeis_do_forge()):",
-      "testes": [
-        "tests.test_agentes_hash_brief",
-        "tests.test_selo_e_entrega"
-      ]
-    },
-    {
-      "id": "I58",
-      "guarda": "hooks/agentes.py:424 tipo in EXECUTORES_GENERICOS and next(caminhos_de_brief(str(prompt or '')), None) is not None (negada)",
-      "arquivo": "hooks/agentes.py",
-      "de": "    return tipo in EXECUTORES_GENERICOS and next(caminhos_de_brief(str(prompt or \"\")), None) is not None",
-      "para": "    return not (tipo in EXECUTORES_GENERICOS and next(caminhos_de_brief(str(prompt or \"\")), None) is not None)",
+      "de": "hash_do_brief_diverge(hook, entrada.get(\"prompt\")) if tipo == CONFERENTE else None",
+      "para": "hash_do_brief_diverge(hook, entrada.get(\"prompt\")) if not (tipo == CONFERENTE) else None",
       "testes": [
         "tests.test_agentes_hash_brief",
         "tests.test_selo_e_entrega"
@@ -127,8 +104,8 @@
       "id": "I60",
       "guarda": "hooks/agentes.py:434 destino != tipo.removeprefix('forge:').lower() (negada)",
       "arquivo": "hooks/agentes.py",
-      "de": "    if destino != tipo.removeprefix(\"forge:\").lower():",
-      "para": "    if not (destino != tipo.removeprefix(\"forge:\").lower()):",
+      "de": "if destino != tipo.lower().removeprefix(\"forge:\"):",
+      "para": "if not (destino != tipo.lower().removeprefix(\"forge:\")):",
       "testes": [
         "tests.test_agentes_hash_brief",
         "tests.test_selo_e_entrega"
@@ -149,8 +126,8 @@
       "id": "I62",
       "guarda": "hooks/agentes.py:479 exige_selo(tipo, entrada.get('prompt')) (negada)",
       "arquivo": "hooks/agentes.py",
-      "de": "    if exige_selo(tipo, entrada.get(\"prompt\")):",
-      "para": "    if not (exige_selo(tipo, entrada.get(\"prompt\"))):",
+      "de": "if not exige_selo(tipo):\n            return lidos, None",
+      "para": "if exige_selo(tipo):\n            return lidos, None",
       "testes": [
         "tests.test_agentes_hash_brief",
         "tests.test_selo_e_entrega"

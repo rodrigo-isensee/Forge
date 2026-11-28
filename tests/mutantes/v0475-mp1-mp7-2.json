@@ -1,0 +1,86 @@
+{
+  "pedido": "v0475-mp1-mp7",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "MP1 (diretriz 35): nome acima de MAXIMO_DO_NOME fica de fora (segurança A1)",
+      "arquivo": "hooks/_comum.py",
+      "de": "len(n) <= MAXIMO_DO_NOME]",
+      "para": "len(n) <= MAXIMO_DO_NOME + 1]",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_ativos_em_link_fifo_grande_ou_com_nomes_demais_nao_mede"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "MP1 (diretriz 35): acima de MAXIMO_DE_ATIVOS nomes conta como um projeto só (segurança A1)",
+      "arquivo": "hooks/_comum.py",
+      "de": "if len(nomes) > MAXIMO_DE_ATIVOS or",
+      "para": "if len(nomes) > MAXIMO_DE_ATIVOS + 1 or",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_ativos_em_link_fifo_grande_ou_com_nomes_demais_nao_mede"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "MP1 (diretriz 35): sem raiz, ATIVOS nem é lido (segurança A2)",
+      "arquivo": "hooks/meta.py",
+      "de": "    if raiz is None or e_clone_do_forge(raiz):\n        return {}\n    ativos",
+      "para": "    if raiz is not None and e_clone_do_forge(raiz):\n        return {}\n    ativos",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_um_projeto_so_registro_ilegivel_ou_sessao_do_forge_nao_mede"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "MP1 (diretriz 35): exceção do dono: a sessão do Forge não mede nem lê ATIVOS (segurança A2)",
+      "arquivo": "hooks/meta.py",
+      "de": "    if raiz is None or e_clone_do_forge(raiz):\n        return {}\n    ativos",
+      "para": "    if raiz is None:\n        return {}\n    ativos",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_um_projeto_so_registro_ilegivel_ou_sessao_do_forge_nao_mede"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "MP1 (diretriz 35): com um projeto só nada muda",
+      "arquivo": "hooks/meta.py",
+      "de": "    if len(ativos) < 2:\n        return {}",
+      "para": "    if len(ativos) < 1:\n        return {}",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_um_projeto_so_registro_ilegivel_ou_sessao_do_forge_nao_mede"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "MP1 (diretriz 35): o próprio projeto não conta como outro, sem diferença de maiúsculas (review A3)",
+      "arquivo": "hooks/meta.py",
+      "de": "if n.casefold() != Path(raiz).name.casefold()]",
+      "para": "if n != Path(raiz).name]",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_proprio_projeto_sem_diferenca_de_maiusculas"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "MP1 (diretriz 35): mensagem sem `Projeto:` no começo é acusada",
+      "arquivo": "hooks/meta.py",
+      "de": "\"sem_projeto\": not PREFIXO_DO_PROJETO.match(texto)",
+      "para": "\"sem_projeto\": False",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_recibo_sem_projeto_acusa_e_com_projeto_passa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "MP1 (diretriz 35): a pergunta do projeto vale sem diferença de maiúsculas",
+      "arquivo": "hooks/meta.py",
+      "de": "cita and PERGUNTA_DO_PROJETO not in texto.lower()",
+      "para": "cita and PERGUNTA_DO_PROJETO not in texto",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_fala_que_cita_o_outro_projeto_pede_a_pergunta"
+      ]
+    }
+  ]
+}

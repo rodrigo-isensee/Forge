@@ -6,8 +6,8 @@
       "id": "RP-M1",
       "guarda": "voltas lê o quadro e os pedidos do --raiz-pedidos quando ele vem",
       "arquivo": "bin/forge-check",
-      "de": "        return cmd_voltas(Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz, a.pedido)",
-      "para": "        return cmd_voltas(Path(a.raiz_pedidos).resolve() if not a.raiz_pedidos else raiz, a.pedido)",
+      "de": "        return cmd_voltas(Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz, a.pedido, a.tempo)",
+      "para": "        return cmd_voltas(Path(a.raiz_pedidos).resolve() if not a.raiz_pedidos else raiz, a.pedido, a.tempo)",
       "testes": [
         "tests.test_voltas.VoltasComRaizDePedidos.test_historico_e_pedido_vem_do_raiz_pedidos"
       ]

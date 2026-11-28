@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-entrega-merges",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N1",
+      "guarda": "o parecer trazido por merge de pareceres vale pelo blob de um parecer conferido ancestral do outro pai",
+      "arquivo": "bin/forge-check",
+      "de": "ancestrais = {q} | (set() if cod else set(saida.split()) & shas)",
+      "para": "ancestrais = {q}",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_parecer_do_merge_de_pareceres_vale_pelo_blob_conferido"
+      ]
+    },
+    {
+      "id": "N2",
+      "guarda": "só o parecer conferido da história do outro pai vale, não qualquer linha do Histórico",
+      "arquivo": "bin/forge-check",
+      "de": "set(saida.split()) & shas)",
+      "para": "shas)",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_conferido_fora_da_historia_do_outro_pai_nao_vale"
+      ]
+    },
+    {
+      "id": "N3",
+      "guarda": "o rev-list que falha fica só com o outro pai (o aceite de antes)",
+      "arquivo": "bin/forge-check",
+      "de": "ancestrais = {q} | (set() if cod else",
+      "para": "ancestrais = {q} | (set() if not cod else",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_parecer_do_merge_de_pareceres_vale_pelo_blob_conferido"
+      ]
+    },
+    {
+      "id": "N4",
+      "guarda": "o arquivo trazido pelo merge de parecer só vale pelo conferido; o resto reprova",
+      "arquivo": "bin/forge-check",
+      "de": "if not any(vale_pelo_conferido(raiz, shas, merge, q, n) for q in dos_p)",
+      "para": "if not any(True for q in dos_p)",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_blob_diferente_do_conferido_reprova"
+      ]
+    },
+    {
+      "id": "N5",
+      "guarda": "só o conferido que muda o arquivo conta para o mais novo (o commit sem linha por cima não vira o parecer)",
+      "arquivo": "bin/forge-check",
+      "de": "nome in (nomes_do_intervalo(raiz, f\"{p}^1\", p, estrito=True) or ())",
+      "para": "nome in (nomes_do_intervalo(raiz, f\"{p}^1\", p, estrito=True) or ()) or True",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_mudanca_fora_do_portao_depois_do_conferido_reprova"
+      ]
+    },
+    {
+      "id": "N6",
+      "guarda": "só o conferido mais novo que muda o arquivo vale (review A2)",
+      "arquivo": "bin/forge-check",
+      "de": "not any(c != p and e_ancestral(raiz, p, c) for c in mudam)",
+      "para": "True",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_o_conferido_mais_novo_vale"
+      ]
+    },
+    {
+      "id": "N7",
+      "guarda": "dois conferidos sem ordem entre si: nenhum é o mais novo (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "return novos[0] if len(novos) == 1 else None",
+      "para": "return novos[0] if novos else None",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_dois_conferidos_sem_ordem_nao_tem_o_mais_novo"
+      ]
+    },
+    {
+      "id": "N8",
+      "guarda": "o blob trazido é o do conferido mais novo, não só o do outro pai (segurança A4)",
+      "arquivo": "bin/forge-check",
+      "de": " == blob_de(raiz, q, nome) == blob_de(raiz, p, nome)",
+      "para": " == blob_de(raiz, q, nome)",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_outro_pai_que_rebaixa_o_parecer_reprova"
+      ]
+    }
+  ]
+}

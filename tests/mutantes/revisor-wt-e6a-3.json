@@ -96,8 +96,8 @@
       "id": "M10",
       "guarda": "remoção trazida pelo merge passa (arquivo fora do P, blob vazio dos dois lados)",
       "arquivo": "bin/forge-check",
-      "de": "if not any(n in (nomes_do_intervalo(raiz, f\"{q}^1\", q, estrito=True) or ()) and",
-      "para": "if not any(True and",
+      "de": "nome in (nomes_do_intervalo(raiz, f\"{p}^1\", p, estrito=True) or ())",
+      "para": "True",
       "testes": [
         "tests.test_revisor_wt.EntregaConfereOMerge.test_merge_que_traz_bytes_fora_do_parecer_reprova"
       ]
@@ -106,8 +106,8 @@
       "id": "M11",
       "guarda": "blob alterado no merge passa (t12)",
       "arquivo": "bin/forge-check",
-      "de": "and blob_de(raiz, q, n) == blob_de(raiz, merge, n)\n",
-      "para": "and True\n",
+      "de": "return bool(p) and blob_de(raiz, merge, nome) == blob_de(raiz, q, nome) == blob_de(raiz, p, nome)",
+      "para": "return bool(p)",
       "testes": [
         "tests.test_revisor_wt.EntregaConfereOMerge.test_merge_que_traz_bytes_fora_do_parecer_reprova"
       ]
@@ -120,16 +120,6 @@
       "para": "merges_nao_conferidos(raiz, texto, de, head, base_ref) if True else",
       "testes": [
         "tests.test_revisor_wt.EntregaConfereOMerge.test_merge_de_sha_nao_conferido_reprova"
-      ]
-    },
-    {
-      "id": "M13",
-      "guarda": "com linha no pedido, o último P de cada arquivo não é lido",
-      "arquivo": "bin/forge-check",
-      "de": "ultimos = pareceres_conferidos(raiz, pedido, branch)[0] if shas else {}",
-      "para": "ultimos = pareceres_conferidos(raiz, pedido, branch)[0] if not shas else {}",
-      "testes": [
-        "tests.test_revisor_wt.EntregaConfereOMerge.test_ultimo_conferido_passa_e_o_superado_reprova"
       ]
     },
     {

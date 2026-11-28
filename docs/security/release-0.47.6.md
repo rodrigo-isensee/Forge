@@ -1,0 +1,33 @@
+---
+tipo: revisao-seguranca
+contrato: 1
+pedido: release-0.47.6
+branch: melhoria/v0476-release-0476
+commit: 00fa5c76561332e52eed0dca9c077f4db8adc15c
+parecer: aprovado
+revisor: forge:security-engineer
+data: 2026-11-18
+---
+# Review de segurança: release 0.47.6 (versão inteira)
+
+Escopo: `git diff v0.47.5..00fa5c76` (`v0.47.5` = `fc3f2ed8`), 194 arquivos: MP6 #659 (`71f280f2`), diretriz 36 #661 (`d48993e6`), MP3 #662 (`038249c5`), núcleo do Jarvis #666 (`8f9c0c52`), dependências da stack #660 (`9ae3e442`) e a marca da versão (`00fa5c76`, E4.40). Cada item entrou com os próprios pareceres aprovados; aqui se confere a junção.
+
+Gatilhos: hooks (`conformidade`, `agentes`, `_maquina`), estado em `~/.forge/maquina/` lido por todos os projetos, execução de comando (`bin/forge-copia --instalar`, `bin/forge-fechar --limpar`, `bin/forge_disco.py`, `bin/forge-placar`), cadeia de suprimentos (`stacks/*/instalar.json`), regra protegida apertada (R-LIMITES, diretriz 36) e a release usada por todos os projetos.
+
+## Achados
+
+## Sondas
+
+## Detalhe dos achados
+Sem achados novos. Junção conferida item a item: o patch mesclado de cada item (fora de `docs/{qa,reviews,security}`, `CHANGELOG.md` e `changelog.d/`) tem o mesmo `git patch-id --stable` que o patch que os três portões aprovaram, desde a base dele:
+- MP6 #659: revisado `93d21712` = mesclado (`c1cdd3ac`); parecer `v0476-mp6` aprovado (A1 bloqueante corrigido, A2 e A3 corrigidos).
+- Diretriz 36 #661: revisado `42af552e` = mesclado (`7eb66515`); parecer `v0475-dir36` aprovado.
+- MP3 #662: revisado `2be06289` (base `561ec804`, anterior ao #659 e ao #661) = mesclado (`07b12971`); o MP3 toca `hooks/agentes.py` e `hooks/_maquina.py`, que o #659 e o #661 não tocam, e o `~/.forge/maquina/` segue protegido em `hooks/conformidade.json:56`; parecer `v0476-mp3` aprovado.
+- Núcleo do Jarvis #666: revisado `8a91fe3b` = mesclado (`7243e5ce`); só texto; parecer `v0476-nucleo-teto` aprovado.
+- Dependências da stack #660: revisado `8727471d` (base `038249c5`, já com o `bin/forge-copia` do MP6) = mesclado (`fb77088c`); parecer `v0476-stack-deps` aprovado.
+- Marca `00fa5c76`: só `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json` em 0.47.6, `CHANGELOG.md` com `[0.47.6] - 2026-11-18` em português e `[Não publicado]` vazio, e os cinco fragmentos apagados (`changelog.d/` só com o `README.md`); as 7 entradas da [0.47.6] são os textos dos fragmentos.
+
+Recomendações abertas que seguem valendo sem recópia (não bloqueiam): `v0475-dir36` A10 e `v0476-stack-deps` A4, e as listadas no parecer `release-0.47.5`.
+
+## Riscos aceitos e ferramentas
+Nenhum risco aceito nem pendente de aceite. Rodado em `00fa5c76`: `python3 -m unittest tests.test_changelog` (89, OK), `python3 -m unittest tests.test_maquina_teto tests.test_forge_copia tests.test_forge_fechar` (71, OK) e `scripts/indice-fixtures.py --conferir` (em dia, rc 0). A suíte inteira é do CI do PR (a local falha por ambiente: `/proc` e `gh` no sandbox; o `gh` não respondeu aqui, então o estado do CI no head não foi lido); a promoção exige o CI verde. Lacuna: gitleaks, osv-scanner, semgrep, zizmor e actionlint não estão no PATH; a versão não toca workflow.

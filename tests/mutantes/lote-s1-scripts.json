@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "release recusa changelog.d como link",
       "arquivo": "bin/forge-changelog",
-      "de": "    conferir_pasta_de_fragmentos()\n    arquivos = fragmentos()",
-      "para": "    arquivos = fragmentos()",
+      "de": "    antigas = [l for l in m.group(1).splitlines() if l.strip()]\n    conferir_pasta_de_fragmentos()\n    arquivos = fragmentos()",
+      "para": "    antigas = [l for l in m.group(1).splitlines() if l.strip()]\n    arquivos = fragmentos()",
       "testes": [
         "tests.test_changelog.Release.test_changelog_d_como_link_para_fora_da_raiz_nao_publica_nem_apaga_os_md_externos"
       ]

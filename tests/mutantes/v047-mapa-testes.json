@@ -77,8 +77,8 @@
       "id": "M8",
       "guarda": "o plano do hook leva o fecho de quem o importa",
       "arquivo": "bin/forge-testes",
-      "de": "modulos.update(casou, quem_importa(caminho, raiz, casou))",
-      "para": "modulos.update(casou)",
+      "de": "modulos.update(casou, teste_do_indice(caminho, raiz), quem_importa(caminho, raiz, (*casou, *oraculos(raiz))))",
+      "para": "modulos.update(casou, teste_do_indice(caminho, raiz))",
       "testes": [
         "tests.test_testes_tocados.QuemImporta.test_no_repositorio_o_plano_do_hook_traz_todo_teste_que_importa_um_modulo_do_plano"
       ]

@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "nota em outro idioma acende outro_idioma (mutante: só a final)",
+      "arquivo": "hooks/meta.py",
+      "de": "\"outro_idioma\": notas > 0 or (",
+      "para": "\"outro_idioma\": False or (",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_nota_em_outro_idioma_na_rodada_acusa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "resultado de ferramenta é pulado antes do json.loads (mutante: decodifica)",
+      "arquivo": "hooks/meta.py",
+      "de": "if ('\"type\":\"tool_result\"' in linha and '\"type\":\"assistant\"' not in linha) or (",
+      "para": "if False or (",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_resultado_de_ferramenta_nem_se_decodifica"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "mensagem final ausente (None) não quebra a leitura (mutante: sem o `or \"\"`)",
+      "arquivo": "hooks/meta.py",
+      "de": "(final or \"\").strip()",
+      "para": "(final).strip()",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_registro_fora_da_forma_e_pulado_sem_erro"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "message que não é objeto é pulada (mutante: lida como objeto)",
+      "arquivo": "hooks/meta.py",
+      "de": "if isinstance(obj.get(\"message\"), dict) else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_registro_fora_da_forma_e_pulado_sem_erro"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "content que não é lista é pulado (mutante: iterado)",
+      "arquivo": "hooks/meta.py",
+      "de": "for bloco in conteudo if isinstance(conteudo, list) else []:",
+      "para": "for bloco in conteudo if True else []:",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_registro_fora_da_forma_e_pulado_sem_erro"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "bloco que não é objeto é pulado (mutante: lido como objeto)",
+      "arquivo": "hooks/meta.py",
+      "de": "if isinstance(bloco, dict) and bloco.get(\"type\") == \"text\" else None",
+      "para": "if bloco.get(\"type\") == \"text\" else None",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_registro_fora_da_forma_e_pulado_sem_erro"
+      ]
+    }
+  ]
+}

@@ -32,7 +32,7 @@ Aprovado, sem bloqueantes. Revisão estática da entrega inteira (`c092f1b..84de
 ## Recomendações (não bloqueiam)
 - Uma senha `.nova-<pid>` de processo morto por SIGKILL no meio de `fila_entrar` fica na pasta da fila (o glob da fila não a vê, então não atrapalha a ordem); vale uma limpeza de `.nova-*` com flock obtido na próxima versão.
 - Conferir o tempo da bateria e da `rapida` no checkpoint da release (`gh run list`): os tetos de 10 e 15 minutos ficam folgados com a divisão, e o teto de 4 processos serve ao runner gratuito de 4 núcleos.
-- Se `pesos-d4.json` envelhecer, regravar com `FORGE_SUITE_MEDIR=1` após as 3 execuções reais decididas pelo dono.
+- Se `pesos-d4.json` envelhecer, regravar com `FORGE_SUITE_MEDIR=1` após as 3 execuções reais decididas pelo dono. Um módulo só (novo ou sem peso): `python3 scripts/suite-paralela.py --medir <módulo>` regrava só as unidades dele (v0478 E18.1).
 
 ## Custo e rollback
 Sem custo novo: mesmos runners gratuitos, menos minutos de CI por execução (mesmo trabalho em até 4 processos), nenhum serviço, cache ou artefato (R-CUSTO). Rollback: reverter o commit da entrega devolve o passo do CI e o hook à suíte em série; o `.githooks/pre-push` já tem o recuo em série quando o script falta.

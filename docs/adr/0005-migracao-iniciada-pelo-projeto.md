@@ -1,6 +1,7 @@
 # 0005 - Migração iniciada pelo projeto
 
 Estado: vigente. Data: 2026-10-12.
+Emendada por 0017 ([0017-forge-sempre-atual.md](0017-forge-sempre-atual.md), proposta): o plugin passa a ser atualizado na abertura pelo atalho, e o `forge-upgrade` passa a ser disparado também por essa abertura, só como branch local `forge/upgrade-<versão>` levada ao PR na `develop` pelo `tech-lead` (Contexto e item 2 abaixo). Vale quando o PR da `melhoria/v047-forge-sempre-atual` entrar na `develop`.
 Propósito: definir como um projeto adota uma versão nova do Forge que muda arquivos do projeto. Público: quem mantém o Forge e os projetos. Revisão: 2026-10-12.
 
 ## Contexto

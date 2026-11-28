@@ -1,0 +1,87 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "AE1.1 onde_da_branch: sem origin, lê a local",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if sha is None:\n        origem, sha = nome,",
+      "para": "    if False:\n        origem, sha = nome,",
+      "testes": [
+        "tests.test_forge_onde.Branch.test_branch_local_frente_atras_e_pr_de_nome_exato"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "AE1.1 onde_da_branch: branch ausente não existe",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if sha is None:\n        return [f\"onde: branch",
+      "para": "    if False:\n        return [f\"onde: branch",
+      "testes": [
+        "tests.test_forge_onde.Branch.test_branch_inexistente"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "AE1.1 onde_da_branch: contagem do git que falha não sai",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    frente_atras = contas.split() if cod == 0 else []",
+      "para": "    frente_atras = contas.split() if True else []",
+      "testes": [
+        "tests.test_forge_onde.Branch.test_contagem_ilegivel_ou_que_falha_nao_imprime_frente"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "AE1.1 onde_da_branch: contagem ilegível não sai",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if len(frente_atras) == 2:",
+      "para": "    if frente_atras:",
+      "testes": [
+        "tests.test_forge_onde.Branch.test_contagem_ilegivel_ou_que_falha_nao_imprime_frente"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "AE1.1 onde_da_branch: gh que falha é nao-verificavel",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if not isinstance(prs, list):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_onde.Branch.test_gh_fora_do_ar_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "AE1.1 onde_da_branch: item da lista que não é PR fica fora",
+      "arquivo": "bin/forge_onde.py",
+      "de": "if isinstance(p, dict) and p.get(\"headRefName\") == nome]",
+      "para": "if p.get(\"headRefName\") == nome]",
+      "testes": [
+        "tests.test_forge_onde.Branch.test_resposta_do_gh_com_outra_branch_fica_fora"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "AE1.1 onde_da_branch: só o PR do nome exato",
+      "arquivo": "bin/forge_onde.py",
+      "de": "and p.get(\"headRefName\") == nome]",
+      "para": "and str(p.get(\"headRefName\")).startswith(nome)]",
+      "testes": [
+        "tests.test_forge_onde.Branch.test_resposta_do_gh_com_outra_branch_fica_fora",
+        "tests.test_forge_onde.Branch.test_branch_local_frente_atras_e_pr_de_nome_exato"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "AE1.1 onde_da_branch: sem PR diz nenhum",
+      "arquivo": "bin/forge_onde.py",
+      "de": "               for p in exatos] or [\"onde: pr nenhum\"]",
+      "para": "               for p in exatos]",
+      "testes": [
+        "tests.test_forge_onde.Branch.test_branch_sem_pr"
+      ]
+    }
+  ]
+}

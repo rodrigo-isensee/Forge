@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: cabeçalho exige agente e tokens",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "if \"agente\" in nomes and \"tokens\" in nomes:",
+      "para": "if \"agente\" in nomes or \"tokens\" in nomes:",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_linha_de_tabela_sem_cabecalho_de_agente_e_tokens_nao_conta"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: linha sem cabeçalho não conta",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "if colunas is None or set(\"\".join(celulas))",
+      "para": "if set(\"\".join(celulas))",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_linha_de_tabela_sem_cabecalho_de_agente_e_tokens_nao_conta"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: separador da tabela não conta como ignorada",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "if colunas is None or set(\"\".join(celulas)) <= set(\"-: \"):",
+      "para": "if colunas is None:",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_faixa_e_media_por_agente_nas_duas_formas_de_tabela"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: linha curta é ignorada (limite)",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "if max(colunas) >= len(celulas) or",
+      "para": "if max(colunas) > len(celulas) or",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_linha_curta_conta_como_ignorada"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: tokens não inteiro é ignorado",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": " or not TOKENS_INTEIROS.fullmatch(celulas[colunas[1]]):",
+      "para": ":",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_faixa_e_media_por_agente_nas_duas_formas_de_tabela"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: agente vazio sai como traço",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "celulas[colunas[0]]) or \"-\"",
+      "para": "celulas[colunas[0]])",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_agente_vazio_sai_como_traco"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: nenhuma linha válida sai 1",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if not por_agente:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_sem_linha_com_tokens_inteiros_sai_1"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "CUSTO-MEDIA-POR-AGENTE: não se combina com alvo nem janela",
+      "arquivo": "bin/forge_transcricao.py",
+      "de": "    if a.alvo or a.entregas or a.pedido or a.desde or a.ate:",
+      "para": "    if a.entregas or a.pedido or a.desde:",
+      "testes": [
+        "tests.test_medidas_m14b.CustoMediaPorAgente.test_nao_se_combina_com_outra_entrada_do_custo"
+      ]
+    }
+  ]
+}

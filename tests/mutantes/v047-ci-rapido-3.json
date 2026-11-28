@@ -1,0 +1,67 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "a matriz da develop (3.12) tem as 5 partes",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "    timeout-minutes: 15  # medida de 2:30 a 5:00 por perna (a proposta ci-rapido); 15 dá folga de 3 vezes\n    strategy:\n      fail-fast: false\n      matrix:\n        parte: [1, 2, 3, 4, 5]\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        with:\n          python-version: \"3.12\"",
+      "para": "    timeout-minutes: 15  # medida de 2:30 a 5:00 por perna (a proposta ci-rapido); 15 dá folga de 3 vezes\n    strategy:\n      fail-fast: false\n      matrix:\n        parte: [1, 2, 3, 4]\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        with:\n          python-version: \"3.12\"",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "o agregador da develop (3.12) exige o teto de pulados",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "    needs: [arvore-envio, rapida-partes-doze, rapida-pulados-doze]",
+      "para": "    needs: [arvore-envio, rapida-partes-doze]",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI",
+        "tests.test_ci_local.MatrizNeedsEAgregadorTest.test_leitor_entende_matriz_e_needs_do_ci_real"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "o agregador da develop (3.12) exige as partes em success",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "            [ \"$PARTES\" = success ] && [ \"$PULADOS\" = success ]",
+      "para": "            [ \"$PULADOS\" = success ]",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "o teto da develop (3.12) soma as 5 partes",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "          pattern: pulados-rapida-doze-*\n          merge-multiple: true\n          path: ${{ runner.temp }}/pulados\n      - name: Teto de pulados na soma das partes (T3)\n        run: python3 scripts/suite-partes.py --somar-pulados 5",
+      "para": "          pattern: pulados-rapida-doze-*\n          merge-multiple: true\n          path: ${{ runner.temp }}/pulados\n      - name: Teto de pulados na soma das partes (T3)\n        run: python3 scripts/suite-partes.py --somar-pulados 4",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "a perna da develop (3.12) nao ganha permissao alem de contents: read (S4)",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "    needs: [arvore-envio]\n    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && needs.arvore-envio.outputs.provada != 'true'\n    permissions:\n      contents: read\n",
+      "para": "    needs: [arvore-envio]\n    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && needs.arvore-envio.outputs.provada != 'true'\n    permissions:\n      contents: read\n      actions: read\n",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "a perna do PR (3.12) divide em 5",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "python3 scripts/suite-partes.py --parte \"$PARTE/5\" 2>&1 | tee \"$RUNNER_TEMP/suite.log\"\n      - name: Falhas no resumo (teste, módulo, linha e erro de cada falha)\n        if: ${{ !cancelled() && needs.arvore.outputs.provada != 'true' }}\n        env:\n          ROTULO: suíte, parte ${{ matrix.parte }}/5\n        run: python3 -I scripts/falhas-no-resumo.py \"$ROTULO\" \"$RUNNER_TEMP/suite.log\"\n      - name: Recusas por carga no resumo (PRAZO-CARGA do test_prazo_do_merge; só conta, não reprova)\n        if: ${{ !cancelled() && needs.arvore.outputs.provada != 'true' }}\n        run: |\n          n=$(grep -c 'PRAZO-CARGA fixture=' \"$RUNNER_TEMP/suite.log\" 2>/dev/null || true)\n          echo \"recusas do vigia aceitas como carga (PRAZO-CARGA): ${n:-0}\" >> \"$GITHUB_STEP_SUMMARY\"\n          grep -o 'PRAZO-CARGA fixture=.*' \"$RUNNER_TEMP/suite.log\" 2>/dev/null | sed 's/^/- /' >> \"$GITHUB_STEP_SUMMARY\" || true\n      - name: Pulados da parte para o agregador (T3)\n        if: needs.arvore.outputs.provada != 'true'\n        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2\n        with:\n          name: pulados-doze",
+      "para": "python3 scripts/suite-partes.py --parte \"$PARTE/4\" 2>&1 | tee \"$RUNNER_TEMP/suite.log\"\n      - name: Falhas no resumo (teste, módulo, linha e erro de cada falha)\n        if: ${{ !cancelled() && needs.arvore.outputs.provada != 'true' }}\n        env:\n          ROTULO: suíte, parte ${{ matrix.parte }}/5\n        run: python3 -I scripts/falhas-no-resumo.py \"$ROTULO\" \"$RUNNER_TEMP/suite.log\"\n      - name: Recusas por carga no resumo (PRAZO-CARGA do test_prazo_do_merge; só conta, não reprova)\n        if: ${{ !cancelled() && needs.arvore.outputs.provada != 'true' }}\n        run: |\n          n=$(grep -c 'PRAZO-CARGA fixture=' \"$RUNNER_TEMP/suite.log\" 2>/dev/null || true)\n          echo \"recusas do vigia aceitas como carga (PRAZO-CARGA): ${n:-0}\" >> \"$GITHUB_STEP_SUMMARY\"\n          grep -o 'PRAZO-CARGA fixture=.*' \"$RUNNER_TEMP/suite.log\" 2>/dev/null | sed 's/^/- /' >> \"$GITHUB_STEP_SUMMARY\" || true\n      - name: Pulados da parte para o agregador (T3)\n        if: needs.arvore.outputs.provada != 'true'\n        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2\n        with:\n          name: pulados-doze",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI"
+      ]
+    }
+  ]
+}

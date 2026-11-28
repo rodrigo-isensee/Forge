@@ -1,0 +1,13 @@
+{
+  "descricao": "HOOK-ESTADO-ILEGIVEL-LIBERA (A3): .forge/config.json ilegível no SubagentStop sai com 0 (não há o que impedir).",
+  "config_bruta": "x",
+  "entrada": {
+    "hook_event_name": "SubagentStop",
+    "agent_id": "a1",
+    "agent_type": "Explore"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "agentes JSONDecodeError"
+  }
+}

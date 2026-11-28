@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import forge_sempre_atual as fsa  # noqa: E402
 import forge_versoes as fv  # noqa: E402
 
 
@@ -129,6 +130,9 @@ def main():
         print(f"Parei antes de mexer no projeto: {msg}.")
         return 1
     print(f"Plugin: {msg}.")
+    gravou, motivo = fsa.fixar_como_dono(antes)  # a volta é escolha do dono: a abertura seguinte respeita (ADR 0017, item 11)
+    if not gravou:
+        print(f"Forge: não gravei a fixação para a atualização automática ({motivo}); ela pode voltar a subir de versão.", file=sys.stderr)
     resultado = voltar_projeto(projeto, ponto, meta)
     if resultado == 0:
         fv.marcar_usado(ponto, meta)

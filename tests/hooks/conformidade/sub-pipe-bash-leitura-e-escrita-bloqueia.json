@@ -1,0 +1,28 @@
+{
+  "descricao": "CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.9, A12 da segurança E63.7; R-VERIFY, R-FLUXO): `<>` não entra na exceção do arquivo.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "scripts/x.sh": "echo\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo 'git push --no-verify origin feature/x' | bash <> scripts/x.sh"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:dev"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "envio do git"
+  }
+}

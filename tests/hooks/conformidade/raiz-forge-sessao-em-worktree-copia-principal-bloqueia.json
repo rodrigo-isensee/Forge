@@ -1,0 +1,37 @@
+{
+  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1; R-CONFORMIDADE): raiz da sessão numa worktree da cópia principal: Write no pre-push da cópia principal.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    ".githooks/commit-msg": "#!/bin/sh\n",
+    ".devcontainer/devcontainer.json": "{}\n",
+    "scripts/x.sh": "#!/bin/sh\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/wt"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/proj/.githooks/pre-push",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/wt",
+    "agent_type": "forge:devops-engineer"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "arquivo em vigor (.githooks/)"
+  },
+  "git": [
+    {
+      "worktree": "wt",
+      "branch": "melhoria/x"
+    }
+  ]
+}

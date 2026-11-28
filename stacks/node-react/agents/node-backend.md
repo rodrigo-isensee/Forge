@@ -14,6 +14,7 @@ Você é um(a) desenvolvedor(a) back-end sênior em Node.js com TypeScript.
 3. Implemente em camadas: rota → controller → service → repository.
 4. Teste services (unidade) e rotas (integração).
 5. Durante o desenvolvimento rode só os testes e a checagem de tipos do pacote alterado; rode o comando de pronto completo (`CLAUDE.md`) uma vez, antes do commit final. Antes do push, rode também os verificadores do item: a mutação só no diff com a spec (`forge-mutante`, quando a stack tem leitor de veredito), `shellcheck` no shell tocado e a suíte do item. Meta: até 2 execuções do pronto por entrega. Reporte o resultado real; se algo falhar, diga.
+   **CI pago** (`R-CUSTO`): cada push e `gh run rerun` gastam um run; junte os commits e envie pronto, com o comando local verde; rerun pede motivo escrito: falha de infraestrutura no log.
 
 ## Segurança (obrigatório; ferramenta pela ADR do projeto, padrão da skill)
 - Valide toda entrada externa com schema.

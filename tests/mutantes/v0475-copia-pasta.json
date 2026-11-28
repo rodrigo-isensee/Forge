@@ -1,0 +1,148 @@
+{
+  "pedido": "v0475-copia-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o destino com `..` e recusado",
+      "arquivo": "bin/forge-copia",
+      "de": "if \"..\" in destino",
+      "para": "if False and \"..\" in destino",
+      "testes": [
+        "tests.test_forge_copia.Recusa.test_com_ponto_ponto_mesmo_voltando_para_dentro"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o destino fora da pasta liberada e recusado",
+      "arquivo": "bin/forge-copia",
+      "de": "!= base:\n        return None, f\"o destino fica fora",
+      "para": "== \"\":\n        return None, f\"o destino fica fora",
+      "testes": [
+        "tests.test_forge_copia.Recusa.test_fora_da_pasta",
+        "tests.test_forge_copia.Recusa.test_prefixo_parecido_nao_vale"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o link simbolico e resolvido antes da checagem",
+      "arquivo": "bin/forge-copia",
+      "de": "os.path.realpath(os.path.expanduser(destino))",
+      "para": "os.path.abspath(os.path.expanduser(destino))",
+      "testes": [
+        "tests.test_forge_copia.Recusa.test_por_link_simbolico"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a propria pasta liberada e recusada",
+      "arquivo": "bin/forge-copia",
+      "de": "if real == base:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_copia.Recusa.test_a_pasta_liberada_vazia_tambem_e_recusada"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "destino ocupado e recusado",
+      "arquivo": "bin/forge-copia",
+      "de": "    if ocupado(real):\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_forge_copia.Recusa.test_destino_ocupado"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "branch ou base com cara de opcao e recusada",
+      "arquivo": "bin/forge-copia",
+      "de": "if valor.startswith(\"-\"):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_copia.Recusa.test_branch_ou_base_com_cara_de_opcao",
+        "tests.test_forge_copia.Recusa.test_origem_com_cara_de_opcao"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "nome de branch invalido e recusado",
+      "arquivo": "bin/forge-copia",
+      "de": "\"check-ref-format\", \"--branch\", a.branch], capture_output=True).returncode != 0",
+      "para": "\"check-ref-format\", \"--branch\", a.branch], capture_output=True).returncode < 0",
+      "testes": [
+        "tests.test_forge_copia.Recusa.test_nome_de_branch_invalido"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o clone pede origem",
+      "arquivo": "bin/forge-copia",
+      "de": "if not a.origem:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_copia.Recusa.test_clone_sem_origem"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a worktree nasce sem rastreio",
+      "arquivo": "bin/forge-copia",
+      "de": "ler([\"git\", \"update-ref\", \"-m\", \"forge-copia: worktree\", ref, sha, \"\"])",
+      "para": "ler([\"git\", \"branch\", \"--track\", branch, ponto])",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_worktree_dentro_cria_a_branch"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o clone troca para a branch de trabalho sem rastreio",
+      "arquivo": "bin/forge-copia",
+      "de": "\"--no-track\", \"-c\", a.branch]",
+      "para": "\"-c\", a.branch]",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_clone_dentro_cria_branch_a_partir_da_base_sem_rastreio"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "a origem com cara de opcao e recusada",
+      "arquivo": "bin/forge-copia",
+      "de": "(\"origem\", a.origem or \"x\")",
+      "para": "(\"origem\", \"x\")",
+      "testes": [
+        "tests.test_forge_copia.Recusa.test_origem_com_cara_de_opcao"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "destino recusado devolve 2 sem chamar o git",
+      "arquivo": "bin/forge-copia",
+      "de": "a.papel)\n    if motivo:\n        return recusa(motivo)",
+      "para": "a.papel)\n    if False:\n        return recusa(motivo)",
+      "testes": [
+        "tests.test_forge_copia.Recusa.test_fora_da_pasta"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "o modo worktree escolhe o ramo da worktree",
+      "arquivo": "bin/forge-copia",
+      "de": "if a.modo == \"worktree\":",
+      "para": "if a.modo != \"worktree\":",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_worktree_dentro_cria_a_branch"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o script so roda como programa",
+      "arquivo": "bin/forge-copia",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_copia.Recusa.test_fora_da_pasta"
+      ]
+    }
+  ]
+}

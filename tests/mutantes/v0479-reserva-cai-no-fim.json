@@ -1,0 +1,167 @@
+{
+  "pedido": "v0479-reserva-cai-no-fim",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o fim solta pelo tool_use_id do agente e não só pelo id (o id trocado volta a soltar a branch do outro)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if uso and registro.get(\"tool_use_id\"):\n        return registro[\"tool_use_id\"] == uso",
+      "para": "    if False and registro.get(\"tool_use_id\"):\n        return registro[\"tool_use_id\"] == uso",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_sem_meta_no_inicio_o_fim_ainda_solta_a_reserva_do_proprio_agente"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o disparo grava o tool_use_id na reserva",
+      "arquivo": "hooks/agentes.py",
+      "de": ", **uso_do_disparo(hook)})",
+      "para": "})",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o início casa só a reserva do próprio disparo, ou a sem tool_use_id; a de outro tool_use_id não casa por tipo",
+      "arquivo": "hooks/agentes.py",
+      "de": "reservas = [a for a in reservas if a.get(\"tool_use_id\") == uso] or [a for a in reservas if not a.get(\"tool_use_id\")]",
+      "para": "reservas = [a for a in reservas]",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_agente_sem_reserva_propria_nao_leva_a_de_outro_disparo",
+        "tests.test_agentes_interrompidos.FimDoAgente.test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "sem tool_use_id nos dois lados vale o id de antes",
+      "arquivo": "hooks/agentes.py",
+      "de": "    return registro.get(\"id\") == aid\n\n\ndef iniciar",
+      "para": "    return False\n\n\ndef iniciar",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_sem_tool_use_id_vale_o_id_de_antes"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a reserva antiga, sem tool_use_id, casa no início",
+      "arquivo": "hooks/agentes.py",
+      "de": " or [a for a in reservas if not a.get(\"tool_use_id\")]",
+      "para": "",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_reserva_antiga_sem_tool_use_id_casa_no_inicio"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a reserva do próprio disparo vem antes da antiga sem tool_use_id",
+      "arquivo": "hooks/agentes.py",
+      "de": "reservas = [a for a in reservas if a.get(\"tool_use_id\") == uso] or [a for a in reservas if not a.get(\"tool_use_id\")]",
+      "para": "reservas = [a for a in reservas if a.get(\"tool_use_id\") in (uso, None)]",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_reserva_do_proprio_disparo_vem_antes_da_antiga_sem_tool_use_id"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o tool_use_id do disparo fora da forma não entra na reserva",
+      "arquivo": "hooks/agentes.py",
+      "de": "if isinstance(uso, str) and USO_DE_AGENTE.fullmatch(uso) else {}",
+      "para": "if True else {}",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_tool_use_id_do_disparo_fora_da_forma_nao_entra_na_reserva"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o agent_id fora da forma não lê o meta",
+      "arquivo": "hooks/agentes.py",
+      "de": "if real and isinstance(aid, str) and ID_DE_AGENTE.fullmatch(aid) else None",
+      "para": "if real else None",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_agent_id_fora_da_forma_nao_le_o_meta"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o toolUseId do meta fora da forma deixa o casamento pela ordem",
+      "arquivo": "hooks/agentes.py",
+      "de": "return uso if isinstance(uso, str) and USO_DE_AGENTE.fullmatch(uso) else None",
+      "para": "return uso",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_tool_use_id_do_meta_fora_da_forma_deixa_o_casamento_pela_ordem"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o início só filtra as reservas quando prova o tool_use_id do agente",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if uso:  # primeiro",
+      "para": "    if False:  # primeiro",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_agente_sem_reserva_propria_nao_leva_a_de_outro_disparo"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "o fim sem agent_id não solta reserva nenhuma",
+      "arquivo": "hooks/agentes.py",
+      "de": "parados = [a for a in agentes if aid and e_do_agente(a, aid, uso)]",
+      "para": "parados = [a for a in agentes if e_do_agente(a, aid, uso)]",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_fim_sem_agent_id_nao_solta_reserva_nenhuma"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "o toolUseId do meta só vale com a forma de id de uso (isinstance)",
+      "arquivo": "hooks/agentes.py",
+      "de": "return uso if isinstance(uso, str) and USO_DE_AGENTE.fullmatch(uso) else None",
+      "para": "return uso if not isinstance(uso, str) or USO_DE_AGENTE.fullmatch(str(uso)) else None",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_tool_use_id_do_meta_fora_da_forma_deixa_o_casamento_pela_ordem"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o toolUseId do meta só vale com a forma de id de uso (fullmatch)",
+      "arquivo": "hooks/agentes.py",
+      "de": "return uso if isinstance(uso, str) and USO_DE_AGENTE.fullmatch(uso) else None",
+      "para": "return uso if isinstance(uso, str) else None",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_tool_use_id_do_meta_fora_da_forma_deixa_o_casamento_pela_ordem"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "com os dois tool_use_id, o registro é do agente só se for igual ao do uso",
+      "arquivo": "hooks/agentes.py",
+      "de": "return registro[\"tool_use_id\"] == uso",
+      "para": "return registro[\"tool_use_id\"] != uso",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o fim só lê o meta com agent_id",
+      "arquivo": "hooks/agentes.py",
+      "de": "uso = uso_do_agente(hook, aid) if aid else None",
+      "para": "uso = uso_do_agente(hook, aid) if not aid else None",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_sem_meta_no_inicio_o_fim_ainda_solta_a_reserva_do_proprio_agente"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "o fim tira dos agentes só os parados",
+      "arquivo": "hooks/agentes.py",
+      "de": "agentes = [a for a in agentes if not any(a is p for p in parados)]",
+      "para": "agentes = [a for a in agentes if any(a is p for p in parados)]",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo"
+      ]
+    }
+  ]
+}

@@ -5,7 +5,7 @@
     {
       "id": "M16",
       "guarda": "FILA-27 A-F27-1: o arquivo da consulta abre sem bloquear (FIFO sem escritor não trava o hook)",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "    descritor = os.open(caminho, os.O_RDONLY | getattr(os, \"O_NONBLOCK\", 0))",
       "para": "    descritor = os.open(caminho, os.O_RDONLY)",
       "testes": [
@@ -15,7 +15,7 @@
     {
       "id": "M17",
       "guarda": "FILA-27 A-F27-1: o que não é arquivo regular (conferido no descritor) não dá para ler",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):\n            raise OSError",
       "para": "        if False:\n            raise OSError",
       "testes": [
@@ -25,7 +25,7 @@
     {
       "id": "M18",
       "guarda": "FILA-27 A-F27-2: argumento com $( ), $VAR ou crase torna a consulta ilegível",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "    if any(map(expande, args)):",
       "para": "    if False:",
       "testes": [
@@ -35,7 +35,7 @@
     {
       "id": "M19",
       "guarda": "FILA-27 A-F27-3: relativo com a pasta desconhecida (cd não resolvido) não dá para ler",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "            if pasta is None and not os.path.isabs(arq):",
       "para": "            if False:",
       "testes": [
@@ -45,7 +45,7 @@
     {
       "id": "M20",
       "guarda": "FILA-27 A-F27-3: o absoluto continua lido com a pasta desconhecida",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "            if pasta is None and not os.path.isabs(arq):",
       "para": "            if pasta is None:",
       "testes": [
@@ -65,7 +65,7 @@
     {
       "id": "M22",
       "guarda": "FILA-27 A-F27-3: com a pasta desconhecida, o absoluto se lê sem pasta de base (sem erro interno)",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "ler_regular(os.path.join(pasta or \"\", arq))",
       "para": "ler_regular(os.path.join(pasta, arq))",
       "testes": [

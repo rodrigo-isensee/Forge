@@ -1,0 +1,76 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O133",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): barra e quebra: a linha sem elas segue como veio",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if \"\\\\\\n\" not in linha:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O134",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): barra e quebra com aspa simples recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return None if \"'\" in linha or \"#\" in linha else",
+      "para": "return None if \"#\" in linha else",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O135",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): barra e quebra com `#` recusa (comentário)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return None if \"'\" in linha or \"#\" in linha else",
+      "para": "return None if \"'\" in linha else",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O137",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): a linha que o hook não junta não é conhecida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if linha is None or CONTEXTO_ARITMETICO.search(linha):",
+      "para": "    if CONTEXTO_ARITMETICO.search(linha or \"\"):",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O138",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): contexto aritmético no texto recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if linha is None or CONTEXTO_ARITMETICO.search(linha):",
+      "para": "    if linha is None:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O139",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): `test`/`[` com `[`, `$`, crase ou curinga no argumento recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if comando in LE_INDICE and any(c in p for c in \"[$`*?\"):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O140",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): índice da atribuição só de dígitos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if m[\"indice\"] is not None and not INDICE_LITERAL.fullmatch(m[\"indice\"]):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

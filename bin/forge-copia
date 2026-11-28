@@ -1,0 +1,388 @@
+#!/usr/bin/env python3
+"""Forge: cria a cópia de trabalho (clone ou worktree) SÓ na pasta liberada do sandbox (~/.forge-contrib; num projeto, <projeto>/.forge/wt).
+Projeto: tem .forge/config.json e não tem .claude-plugin/; lá, use clone (a worktree escreve em .git/worktrees, que o sandbox não libera).
+Uso: forge-copia clone    <destino> --branch <nome> --origem <url|caminho> [--base origin/develop] [--papel <papel>] [--instalar]
+     forge-copia clone    <destino> --branch <nome> --origem <url|caminho> --revisao   (clone de revisão: a branch do remoto)
+     forge-copia clone    <destino> --origem <url|caminho> --d2 [--base origin/develop]   (clone D2: destacado na base, sem branch)
+     forge-copia worktree <destino> --branch <nome> [--base origin/develop] [--papel <papel>]   (rode dentro do clone de origem)
+     forge-copia limpar   <destino> [--base origin/develop]
+A branch de trabalho sai da base de integração com --no-track (o .git/config é protegido).
+COPIA-BASE (clone): a base vale como dada ou como origin/<base>; a branch que já existe no remoto parte do head remoto dela; sem
+ponto de partida, o clone é apagado e sai 1 (nunca fica a cópia na branch padrão), com as refs de fato tentadas na mensagem.
+FORGE-COPIA-ORIGEM-LOCAL: --origem que é uma pasta local (o repositório principal, que não faz fetch no sandbox) clona da URL do
+remoto origin dela; pasta sem remoto origin: recusa. A worktree também parte do head remoto da branch que já existe no remoto, e a
+worktree cria a branch de forma atômica antes do add e, se falha, apaga a branch que criou (FORGE-COPIA-FALHA-SEM-DESFAZER; a
+branch que já existia, mesmo criada por outro processo no meio, fica e a worktree sai 1).
+FORGE-COPIA-D2 (clone --d2): o clone da conferência D2, destacado na base (sem --branch, sem --revisao); sem a base, apaga o clone e sai 1.
+COPIA-SHA: criado o clone, diz o sha em que a branch nasceu e a ref de onde veio (o head remoto da branch ou a base).
+COPIA-REVISAO (clone --revisao): o clone do revisor (o caminho -rev, -qa ou -sec do brief) nasce no head remoto da branch, sem
+upstream e sem cair na base; branch que não está no remoto: apaga o clone e sai 1. Só no clone (a worktree esbarra no sandbox). No Forge, a pasta liberada é a do
+allowWrite da sessão; no projeto, fica dentro da pasta dele (gravável no sandbox), fora do git por um .gitignore `*`. Recusa destino fora dela (inclusive por `..` ou
+link simbólico), a própria pasta, destino já ocupado, e nome de branch ou base que pareça opção. Nunca força nada.
+CLONE-NOME-UNICO: destino já ocupado (cópia de outra branch ou em uso por outro agente) nunca é reusado; a recusa diz a branch dele
+e sugere um nome livre na mesma pasta, <branch-sem-prefixo>-<papel> (sem --papel, <branch-sem-prefixo>), com -2, -3... se já tomado.
+O `forge-check brief gerar` usa o mesmo `nome_unico` e já põe no brief a cópia só do agente destino (branch e papel; E172.7).
+Com --instalar, depois de criar, roda na cópia os comandos de stacks/<stack>/instalar.json (lista de argv, sem shell) das stacks cujos
+arquivos de `detecta` (o lockfile) existem na cópia, com o ambiente sem credencial (GH_TOKEN e afins); sem stack detectada avisa e sai 0; comando ausente ou falho: sai 1 (a cópia fica).
+Disco (MP6): com o disco da pasta liberada acima do limiar de `forge_disco.py` (ou ilegível), recusa e manda limpar, antes de criar.
+LIMPEZA-AO-FIM-DO-ITEM (limpar): apaga a cópia (clone ou worktree) de um item que acabou, no Forge e nos projetos: PR da branch MERGED
+ou CLOSED sem nenhum OPEN (`gh pr list`), ou, sem PR, `forge-check vazio` = `vazio: sim`. Só com a cópia limpa (sem mudança nem arquivo
+novo), sem commit fora das refs do origin e, no clone, sem stash nem worktree ligada (o stash da worktree é do repositório e fica). Nunca
+apaga branch (local ou remota) nem força: a worktree sai por `git worktree remove`.
+Saída: 0 criou (ou apagou); 1 git ou instalação falhou; 2 recusou."""
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from forge_disco import LIMIAR_DISCO, uso_do_disco  # noqa: E402
+
+PASTA = ".forge-contrib"  # relativa ao HOME: as cópias do Forge (o allowWrite do sandbox da sessão do Forge)
+MARCA = os.sep + os.path.join(".forge", "wt") + os.sep  # as cópias de um projeto: <projeto>/.forge/wt/<item>, na pasta do sandbox dele
+
+
+def raiz_do_projeto():
+    """Raiz do projeto da pasta atual, também de dentro de uma cópia dele: tem .forge/config.json e não é o Forge (sem .claude-plugin/).
+    None fora de projeto (MODELO-COPIAS-EM-PASTA-PROPRIA: o projeto não escreve em ~/.forge-contrib, R-LIMITES)."""
+    rc, topo = ler(["git", "rev-parse", "--show-toplevel"])
+    if rc:
+        return None
+    topo = (os.path.realpath(topo.strip()) + os.sep).split(MARCA, 1)[0].rstrip(os.sep)
+    if os.path.isfile(os.path.join(topo, ".forge", "config.json")) and not os.path.exists(os.path.join(topo, ".claude-plugin")):
+        return topo
+    return None
+
+
+def raiz():
+    projeto = raiz_do_projeto()
+    if projeto:
+        return os.path.join(projeto, MARCA.strip(os.sep))
+    return os.path.realpath(os.path.join(os.path.expanduser("~"), PASTA))
+
+
+def ignorar_no_projeto():
+    """No projeto, a pasta das cópias fica fora do git dele: um .gitignore com `*`, criado uma vez (o que já existe não é tocado).
+    Sem seguir link: um .gitignore versionado como link é recusado (S2); devolve o motivo da recusa ou None."""
+    if not raiz_do_projeto():
+        return None
+    arq = os.path.join(raiz(), ".gitignore")
+    os.makedirs(os.path.dirname(arq), exist_ok=True)
+    if os.path.islink(arq):
+        return f"{arq} é um link simbólico"
+    try:
+        fd = os.open(arq, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)  # O_EXCL: link criado depois também falha
+    except FileExistsError:
+        return None
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write("*\n")
+    return None
+
+
+def recusa(motivo):
+    print(f"forge-copia: recusado: {motivo}", file=sys.stderr)
+    return 2
+
+
+def ocupado(caminho):
+    if os.path.islink(caminho):  # link nunca é livre: a sugestão não aponta para fora da pasta (A1 da segurança)
+        return True
+    return os.path.lexists(caminho) and (not os.path.isdir(caminho) or bool(os.listdir(caminho)))
+
+
+def nome_unico(pasta, branch, papel):
+    """Primeiro nome livre em `pasta`: <branch-sem-prefixo>-<papel>, depois com -2, -3... (CLONE-NOME-UNICO)."""
+    raiz_nome = "-".join(filter(None, [branch.split("/", 1)[-1].replace("/", "-"), papel]))
+    nome, n = raiz_nome, 1
+    while ocupado(os.path.join(pasta, nome)):
+        n += 1
+        nome = f"{raiz_nome}-{n}"
+    return os.path.join(pasta, nome)
+
+
+def tomado(real, branch, papel):
+    """Motivo da recusa do destino ocupado, com a branch da cópia que está lá e o nome único sugerido."""
+    rc, dona = 1, ""
+    if os.path.lexists(os.path.join(real, ".git")):  # só a cópia git dele, nunca o repositório em volta (a pasta do projeto)
+        rc, dona = ler(["git", "--no-optional-locks", "-c", "core.fsmonitor=", "-C", real, "branch", "--show-current"])
+    de_quem = f" (cópia da branch {dona.strip()})" if rc == 0 and dona.strip() else ""
+    return (f"o destino já existe e não está vazio{de_quem}; nunca reuse a cópia de outro agente: "
+            f"use o nome único {nome_unico(os.path.dirname(real), branch, papel)}")
+
+
+def destino_dentro(destino, branch="", papel=""):
+    """Devolve (caminho real, None) se o destino fica dentro da pasta liberada; senão (None, motivo)."""
+    if ".." in destino.replace("\\", "/").split("/"):
+        return None, "o destino tem `..`"
+    base = raiz()
+    real = os.path.realpath(os.path.expanduser(destino))  # resolve links, também nos pais que existem
+    if real == base:
+        return None, "o destino é a própria pasta liberada"
+    if os.path.commonpath([base, real]) != base:
+        return None, f"o destino fica fora de {base}"
+    if ocupado(real):
+        return None, tomado(real, branch, papel)
+    return real, None
+
+
+def git(*args, cwd=None):
+    return subprocess.run(["git", *args], cwd=cwd).returncode
+
+
+def existe(copia, ref):
+    return ler(["git", "-C", copia, "rev-parse", "--verify", "-q", f"{ref}^{{commit}}"])[0] == 0
+
+
+def candidatas(base):
+    """A base como dada e, sem o prefixo origin/, também como origin/<base> (nunca origin/origin/...)."""
+    return (base,) if base.startswith("origin/") else (base, f"origin/{base}")
+
+
+def ponto_de_partida(copia, branch, base, revisao=False):
+    """COPIA-BASE: de onde a branch nasce no clone. A branch que já está no remoto parte do head remoto dela; senão, da base,
+    que vale como dada ou como origin/<base> (`--base develop` no clone que nasce na main). None se nenhuma existe.
+    COPIA-REVISAO: no clone de revisão, só a branch do remoto vale; sem ela, None."""
+    if branch and existe(copia, f"refs/remotes/origin/{branch}"):
+        print(f"forge-copia: a branch {branch} já existe no remoto; parto do head dela (origin/{branch}), não de {base}", file=sys.stderr)
+        return f"refs/remotes/origin/{branch}"
+    if revisao:
+        return None
+    for ref in candidatas(base):
+        if existe(copia, ref):
+            return ref
+    return None
+
+
+def falha_do_ponto(branch, base, ponto, revisao):
+    """Por que a branch não foi criada, com as refs de fato tentadas (FORGE-COPIA-MENSAGEM)."""
+    if ponto:
+        return f"o git switch falhou a partir de {ponto.removeprefix('refs/remotes/')}"
+    tentadas = ([f"origin/{branch}"] if branch else []) + ([] if revisao else list(candidatas(base)))
+    return f"nenhuma destas refs existe no clone: {', '.join(tentadas)}"
+
+
+def origem_real(origem):
+    """(origem do clone, motivo da recusa): a pasta local vira a URL do remoto origin dela (FORGE-COPIA-ORIGEM-LOCAL)."""
+    if not os.path.isdir(origem):
+        return origem, None
+    rc, url = ler(["git", "-C", origem, "remote", "get-url", "origin"])
+    if rc or not url.strip():
+        return None, f"a origem {origem} é uma pasta local sem remoto origin; passe em --origem a URL do remoto"
+    local = os.path.join(origem, url.strip())  # caminho relativo vale a partir da origem; URL e caminho absoluto ficam como estão
+    url = local if os.path.isdir(local) else url.strip()
+    print(f"forge-copia: a origem {origem} é local; clono do remoto origin dela", file=sys.stderr)
+    return url, None
+
+
+def worktree(real, branch, base):
+    """A worktree nasce como o clone (COPIA-BASE), numa branch criada antes e de forma atômica, sem rastreio: a que já existe
+    (até a que outro processo acabou de criar) fica e sai 1. Se o git falha, apaga a branch que criou, só se não andou. Devolve 0 ou 1."""
+    ponto, ref = ponto_de_partida(".", branch, base), f"refs/heads/{branch}"
+    if not ponto:
+        print(f"forge-copia: não criei a worktree de {branch}: {falha_do_ponto(branch, base, ponto, False)}", file=sys.stderr)
+        return 1
+    sha = ler(["git", "rev-parse", "--verify", "-q", f"{ponto}^{{commit}}"])[1].strip()
+    if ler(["git", "update-ref", "-m", "forge-copia: worktree", ref, sha, ""])[0]:  # valor antigo vazio: falha se ela já existe
+        print(f"forge-copia: não criei a worktree de {branch}: a branch já existe (ou o git recusou criá-la)", file=sys.stderr)
+        return 1
+    if git("worktree", "add", "--", real, branch) == 0:
+        return 0
+    if ler(["git", "update-ref", "-d", ref, sha])[0] == 0:
+        print(f"forge-copia: a worktree falhou; apaguei a branch {branch} que criei para ela", file=sys.stderr)
+    return 1
+
+
+def env_sem_credencial():
+    """Ambiente sem as variáveis de credencial (token do bot, askpass, agente SSH, config injetada do git, todo nome com TOKEN, SECRET ou PASSWORD)."""
+    fora = {"GIT_ASKPASS", "SSH_AUTH_SOCK", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS"}
+    padroes = ("TOKEN", "SECRET", "PASSWORD")  # por padrão de nome, não só pela lista fixa (só nomes; valor nunca impresso)
+    return {k: v for k, v in os.environ.items()
+            if k not in fora and not k.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))
+            and not any(x in k.upper() for x in padroes)}
+
+
+def instalar(copia):
+    """Roda os comandos de instalação das stacks detectadas na cópia. Devolve 0 ou 1."""
+    pacotes = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "stacks")
+    achou = False
+    for nome in sorted(os.listdir(pacotes) if os.path.isdir(pacotes) else []):
+        arq = os.path.join(pacotes, nome, "instalar.json")
+        if not os.path.isfile(arq):
+            continue
+        try:
+            spec = json.load(open(arq, encoding="utf-8"))
+            detecta, comandos = spec["detecta"], spec["comandos"]
+            ok = all(isinstance(c, list) and c and all(isinstance(x, str) for x in c) for c in comandos)
+        except (OSError, ValueError, KeyError, TypeError):
+            ok = False
+        if not ok or not isinstance(detecta, list):
+            print(f"forge-copia: instalar.json inválido na stack {nome}", file=sys.stderr)
+            return 1
+        if not any(os.path.exists(os.path.join(copia, f)) for f in detecta):
+            continue
+        achou = True
+        for cmd in comandos:
+            print(f"forge-copia: instalando ({nome}): {' '.join(cmd)}", file=sys.stderr)
+            try:
+                rc = subprocess.run(cmd, cwd=copia, env=env_sem_credencial()).returncode
+            except OSError as e:
+                print(f"forge-copia: comando de instalação indisponível ({cmd[0]}): {e.strerror}", file=sys.stderr)
+                return 1
+            if rc:
+                print(f"forge-copia: a instalação falhou (rc={rc}): {' '.join(cmd)}", file=sys.stderr)
+                return 1
+    if not achou:
+        print("forge-copia: nenhuma stack detectada na cópia (sem lockfile, `detecta` aponta o lockfile); nada a instalar", file=sys.stderr)
+    return 0
+
+
+def ler(cmd, cwd=None):
+    """(rc, saída) de um comando só de leitura; o comando ausente vira rc 127."""
+    try:
+        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    except OSError:
+        return 127, ""
+    return r.returncode, r.stdout
+
+
+def fim_do_item(copia, branch, base):
+    """None se o item acabou (PR do próprio repositório MERGED ou CLOSED e nenhum OPEN; sem PR, `vazio: sim`); senão o motivo para a cópia ficar."""
+    rc, saida = ler(["gh", "pr", "list", "--head", branch, "--state", "all", "--json", "state,isCrossRepository",
+                     "--jq", '.[] | "\\(.state) \\(.isCrossRepository)"'], copia)
+    if rc:
+        return "não li os PRs da branch (gh pr list)"
+    estados = set()
+    for campos in (linha.split() for linha in saida.splitlines()):
+        if len(campos) == 2 and campos[1] == "false":  # PR de fork com o mesmo nome de branch não encerra o item (A1)
+            estados.add(campos[0])
+    if "OPEN" in estados:
+        return "a branch tem PR aberto"
+    if estados:
+        return None
+    check = os.path.join(os.path.dirname(os.path.realpath(__file__)), "forge-check")
+    rc, saida = ler([sys.executable, "-I", check, "vazio", "--ref", branch, "--base", base, "--raiz", copia], copia)
+    return None if rc == 0 and saida.startswith("vazio: sim") else "sem PR fechado e sem `vazio: sim` (forge-check vazio)"
+
+
+def sujeira(g, real, worktree):
+    """Motivo para a cópia ficar (mudança, stash, commit fora da origem, worktree ligada) ou None se ela está limpa."""
+    conferir = [(["status", "--porcelain"], "mudança ou arquivo novo")]
+    if worktree:
+        conferir.append((["rev-list", "HEAD", "--not", "--remotes"], "commit fora da origem"))
+    else:
+        conferir += [(["stash", "list"], "stash"), (["rev-list", "--all", "--not", "--remotes"], "commit fora da origem")]
+    for cmd, motivo in conferir:
+        rc, saida = ler([*g, *cmd])
+        if rc or saida.strip():
+            return f"a cópia {real} tem {motivo}; ela fica"
+    if not worktree and ler([*g, "worktree", "list", "--porcelain"])[1].count("worktree ") != 1:
+        return f"o clone {real} tem worktree ligada; ele fica"
+    return None
+
+
+def limpar(destino, base):
+    """Apaga a cópia do item que acabou, só limpa e com tudo na origem (LIMPEZA-AO-FIM-DO-ITEM). Devolve 0, 1 ou 2."""
+    real, b = str(Path(destino).expanduser().resolve()), raiz()
+    if real == b or os.path.commonpath([b, real]) != b:
+        return recusa(f"a cópia fica fora de {b} ou é a própria pasta")
+    g = ["git", "--no-optional-locks", "-c", "core.fsmonitor=", "-C", real]
+    rc, topo = ler([*g, "rev-parse", "--show-toplevel"])
+    if rc or os.path.realpath(topo.strip()) != real:
+        return recusa("o destino não é a raiz de uma cópia git")
+    rc, ref = ler([*g, "symbolic-ref", "-q", "HEAD"])
+    if rc or not ref.startswith("refs/heads/"):
+        return recusa("a cópia não está numa branch")
+    branch, worktree = ref.strip()[len("refs/heads/"):], os.path.isfile(os.path.join(real, ".git"))
+    antes = sujeira(g, real, worktree)
+    if antes:
+        return recusa(antes)
+    motivo = fim_do_item(real, branch, base)
+    if motivo:
+        return recusa(f"o item de {branch} não acabou: {motivo}; a cópia fica")
+    depois = sujeira(g, real, worktree)  # de novo, logo antes de apagar: a escrita feita durante a consulta ao gh não se perde (A2)
+    if depois:
+        return recusa(f"{depois} (mudou durante a consulta ao gh)")
+    if worktree:
+        if subprocess.run([*g, "worktree", "remove", real]).returncode:
+            return 1
+    else:
+        try:
+            shutil.rmtree(real)
+        except OSError as e:
+            print(f"forge-copia: não consegui apagar {real}: {e.strerror}", file=sys.stderr)
+            return 1
+    print(f"forge-copia: apaguei a cópia {real} da branch {branch} (item acabou; limpa e com tudo na origem; a branch fica)")
+    return 0
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog="forge-copia", description=__doc__.split("\n")[0])
+    p.add_argument("modo", choices=("clone", "worktree", "limpar"))
+    p.add_argument("destino")
+    p.add_argument("--branch")
+    p.add_argument("--base", default="origin/develop")
+    p.add_argument("--origem")
+    p.add_argument("--papel", default="", help="papel do agente dono da cópia, para o nome único sugerido")
+    p.add_argument("--instalar", action="store_true", help="instala as dependências da stack na cópia nova")
+    p.add_argument("--revisao", action="store_true", help="clone de revisão: a branch no head remoto, sem cair na base")
+    p.add_argument("--d2", action="store_true", help="clone D2: destacado na base, sem branch")
+    a = p.parse_args(argv)
+    if a.base.startswith("-"):
+        return recusa("base começa com `-`")
+    if a.modo == "limpar":
+        return limpar(a.destino, a.base)
+    if a.d2 and (a.modo != "clone" or a.branch or a.revisao):
+        return recusa("--d2 é só do clone, sem --branch e sem --revisao")
+    if not a.branch and not a.d2:
+        return recusa(f"{a.modo} pede --branch")
+    if a.revisao and a.modo != "clone":
+        return recusa("--revisao é só do clone (a worktree esbarra no sandbox)")
+    for nome, valor in (("branch", a.branch or "x"), ("base", a.base), ("origem", a.origem or "x")):
+        if valor.startswith("-"):
+            return recusa(f"{nome} começa com `-`")
+    if a.branch and subprocess.run(["git", "check-ref-format", "--branch", a.branch], capture_output=True).returncode != 0:
+        return recusa("nome de branch inválido")
+    if a.papel and not re.fullmatch(r"[a-z0-9][a-z0-9-]*", a.papel):
+        return recusa("papel inválido (só letras minúsculas, dígitos e `-`)")
+    real, motivo = destino_dentro(a.destino, a.branch or "d2", a.papel)
+    if motivo:
+        return recusa(motivo)
+    try:
+        uso = uso_do_disco(real)
+    except OSError as erro:
+        return recusa(f"não consegui medir o disco ({erro})")
+    if uso > LIMIAR_DISCO:
+        return recusa(f"disco com {uso}% de uso, acima de {LIMIAR_DISCO}%: limpe as cópias de itens fechados "
+                      "(forge-copia limpar <cópia>; no Forge, forge-fechar <pedido> --ref <branch> --limpar) antes de criar outra")
+    falha = ignorar_no_projeto()
+    if falha:
+        return recusa(falha)
+    if a.modo == "worktree":
+        if worktree(real, a.branch, a.base):
+            return 1
+        return instalar(real) if a.instalar else 0
+    if not a.origem:
+        return recusa("clone pede --origem")
+    origem, motivo = origem_real(a.origem)
+    if motivo:
+        return recusa(motivo)
+    if git("clone", "--", origem, real):
+        return 1
+    ponto = ponto_de_partida(real, a.branch, a.base, a.revisao)
+    alvo = ["--detach"] if a.d2 else ["--no-track", "-c", a.branch]
+    if not ponto or git("switch", *alvo, ponto, cwd=real):
+        shutil.rmtree(real, ignore_errors=True)  # COPIA-BASE: sem a branch criada, a cópia não fica (na branch padrão do clone)
+        print(f"forge-copia: não criei {a.branch or 'o clone D2'}: {falha_do_ponto(a.branch, a.base, ponto, a.revisao)}; apaguei a cópia",
+              file=sys.stderr)
+        return 1
+    sha = ler(["git", "-C", real, "rev-parse", "HEAD"])[1].strip()  # COPIA-SHA: o commit de fato em que a branch nasceu
+    print(f"forge-copia: criei {a.branch or 'o clone D2 destacado'} em {sha} (de {ponto.removeprefix('refs/remotes/')})", file=sys.stderr)
+    return instalar(real) if a.instalar else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

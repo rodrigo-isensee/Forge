@@ -76,8 +76,8 @@
       "id": "M28",
       "guarda": "o -REV é o mesmo pedido",
       "arquivo": "bin/forge-check",
-      "de": "ids.add(Path(valor).stem.removesuffix(\"-REV\") if valor.endswith(\".md\") else valor.removesuffix(\"-REV\"))",
-      "para": "ids.add(Path(valor).stem.removesuffix(\"-REV\") if valor.endswith(\".md\") else valor)",
+      "de": "else valor.removesuffix(\"-REV\")",
+      "para": "else valor",
       "testes": [
         "tests.test_forge.ConferenciaPresaAoHead.test_pedido_pelos_briefs_da_branch"
       ]
@@ -86,20 +86,22 @@
       "id": "M29",
       "guarda": "a amarração vale sem --base",
       "arquivo": "bin/forge-check",
-      "de": "        return cmd_pr(raiz, pedido, ref, None, branch) + (conferencia_do_head(raiz, pedido, ref, None, branch) if conferir else [])",
-      "para": "        return cmd_pr(raiz, pedido, ref, None, branch)",
+      "de": "+ (conferencia_do_head(raiz, pedido, ref, None, branch, previo)\n",
+      "para": "+ ([]\n",
       "testes": [
-        "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova"
+        "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova",
+        "tests.test_pre_envio_brief.QaLeOCiSemEsperarAConferencia.test_o_pr_passa_o_previo_a_conferencia_com_e_sem_base"
       ]
     },
     {
       "id": "M30",
       "guarda": "a amarração vale com --base",
       "arquivo": "bin/forge-check",
-      "de": "    return cmd_pr(raiz, pedido, ref, resolvida, branch) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch) if conferir else [])",
-      "para": "    return cmd_pr(raiz, pedido, ref, resolvida, branch)",
+      "de": "+ (conferencia_do_head(raiz, pedido, ref, resolvida, branch, previo)\n",
+      "para": "+ ([]\n",
       "testes": [
-        "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova"
+        "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova",
+        "tests.test_pre_envio_brief.QaLeOCiSemEsperarAConferencia.test_o_pr_passa_o_previo_a_conferencia_com_e_sem_base"
       ]
     },
     {
@@ -116,8 +118,8 @@
       "id": "M32",
       "guarda": "sem branch não há briefs a ler",
       "arquivo": "bin/forge-check",
-      "de": "if branch else ()",
-      "para": "if False else ()",
+      "de": "etapas = etapas_dos_briefs_da_branch(raiz, branch) if branch else {}",
+      "para": "etapas = etapas_dos_briefs_da_branch(raiz, branch) if False else {}",
       "testes": [
         "tests.test_forge.ConferenciaPresaAoHead.test_pedido_pelos_briefs_da_branch"
       ]
@@ -136,8 +138,8 @@
       "id": "M34",
       "guarda": "dois pedidos é ambíguo",
       "arquivo": "bin/forge-check",
-      "de": "if len(ids) > 1:",
-      "para": "if len(ids) > 2:",
+      "de": "if len(ids) != 1 and etapas:",
+      "para": "if len(ids) > 2 and etapas:",
       "testes": [
         "tests.test_forge.ConferenciaPresaAoHead.test_pedido_pelos_briefs_da_branch"
       ]

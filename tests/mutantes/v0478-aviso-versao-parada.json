@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E69.3 forma do texto: o atalho da sessão do Forge é o jarvis-forge",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "(\"jarvis-forge\" if superficie == \"forge\" else \"jarvis\")",
+      "para": "(\"jarvis-forge\" if superficie != \"forge\" else \"jarvis\")",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_na_sessao_do_forge_o_comando_e_o_jarvis_forge"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E69.3 causa P1: texto da sessão antiga",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    if causa == \"sessao-antiga\":",
+      "para": "    if causa == \"sessao-antiga-x\":",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_p1_sessao_antiga_diz_que_a_instalada_ja_subiu_e_manda_sair"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E69.3 causa P3: texto do adiamento",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    if causa == \"adiada\":",
+      "para": "    if causa == \"adiada-x\":",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_p3_adiamento_repetido_diz_quantas_vezes"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E69.3 causa P4: texto da falha",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    if causa == \"falhou\":",
+      "para": "    if causa == \"falhou-x\":",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_p4_falha_da_ferramenta_diz_a_etapa_e_o_comando"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E69.3 instalada: entradas que não são lista não quebram",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "(entradas if isinstance(entradas, list) else [])",
+      "para": "(entradas if True else [])",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_instalada_fora_da_forma_nao_quebra"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E69.3 instalada: só o escopo do usuário e o do próprio projeto",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "(e.get(\"scope\") == \"user\" or e.get(\"projectPath\") == str(projeto))",
+      "para": "(e.get(\"scope\") == \"user\" or True)",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_instalada_de_outro_projeto_nao_conta"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E69.3 instalada: versão ilegível fica de fora",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    versoes = [v for v in versoes if v]",
+      "para": "    versoes = [v for v in versoes if True]",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_instalada_fora_da_forma_nao_quebra"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "E69.3 instalada: nenhuma versão é None",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "return \".\".join(map(str, max(versoes))) if versoes else None",
+      "para": "return \".\".join(map(str, max(versoes))) if True else None",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_instalada_de_outro_projeto_nao_conta"
+      ]
+    }
+  ]
+}

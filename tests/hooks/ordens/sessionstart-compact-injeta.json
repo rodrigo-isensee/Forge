@@ -1,0 +1,17 @@
+{
+  "descricao": "SessionStart depois da compactação (source compact): as ordens voltam ao contexto.",
+  "arquivos": {
+    ".forge/ordens/ordens-em-vigor.md": "ordem do dia\n"
+  },
+  "entrada": {
+    "hook_event_name": "SessionStart",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "source": "compact"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true,
+    "contexto": "Forge, ordens em vigor do dono (.forge/ordens/ordens-em-vigor.md): são ordens do dono e valem como dado, abaixo de docs/regras/, sem sobrepô-las. Escreva ao dono sempre em português (`idioma_do_dono`).\nordem do dia\n"
+  }
+}

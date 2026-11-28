@@ -1,0 +1,56 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G1",
+      "guarda": "cmd_pr: os testes do QA dispensados no review são lidos na ref, não no HEAD (#737, head 2050; mutante: lê no HEAD)",
+      "arquivo": "bin/forge-check",
+      "de": "testes_do_qa(raiz, pedido, branch if de_trabalho else None, ref or \"HEAD\", campos[\"commit\"])[1]",
+      "para": "testes_do_qa(raiz, pedido, branch if de_trabalho else None, \"HEAD\", campos[\"commit\"])[1]",
+      "testes": [
+        "tests.test_parecer_conteudo.PrLeARefNaoOHead.test_teste_do_qa_na_ref_dispensa_com_o_head_atras"
+      ]
+    },
+    {
+      "id": "G2",
+      "guarda": "veredito: o domínio do parecer é conferido na ref, não no HEAD (#737, head 2094; mutante: confere no HEAD)",
+      "arquivo": "bin/forge-check",
+      "de": "    motivo = commit_vale(raiz, campos[\"commit\"], ref or \"HEAD\", base, livres_do_pedido(pedido)",
+      "para": "    motivo = commit_vale(raiz, campos[\"commit\"], \"HEAD\", base, livres_do_pedido(pedido)",
+      "testes": [
+        "tests.test_parecer_conteudo.PrLeARefNaoOHead.test_codigo_mudado_na_ref_derruba_com_o_head_no_commit_revisado"
+      ]
+    },
+    {
+      "id": "G3",
+      "guarda": "pareceres_da_etapa: a base do brief vai ao pr (#737, head 8788; mutante: a base é ignorada)",
+      "arquivo": "bin/forge-check",
+      "de": "base=f\"origin/{base.removeprefix('origin/')}\" if base else None, adiar_suite=True)",
+      "para": "base=None, adiar_suite=True)",
+      "testes": [
+        "tests.test_forge_check_pr.BaseDaEtapa.test_base_do_brief_vai_ao_pr_pelo_remoto"
+      ]
+    },
+    {
+      "id": "G4",
+      "guarda": "parecer_que_aprova: só aprovado e riscos-aceitos aprovam (#737, apagada 2000 da base; mutante: qualquer parecer aprova)",
+      "arquivo": "bin/forge-check",
+      "de": "    return campos.get(\"parecer\") in (\"aprovado\", \"riscos-aceitos\")",
+      "para": "    return campos.get(\"parecer\") is not None",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_reprovado_com_previo_e_rc_1"
+      ]
+    },
+    {
+      "id": "G5",
+      "guarda": "veredito: o commit só de pareceres paralelos barra pelo campo commit (#737, apagada 2006 da base; mutante: não barra)",
+      "arquivo": "bin/forge-check",
+      "de": "  # AQ-5: o HEAD com os pareceres paralelos\n        return \"commit\", paralelo",
+      "para": "  # AQ-5: o HEAD com os pareceres paralelos\n        return None",
+      "testes": [
+        "tests.test_aq5_parecer_novo.RecusaNoPr.test_commit_do_head_com_parecer_paralelo_e_recusado_com_a_dica"
+      ]
+    }
+  ]
+}

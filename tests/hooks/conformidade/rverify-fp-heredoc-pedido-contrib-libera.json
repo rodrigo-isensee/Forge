@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-RVERIFY-FALSO-POSITIVO: python em heredoc que edita um pedido em ~/.forge-contrib, com `*` no corpo e `$HOME` na linha; sessão do Forge, pasta fora de projeto: só cita, não grava a prova, libera.",
+  "descricao": "HOOK-RVERIFY-FALSO-POSITIVO: python em heredoc que edita um pedido em ~/.forge-contrib, com `*` no corpo e `$HOME` na linha; sessão do Forge, pasta fora de projeto: só cita, não grava a prova, libera. O jarvis, dono do pedido desde a E63.1 (CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS); o outro papel recusa (cpb-tech-lead-python-heredoc-pedidos-bloqueia).",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
@@ -18,7 +18,7 @@
     "tool_input": {
       "command": "python3 - \"$HOME/.forge-contrib/docs/pedidos/v0457.md\" <<'EOF'\nimport sys, pathlib\np = pathlib.Path(sys.argv[1])\nt = p.read_text()\nt = t.replace('git push origin x', 'git push origin x  # * feito')\np.write_text(t)\nEOF"
     },
-    "agent_type": "forge:tech-lead",
+    "agent_type": "forge:jarvis",
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9"
   },

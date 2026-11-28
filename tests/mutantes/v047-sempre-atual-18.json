@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S57",
+      "guarda": "forge_sempre_atual.py:442 decide por `sessao is None and cobre_o_aberto`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if sessao is None and cobre_o_aberto:",
+      "para": "if not (sessao is None and cobre_o_aberto):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S58",
+      "guarda": "forge_sempre_atual.py:446 decide por `procs[\"duvida\"]`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "elif procs[\"duvida\"]:",
+      "para": "elif not (procs[\"duvida\"]):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S59",
+      "guarda": "forge_sempre_atual.py:448 decide por `e[\"escopo\"] in CASCA`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "elif e[\"escopo\"] in CASCA:",
+      "para": "elif not (e[\"escopo\"] in CASCA):",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_agente_vigente_com_claude_vivo_adia"
+      ]
+    },
+    {
+      "id": "S60",
+      "guarda": "forge_sempre_atual.py:451 decide por `not any(dentro(c, p) for p in proprios)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "raizes = sorted({raiz_git(c) for c in procs[\"claude\"] if not any(dentro(c, p) for p in proprios)})",
+      "para": "raizes = sorted({raiz_git(c) for c in procs[\"claude\"] if any(dentro(c, p) for p in proprios)})",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_usuario_cobre_a_raiz_com_claude_que_nao_tem_instalacao_propria"
+      ]
+    },
+    {
+      "id": "S61",
+      "guarda": "forge_sempre_atual.py:454 decide por `motivo`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "motivo = self.motivo_de_ocupacao(raiz, procs)\n                    if motivo:\n                        break",
+      "para": "motivo = self.motivo_de_ocupacao(raiz, procs)\n                    if not (motivo):\n                        break",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_usuario_adia_pela_raiz_ocupada_mesmo_depois_de_uma_livre"
+      ]
+    },
+    {
+      "id": "S62",
+      "guarda": "forge_sempre_atual.py:456 decide por `not motivo and any(not any(dentro(c, p) for p in proprios) for c in pr`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not motivo and any(not any(dentro(c, p) for p in proprios) for c in procs[\"fechar\"]):",
+      "para": "if not (not motivo and any(not any(dentro(c, p) for p in proprios) for c in procs[\"fechar\"])):",
+      "testes": [
+        "tests.test_sempre_atual.Catalogo.test_update_de_projeto_roda_no_projectpath_e_o_de_usuario_em_pasta_neutra"
+      ]
+    },
+    {
+      "id": "S63",
+      "guarda": "forge_sempre_atual.py:458 decide por `motivo`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "motivo = \"integracao\"\n            if motivo:\n                adiados[e[\"chave\"]] = e",
+      "para": "motivo = \"integracao\"\n            if not (motivo):\n                adiados[e[\"chave\"]] = e",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S64",
+      "guarda": "forge_sempre_atual.py:468 decide por `isinstance(contagem.get(escopo), dict)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "atual = contagem.get(escopo) if isinstance(contagem.get(escopo), dict) else {}",
+      "para": "atual = contagem.get(escopo) if not (isinstance(contagem.get(escopo), dict)) else {}",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_tmux_em_duvida_adia_o_escopo_que_cobre_o_projeto"
+      ]
+    }
+  ]
+}

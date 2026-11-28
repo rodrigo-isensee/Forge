@@ -7,36 +7,47 @@ from unittest import mock
 import ast
 import collections
 import concurrent.futures
+import inspect
 import json
 import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
 import threading
+import time
+import types
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from apoio_volta_unica import (  # noqa: E402
     BaseVoltaUnica,
     CARTOES_DO_NAO_PROMETE,
+    ContadorDeTrabalho,
     EXIGE_NENHUMA_MARCA,
     FIXTURES,
     HOOKS,
     IDS_DA_VOLTA_UNICA,
     MedidaDeCpu,
     MINIMO_POR_CLASSE,
+    chamadas_do_executar,
+    referencias_ao_executar_fora_de_chamada,
     NAO_PROMETE,
     RAIZ,
     REGRAS_DA_VOLTA_UNICA,
+    MEDIDA_DO_CORPUS,
+    PASSOS_POR_NIVEL_DO_TMP,
+    RUIDO_DO_CORPUS,
     corpus_da_volta_unica,
+    excessos_de_trabalho,
+    profundidade_do_tmp,
+    execucoes_do_corpus,
     modulos_dos_hooks,
     rodar,
-    limite_de_cpu_do_corpus_sob_carga,
     nucleos_do_processo,
-    trabalhadores_do_limite_de_cpu,
     trabalhadores_do_pool,
     texto)
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
@@ -118,14 +129,104 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                 self.assertEqual(modulos[hook], hook)
         self.assertIn('os.chdir(dados["raizes"][hook])', self.DRIVER_DOS_HOOKS)  # a pasta de cada hook, não a do conformidade
 
+    def test_hooks_reais_e_driver_nao_passam_relogio_nem_armar(self):  # BP1, E37.16
+        """`relogio`, `armar` e `idade` do `_comum.executar` são só por palavra-chave, com o relógio, o alarme e a idade do
+        processo reais por padrão, e só um teste em processo os troca: nenhuma chamada a `executar` dos hooks os passa, nem
+        por `**`, e o driver do lote (`DRIVER_DOS_HOOKS`) não os tem nos argumentos que repassa."""
+        _comum, _, _ = modulos_dos_hooks()
+        assinatura = inspect.signature(_comum.executar).parameters
+        self.assertEqual([(assinatura[n].kind, assinatura[n].default) for n in ("relogio", "armar", "idade")],
+                         [(inspect.Parameter.KEYWORD_ONLY, time.monotonic), (inspect.Parameter.KEYWORD_ONLY, signal.setitimer),
+                          (inspect.Parameter.KEYWORD_ONLY, None)])
+        chamadas = []
+        for script in sorted(HOOKS.glob("*.py")):
+            arvore = ast.parse(script.read_text(encoding="utf-8"))
+            for n in chamadas_do_executar(arvore):
+                chamadas.append(script.name)
+                with self.subTest(hook=script.name):
+                    self.assertEqual([k.arg for k in n.keywords if k.arg is None or k.arg in ("relogio", "armar", "idade")], [])
+        self.assertGreaterEqual(len(chamadas), 10, "chamadas a `executar` nos hooks")
+        self.assertEqual(len(chamadas), len(set(chamadas)), "uma chamada por hook")
+        driver = ast.parse(self.DRIVER_DOS_HOOKS)
+        repassados = {ast.literal_eval(k) for n in ast.walk(driver) if isinstance(n, ast.Dict) for k in n.keys
+                      if isinstance(k, ast.Constant)}
+        self.assertTrue({"regra_do_prazo", "prazo_longo"} <= repassados, repassados)
+        self.assertEqual(repassados & {"relogio", "armar", "idade"}, set())
+
+    def test_chamada_com_apelido_do_import_e_pega_com_relogio(self):  # BP1, A1 da segurança (E37.31)
+        """Um hook de exemplo que importa `executar` com apelido, ou chama `c.executar` pelo módulo, e passa `relogio=` ou
+        `armar=` é achado pela mesma resolução de nomes que confere os hooks reais."""
+        exemplos = {
+            "apelido": "from _comum import executar as rodar\nrodar('x', f, g, relogio=r)\n",
+            "modulo com apelido": "import _comum as c\nc.executar('x', f, g, armar=a)\n",
+            "modulo": "import _comum\n_comum.executar('x', f, g, **k)\n",
+        }
+        for nome, fonte in exemplos.items():
+            with self.subTest(exemplo=nome):
+                achadas = chamadas_do_executar(ast.parse(fonte))
+                self.assertEqual(len(achadas), 1)
+                self.assertTrue([k.arg for k in achadas[0].keywords if k.arg is None or k.arg in ("relogio", "armar")])
+        self.assertEqual(chamadas_do_executar(ast.parse("from outro import executar as rodar\nc.executar(1)\nrodar(2)\n")), [])
+
+    def test_chamada_de_outro_nome_do_comum_nao_e_do_executar(self):  # BP1, E37.36: as guardas do import e da chamada
+        """Só o `executar` de `_comum` conta: outro nome importado de `_comum`, outro módulo com apelido e outra função do
+        módulo `_comum` não são chamadas a ele."""
+        for nome, fonte in {
+            "outro nome de _comum": "from _comum import bloquear as b\nb(1)\n",
+            "outro módulo com apelido": "import os as o\no.executar(1)\n",
+            "outra função de _comum": "import _comum\n_comum.bloquear(1)\n",
+        }.items():
+            with self.subTest(exemplo=nome):
+                self.assertEqual(chamadas_do_executar(ast.parse(fonte)), [])
+
+    def test_referencia_ao_executar_fora_de_chamada_e_achada(self):  # BP1, A2 da segurança (E37.36)
+        """Reatribuição, `getattr`, `importlib.import_module(...).executar` e `functools.partial(executar, ...)` levam o
+        `relogio=` e o `armar=` sem uma chamada direta: o teste de AST os acha, pelo nome, pelo apelido e pelo atributo."""
+        formas = {
+            "reatribuição": "from _comum import executar\nx = executar\nx('h', p, m, relogio=r)\n",
+            "reatribuição pelo apelido": "from _comum import executar as rodar\nx = rodar\n",
+            "getattr": "import _comum\ngetattr(_comum, 'executar')('h', p, m, armar=a)\n",
+            "import_module": "import importlib\nimportlib.import_module('_comum').executar('h', p, m, relogio=r)\n",
+            "atributo sem chamada": "import _comum as c\nx = c.executar\n",
+            "partial": "import functools\nfrom _comum import executar\nfunctools.partial(executar, relogio=r)('h', p, m)\n",
+        }
+        for nome, fonte in formas.items():
+            with self.subTest(forma=nome):
+                self.assertTrue(referencias_ao_executar_fora_de_chamada(ast.parse(fonte)))
+        diretas = {
+            "nome": "from _comum import executar\nexecutar('h', p, m)\n",
+            "apelido": "from _comum import executar as rodar\nrodar('h', p, m)\n",
+            "módulo": "import _comum as c\nc.executar('h', p, m)\n",
+            "outro nome": "from _comum import bloquear\nx = bloquear\n",
+            "outro atributo": "import _comum\nx = _comum.bloquear\n",
+            "outra cadeia": "x = 'bloquear'\n",
+        }
+        for nome, fonte in diretas.items():
+            with self.subTest(direta=nome):
+                self.assertEqual(referencias_ao_executar_fora_de_chamada(ast.parse(fonte)), [])
+
+    def test_hooks_reais_e_driver_so_chamam_o_executar_direto(self):  # BP1, A2 da segurança (E37.36)
+        """Nos hooks reais e no driver do lote, toda menção ao `executar` de `_comum` é a chamada direta."""
+        fontes = {script.name: script.read_text(encoding="utf-8") for script in sorted(HOOKS.glob("*.py"))}
+        self.assertGreaterEqual(len(fontes), 10, "hooks lidos")
+        fontes["driver"] = self.DRIVER_DOS_HOOKS
+        for nome, fonte in fontes.items():
+            with self.subTest(hook=nome):
+                self.assertEqual([ast.unparse(n) for n in referencias_ao_executar_fora_de_chamada(ast.parse(fonte))], [])
+
     def test_corpus_nos_dois_hooks(self):
-        limite = limite_de_cpu_do_corpus_sob_carga()  # lido antes do lote: o lote não infla a própria medida de carga
+        """O corpus nos dois hooks cabe no teto de trabalho (CORPUS-CUSTO-CONTADOR): cada caso roda o hook uma vez por
+        passo declarado, sem sono, com os subprocessos e os passos do interpretador (chamadas, funções e voltas de laço
+        do código do hook) até a medida mais o ruído (`MEDIDA_DO_CORPUS`, `RUIDO_DO_CORPUS`). Conta, e não cronometra:
+        a CPU do mesmo lote variou de 127 s a 185 s no CI com a disputa da máquina, e as contagens não variam com ela. A
+        CPU segue na mensagem, só como informação."""
+        casos = self.fixtures_do_corpus()
+        self.contador_de_trabalho = ContadorDeTrabalho(self._pasta_temporaria())
         with MedidaDeCpu() as medida:
-            casos = self.fixtures_do_corpus()
             self.assertEqual(self.executar_em_lote(casos), len(casos))
-        trabalhadores = trabalhadores_do_limite_de_cpu()
-        self.assertLess(medida.cpu, limite,
-                        f"o corpus gastou {medida.texto()}, com {trabalhadores} trabalhadores (limite: {limite:.0f} s = 90 s por trabalhador vezes o fator de carga)")
+        trabalho = self.contador_de_trabalho.ler()
+        self.assertEqual(excessos_de_trabalho(trabalho, execucoes_do_corpus(casos)), [],
+                         f"trabalho do corpus: {trabalho}, em {len(casos)} casos (informativo: {medida.texto()})")
 
     def test_oraculo_das_redirecoes(self):  # T6
         """Para cada redireção das classes R e N e cada prefixo (P0 a P4), o bash roda `<P>cat <redireção> <<'EOF'⏎x⏎EOF`
@@ -473,6 +574,184 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
             if "nao_promete" in caso:
                 self.assertIn(caso["nao_promete"], CARTOES_DO_NAO_PROMETE, caso["id"])
                 self.assertNotIn("fecha", caso, f"{caso['id']}: não promete e fecha ao mesmo tempo")
+
+
+class ContadorDeTrabalhoDoCorpus(unittest.TestCase):
+    """CORPUS-CUSTO-CONTADOR (v0478 E41.1): o contador e o teto do custo do corpus, sem rodar o corpus."""
+
+    def test_contador_anota_execucao_subprocesso_e_sono_de_cada_filho(self):
+        with tempfile.TemporaryDirectory(prefix="forge-contador-") as tmp:
+            contador = ContadorDeTrabalho(tmp)
+            # Sem `-I`: ele ignora o PYTHONPATH, que é por onde o hook carrega o contador (como no `rodar`). O ambiente
+            # herdado sai inteiro (só o PATH e o do contador) e a pasta de trabalho é a temporária.
+            env = {"PATH": "/usr/bin:/bin", **contador.ambiente()}
+            codigo = "import subprocess, time; subprocess.run(['true']); subprocess.run(['true']); time.sleep(0.01)"
+            for _ in range(2):
+                subprocess.run([sys.executable, "-c", codigo], env=env, cwd=tmp, check=True, timeout=60,
+                               stdin=subprocess.DEVNULL, capture_output=True)
+            trabalho = contador.ler()
+        self.assertEqual((trabalho["execucoes"], trabalho["subprocessos"]), (2, 4))
+        self.assertAlmostEqual(trabalho["sono"], 0.02)
+
+    def passos_do_interpretador(self, voltas, codigo_contado=True):
+        """Os passos contados de um script com `voltas` voltas de laço, cada uma com uma chamada a uma função dele e um
+        `if` com `else` (um salto para a frente), com a pasta do script como o código do hook, ou não."""
+        with tempfile.TemporaryDirectory(prefix="forge-contador-") as tmp:
+            contador, codigo = ContadorDeTrabalho(tmp), Path(tmp) / "codigo"
+            codigo.mkdir()
+            script = codigo / "hook.py"
+            script.write_text("def f(i):\n    if i % 2:\n        x = 1\n    else:\n        x = 2\n    i += x\n    return i\n\n"
+                              f"for i in range({voltas}):\n    f(i)\n"
+                              "import os\nprint(len(os.environ))\n", encoding="utf-8")
+            env = {"PATH": "/usr/bin:/bin", **contador.ambiente(),
+                   "FORGE_TESTE_TRABALHO_CODIGO": str(codigo if codigo_contado else Path(tmp) / "outra")}
+            r = subprocess.run([sys.executable, str(script)], env=env, cwd=tmp, check=True, timeout=60,
+                               stdin=subprocess.DEVNULL, capture_output=True, text=True)
+            trabalho = contador.ler()
+            if codigo_contado:
+                self.assertEqual(trabalho["ambiente"], int(r.stdout))  # as variáveis que o próprio processo viu
+            return trabalho["interpretador"]
+
+    def test_contador_anota_os_passos_do_interpretador_do_codigo_do_hook(self):
+        # Cada volta a mais é uma chamada, um início de função e um salto para trás: 3 passos, em qualquer versão; o
+        # salto para a frente do `else` não conta.
+        self.assertEqual(self.passos_do_interpretador(20) - self.passos_do_interpretador(10), 30)
+        self.assertEqual(self.passos_do_interpretador(10, codigo_contado=False), 0)  # fora do código do hook
+
+    def test_decisao_que_vai_ate_o_prazo_de_producao_conta_sem_o_interpretador(self):
+        """O caso com `prazo_de_producao` anda até o prazo, tanto quanto a máquina deixa: a entrada principal dele roda
+        sem os passos do interpretador; os passos antes dela e os outros casos, com eles."""
+        with tempfile.TemporaryDirectory(prefix="forge-contador-") as tmp:
+            tmp, ambientes = Path(tmp), []
+
+            def rodar_falso(hook, entrada, raiz, proc, extra, **_):
+                ambientes.append(dict(extra))
+                return subprocess.CompletedProcess([], 0, "", "")
+
+            for prazo in (True, False):
+                pasta = tmp / str(prazo)
+                pasta.mkdir()
+                caso = CorpusDaVoltaUnica("test_corpus_nos_dois_hooks")
+                caso.contador_de_trabalho = ContadorDeTrabalho(pasta)
+                fixture = types.SimpleNamespace(hook="conformidade", dados={"prazo_de_producao": prazo, "esperado": {"codigo": 0}},
+                                                montar=lambda t, o: (t, {}), executar_passos=lambda raiz, rodar_hook: rodar_hook({}))
+                with mock.patch("apoio_volta_unica.rodar", rodar_falso):
+                    caso.executar_fixture(fixture, pasta, 0)
+        codigo = [("FORGE_TESTE_TRABALHO_CODIGO" in e, "FORGE_TESTE_TRABALHO" in e) for e in ambientes]
+        self.assertEqual(codigo, [(True, True), (False, True), (True, True), (True, True)])  # passo e entrada, com e sem prazo
+
+    def test_execucoes_do_corpus_contam_cada_passo_e_a_entrada(self):
+        casos = [("a", types.SimpleNamespace(dados={})), ("b", types.SimpleNamespace(dados={"passos": [{}, {}]}))]
+        self.assertEqual(execucoes_do_corpus(casos), 4)
+
+    def trabalho(self, **mudado):
+        """O trabalho no teto (a medida mais o ruído) em tudo, com `mudado` por cima."""
+        no_teto = {nome: MEDIDA_DO_CORPUS[nome] + ruido for nome, ruido in RUIDO_DO_CORPUS.items()}
+        return {"execucoes": MEDIDA_DO_CORPUS["execucoes"], "sono": 0.0, "ambiente": MEDIDA_DO_CORPUS["variaveis_do_ambiente"],
+                **no_teto, **mudado}
+
+    def excessos(self, trabalho, execucoes=MEDIDA_DO_CORPUS["execucoes"], python=MEDIDA_DO_CORPUS["python"]):
+        """`excessos_de_trabalho` no Python e na profundidade do tmp da medida (o resultado não depende de quem roda)."""
+        return excessos_de_trabalho(trabalho, execucoes, python, MEDIDA_DO_CORPUS["profundidade_do_tmp"])
+
+    def test_no_teto_nao_ha_excesso(self):
+        self.assertEqual(self.excessos(self.trabalho()), [])
+
+    def test_execucoes_a_mais_ou_a_menos_reprovam(self):  # o driver que roda cada caso duas vezes, ou pula um
+        execucoes = MEDIDA_DO_CORPUS["execucoes"]
+        for contadas in (2 * execucoes, execucoes - 1):
+            with self.subTest(contadas=contadas):
+                excessos = self.excessos(self.trabalho(execucoes=contadas))
+                self.assertEqual(excessos, [f"{contadas} execuções do hook, e o corpus declara {execucoes}"])
+
+    def test_corpus_diferente_do_medido_reprova(self):  # o teto vale para o corpus medido; outro corpus mede de novo
+        execucoes = MEDIDA_DO_CORPUS["execucoes"] + 1
+        excessos = self.excessos(self.trabalho(execucoes=execucoes), execucoes)
+        self.assertEqual(len(excessos), 1)
+        self.assertIn(f"o corpus declara {execucoes} execuções, e a medida do teto é de", excessos[0])
+
+    def test_um_acima_do_teto_reprova(self):  # S2 do review: um git a mais por decisão também reprova
+        execucoes = MEDIDA_DO_CORPUS["execucoes"]
+        for nome, ruido in RUIDO_DO_CORPUS.items():
+            for acima in (1, execucoes):
+                with self.subTest(nome=nome, acima=acima):
+                    contado = MEDIDA_DO_CORPUS[nome] + ruido + acima
+                    self.assertEqual(self.excessos(self.trabalho(**{nome: contado})),
+                                     [f"{contado} {nome}, acima do teto de {MEDIDA_DO_CORPUS[nome] + ruido} "
+                                      f"(medida {MEDIDA_DO_CORPUS[nome]} mais o ruído {ruido})"])
+
+    def test_passos_do_interpretador_valem_so_no_python_da_medida(self):  # o bytecode muda com a versão
+        trabalho = self.trabalho(interpretador=10 * MEDIDA_DO_CORPUS["interpretador"])
+        self.assertEqual(self.excessos(trabalho, python="0.0"), [])
+
+    def test_medida_do_interpretador_acerta_pela_profundidade_do_tmp(self):
+        """Cada nível a mais do tmp soma `PASSOS_POR_NIVEL_DO_TMP` à medida dos passos, e cada nível a menos tira; os
+        subprocessos não mudam. Sem a profundidade, vale a do tmp de quem roda."""
+        base, ruido = MEDIDA_DO_CORPUS["profundidade_do_tmp"], RUIDO_DO_CORPUS["interpretador"]
+        for niveis in (-1, 1, 3):
+            medida = MEDIDA_DO_CORPUS["interpretador"] + PASSOS_POR_NIVEL_DO_TMP * niveis
+            with self.subTest(niveis=niveis):
+                no_teto = self.trabalho(interpretador=medida + ruido)
+                self.assertEqual(excessos_de_trabalho(no_teto, MEDIDA_DO_CORPUS["execucoes"], "3.12", base + niveis), [])
+                acima = self.trabalho(interpretador=medida + ruido + 1)
+                self.assertEqual(excessos_de_trabalho(acima, MEDIDA_DO_CORPUS["execucoes"], "3.12", base + niveis),
+                                 [f"{medida + ruido + 1} interpretador, acima do teto de {medida + ruido} "
+                                  f"(medida {medida} mais o ruído {ruido})"])
+        fundo = "/" + "/".join(["n"] * (base + 1))
+        with mock.patch("tempfile.gettempdir", return_value=fundo), mock.patch("os.path.realpath", lambda c: c):
+            self.assertEqual(profundidade_do_tmp(), base + 1)
+            no_teto = self.trabalho(interpretador=MEDIDA_DO_CORPUS["interpretador"] + PASSOS_POR_NIVEL_DO_TMP + ruido)
+            self.assertEqual(excessos_de_trabalho(no_teto, MEDIDA_DO_CORPUS["execucoes"], "3.12"), [])
+
+    def test_ambiente_diferente_do_da_medida_reprova(self):
+        """O hook roda com o ambiente completado até `variaveis_do_ambiente`; mais variáveis em quem roda (o contador não
+        tira nenhuma) ou o completar que não rodou (0) reprovam, mesmo com o interpretador dentro da medida."""
+        medida = MEDIDA_DO_CORPUS["variaveis_do_ambiente"]
+        for ambiente in (0, medida - 1, medida + 1):
+            with self.subTest(ambiente=ambiente):
+                self.assertEqual(self.excessos(self.trabalho(ambiente=ambiente)),
+                                 [f"o hook viu {ambiente} variáveis no ambiente, e a medida é com {medida}: o ambiente "
+                                  "de quem roda passa delas"])
+
+    def passos_com_o_ambiente(self, variaveis, voltas=0):
+        """O trabalho de um hook de mentira que copia o ambiente num filho Python (como o `git` do `forge-check`, variável
+        por variável) e dá `voltas` voltas de laço a mais, rodado com `variaveis` variáveis herdadas de quem roda."""
+        with tempfile.TemporaryDirectory(prefix="forge-contador-") as tmp:
+            contador, codigo = ContadorDeTrabalho(tmp), Path(tmp) / "codigo"
+            codigo.mkdir()
+            filho = "import os\nenv = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}\n"
+            (codigo / "filho.py").write_text(filho, encoding="utf-8")
+            (codigo / "hook.py").write_text(
+                f"import os, subprocess, sys\n{filho}for i in range({voltas}):\n    pass\n"
+                "subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'filho.py')], check=True)\n",
+                encoding="utf-8")
+            # Sem `-I`: ele ignora o PYTHONPATH, por onde o contador entra (como no `rodar`); o herdado sai inteiro.
+            herdado = {"PATH": "/usr/bin:/bin", **{f"HERDADA_{i}": "x" for i in range(variaveis - 1)}}
+            env = {**herdado, **contador.ambiente(), "FORGE_TESTE_TRABALHO_CODIGO": str(codigo)}
+            subprocess.run([sys.executable, str(codigo / "hook.py")], env=env, cwd=tmp, check=True, timeout=60,
+                           stdin=subprocess.DEVNULL, capture_output=True)
+            return contador.ler()
+
+    def test_trabalho_nao_muda_com_as_variaveis_de_quem_roda(self):
+        """E45.73: o runner do CI deu 132 e 133 variáveis no ambiente, e o custo de copiar o ambiente mudava o teto. O
+        contador completa o ambiente do hook (só dele: o filho herda e não completa de novo) até `variaveis_do_ambiente`:
+        com 132 ou 133 herdadas, o mesmo ambiente e os mesmos passos, e o veredito é o mesmo. Uma volta de laço a mais
+        (custo real) segue contada."""
+        com_132, com_133 = self.passos_com_o_ambiente(132), self.passos_com_o_ambiente(133)
+        self.assertEqual(com_132["ambiente"], MEDIDA_DO_CORPUS["variaveis_do_ambiente"])
+        self.assertEqual(com_132, com_133)
+        self.assertEqual((com_132["execucoes"], com_132["subprocessos"]), (2, 1))
+        self.assertGreater(com_132["interpretador"], 2 * MEDIDA_DO_CORPUS["variaveis_do_ambiente"])  # as duas cópias
+        self.assertEqual(self.passos_com_o_ambiente(133, voltas=1)["interpretador"] - com_133["interpretador"], 1)
+        with mock.patch.dict(MEDIDA_DO_CORPUS, interpretador=com_132["interpretador"]):
+            vereditos = [self.excessos({**t, "execucoes": MEDIDA_DO_CORPUS["execucoes"], "sono": 0.0})
+                         for t in (com_132, com_133, {**com_133, "interpretador": com_133["interpretador"] + 1})]
+        self.assertEqual(vereditos[:2], [[], []])
+        self.assertEqual(len(vereditos[2]), 1)
+        self.assertIn("interpretador, acima do teto", vereditos[2][0])
+
+    def test_sono_do_hook_reprova(self):
+        self.assertEqual(self.excessos(self.trabalho(sono=0.001)), ["0.001 s de sono pedidos pelo hook"])
 
 
 if __name__ == "__main__":

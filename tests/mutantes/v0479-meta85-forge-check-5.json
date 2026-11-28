@@ -1,0 +1,91 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M22",
+      "guarda": "veredito: riscos-aceitos sem o aceite do usuário barra (mutante: vale sem aceite, afrouxa)",
+      "arquivo": "bin/forge-check",
+      "de": "    if campos.get(\"parecer\") == \"riscos-aceitos\" and not aceite_do_usuario(raiz, pedido, campos.get(\"commit\"), ref):\n        return \"parecer\"",
+      "para": "    if False:\n        return \"parecer\"",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_riscos_aceitos_sem_o_arquivo_de_aceite_reprova",
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_riscos_aceitos_sem_aceite_do_usuario_revalida_como_o_pr"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "veredito: o parecer que não aprova barra (mutante: nunca barra)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not parecer_que_aprova(campos):\n        return \"parecer\", \"o último parecer não é aprovado\"",
+      "para": "    if False:\n        return \"parecer\", \"o último parecer não é aprovado\"",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_reprovado_com_previo_e_rc_1",
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_parecer_que_barrou_revalida"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "parecer_que_aprova: riscos-aceitos pode valer (mutante: só aprovado)",
+      "arquivo": "bin/forge-check",
+      "de": "    return campos.get(\"parecer\") in (\"aprovado\", \"riscos-aceitos\")",
+      "para": "    return campos.get(\"parecer\") in (\"aprovado\",)",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_riscos_aceitos_com_o_arquivo_de_aceite_vale",
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_riscos_aceitos_com_aceite_do_usuario_segue_valendo"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "veredito: commit: ilegível não segue para o commit_vale (mutante: segue)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not COMMIT.match(campos.get(\"commit\") or \"\"):\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_veredito_com_commit_ilegivel_nao_consulta_o_git"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "veredito: commit só de parecer barra (AQ-5) (mutante: nunca barra)",
+      "arquivo": "bin/forge-check",
+      "de": "    if paralelo := commit_de_pareceres_paralelos(raiz, campos[\"commit\"], pedido):",
+      "para": "    if (paralelo := commit_de_pareceres_paralelos(raiz, campos[\"commit\"], pedido)) and False:",
+      "testes": [
+        "tests.test_aq5_parecer_novo.RecusaNoPr.test_commit_do_head_com_parecer_paralelo_e_recusado_com_a_dica"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "veredito: domínio mudado barra (mutante: nunca barra)",
+      "arquivo": "bin/forge-check",
+      "de": "    return (\"commit\", motivo) if motivo else None",
+      "para": "    return (\"commit\", motivo) if False else None",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_pr_commit_desatualizado",
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_aprovado_com_dominio_mudado_continua_revalidando"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "cmd_pr: os testes do QA aprovado dispensados no review (mutante: nunca dispensa)",
+      "arquivo": "bin/forge-check",
+      "de": "                       if tipo == \"review\" and parecer_que_aprova(campos) and COMMIT.match(campos.get(\"commit\") or \"\") else ())",
+      "para": "                       if False else ())",
+      "testes": [
+        "tests.test_parecer_conteudo.TesteDoQaNaoDerrubaOReview.test_teste_do_qa_aprovado_nao_derruba"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "cmd_pr: o veredito vem do veredito_do_parecer (mutante: ignora o veredito)",
+      "arquivo": "bin/forge-check",
+      "de": "        campo, motivo = veredito_do_parecer(raiz, pedido, campos, tipo, ref, base, dispensados) or (None, None)",
+      "para": "        campo, motivo = (None, None)",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_riscos_aceitos_sem_o_arquivo_de_aceite_reprova",
+        "tests.test_forge.ForgeCheck.test_pr_commit_desatualizado"
+      ]
+    }
+  ]
+}

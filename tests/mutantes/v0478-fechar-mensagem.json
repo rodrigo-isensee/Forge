@@ -1,0 +1,26 @@
+{
+  "pedido": "v0478-fechar-mensagem",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "FECHAR-PROMOVER-MENSAGEM-PT: o merge da promoção (P6) leva o título em português com o número do PR",
+      "arquivo": "bin/forge-fechar",
+      "de": "    if ! mesclar_direto --merge \"$sha\" --subject \"chore(promoção): $versao para a homolog (#$pr_n)\" \\",
+      "para": "    if ! mesclar_direto --merge \"$sha\" \\",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_merge_da_promocao_leva_titulo_e_corpo_em_portugues_com_o_numero_do_pr"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "FECHAR-PROMOVER-MENSAGEM-PT: o mesclar_auto repassa o título e o corpo ao gh pr merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "--match-head-commit \"$2\" \"${@:3}\"; }",
+      "para": "--match-head-commit \"$2\"; }",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_merge_da_promocao_leva_titulo_e_corpo_em_portugues_com_o_numero_do_pr"
+      ]
+    }
+  ]
+}

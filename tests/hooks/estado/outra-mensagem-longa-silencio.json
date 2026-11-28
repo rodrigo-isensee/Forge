@@ -1,0 +1,17 @@
+{
+  "descricao": "Mensagem acima do teto de 200 caracteres é ordem, não pergunta: silêncio mesmo com o termo.",
+  "forcar": {
+    "onde": "status",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "prompt": "como está? xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-pv-b2-regerar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G1",
+      "guarda": "a busca que falha vira aviso no regerar",
+      "arquivo": "bin/forge-testes",
+      "de": "if falha_da_busca:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_sem_veredito_sai_2_e_a_busca_que_falha_avisa"
+      ]
+    },
+    {
+      "id": "G2",
+      "guarda": "git ou pesos ilegíveis antes dos geradores: sem veredito",
+      "arquivo": "bin/forge-testes",
+      "de": "print(f\"forge-testes: regerar sem veredito ({erro})\", file=sys.stderr)\n        return 2",
+      "para": "print(f\"forge-testes: regerar sem veredito ({erro})\", file=sys.stderr)\n        pass",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_sem_veredito_sai_2_e_a_busca_que_falha_avisa"
+      ]
+    },
+    {
+      "id": "G3",
+      "guarda": "o índice só se regera quando bin/, hooks/ ou scripts/ mudou",
+      "arquivo": "bin/forge-testes",
+      "de": "if any(map(INDICE_DAS_PASTAS.fullmatch, alterados)) else []",
+      "para": "if True else []",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_nada_tocado_nada_a_regerar"
+      ]
+    },
+    {
+      "id": "G4",
+      "guarda": "link no derivado ou na pasta dele é achado",
+      "arquivo": "bin/forge-testes",
+      "de": "if parte.is_symlink():",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_link_no_derivado_ou_na_pasta_recusa_sem_rodar_o_gerador"
+      ]
+    },
+    {
+      "id": "G5",
+      "guarda": "link achado recusa antes do gerador",
+      "arquivo": "bin/forge-testes",
+      "de": "if links:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_link_no_derivado_ou_na_pasta_recusa_sem_rodar_o_gerador"
+      ]
+    },
+    {
+      "id": "G6",
+      "guarda": "gerador com saída diferente de 0 entra nos vermelhos",
+      "arquivo": "bin/forge-testes",
+      "de": "env=env, stdin=subprocess.DEVNULL).returncode]",
+      "para": "env=env, stdin=subprocess.DEVNULL).returncode * 0]",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_gerador_vermelho_sai_1"
+      ]
+    },
+    {
+      "id": "G7",
+      "guarda": "git ilegível depois dos geradores: sem veredito",
+      "arquivo": "bin/forge-testes",
+      "de": "print(f\"forge-testes: regerar sem veredito depois dos geradores ({erro})\", file=sys.stderr)\n        return 2",
+      "para": "print(f\"forge-testes: regerar sem veredito depois dos geradores ({erro})\", file=sys.stderr)\n        depois = antes",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_git_ilegivel_depois_do_gerador_sai_2"
+      ]
+    },
+    {
+      "id": "G8",
+      "guarda": "só o caminho cujo conteúdo mudou conta como escrito",
+      "arquivo": "bin/forge-testes",
+      "de": "if antes.get(c, LIMPO) != depois.get(c, LIMPO))",
+      "para": "if True)",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_bin_tocado_regera_so_o_indice"
+      ]
+    }
+  ]
+}

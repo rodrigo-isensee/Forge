@@ -1,0 +1,41 @@
+{
+  "descricao": "INCIDENTE-HOOK-PARECER-CONTORNADO: GH_REPO= antes de gh pr create fora de repositório git confere no clone.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop",
+        "remote.origin.url": "git@github.com:dono/forge.git"
+      }
+    }
+  ],
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}",
+    "tool_input": {
+      "command": "GH_REPO=dono/forge gh pr create -H feature/x -B develop -t t -b b"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "abra com gh pr create --draft"
+  }
+}

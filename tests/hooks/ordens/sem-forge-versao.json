@@ -1,0 +1,17 @@
+{
+  "descricao": "Pasta sem .forge/versao nem manifesto do Forge: o ordens não lê nada, não escreve no contexto e não cria .forge/run/.",
+  "forge": false,
+  "arquivos": {
+    ".forge/ordens/ordens-em-vigor.md": "ordem que não vale aqui\n"
+  },
+  "entrada": {
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "prompt": "siga"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

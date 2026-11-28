@@ -6,8 +6,8 @@
       "id": "pn1-desde-base-M1",
       "guarda": "o Base-sha como Desde deixa de valer e a entrega sem conferida volta a travar",
       "arquivo": "bin/forge-check",
-      "de": "if desde_e_a_base(raiz, texto, desde, base_sha, head):",
-      "para": "if False:",
+      "de": "if desde_e_a_base(raiz, texto, desde, base_sha, head, base_ref):  # P-N1: o intervalo",
+      "para": "if False:  # P-N1: o intervalo",
       "testes": [
         "tests.test_conferencia_base_dono.DesdeNoBaseSha.test_sem_conferida_o_base_sha_vale_como_a_branch_inteira"
       ]
@@ -26,8 +26,8 @@
       "id": "pn1-desde-base-M10",
       "guarda": "o entrega aceita o Base-sha como Desde mesmo com a ultima conferida ancestral do head",
       "arquivo": "bin/forge-check",
-      "de": "and base_sha_como_desde(raiz, texto, base_sha, head)",
-      "para": "and True",
+      "de": "return desde == base_sha and base_sha_como_desde(raiz, texto, base_sha, head, base_ref)",
+      "para": "return desde == base_sha and True",
       "testes": [
         "tests.test_conferencia_base_dono.DesdeNoBaseSha.test_com_conferida_no_historico_o_base_sha_segue_recusado"
       ]
@@ -36,8 +36,8 @@
       "id": "pn6-base-recusada-M1",
       "guarda": "a base do dono no Base-sha deixa de valer pelo desde_e_a_base e o gerar recusa o que o entrega aceita",
       "arquivo": "bin/forge-check",
-      "de": "    if desde_e_a_base(raiz, texto, desde, base_sha, head):  # P-N1: o intervalo",
-      "para": "    if False:  # P-N1: o intervalo",
+      "de": "if desde_e_a_base(raiz, texto, desde, base_sha, head, base_ref):  # P-N1: o intervalo",
+      "para": "if False:  # P-N1: o intervalo",
       "testes": [
         "tests.test_conferencia_base_dono.VoltaComABaseDoDono.test_base_do_dono_no_base_sha_passa_como_no_entrega"
       ]

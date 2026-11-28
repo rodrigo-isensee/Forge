@@ -1,2 +1,0 @@
-### Corrigido
-- Trazer a develop não vence parecer por arquivo que a branch não mudou (v047 E2.201, regra E7): o `forge-check pr` sem `--base`, numa branch de trabalho, usa a develop como base (como o `forge-fechar` e o `parecer delta`); antes, o merge limpo da develop dava review, QA e segurança desatualizados por .github/workflows/ci.yml. O arquivo que a branch mudou depois do parecer segue vencendo; nas branches de integração e com o head já na develop, segue o diff literal.

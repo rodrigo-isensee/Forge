@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O89",
+      "guarda": "U4: crase partida (número ímpar de crases na palavra)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if palavra.count(\"`\") % 2:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O90",
+      "guarda": "U4: a palavra é lida até o fim",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    while i < len(palavra):",
+      "para": "    while False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O91",
+      "guarda": "U4: a aspa simples entre aspas duplas é literal (e fora do alfabeto)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if c == \"'\" and not aspas:",
+      "para": "        if c == \"'\" and True:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O92",
+      "guarda": "U4: a crase fecha na crase seguinte, não no parêntese",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            fim = palavra.find(\"`\", i + 1) if c == \"`\" else",
+      "para": "            fim = palavra.find(\"`\", i + 1) if False else",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O93",
+      "guarda": "U4: o corpo da crase começa depois de um caractere, o de `$(` depois de dois",
+      "arquivo": "hooks/conformidade.py",
+      "de": "palavra[i + (1 if c == \"`\" else 2):fim]",
+      "para": "palavra[i + (1 if False else 2):fim]",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O94",
+      "guarda": "A2: sem parte opaca, o resto colado não entra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        expandido, fim = self.fim_do_opaco(caminho, pasta) or (\"\", 0)",
+      "para": "        expandido, fim = self.fim_do_opaco(caminho, pasta)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O95",
+      "guarda": "U4: o motivo diz se o valor cai no .git ou se o hook não o calcula",
+      "arquivo": "hooks/conformidade.py",
+      "de": "cai no diretório do git (.git)\" if valores else",
+      "para": "cai no diretório do git (.git)\" if True else",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O96",
+      "guarda": "U4: a crase partida inteira depois do `of=` do `dd` vale pelo corpo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(?:^|[\\s;&|(]|\\sof=)`",
+      "para": "(?:^|[\\s;&|(])`",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

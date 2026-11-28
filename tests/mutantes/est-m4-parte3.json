@@ -6,7 +6,7 @@
       "id": "M1",
       "guarda": "commit_vale tira texto e forma do que desatualiza",
       "arquivo": "bin/forge-check",
-      "de": "leves = {f for f, c in classes.items() if c != \"codigo\" and not livre(f, estritos)}",
+      "de": "leves = {f for f, c in classes.items() if c != \"codigo\" and (not livre(f, estritos) or f in removidos)}",
       "para": "leves = set()",
       "testes": [
         "tests.test_reval_delta.Validade.test_texto_ou_forma_nao_desatualiza_e_codigo_sim"
@@ -16,8 +16,8 @@
       "id": "M9",
       "guarda": "com base, texto que diverge sem conflito nao desatualiza",
       "arquivo": "bin/forge-check",
-      "de": "if not livre(n, ignorar) and n not in leves}",
-      "para": "if not livre(n, ignorar)}",
+      "de": "if desatualiza(n, ignorar) and n not in leves}",
+      "para": "if desatualiza(n, ignorar)}",
       "testes": [
         "tests.test_reval_delta.Validade.test_com_base_texto_depois_do_merge_vale_e_conflito_de_texto_nao"
       ]
@@ -62,8 +62,8 @@
       "id": "M14",
       "guarda": "forma tambem nao desatualiza",
       "arquivo": "bin/forge-check",
-      "de": "if c != \"codigo\" and not livre(f, estritos)}",
-      "para": "if c == \"texto\" and not livre(f, estritos)}",
+      "de": "if c != \"codigo\" and (not livre(f, estritos)",
+      "para": "if c == \"texto\" and (not livre(f, estritos)",
       "testes": [
         "tests.test_reval_delta.Validade.test_texto_ou_forma_nao_desatualiza_e_codigo_sim"
       ]
@@ -102,7 +102,7 @@
       "id": "M18",
       "guarda": "no pr, fragmento alheio nunca e leve (D4 contra EST-M4)",
       "arquivo": "bin/forge-check",
-      "de": "if c != \"codigo\" and not livre(f, estritos)}",
+      "de": "if c != \"codigo\" and (not livre(f, estritos) or f in removidos)}",
       "para": "if c != \"codigo\"}",
       "testes": [
         "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_caminho_exato_do_fragmento_sai_do_hash"
@@ -112,8 +112,8 @@
       "id": "M19",
       "guarda": "cmd_pr passa FRAGMENTOS como estritos",
       "arquivo": "bin/forge-check",
-      "de": "base, livres, estritos=FRAGMENTOS)",
-      "para": "base, livres)",
+      "de": "base, livres_do_pedido(pedido), estritos=FRAGMENTOS, dominio=tipo,",
+      "para": "base, livres_do_pedido(pedido), dominio=tipo,",
       "testes": [
         "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_caminho_exato_do_fragmento_sai_do_hash"
       ]

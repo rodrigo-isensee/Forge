@@ -1,0 +1,36 @@
+{
+  "pedido": "v0478-dir31-focus",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F9",
+      "guarda": "nada a passar, nada impresso",
+      "arquivo": "scripts/jarvis",
+      "de": "if extra:\n",
+      "para": "if True:\n",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhoAbreNaVisaoDeFoco.test_viewmode_em_qualquer_arquivo_do_dono_nao_e_passado"
+      ]
+    },
+    {
+      "id": "F10",
+      "guarda": "python que falha não impede a abertura",
+      "arquivo": "scripts/jarvis",
+      "de": "foco=\"$(visao_de_foco 2>/dev/null)\" || foco=\"\"",
+      "para": "foco=\"$(visao_de_foco 2>/dev/null)\"",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhoAbreNaVisaoDeFoco.test_python_que_falha_nao_impede_a_abertura"
+      ]
+    },
+    {
+      "id": "F11",
+      "guarda": "o NO_FLICKER também barra a tela cheia",
+      "arquivo": "scripts/jarvis",
+      "de": "and not os.environ.get(\"CLAUDE_CODE_NO_FLICKER\")",
+      "para": "and True",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhoAbreNaVisaoDeFoco.test_tui_decidido_por_arquivo_ou_variavel_nao_e_passado"
+      ]
+    }
+  ]
+}

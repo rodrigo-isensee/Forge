@@ -1,0 +1,30 @@
+{
+  "descricao": "HOOK-HEREDOC-PALAVRA-FP, caso verdadeiro: o sh roda o arquivo que o cat gravou com o git merge; o sh está fora da lista dos que só gravam, listam ou leem, e o corpo marca a chamada; recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat > a.sh <<'FIM'\ngit merge melhoria/x\nFIM\nls a.sh\nsh a.sh"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW"
+  }
+}

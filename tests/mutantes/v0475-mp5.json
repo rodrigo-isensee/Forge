@@ -1,0 +1,87 @@
+{
+  "pedido": "v0475-mp5",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N1",
+      "guarda": "MP5: sem o registro conta um projeto só (o escape segue para o dono)",
+      "arquivo": "hooks/_comum.py",
+      "de": "    except FileNotFoundError:\n        return []",
+      "para": "    except FileNotFoundError:\n        return None",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_leitor_distingue_sem_registro_de_registro_ilegivel",
+        "tests.test_hooks.Hooks.test_fixtures_do_mp5"
+      ]
+    },
+    {
+      "id": "N2",
+      "guarda": "MP5: registro que não abre (link, caminho sob arquivo) é ilegível, não um projeto só",
+      "arquivo": "hooks/_comum.py",
+      "de": "    except OSError:\n        return None",
+      "para": "    except OSError:\n        return []",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_leitor_distingue_sem_registro_de_registro_ilegivel"
+      ]
+    },
+    {
+      "id": "N3",
+      "guarda": "MP5: registro fora de arquivo regular é ilegível",
+      "arquivo": "hooks/_comum.py",
+      "de": "            return None\n        bruto = os.read",
+      "para": "            return []\n        bruto = os.read",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_leitor_distingue_sem_registro_de_registro_ilegivel"
+      ]
+    },
+    {
+      "id": "N4",
+      "guarda": "MP5: o escape só vale com um projeto ativo",
+      "arquivo": "hooks/agentes.py",
+      "de": "projetos is not None and len(projetos) < 2:",
+      "para": "projetos is not None and len(projetos) < 3:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_mp5"
+      ]
+    },
+    {
+      "id": "N5",
+      "guarda": "MP5: registro ilegível recusa o escape (falha fechada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "if livre and projetos is not None and len(projetos)",
+      "para": "if livre and (projetos or []) is not None and len(projetos or [])",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_mp5"
+      ]
+    },
+    {
+      "id": "N6",
+      "guarda": "MP5: o registro é lido quando o escape é pedido",
+      "arquivo": "hooks/agentes.py",
+      "de": "projetos = ler_projetos_ativos() if livre else []",
+      "para": "projetos = ler_projetos_ativos() if not livre else []",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_mp5"
+      ]
+    },
+    {
+      "id": "N7",
+      "guarda": "MP5: a recusa do escape diz o motivo e a saída",
+      "arquivo": "hooks/agentes.py",
+      "de": "            if livre:  # MP5",
+      "para": "            if False:  # MP5",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_mp5"
+      ]
+    },
+    {
+      "id": "N8",
+      "guarda": "MP5: o motivo distingue registro ilegível de projetos ativos",
+      "arquivo": "hooks/agentes.py",
+      "de": "\"registro de projetos ilegível\" if projetos is None else",
+      "para": "\"registro de projetos ilegível\" if False else",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_mp5"
+      ]
+    }
+  ]
+}

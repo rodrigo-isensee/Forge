@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O1",
+      "guarda": "A9: Write e Edit ficam fora (o caminho é literal); sem o retorno, a linha nula derruba o hook",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self.texto_da_linha is None:\n            return None",
+      "para": "        if False:\n            return None",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O2",
+      "guarda": "A9: `$(…)` entre aspas conta até o último `)`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if \"$(\" in expandido:\n            fins.append",
+      "para": "        if False:\n            fins.append",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O3",
+      "guarda": "A9: só o caminho com parte opaca entra na regra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return (expandido, max(fins)) if fins else None",
+      "para": "        return (expandido, max(fins)) if None else None",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O4",
+      "guarda": "A9: com resto depois da parte opaca, o caso é do resto_no_git (`.gitx` livre)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return bool(opaco) and not opaco[0][opaco[1]:].strip(\"/\")",
+      "para": "return bool(opaco)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O5",
+      "guarda": "A9, U0: `${x:-v}` vale pelos dois valores (S6)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        precisos, nomes, largo = [palavra], set(), False",
+      "para": "        precisos, nomes, largo = [re.sub(r\"\\$\\{(\\w+):?[-=][^}]*\\}\", r\"${\\1}\", palavra)], set(), False",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O6",
+      "guarda": "A9: `$(…)` sem aspas perde o corpo, que vem da linha (aninhado sem aspas)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if OPACO[\"$\"] in palavra or palavra.count(\"`\") % 2:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O7",
+      "guarda": "A9, U1: variável que nasce no `for` ou no `read` vale a linha inteira",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                largo |= bool(re.search(",
+      "para": "                largo |= False and bool(re.search(",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O8",
+      "guarda": "A9, U1: o corpo que chama função da linha vale a linha inteira (S5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        largo |= any(re.search(",
+      "para": "        largo |= False and any(re.search(",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    }
+  ]
+}

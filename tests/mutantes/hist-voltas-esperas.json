@@ -35,7 +35,7 @@
     {
       "id": "H4",
       "guarda": "a saída deixa de listar os cartões casados",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_voltas.py",
       "de": "\" \".join(sem_controle(n) for n in escolhidos))",
       "para": "\"\")",
       "testes": [

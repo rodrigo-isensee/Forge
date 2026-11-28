@@ -1,0 +1,56 @@
+{
+  "pedido": "v047-h5-prova-local",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "so os testes dos modulos do plano ficam no mutante",
+      "arquivo": "bin/forge-mutante",
+      "de": "if modulos_candidatos(t) & modulos]",
+      "para": "if modulos_candidatos(t) | modulos]",
+      "testes": [
+        "tests.test_forge_mutante.LimiteDosModulos.test_mutante_sem_teste_nos_modulos_ou_com_todos_fica_como_esta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "mutante sem teste nos modulos do plano roda os testes inteiros",
+      "arquivo": "bin/forge-mutante",
+      "de": "if not dentro or len(dentro) == len(testes):",
+      "para": "if len(dentro) == len(testes):",
+      "testes": [
+        "tests.test_forge_mutante.LimiteDosModulos.test_mutante_sem_teste_nos_modulos_ou_com_todos_fica_como_esta"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "mutante com todos os testes no plano fica como esta, sem linha",
+      "arquivo": "bin/forge-mutante",
+      "de": "or len(dentro) == len(testes):",
+      "para": "or False:",
+      "testes": [
+        "tests.test_forge_mutante.LimiteDosModulos.test_mutante_sem_teste_nos_modulos_ou_com_todos_fica_como_esta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "listar que falha ou estoura o prazo nao limita nem derruba",
+      "arquivo": "bin/forge-mutante",
+      "de": "except (OSError, subprocess.TimeoutExpired) as erro:",
+      "para": "except (OSError, ZeroDivisionError) as erro:",
+      "testes": [
+        "tests.test_forge_mutante.LimiteDosModulos.test_listar_que_falha_ou_estoura_o_prazo_nao_limita"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "sem a linha do plano dirigido nao limita (suite completa)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if achado else set()",
+      "para": "if True else set()",
+      "testes": [
+        "tests.test_forge_mutante.LimiteDosModulos.test_sem_plano_dirigido_roda_os_testes_declarados_inteiros"
+      ]
+    }
+  ]
+}

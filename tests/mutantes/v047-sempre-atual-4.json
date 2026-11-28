@@ -1,0 +1,88 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A1",
+      "guarda": "o aviso pendente já dito não repete",
+      "arquivo": "hooks/doutor.py",
+      "de": "and aviso[\"texto\"].strip() and not aviso.get(\"avisado\"):",
+      "para": "and aviso[\"texto\"].strip():",
+      "testes": [
+        "tests.test_doutor.SempreAtualNoStop.test_aviso_sai_uma_vez_e_fica_marcado_no_estado",
+        "tests.test_oraculo_sempre_atual.Avisos.test_aviso_pendente_da_volta_sai_uma_vez_no_stop"
+      ]
+    },
+    {
+      "id": "A2",
+      "guarda": "adiamento só avisa com contagem inteira, a partir de 2 e uma vez por contagem",
+      "arquivo": "hooks/doutor.py",
+      "de": "        if not isinstance(n, int) or isinstance(n, bool) or n < ADIADO_AVISA_A_PARTIR_DE or reg.get(\"avisado\") == n:",
+      "para": "        if not isinstance(n, int):",
+      "testes": [
+        "tests.test_doutor.SempreAtualNoStop.test_adiamento_unico_nao_avisa_e_o_repetido_avisa_uma_vez_por_contagem",
+        "tests.test_doutor.SempreAtualNoStop.test_contagem_que_nao_e_inteiro_nao_avisa"
+      ]
+    },
+    {
+      "id": "A3",
+      "guarda": "adiamentos que não são objeto não derrubam o aviso pendente",
+      "arquivo": "hooks/doutor.py",
+      "de": "if isinstance(adiamentos, dict) else ()",
+      "para": "if adiamentos is not None else ()",
+      "testes": [
+        "tests.test_doutor.SempreAtualNoStop.test_adiamentos_fora_de_forma_nao_comem_o_aviso"
+      ]
+    },
+    {
+      "id": "A4",
+      "guarda": "sem a pasta de estado, silêncio sem queda",
+      "arquivo": "hooks/doutor.py",
+      "de": "        st = os.lstat(pasta)\n    except OSError:\n        return None",
+      "para": "        st = os.lstat(pasta)\n    except OSError:\n        pass",
+      "testes": [
+        "tests.test_doutor.SempreAtualNoStop.test_sem_a_pasta_fica_em_silencio_e_nao_a_cria"
+      ]
+    },
+    {
+      "id": "A5",
+      "guarda": "pasta de estado que é link, de outro dono ou não é pasta não é lida",
+      "arquivo": "hooks/doutor.py",
+      "de": "    if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid():\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_doutor.SempreAtualNoStop.test_pasta_que_e_link_simbolico_nao_e_lida"
+      ]
+    },
+    {
+      "id": "A6",
+      "guarda": "com a trava da ferramenta presa, o aviso fica para o próximo Stop",
+      "arquivo": "hooks/doutor.py",
+      "de": "        except OSError:\n            return []\n        try:",
+      "para": "        except OSError:\n            pass\n        try:",
+      "testes": [
+        "tests.test_doutor.SempreAtualNoStop.test_com_a_ferramenta_rodando_fica_para_o_proximo_stop"
+      ]
+    },
+    {
+      "id": "A7",
+      "guarda": "estado ilegível ou sem JSON válido: silêncio sem queda",
+      "arquivo": "hooks/doutor.py",
+      "de": "        except (OSError, ValueError):\n            return []",
+      "para": "        except (OSError, ValueError):\n            pass",
+      "testes": [
+        "tests.test_doutor.SempreAtualNoStop.test_estado_sem_json_valido_ou_fora_de_forma_fica_em_silencio"
+      ]
+    },
+    {
+      "id": "A8",
+      "guarda": "estado que não é objeto: silêncio sem queda",
+      "arquivo": "hooks/doutor.py",
+      "de": "        if not isinstance(estado, dict):\n            return []",
+      "para": "        if False:\n            return []",
+      "testes": [
+        "tests.test_doutor.SempreAtualNoStop.test_estado_sem_json_valido_ou_fora_de_forma_fica_em_silencio"
+      ]
+    }
+  ]
+}

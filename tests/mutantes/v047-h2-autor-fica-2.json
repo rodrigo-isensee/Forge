@@ -1,0 +1,90 @@
+{
+  "pedido": "v047-h2-autor-fica",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: autor fora do aviso (lápide ou ativo) não sai na lista",
+      "arquivo": "hooks/agentes.py",
+      "de": "for a in autores if a[\"id\"] not in fora\n",
+      "para": "for a in autores if a[\"id\"] not in ()\n",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
+        "tests.test_hooks_agentes_autor.Autores.test_lapide_e_ativo_tiram_o_autor_do_aviso"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: sem autor retomável, nenhum aviso",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if retomaveis:\n",
+      "para": "    if True:\n",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
+        "tests.test_hooks_agentes_autor.Autores.test_lapide_e_ativo_tiram_o_autor_do_aviso"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: aviso vazio (None) fica fora das linhas",
+      "arquivo": "hooks/agentes.py",
+      "de": "for t in textos_do_aviso if t]",
+      "para": "for t in textos_do_aviso if True]",
+      "testes": [
+        "tests.test_hooks_agentes_autor.Autores.test_dois_avisos_saem_num_json_so"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: sem aviso, o stdout fica vazio",
+      "arquivo": "hooks/agentes.py",
+      "de": "    linhas = [t for t in textos_do_aviso if t]\n    if linhas:",
+      "para": "    linhas = [t for t in textos_do_aviso if t]\n    if True:",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
+        "tests.test_hooks_agentes_autor.Autores.test_dois_avisos_saem_num_json_so"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o SubagentStop grava só o agente que parou",
+      "arquivo": "hooks/agentes.py",
+      "de": "parados = [a for a in agentes if aid and e_do_agente(a, aid, uso)]",
+      "para": "parados = [a for a in agentes if aid and not e_do_agente(a, aid, uso)]",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o disparo de escrita avisa o autor retomável",
+      "arquivo": "hooks/agentes.py",
+      "de": "aviso_de_autor(autores_retomaveis(autores, agentes, lapides, escrita))",
+      "para": "None",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o autor anterior perde só as branches em comum com o novo",
+      "arquivo": "hooks/agentes.py",
+      "de": "if b not in escrita]",
+      "para": "if True]",
+      "testes": [
+        "tests.test_hooks_agentes_autor.Autores.test_autor_de_duas_branches_perde_so_a_tomada"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: id não texto (lápide ou registro) fica fora do conjunto do aviso (HOOK-ESTADO-ILEGIVEL-LIBERA)",
+      "arquivo": "hooks/agentes.py",
+      "de": " if isinstance(i, str)}",
+      "para": " if True}",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
+        "tests.test_hooks_agentes_autor.Autores.test_id_nao_texto_fica_fora_do_conjunto"
+      ]
+    }
+  ]
+}

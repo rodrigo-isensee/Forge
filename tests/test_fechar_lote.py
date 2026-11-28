@@ -28,6 +28,11 @@ exit "$(cat "$f.rc" 2>/dev/null || echo 0)"
 '''
 
 
+# FECHAR-PROMOVER-MENSAGEM-PT: o título e o corpo do merge da promoção (o registro do gh falso junta os argumentos com espaço).
+MSG_PROMOCAO = ("--subject chore(promoção): 0.9.0 para a homolog (#%d) --body Promoção da versão 0.9.0 para a homolog pelo commit da "
+                "marca %s (pedido release-0.9.0).")
+
+
 def merge_de(branch):
     return hashlib.sha1(branch.encode()).hexdigest()
 
@@ -331,7 +336,7 @@ class Lote(Ambiente):
                 self.assertEqual(self.itens(), [])
 
     def test_lote_recusa_opcao_de_item(self):
-        for extra in (("--ref", "melhoria/x"), ("--armar",), ("--cartao", "C1"), ("--item-de-lote",), ("--promover", "a" * 40)):
+        for extra in (("--ref", "melhoria/x"), ("--cartao", "C1"), ("--item-de-lote",), ("--promover", "a" * 40)):
             with self.subTest(extra=extra):
                 r = self.fechar("--lote", "p1:melhoria/x", "p2:melhoria/y", *extra)
                 self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
@@ -379,7 +384,8 @@ class Promover(Ambiente):
         self.assertNotEqual(self.ramo(), self.depois)
         self.assertIn("a develop tem 1 commit(s) depois dela", r.stdout)
         self.assertIn("gh pr create --base homolog --head promocao/0.9.0", "\n".join(self.chamadas()))
-        self.assertEqual(self.merges(), [f"gh pr merge promocao/0.9.0 --auto --merge --match-head-commit {self.marca}"])
+        self.assertEqual(self.merges(), [f"gh pr merge promocao/0.9.0 --merge --match-head-commit {self.marca} "
+                                         f"{MSG_PROMOCAO % (7, self.marca)}"])
         self.assertEqual((self.estado / "promover").read_text(), f"--conferir-ref {self.marca}\n")
         self.assertIn(f"--commit {self.marca}", self.runs()[0])
         self.assertIn("gh pr create --base main --head homolog", r.stdout)
@@ -406,6 +412,22 @@ class Promover(Ambiente):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("PR #7 já aberto; retomo.", r.stdout)
         self.assertFalse([c for c in self.chamadas() if c.startswith("gh pr create")])
+
+    def test_merge_da_promocao_leva_titulo_e_corpo_em_portugues_com_o_numero_do_pr(self):
+        """FECHAR-PROMOVER-MENSAGEM-PT: sem --subject, o GitHub grava 'Merge pull request #N from ...' na homolog."""
+        for numero, reusa in ((42, False), (9, True)):
+            with self.subTest(numero=numero, reusa=reusa):
+                self.registro.write_text("")
+                (self.estado / "estado").write_text("OPEN")
+                if reusa:
+                    self.git("push", "-q", "origin", f"{self.marca}:refs/heads/promocao/0.9.0")
+                    (self.estado / "aberto").write_text(f"{numero} homolog")
+                else:
+                    (self.estado / "numero_criado").write_text(str(numero))
+                r = self.promover()
+                self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+                self.assertEqual(self.merges(), [f"gh pr merge promocao/0.9.0 --merge --match-head-commit {self.marca} "
+                                                 f"{MSG_PROMOCAO % (numero, self.marca)}"])
 
     def test_pr_aberto_com_outra_base_para(self):
         self.git("push", "-q", "origin", f"{self.marca}:refs/heads/promocao/0.9.0")
@@ -526,20 +548,59 @@ class Promover(Ambiente):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("decide o CI do PR de promoção", r.stderr)
 
-    def test_pr_que_nao_mescla_no_prazo_para_para_retomar(self):
-        (self.estado / "auto_arma").write_text("")
+    def test_check_pendente_da_marca_no_prazo_para_sem_merge(self):
+        # FECHAR-SEM-AUTO-MERGE: o P6 confere os check-runs da marca antes do merge direto; pendente no fim do prazo para, sem merge
+        (self.estado / "check_runs_pendentes").write_text("99")
+        r = self.promover("--espera", "0")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn(f"parou no passo P6: o check obrigatório catraca do head {self.marca[:12]}", r.stderr)
+        self.assertEqual(self.merges(), [])
+
+    def test_check_pendente_da_marca_espera_e_mescla_direto(self):
+        (self.estado / "check_runs_pendentes").write_text("2")
+        r = self.promover()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("promovida: a homolog recebeu o commit da marca", r.stdout)
+        self.assertEqual(len([c for c in self.chamadas() if f"commits/{self.marca}/check-runs" in c]), 3)
+        self.assertEqual(len(self.merges()), 1, "o merge não se repete na espera")
+        self.assertFalse([c for c in self.chamadas() if " --auto" in c or c == "merge automático recusado"])
+
+    def test_bateria_skipped_do_push_nao_para_e_exigido_da_homolog_conta(self):
+        # E114.5 (A1 e A3 da segurança): a bateria em skipped do push na develop (id maior) não para o P6; o exigido a mais da homolog conta
+        verdes = "bateria\t1\tcompleted\tsuccess\nbateria (python 3.14)\t2\tcompleted\tsuccess\ncatraca\t3\tcompleted\tsuccess\n"
+        (self.estado / f"check_runs_{self.marca}").write_text(verdes + "bateria\t90\tcompleted\tskipped\nbateria (python 3.14)\t91\tcompleted\tskipped\n")
+        r = self.promover()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len(self.merges()), 1)
+        self.setUp()
+        (self.estado / f"check_runs_{self.marca}").write_text(verdes)
+        (self.estado / "exigidos_homolog").write_text("lint\n")
+        r = self.promover("--espera", "0")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn(f"parou no passo P6: o check obrigatório lint do head {self.marca[:12]}", r.stderr)
+        self.assertEqual(self.merges(), [])
+
+    def test_merged_atrasado_da_promocao_espera_e_fecha(self):
+        (self.estado / "merged_apos").write_text("3")
+        r = self.promover()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("promovida: a homolog recebeu o commit da marca", r.stdout)
+        self.assertEqual(len(self.merges()), 1, "o merge não se repete na espera")
+
+    def test_pr_que_nao_consta_merged_no_prazo_para_para_retomar(self):
+        (self.estado / "merged_apos").write_text("99")
         r = self.promover("--espera", "0")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("parou no passo P6", r.stderr)
         self.assertIn("rode o mesmo comando para retomar", r.stderr)
 
-    def test_auto_merge_armado_espera_o_merged_e_fecha(self):
-        (self.estado / "auto_arma").write_text("")
-        (self.estado / "mescla_apos").write_text("3")
+    def test_check_da_marca_terminado_com_falha_para_sem_merge(self):
+        (self.estado / f"check_runs_{self.marca}").write_text("bateria\t1\tcompleted\tsuccess\nbateria (python 3.14)\t2\tcompleted\tsuccess\n"
+                                                              "catraca\t3\tcompleted\tfailure\n")
         r = self.promover()
-        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn("promovida: a homolog recebeu o commit da marca", r.stdout)
-        self.assertEqual(len(self.merges()), 1, "o merge não se repete na espera")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo P6: o check obrigatório catraca", r.stderr)
+        self.assertEqual(self.merges(), [])
 
     def test_merge_em_outra_base_nao_e_sucesso(self):
         (self.estado / "base_final").write_text("develop")

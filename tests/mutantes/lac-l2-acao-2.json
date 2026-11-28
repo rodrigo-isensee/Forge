@@ -5,7 +5,7 @@
     {
       "id": "M17",
       "guarda": "a chamada que não cita nenhum alvo passa a contar como ação",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "any(alvo in entrada for alvo",
       "para": "any(alvo not in entrada for alvo",
       "testes": [
@@ -15,7 +15,7 @@
     {
       "id": "M18",
       "guarda": "o com_acao passa a contar os avisos sem ação",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_transcricao.py",
       "de": "for aviso in lista if aviso[2])",
       "para": "for aviso in lista if not aviso[2])",
       "testes": [

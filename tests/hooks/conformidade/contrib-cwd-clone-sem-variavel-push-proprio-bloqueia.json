@@ -1,0 +1,22 @@
+{
+  "descricao": "Diretriz 36 (R-CONTRIB): sem CLAUDE_PROJECT_DIR, o prefixo melhoria/<clone>- não libera o envio ao Forge.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin melhoria/proj-tema"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/proj"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: push"
+  }
+}

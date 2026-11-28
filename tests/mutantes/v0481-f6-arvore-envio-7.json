@@ -1,0 +1,36 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE-M36",
+      "guarda": "run de PR com outro numero nao liga",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "campo(p, \"number\", int) != numero or",
+      "para": "campo(p, \"number\", int) != numero and",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_run_de_outro_pr_do_mesmo_ramo_e_head_nao_liga_ao_pr_da_develop"
+      ]
+    },
+    {
+      "id": "AE-M37",
+      "guarda": "run de PR contra outra base nao liga",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "or campo(p, \"base.ref\", str) != \"develop\" for p",
+      "para": "or campo(p, \"base.ref\", str) == \"develop\" for p",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_run_de_outro_pr_do_mesmo_ramo_e_head_nao_liga_ao_pr_da_develop"
+      ]
+    },
+    {
+      "id": "AE-M38",
+      "guarda": "lista pull_requests de tipo errado nao liga",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "if type(ligados) is not list or any(",
+      "para": "if type(ligados) is list and any(",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_run_de_outro_pr_do_mesmo_ramo_e_head_nao_liga_ao_pr_da_develop"
+      ]
+    }
+  ]
+}

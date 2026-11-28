@@ -1,0 +1,37 @@
+{
+  "descricao": "H2-AUTOR-FICA-ATE-O-MERGE (R-TETO): só a reserva da retomada (tipo SendMessage) se converte no SubagentStart; o agente já ativo com o mesmo id, de outro tipo, fica como está.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a0123456789abcdef",
+          "tipo": "forge:qa-engineer",
+          "descricao": "Validar a entrega",
+          "desde": "{agora-60}",
+          "branches": [
+            "melhoria/a"
+          ],
+          "escrita": []
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "SubagentStart",
+    "agent_id": "a0123456789abcdef",
+    "agent_type": "forge:software-engineer"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "forge:qa-engineer"
+        ],
+        "ausente": [
+          "forge:software-engineer"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "pedido": "v0475-mutantes-ci",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "guarda": "sem sobra o resumo e a contagem",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "if sobras:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_falhas_no_resumo.Leitor.test_verde_e_uma_linha_com_a_contagem_somada_dos_processos"
+      ],
+      "id": "MC27"
+    },
+    {
+      "guarda": "registro sem testes",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "if n else f",
+      "para": "if True else f",
+      "testes": [
+        "tests.test_falhas_no_resumo.Resumo.test_registro_sem_testes"
+      ],
+      "id": "MC28"
+    },
+    {
+      "guarda": "falha sem arquivo mostra interrogacao",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "if f[\"arquivo\"] else \"?\"",
+      "para": "if True else \"?\"",
+      "testes": [
+        "tests.test_falhas_no_resumo.Resumo.test_falha_sem_arquivo_mostra_interrogacao"
+      ],
+      "id": "MC29"
+    },
+    {
+      "guarda": "teto exato da tabela",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "len(achadas) > TETO_TABELA",
+      "para": "len(achadas) >= TETO_TABELA",
+      "testes": [
+        "tests.test_falhas_no_resumo.Resumo.test_no_teto_exato_nao_diz_e_mais"
+      ],
+      "id": "MC30"
+    },
+    {
+      "guarda": "anotacao sem arquivo sem propriedades",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "        if f[\"arquivo\"]:\n            props",
+      "para": "        if True:\n            props",
+      "testes": [
+        "tests.test_falhas_no_resumo.Resumo.test_anotacao_sem_arquivo_nao_leva_propriedades"
+      ],
+      "id": "MC31"
+    },
+    {
+      "guarda": "ambiente injetado vale",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "os.environ if ambiente is None else ambiente",
+      "para": "os.environ if True else ambiente",
+      "testes": [
+        "tests.test_falhas_no_resumo.Principal.test_main_usa_o_ambiente_e_a_raiz_injetados"
+      ],
+      "id": "MC32"
+    },
+    {
+      "guarda": "raiz injetada vale",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "raiz or os.getcwd()",
+      "para": "os.getcwd()",
+      "testes": [
+        "tests.test_falhas_no_resumo.Principal.test_main_usa_o_ambiente_e_a_raiz_injetados"
+      ],
+      "id": "MC33"
+    },
+    {
+      "guarda": "argumento a mais nao reprova",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "len(argv) != 2",
+      "para": "len(argv) < 2",
+      "testes": [
+        "tests.test_falhas_no_resumo.Principal.test_argumento_a_mais_nao_reprova_e_so_avisa"
+      ],
+      "id": "MC34"
+    },
+    {
+      "guarda": "registro ausente vira linha",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "    if texto is None:\n        linhas",
+      "para": "    if True:\n        linhas",
+      "testes": [
+        "tests.test_falhas_no_resumo.Execucao.test_verde_so_a_linha_da_contagem"
+      ],
+      "id": "MC35"
+    },
+    {
+      "guarda": "sem variavel escreve na saida",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "if destino:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_falhas_no_resumo.Execucao.test_falha_escreve_no_resumo_anota_e_sai_com_zero"
+      ],
+      "id": "MC36"
+    },
+    {
+      "guarda": "executado como script chama o main",
+      "arquivo": "scripts/falhas-no-resumo.py",
+      "de": "__name__ == \"__main__\"",
+      "para": "__name__ == \"__main_\"",
+      "testes": [
+        "tests.test_falhas_no_resumo.Execucao.test_verde_so_a_linha_da_contagem"
+      ],
+      "id": "MC37"
+    },
+    {
+      "guarda": "corpo nulo do PR vira texto vazio",
+      "arquivo": "bin/forge-check",
+      "de": "dados.get(\"body\") or \"\"",
+      "para": "dados.get(\"body\")",
+      "testes": [
+        "tests.test_forge_tamanho.CorpoDoPr.test_corpo_nulo_do_pr_vira_texto_vazio"
+      ],
+      "id": "MC38"
+    }
+  ]
+}

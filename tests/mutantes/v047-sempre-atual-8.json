@@ -1,0 +1,57 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "V9",
+      "guarda": "a branch do modelo nasce da origin/develop (review A1)",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "tmp, \"--base\", \"origin/develop\"], tmp, 120, SEM_HOOKS)",
+      "para": "tmp], tmp, 120, SEM_HOOKS)",
+      "testes": [
+        "tests.test_sempre_atual.ModeloComUpgradeDeVerdade.test_clone_so_com_main_recebe_a_branch_da_origin_develop",
+        "tests.test_sempre_atual.ModeloComUpgradeDeVerdade.test_develop_local_defasada_nao_vira_a_base"
+      ]
+    },
+    {
+      "id": "V10",
+      "guarda": "o forge-upgrade roda sem os hooks do projeto (segurança A3)",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "tmp, \"--base\", \"origin/develop\"], tmp, 120, SEM_HOOKS)",
+      "para": "tmp, \"--base\", \"origin/develop\"], tmp, 120)",
+      "testes": [
+        "tests.test_sempre_atual.ModeloComUpgradeDeVerdade.test_hook_de_commit_do_projeto_nao_roda_no_upgrade"
+      ]
+    },
+    {
+      "id": "U1",
+      "guarda": "--base dada vale no lugar da develop local",
+      "arquivo": "bin/forge-upgrade",
+      "de": "    if a.base is not None:  #",
+      "para": "    if False:  #",
+      "testes": [
+        "tests.test_sempre_atual.UpgradeBase.test_base_dada_em_head_solto_cria_a_branch_nela"
+      ]
+    },
+    {
+      "id": "U2",
+      "guarda": "--base que não é commit recusa",
+      "arquivo": "bin/forge-upgrade",
+      "de": "        if not git(projeto, \"rev-parse\", \"--verify\", \"-q\", f\"{a.base}^{{commit}}\", check=False):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_sempre_atual.UpgradeBase.test_base_que_nao_e_commit_opcao_ou_main_recusa"
+      ]
+    },
+    {
+      "id": "U3",
+      "guarda": "--base origin/main recusa como a main",
+      "arquivo": "bin/forge-upgrade",
+      "de": "    if nome_base in (\"main\", \"master\", \"\"):",
+      "para": "    if base in (\"main\", \"master\", \"\"):",
+      "testes": [
+        "tests.test_sempre_atual.UpgradeBase.test_base_que_nao_e_commit_opcao_ou_main_recusa"
+      ]
+    }
+  ]
+}

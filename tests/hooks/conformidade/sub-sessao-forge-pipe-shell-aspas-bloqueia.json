@@ -1,0 +1,31 @@
+{
+  "descricao": "CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.5, A3 a A6 da segurança E63.3, A2 e A3 do QA E63.4; R-VERIFY, R-FLUXO): S11 e A2 do QA, sessão do Forge: o pipe com aspas para o shell.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo 'git push --no-verify origin develop' | bash"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "envio do git"
+  },
+  "forge": false
+}

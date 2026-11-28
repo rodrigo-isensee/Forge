@@ -14,15 +14,23 @@ concurrency:
   group: catraca-${{ github.ref }}
   cancel-in-progress: true
 
+# F1-ESPERA-NAO-E-VERMELHO (v0481 E47.1): a conferência (regras e texto do PR) roda num job e o check exigido `catraca` é o
+# agregador dela. O rc 3 do script é só espera (o título declara `[afrouxa-regra` e falta o rótulo do dono): a conferência sai
+# verde com a saída `espera`, e o agregador vira "catraca (espera rótulo)", deixando `catraca` pendente (amarelo), ainda barrando
+# a junção. Sem a saída, o nome é `catraca` e só passa com a conferência em success. Com `catraca` verde já no head (o rótulo
+# saiu depois), vermelho: o nome trocado deixaria o verde velho valer. Repositório público: o segundo job não custa dinheiro.
 jobs:
-  catraca:
-    name: catraca  # inclui o texto do PR (antes o job pr-texto): um job só custa 1 min, dois custavam 2
+  conferencia:
+    name: catraca (conferência)
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
       actions: read
+      checks: read
+    outputs:
+      espera: ${{ steps.regras.outputs.espera }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -30,11 +38,13 @@ jobs:
           persist-credentials: false
       - name: Regras que somem ou afrouxam, testes que somem, custo
         # Roda o script da base (a introdução da catraca usa o do PR); a base é o primeiro pai do merge commit.
+        id: regras
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_AUTOR: ${{ github.event.pull_request.user.login }}
+          PR_TITULO: ${{ github.event.pull_request.title }}
         run: |
           BASE=$(git rev-parse HEAD^1)
           script=tests/catraca.py
@@ -42,9 +52,32 @@ jobs:
             git worktree add --detach "$RUNNER_TEMP/base" "$BASE"
             script="$RUNNER_TEMP/base/tests/catraca.py"
           fi
-          python3 "$script" --base "$BASE"
-      - name: Seções "Projeto de origem" e "Como medir"
+          echo "CATRACA_DA_BASE=$script" >> "$GITHUB_ENV"
+          rc=0
+          python3 "$script" --base "$BASE" || rc=$?
+          [ "$rc" = 3 ] || exit "$rc"
+          ultimo=$(GH_TOKEN="$GITHUB_TOKEN" gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA/check-runs?check_name=catraca&per_page=100" --jq '[.check_runs[] | select(.app.slug == "github-actions")] | sort_by(.started_at) | last | if . == null then "nenhum" else .conclusion end') || { echo "espera: a API não leu o check catraca do head; vermelho (falha fechada)"; exit 1; }
+          case "$ultimo" in nenhum|failure|cancelled|timed_out|action_required|stale) ;; *) echo "espera: o último catraca do head está '$ultimo' (verde, pulado, neutro ou em andamento); vermelho para ele não valer"; exit 1;; esac
+          echo "espera= (espera rótulo)" >> "$GITHUB_OUTPUT"
+      - name: Texto do PR ("Projeto de origem", "Como medir") e código sem teste (T1)
+        # Também o script da base (e o bin/forge-check ao lado dele), como o passo de regras: o PR não muda o próprio T1.
         if: ${{ !cancelled() && github.base_ref == 'develop' && github.event.pull_request.user.login != 'dependabot[bot]' }}
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
-        run: python3 tests/catraca.py --modo pr-texto
+        run: python3 "${CATRACA_DA_BASE:-tests/catraca.py}" --modo pr-texto --base "$(git rev-parse HEAD^1)"
+
+  catraca:
+    name: catraca${{ (needs.conferencia.result == 'success') && needs.conferencia.outputs.espera || '' }}
+    # E47.6: o sufixo só com a conferência em success; o T1 vermelho com o rótulo faltando fica vermelho no nome exato.
+    # O check exigido. always(): conferência vermelha, cancelada ou pulada reprova este (pulado contaria como verde).
+    needs: [conferencia]
+    if: always()
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Conferência verde
+        env:
+          CONFERENCIA: ${{ needs.conferencia.result }}
+        run: |
+          echo "conferência: $CONFERENCIA"
+          [ "$CONFERENCIA" = success ]

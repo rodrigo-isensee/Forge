@@ -1,0 +1,26 @@
+{
+  "pedido": "v0477-forge-check-defeitos",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o git grep que falha conta como veredito trocado",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod > 1:\n        return True\n    citam = set(",
+      "para": "    if False:\n        return True\n    citam = set(",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_grep_que_falha_conta_como_veredito_trocado"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "só a versão que cita o sha revisado é lida",
+      "arquivo": "bin/forge-check",
+      "de": "            if f\"{sha}:{versao}\" not in citam:\n                continue",
+      "para": "            if False:\n                continue",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoPortao.test_so_le_a_versao_que_cita_o_sha_revisado"
+      ]
+    }
+  ]
+}

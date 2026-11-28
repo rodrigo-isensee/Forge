@@ -1,0 +1,103 @@
+{
+  "pedido": "v0479-meta85-placar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "sem updatedAt vale o createdAt",
+      "arquivo": "bin/forge-placar",
+      "de": "str(r.get(\"updatedAt\") or r.get(\"createdAt\"))",
+      "para": "str(r.get(\"createdAt\") or r.get(\"createdAt\"))",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_horas_paradas_da_develop_vermelha_pelo_ci"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "o --ate é exclusivo",
+      "arquivo": "bin/forge-placar",
+      "de": "(lambda ct, _: inicio <= ct < fim)",
+      "para": "(lambda ct, _: inicio <= ct <= fim)",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_corte_por_hora_do_merge"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "sem corte por hora, só o dia do merge",
+      "arquivo": "bin/forge-placar",
+      "de": "(lambda _, cs: cs == dia)",
+      "para": "(lambda _, cs: cs != dia)",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "o título diz o recorte por hora",
+      "arquivo": "bin/forge-placar",
+      "de": "f\"de {recorte[0]} até {recorte[1]}\" if por_hora else",
+      "para": "f\"de {recorte[0]} até {recorte[1]}\" if False else",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_corte_por_hora_do_merge"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "histórico sem linha PARADA do tipo sai tracinho, nunca 0",
+      "arquivo": "bin/forge-placar",
+      "de": "return minutos_recortados(intervalos, janela) if intervalos else None",
+      "para": "return minutos_recortados(intervalos, janela) if True else None",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_sem_historico_ou_sem_linha_do_tipo_as_paradas_saem_tracinho"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "PARADA com data impossível é pulada, sem derrubar o fases",
+      "arquivo": "bin/forge-placar",
+      "de": "            except ValueError:\n                print(f\"forge-placar: PARADA",
+      "para": "            except KeyError:\n                print(f\"forge-placar: PARADA",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_parada_com_data_impossivel_cita_o_arquivo_e_segue"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "linha do histórico sem PARADA fica fora",
+      "arquivo": "bin/forge-placar",
+      "de": "for m in filter(None, (PARADA.match(texto) for _, texto in linhas)):",
+      "para": "for m in filter(lambda _: True, (PARADA.match(texto) for _, texto in linhas)):",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_sem_historico_ou_sem_linha_do_tipo_as_paradas_saem_tracinho"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "--ci aninhado acima do teto sai com 2, sem eco",
+      "arquivo": "bin/forge-placar",
+      "de": "    if fundo_demais(texto):\n        raise SystemExit(f\"forge-placar: --ci",
+      "para": "    if False:\n        raise SystemExit(f\"forge-placar: --ci",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_ci_ilegivel_sai_com_2"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "tests/evals/test_placar.py",
+      "trecho": "texto in erro",
+      "motivo": "comparação dentro da asserção do teste, não é guarda do código"
+    },
+    {
+      "arquivo": "tests/evals/test_placar.py",
+      "trecho": "isinstance(runs, str)",
+      "motivo": "auxiliar do teste que grava o JSON de exemplo, não é guarda do código"
+    },
+    {
+      "arquivo": "tests/evals/test_placar.py",
+      "trecho": "\"não existe\" in erro",
+      "motivo": "comparação dentro da asserção do teste, não é guarda do código"
+    }
+  ]
+}

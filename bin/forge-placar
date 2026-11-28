@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Forge: placar de qualidade do processo e portão de evolução (0.43.1, frente I). Só leitura, sem rede, biblioteca padrão.
 
-Uso: forge-placar [--raiz DIR] [--raiz-pedidos DIR] [--erros ARQ] [--git DIR --ref REF] [--ci ARQ.json] [--dias N] [--ate AAAA-MM-DD] [--evals DIR] [--json]
+Uso: forge-placar [--raiz DIR] [--raiz-pedidos DIR] [--erros ARQ] [--git DIR --ref REF] [--ci ARQ.json] [--prs ARQ.json] [--dias N] [--ate AAAA-MM-DD] [--evals DIR] [--json]
      forge-placar comparar --antes AAAA-MM-DD --depois AAAA-MM-DD [--metrica NOME] [--tolerancia F] [--folga F] [--minimo N] [...]
      forge-placar propostas [ARQUIVO] [--hoje AAAA-MM-DD] [--max-abertas N] [--json]
+     forge-placar fases [--git DIR] [--ref REF] [--dia AAAA-MM-DD] [--desde/--ate AAAA-MM-DDTHH:MM] [--raiz DIR] [--ci ARQ] [--json]
+     forge-placar ci-primeira --runs ARQ.json --pr-lista ARQ.json [--exigidos CI,Catraca] [--dias N] [--ate AAAA-MM-DD] [--json]
 
 Fontes (na `--raiz`, padrão a pasta atual; no Forge, a área do Jarvis): `docs/kanban/conferencias.md` (vereditos do
 conferente), `docs/kanban/escapes.md` (defeitos achados depois do parecer final), `docs/pedidos/*.md` (linhas do
@@ -30,6 +32,10 @@ Métrica | Critério de reversão | Início | Revisão | Resultado |`): cada lin
 `código:` ou `texto:`, Início e Revisão são datas com a Revisão de 1 a 30 dias depois, a revisão vencida tem Resultado
 `manter (...)` ou `reverter (...)` com a leitura do `comparar`, e há no máximo `--max-abertas` (padrão 1) abertas: uma causa
 por vez, para o placar atribuir o efeito. rc 1 com uma linha `falta:` por problema.
+Ganho prometido (MEDIR-DE-NOVO-O-PROMETIDO): a Métrica pode trazer `prometido: <N>%` (ex.: `taxa_forma prometido: -20%`, a
+variação anunciada; negativa é queda). Cada proposta assim ganha a linha `prometido: <ID> <métrica> · prometido -20% · real
+-35%`, com o real medido como no `comparar` (janela de `--dias` antes do Início contra a de `--dias` a partir dele) e `real sem
+medida` enquanto a janela de depois não fechou até `--hoje` ou falta fonte ou base; no `--json`, a chave `prometidos`.
 
 Por papel (0.43.3, E23 "erros por papel"): o placar mostra, para cada papel, a taxa de vereditos negativos que o registro atribui
 a ele (coluna `autor`; `destino` vira o papel do brief, `<pedido>-<papel>-<n>`) sobre os vereditos em que ele responde (jarvis:
@@ -37,8 +43,44 @@ os de brief; papel destino: as entregas dos briefs dele; conferente e ferramenta
 `--evals` (padrão tests/evals/ do Forge): travados (teste comum), backlog (`expectedFailure`) e sem ferramenta (`SEM_FERRAMENTA`).
 Linha de 8 colunas (sem autor) fica fora da taxa por papel.
 
+Sem teste (decisão do dono 18/11 15:10): com `--prs` (JSON de `gh pr list --state merged --json body,mergedAt`, gerado
+fora), a linha `sem_teste:` conta, por semana ISO das duas janelas, os PRs mesclados cujo corpo tem a seção `## Sem teste` (T1)
+sobre os PRs mesclados: `2026-W47 2/9`. Sem `--prs`, `-`; no `--json`, a chave `sem_teste` ({semana: [com a seção, PRs]}).
+JSON com `[` e `{` aninhados acima de 64 níveis (fora das strings) sai com 2, em qualquer versão do Python.
+
+Disco (MP6): a linha `disco:` traz o uso do disco que guarda as cópias de trabalho (`~/.forge-contrib`) e o limiar de
+`forge_disco.py`, acima do qual o `forge-copia` recusa cópia nova; disco ilegível sai `-`. No `--json`, a chave `disco`.
+
 A última linha do placar e do `comparar` é o `resumo:` em linguagem simples, para a pessoa que não programa (ex.: "os erros
 de forma do time caíram 20%; os defeitos que escaparam ficaram iguais; a mudança fica"); no `--json`, a chave `resumo`.
+
+Fases (META85, ordem do dono 18/11): `fases` mostra, para cada item mesclado na `--ref` (padrão origin/develop) no `--dia`
+(padrão hoje), o tempo do 1.º commit ao merge em quatro fases, só do git do projeto (`--git`, padrão a pasta atual):
+desenvolvimento (do 1.º commit ao último de código antes do 1.º parecer), pareceres (daí ao 1.º commit de código depois de
+um parecer, ou ao último parecer), voltas (daí ao último commit da branch) e integração (daí ao merge). Commit de parecer é o
+que só mexe em docs/reviews, docs/qa, docs/security ou docs/devops; a hora do commit é a do autor (o rebase não a muda).
+Primeira rodada aprovada: a primeira versão gravada de cada parecer da branch diz `parecer: aprovado`; sem parecer, `-`.
+O total do dia soma as fases e põe a média, a mediana e o p75 (inclusivo) por item ao lado da meta de 42 min (ordem do dono 19/11 14:52).
+`--desde`/`--ate` cortam pela hora do merge, [desde, ate), com fuso opcional (sem ele, a hora local); sem eles, vale o dia do merge. No `--json`,
+cada item traz o `pr` ("Merge pull request #N" ou o squash) e a hora do `merge`. Horas paradas, cada uma com a fonte por escrito na saída: queda
+de sessão e promoção travada pelas linhas `PARADA sessão|promoção AAAA-MM-DD HH:MM até AAAA-MM-DD HH:MM` do `## Histórico` dos pedidos (`--raiz`),
+e develop vermelha pelo `--ci` (`gh run list --branch develop --json conclusion,createdAt,updatedAt`, gerado fora), do fim do run reprovado ao fim
+do verde seguinte; intervalos sobrepostos contam uma vez, recortados na janela; sem a fonte, `-`. Item é o merge de dois pais ou o squash
+do `forge-fechar` (assunto que termina em `(#N)`), medido pelos commits do PR em `refs/pull/N/head` quando o projeto os tem
+(sem rede: `git fetch origin 'refs/pull/*/head:refs/pull/*/head'` fora); sem eles, o squash conta à parte na linha
+`itens sem fases (squash): N` (no `--json`, `sem_fases`), fora da média.
+
+CI verde na 1.ª execução (PR-VERDE M1, definição D7 aceita pelo dono em 20/11): `ci-primeira` conta, por dia, por semana ISO e no
+total da janela (`--dias` até `--ate`, pelo dia UTC da abertura do PR), os PRs cujo 1.º head (o do 1.º run `pull_request` da
+branch depois da abertura do PR, o que vale para PR reaberto e branch reescrita) teve a 1.ª execução de cada workflow exigido
+(`--exigidos`, padrão `CI,Catraca`) em `success`. Cancelada não conta como verde nem como vermelha (fica em `cancelados`, fora da
+taxa) quando o envio novo a cancelou; cancelada por rótulo ou edição dá lugar à execução seguinte do mesmo head. Ainda
+rodando, `pendentes`; rerun (`attempt` acima de 1) e qualquer outra conclusão, vermelho; workflow fora da lista, ignorado;
+workflow exigido sem execução no 1.º head, `lacunas`; PR do dependabot (login exato), fora. Os vermelhos saem por workflow (e por job, quando
+o run traz `jobs`), para separar a catraca do resto. Fontes geradas fora, sem rede: `--runs` (`gh run list --event
+pull_request --json workflowName,headBranch,headSha,event,status,conclusion,createdAt,attempt`) e `--pr-lista` (`gh pr list --state
+all --json number,headRefName,createdAt,author`). Fonte ausente ou ilegível (não JSON, não lista, campo faltando, data inválida,
+`jobs` que não é lista): a medida sai `lacuna`, rc 2, nunca verde.
 
 Saída: 0 ok; 1 reprovado (comparar ou propostas); 2 uso errado ou fonte ilegível; 3 inconclusivo."""
 import argparse
@@ -50,6 +92,9 @@ import statistics
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from forge_disco import LIMIAR_DISCO, uso_do_disco  # noqa: E402
 
 METRICAS = ("taxa_forma", "taxa_reprovacao", "erros_jarvis", "taxa_escape", "voltas_por_item", "pronto_ate_develop")
 GUARDADAS = ("taxa_forma", "taxa_escape")  # nunca podem piorar, qualquer que seja a métrica declarada
@@ -63,6 +108,21 @@ ERRO_REGISTRO = re.compile(r"^## \d+\. .*\((\d{4}-\d{2}-\d{2})[ T]\d{2}:\d", re.
 TIPOS_DE_MUDANCA = ("código:", "codigo:", "texto:")
 RESULTADO = re.compile(r"^(manter|reverter)\b.*\S", re.I)
 PRAZO_MAXIMO = 30  # dias entre o início e a revisão
+PROMETIDO = re.compile(r"\bprometido:[ \t]*([+-]?\d{1,6}(?:[.,]\d+)?)[ \t]*%")  # teto de dígitos: o float nunca vira inf
+SEM_TESTE = re.compile(r"^##[ \t]+Sem teste[ \t]*$", re.M | re.I)
+TETO_ANINHAMENTO = 64  # níveis de [ e { aceitos na entrada JSON; a do `gh pr list` usa 2
+PASTAS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/security/", "docs/devops/")  # as do PASTA_E_REGRA do forge-check
+META_MINUTOS = 42  # ordem do dono 19/11 14:52: do 1.º commit ao merge, metade da metade de 169 (a de 18/11 era 85)
+FASES = ("desenvolvimento", "pareceres", "voltas", "integração")
+PARECER = re.compile(r"^parecer:[ \t]*(\S+)", re.M)
+NOME_DO_ITEM = re.compile(r"(?:from [^/\s]+/|Merge branch ')([^'\s]+)")
+SQUASH = re.compile(r"\(#(\d+)\)$")  # assunto do squash do GitHub: "<título> (#N)"
+PR_DO_MERGE = re.compile(r"^Merge pull request #(\d+)\b")
+PARADA = re.compile(r"^PARADA (sessão|promoção) (\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}) até (\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2})")
+DO_HISTORICO = "linhas `PARADA {} <início> até <fim>` do ## Histórico de docs/pedidos/*.md (--raiz)"
+FONTES_DE_PARADA = {"sessão": DO_HISTORICO.format("sessão"), "develop vermelha": "CI da develop pelo gh (--ci: gh run list --branch"
+                    " develop --json conclusion,createdAt,updatedAt), do fim do run reprovado ao fim do run verde seguinte",
+                    "promoção": DO_HISTORICO.format("promoção")}
 
 
 def data(texto, nome):
@@ -152,12 +212,73 @@ def reversoes(pasta, ref):
 def ci_vermelha(arq):
     if not arq:
         return None
+    texto = ler(arq) or "[]"
+    if fundo_demais(texto):  # JSON-PROFUNDO-PY314: o 3.14 não recusa o aninhamento fundo que o 3.12 recusava
+        raise SystemExit(f"forge-placar: JSON de --ci {arq} aninhado acima de {TETO_ANINHAMENTO} níveis")
     try:
-        execucoes = json.loads(ler(arq) or "[]")
+        execucoes = json.loads(texto)
     except json.JSONDecodeError:
         raise SystemExit(f"forge-placar: --ci {arq} não é JSON")
     return [datetime.date.fromisoformat(e["createdAt"][:10]) for e in execucoes
             if isinstance(e, dict) and e.get("conclusion") == "failure" and DATA.match(str(e.get("createdAt", "")))]
+
+
+def fundo_demais(texto, teto=TETO_ANINHAMENTO):
+    """Aninhamento de [ e { acima do teto, fora das strings; o limite do `json` muda com a versão do Python (o 3.14 aceita).
+
+    Um passe só sobre os caracteres (dentro/fora de string, escape, nível): custo linear."""
+    nivel = 0
+    em_string = escapado = False
+    for c in texto:
+        if em_string:
+            if escapado:
+                escapado = False
+            elif c == "\\":
+                escapado = True
+            elif c == '"':
+                em_string = False
+        elif c == '"':
+            em_string = True
+        elif c in "[{":
+            nivel += 1
+            if nivel > teto:
+                return True
+        elif c in "]}":
+            nivel -= 1
+    return False
+
+
+def sem_teste_por_semana(arq, janela):
+    """{semana ISO: [PRs com a seção `## Sem teste`, PRs]} dos PRs mesclados na janela; None sem `--prs`."""
+    if not arq:
+        return None
+    texto = ler(arq)
+    if texto is None:
+        raise SystemExit(f"forge-placar: --prs {arq} não existe")
+    if fundo_demais(texto):
+        raise SystemExit(f"forge-placar: --prs {arq} não é JSON legível (aninhado acima de {TETO_ANINHAMENTO} níveis)")
+    try:
+        prs = json.loads(texto)
+    except json.JSONDecodeError:
+        raise SystemExit(f"forge-placar: --prs {arq} não é JSON legível")
+    if not isinstance(prs, list):
+        raise SystemExit(f"forge-placar: --prs {arq} não é uma lista de PRs")
+    semanas = {}
+    for pr in prs:
+        quando = str(pr.get("mergedAt")) if isinstance(pr, dict) else ""
+        if not DATA.match(quando):
+            continue  # PR aberto ou fechado sem merge (mergedAt nulo)
+        try:
+            dia = datetime.date.fromisoformat(quando[:10])
+        except ValueError:  # forma de data, dia inexistente (2026-13-45)
+            raise SystemExit(f"forge-placar: --prs {arq} tem mergedAt inválido: {quando[:10]}")
+        if not dentro(dia, janela):
+            continue
+        ano, semana, _ = dia.isocalendar()
+        conta = semanas.setdefault(f"{ano}-W{semana:02d}", [0, 0])
+        conta[0] += bool(SEM_TESTE.search(str(pr.get("body"))))
+        conta[1] += 1
+    return dict(sorted(semanas.items()))
 
 
 PAPEIS_GERAIS = ("jarvis", "conferente", "ferramenta")
@@ -316,6 +437,15 @@ def imprimir_papeis(papeis):
         print(f"papel {papel}: {taxas} · {casos}")
 
 
+def disco():
+    """O uso do disco das cópias de trabalho e o limiar; uso None quando o disco não se deixa ler."""
+    try:
+        uso = uso_do_disco(Path.home() / ".forge-contrib")
+    except OSError:
+        uso = None
+    return {"uso": uso, "limiar": LIMIAR_DISCO}
+
+
 def cmd_placar(args):
     ate = data(args.ate, "--ate") if args.ate else datetime.date.today()
     passo = datetime.timedelta(days=args.dias)
@@ -326,12 +456,17 @@ def cmd_placar(args):
     vistos = set(taxas_por_papel(vereditos, janelas[0])) | set(taxas_por_papel(vereditos, janelas[1]))
     papeis = {"atual": taxas_por_papel(vereditos, janelas[0], vistos), "anterior": taxas_por_papel(vereditos, janelas[1], vistos),
               "evals": evals_por_papel(args.evals)} if vereditos is not None or Path(args.evals).is_dir() else None
+    sem_teste = sem_teste_por_semana(args.prs, (janelas[1][0], ate))
     if args.json:
-        print(json.dumps({"atual": atual, "anterior": anterior, "papeis": papeis, "resumo": resumo(anterior, atual)},
+        print(json.dumps({"atual": atual, "anterior": anterior, "papeis": papeis, "sem_teste": sem_teste, "disco": disco(), "resumo": resumo(anterior, atual)},
                          ensure_ascii=False, sort_keys=True))
     else:
         imprimir(("atual", "anterior"), (atual, anterior))
         imprimir_papeis(papeis)
+        semanas = "-" if sem_teste is None else " · ".join(f"{s} {n}/{t}" for s, (n, t) in sem_teste.items()) or "nenhum PR mesclado"
+        print(f"sem_teste: {semanas} (PRs com a seção Sem teste / PRs mesclados, por semana)")
+        d = disco()
+        print(f"disco: {'-' if d['uso'] is None else str(d['uso']) + '%'} de uso em ~/.forge-contrib (limiar {d['limiar']}%)")
         print(resumo(anterior, atual))
     return 0
 
@@ -416,6 +551,8 @@ def conferir_proposta(p, hoje):
     metrica = p.get("métrica", "").strip("` ")
     if not any(m == metrica or metrica.startswith(m + " ") for m in METRICAS):
         faltas.append(f"{ident}: Métrica tem de começar por uma métrica do placar ({', '.join(METRICAS)})")
+    if "prometido:" in metrica and not PROMETIDO.search(metrica):
+        faltas.append(f"{ident}: prometido tem de ser um número em %, de até 6 dígitos inteiros (ex.: `prometido: -20%`)")
     if not p.get("mudança", "").lower().startswith(TIPOS_DE_MUDANCA):
         faltas.append(f"{ident}: Mudança tem de começar por `código:` ou `texto:` (texto só para julgamento)")
     if not p.get("critério de reversão", "").strip(" —-"):
@@ -437,6 +574,32 @@ def conferir_proposta(p, hoje):
     return faltas, not fechada
 
 
+def ganho_real(p, fontes, hoje, dias):
+    """A variação medida da métrica da proposta, em % arredondado, ou None (janela de depois aberta, sem fonte ou base zero)."""
+    inicio, nome = p.get("início", ""), p.get("métrica", "").strip("` ").split(" ")[0]
+    if not DATA.fullmatch(inicio) or nome not in METRICAS:
+        return None
+    inicio, passo = datetime.date.fromisoformat(inicio), datetime.timedelta(days=dias)
+    if inicio + passo > hoje:
+        return None
+    a, d = medir(fontes, (inicio - passo, inicio))[nome], medir(fontes, (inicio, inicio + passo))[nome]
+    if a is None or d is None or a == 0:
+        return None
+    return round((d - a) / a * 100)
+
+
+def prometidos(linhas, args, hoje):
+    """O prometido ao lado do real de cada proposta que anuncia ganho; as fontes só são lidas se alguma anuncia."""
+    com = [(p, m) for p in linhas if (m := PROMETIDO.search(p.get("métrica", "")))]
+    fontes = carregar(args) if com else None
+    return [{"id": p.get("id") or "?", "metrica": p.get("métrica", "").strip("` ").split(" ")[0],
+             "prometido": float(m.group(1).replace(",", ".")), "real": ganho_real(p, fontes, hoje, args.dias)} for p, m in com]
+
+
+def pct(v):
+    return f"{v:+g}%"
+
+
 def cmd_propostas(args):
     arq = Path(args.arquivo or Path(args.raiz) / "docs" / "kanban" / "melhorias.md")
     texto = ler(arq)
@@ -454,13 +617,312 @@ def cmd_propostas(args):
         abertas += [p.get("id") or "?"] if aberta else []
     if len(abertas) > args.max_abertas:
         faltas.append(f"abertas: {len(abertas)} ({', '.join(abertas)}), máximo {args.max_abertas}: uma causa por vez")
+    ganhos = prometidos(linhas, args, hoje)
     if args.json:
-        print(json.dumps({"propostas": len(linhas), "abertas": abertas, "faltas": faltas}, ensure_ascii=False))
+        print(json.dumps({"propostas": len(linhas), "abertas": abertas, "faltas": faltas, "prometidos": ganhos}, ensure_ascii=False))
     else:
+        for g in ganhos:
+            real = "sem medida" if g["real"] is None else pct(g["real"])
+            print(f"prometido: {g['id']} {g['metrica']} · prometido {pct(g['prometido'])} · real {real}")
         for f in faltas:
             print(f"falta: {f}")
         print(f"propostas: {len(linhas)} · abertas: {len(abertas)} · resultado: {'reprovado' if faltas else 'ok'}")
     return 1 if faltas else 0
+
+
+def git(pasta, *args):
+    r = subprocess.run(["git", "-C", str(pasta), *args], capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit(f"forge-placar: git {args[0]} falhou em {pasta}")
+    return r.stdout
+
+
+def commits_do_item(pasta, base, ponta):
+    """[(hora do autor, é de parecer, arquivos de parecer, sha)] dos commits da branch, do mais antigo ao mais novo."""
+    saida = []
+    for bloco in git(pasta, "log", "--reverse", "--no-merges", "--format=%x00%H %at", "--name-only", f"{base}..{ponta}").split("\0")[1:]:
+        cabeca, *nomes = [linha for linha in bloco.splitlines() if linha]
+        sha, quando = cabeca.split()
+        pareceres = [n for n in nomes if n.startswith(PASTAS_DE_PARECER)]
+        saida.append((int(quando), bool(nomes) and len(pareceres) == len(nomes), pareceres, sha))
+    return saida
+
+
+def fases_do_item(commits, fim):
+    """Minutos por fase (ver o cabeçalho) entre o 1.º commit e o merge; sem parecer, tudo é desenvolvimento e integração."""
+    inicio, ultimo = commits[0][0], commits[-1][0]
+    i = next((k for k, c in enumerate(commits) if c[1]), None)
+    if i is None:
+        marcos = [inicio, ultimo, ultimo, ultimo, fim]
+    else:
+        volta = next((c[0] for c in commits[i:] if not c[1]), None)
+        marcos = [inicio, max((c[0] for c in commits[:i]), default=inicio), volta or ultimo, ultimo, fim]
+    return {fase: round((b - a) / 60) for fase, a, b in zip(FASES, marcos, marcos[1:])}
+
+
+def primeira_rodada(pasta, commits):
+    """True se a primeira versão gravada de cada parecer da branch diz `parecer: aprovado`; None sem parecer."""
+    vereditos = {}
+    for _, _, nomes, sha in commits:
+        for nome in nomes:
+            if nome not in vereditos:
+                r = subprocess.run(["git", "-C", str(pasta), "show", f"{sha}:{nome}"], capture_output=True, text=True)
+                m = PARECER.search(r.stdout)
+                if m:
+                    vereditos[nome] = m.group(1).lower() == "aprovado"
+    return all(vereditos.values()) if vereditos else None
+
+
+def hora_numerica(hora):
+    """A hora do merge sempre com deslocamento numérico (`+00:00`): o git novo escreve UTC como `Z` no `%cI`, o antigo como `+00:00`."""
+    return hora[:-1] + "+00:00" if hora.endswith("Z") else hora
+
+
+def itens_do_dia(pasta, ref, na_janela):
+    """Os itens mesclados na linha principal da `ref` com merge em `na_janela(epoch, dia)` (merge de dois pais ou squash `(#N)`),
+    com fases, primeira rodada, PR e hora do merge, e quantos squashes ficaram sem fases por não haver `refs/pull/N/head`."""
+    itens, sem_fases = [], 0
+    for linha in git(pasta, "log", "--first-parent", "--format=%H%x09%P%x09%ct%x09%cs%x09%cI%x09%s", ref).splitlines():
+        sha, pais, quando, cs, hora, assunto = linha.split("\t", 5)
+        pais, pr = pais.split(), SQUASH.search(assunto)
+        if not na_janela(int(quando), cs) or not (len(pais) > 1 or (pais and pr)):
+            continue  # fora da janela, commit direto ou a raiz
+        if len(pais) > 1:
+            commits, nome = commits_do_item(pasta, *pais[:2]), NOME_DO_ITEM.search(assunto)
+            item, pr = nome.group(1) if nome else sha[:8], PR_DO_MERGE.search(assunto)
+        else:
+            ponta = f"refs/pull/{pr.group(1)}/head"
+            tem = subprocess.run(["git", "-C", str(pasta), "rev-parse", "-q", "--verify", ponta + "^{commit}"], capture_output=True)
+            commits, item = (commits_do_item(pasta, pais[0], ponta) if tem.returncode == 0 else []), f"#{pr.group(1)}"
+            sem_fases += not commits
+        if commits:
+            itens.append({"item": item, "fases": fases_do_item(commits, int(quando)), "pr": int(pr.group(1)) if pr else None,
+                          "merge": hora_numerica(hora), "total": round((int(quando) - commits[0][0]) / 60),
+                          "primeira_rodada": primeira_rodada(pasta, commits)})
+    return itens, sem_fases
+
+
+def momento(texto, nome):
+    """Epoch de `AAAA-MM-DD[THH:MM[±HH:MM]]`; sem fuso, a hora local (TZ)."""
+    try:
+        return datetime.datetime.fromisoformat(texto).timestamp()
+    except (TypeError, ValueError):
+        raise SystemExit(f"forge-placar: {nome} deve ser AAAA-MM-DDTHH:MM, com fuso opcional")
+
+
+def janela_das_fases(args):
+    """(início, fim, dia, por_hora): o dia vale da 0 h à 0 h seguinte na hora local; `--desde`/`--ate` cortam por hora."""
+    dia = data(args.dia, "--dia") if args.dia else datetime.date.today()
+    inicio = momento(args.desde, "--desde") if args.desde else momento(dia.isoformat(), "--dia")
+    fim = momento(args.ate, "--ate") if args.ate else momento((dia + datetime.timedelta(days=1)).isoformat(), "--dia")
+    if fim <= inicio:
+        raise SystemExit("forge-placar: --ate tem de ser depois de --desde")
+    return inicio, fim, dia.isoformat(), bool(args.desde or args.ate)
+
+
+def estatisticas(totais):
+    """Média, mediana e p75 (método inclusivo) dos minutos do 1.º commit ao merge; pede ao menos um item."""
+    p75 = statistics.quantiles(totais, n=4, method="inclusive")[2] if len(totais) > 1 else totais[0]
+    return {"media_min": round(statistics.mean(totais)), "mediana_min": round(statistics.median(totais)), "p75_min": round(p75)}
+
+
+def minutos_recortados(intervalos, janela):
+    """Minutos da união dos intervalos [a, b) dentro da janela (sobreposição conta uma vez)."""
+    total, ate = 0.0, janela[0]
+    for a, b in sorted(intervalos):
+        a, b = max(a, ate), min(b, janela[1])
+        if b > a:
+            total, ate = total + b - a, b
+    return round(total / 60)
+
+
+def paradas_do_historico(raiz, tipo, janela):
+    """Minutos parados do tipo; None sem docs/pedidos ou sem linha `PARADA <tipo>` legível (fonte ausente sai -, nunca 0).
+    Linha com data impossível é pulada com aviso que cita o pedido, e as outras seguem."""
+    hist = historicos(raiz)
+    if hist is None:
+        return None
+    intervalos = []
+    for pedido, linhas in hist.items():
+        for m in filter(None, (PARADA.match(texto) for _, texto in linhas)):
+            if m.group(1) != tipo:
+                continue
+            try:
+                intervalos.append(tuple(datetime.datetime.fromisoformat(m.group(i)).timestamp() for i in (2, 3)))
+            except ValueError:
+                print(f"forge-placar: PARADA com data impossível em docs/pedidos/{pedido}.md; linha ignorada", file=sys.stderr)
+    return minutos_recortados(intervalos, janela) if intervalos else None
+
+
+def paradas_do_ci(arq, janela):
+    """Develop vermelha: do fim de um run `failure` ao fim do run `success` seguinte (cancelado não conta); vermelha até agora."""
+    if not arq:
+        return None
+    texto = ler(arq)
+    if texto is None:
+        raise SystemExit(f"forge-placar: --ci {arq} não existe")
+    if fundo_demais(texto):
+        raise SystemExit(f"forge-placar: --ci {arq} não é uma lista de runs legível (aninhado acima de {TETO_ANINHAMENTO} níveis)")
+    try:
+        fins = sorted((momento(str(r.get("updatedAt") or r.get("createdAt")).replace("Z", "+00:00"), "--ci"), r.get("conclusion"))
+                      for r in json.loads(texto) if r.get("conclusion") in ("failure", "success"))
+    except (json.JSONDecodeError, RecursionError, AttributeError, TypeError):
+        raise SystemExit(f"forge-placar: --ci {arq} não é uma lista de runs legível")
+    intervalos, desde = [], None
+    for quando, conclusao in fins:
+        if conclusao == "failure" and desde is None:
+            desde = quando
+        elif conclusao == "success" and desde is not None:
+            intervalos.append((desde, quando))
+            desde = None
+    if desde is not None:
+        intervalos.append((desde, min(janela[1], datetime.datetime.now().timestamp())))
+    return minutos_recortados(intervalos, janela)
+
+
+def paradas(args, janela):
+    """{tipo: {"min": minutos ou None sem a fonte, "fonte": de onde vem}}."""
+    medidas = {"sessão": paradas_do_historico(args.raiz, "sessão", janela), "develop vermelha": paradas_do_ci(args.ci, janela),
+               "promoção": paradas_do_historico(args.raiz, "promoção", janela)}
+    return {tipo: {"min": n, "fonte": FONTES_DE_PARADA[tipo]} for tipo, n in medidas.items()}
+
+
+def horas(minutos):
+    return "-" if minutos is None else f"{minutos // 60} h {minutos % 60:02d} min"
+
+
+def cmd_fases(args):
+    inicio, fim, dia, por_hora = janela_das_fases(args)
+    itens, sem_fases = itens_do_dia(args.git or ".", args.ref,
+                                    (lambda ct, _: inicio <= ct < fim) if por_hora else (lambda _, cs: cs == dia))
+    soma = {fase: sum(i["fases"][fase] for i in itens) for fase in FASES}
+    julgados = [i["primeira_rodada"] for i in itens if i["primeira_rodada"] is not None]
+    recorte = [datetime.datetime.fromtimestamp(t).astimezone().isoformat(timespec="minutes") for t in (inicio, fim)]
+    dados = {"dia": dia, "recorte": recorte if por_hora else None, "meta_min": META_MINUTOS, "itens": itens, "soma": soma,
+             **(estatisticas([i["total"] for i in itens]) if itens else dict.fromkeys(("media_min", "mediana_min", "p75_min"))),
+             "primeira_rodada": [sum(julgados), len(julgados)], "sem_fases": sem_fases, "paradas": paradas(args, (inicio, fim))}
+    if args.json:
+        print(json.dumps(dados, ensure_ascii=False, sort_keys=True))
+        return 0
+    sim = {True: "sim", False: "não", None: "-"}
+    titulo = f"de {recorte[0]} até {recorte[1]}" if por_hora else f"do dia {dados['dia']}"
+    print(f"fases {titulo} (meta {META_MINUTOS} min do 1.º commit ao merge, {args.ref}):")
+    for i in itens:
+        print(f"item {i['item']}: " + " · ".join(f"{f} {i['fases'][f]} min" for f in FASES)
+              + f" · total {i['total']} min · primeira rodada aprovada: {sim[i['primeira_rodada']]}")
+    for tipo, p in dados["paradas"].items():
+        print(f"horas paradas, {tipo}: {horas(p['min'])} (fonte: {p['fonte']})")
+    if sem_fases:
+        print(f"itens sem fases (squash): {sem_fases} (sem os commits do PR em refs/pull/N/head; fora da média)")
+    if not itens:
+        print("total do dia: nenhum item " + ("medido" if sem_fases else "mesclado"))
+        return 0
+    total = sum(soma.values()) or 1
+    print(f"total do dia: {len(itens)} itens · " + " · ".join(f"{f} {soma[f]} min ({soma[f] / total:.0%})" for f in FASES)
+          + f" · média {dados['media_min']} min · mediana {dados['mediana_min']} min · p75 {dados['p75_min']} min por item"
+          + f" (meta {META_MINUTOS} min) · primeira rodada aprovada {sum(julgados)}/{len(julgados)}")
+    return 0
+
+
+EXIGIDOS = "CI,Catraca"  # D7 do PR-VERDE: os workflows exigidos do Forge; o projeto passa os dele em --exigidos
+META_PRIMEIRA = 0.85  # PR-VERDE-DE-PRIMEIRA: de ~57% para 85%
+AUTORES_DEPENDABOT = frozenset({"app/dependabot", "dependabot[bot]"})  # login exato: substring tiraria qualquer login com a palavra
+CAMPOS_DO_RUN = "workflowName,headBranch,headSha,event,status,conclusion,createdAt,attempt"
+
+
+def lista_do_gh(arq, campos):
+    """Lista de objetos com os `campos` (JSON gerado fora pelo gh), ou None: a resposta ilegível vira lacuna, nunca verde."""
+    texto = ler(arq)
+    if texto is None or fundo_demais(texto):
+        return None
+    try:
+        dados = json.loads(texto)
+    except (json.JSONDecodeError, RecursionError):
+        return None
+    if not isinstance(dados, list) or not all(isinstance(d, dict) and all(c in d for c in campos) for d in dados):
+        return None
+    if any(not isinstance(d.get("jobs", []), list) for d in dados):
+        return None  # `jobs` que não é lista: fonte ilegível, lacuna (rc 2), nunca TypeError
+    try:
+        for d in dados:
+            d["quando"] = momento(str(d["createdAt"]).replace("Z", "+00:00"), "createdAt")
+    except SystemExit:
+        return None
+    return dados
+
+
+def estado_da_execucao(r):
+    """D7: a 1.ª tentativa; o rerun (attempt > 1) só sai depois de falha (R-CUSTO) e não conta como verde."""
+    if r["status"] != "completed":
+        return "pendente"
+    if r["attempt"] != 1:
+        return "vermelho"
+    return {"success": "verde", "cancelled": "cancelado"}.get(r["conclusion"], "vermelho")
+
+
+def primeira_execucao(pr, runs, exigidos):
+    """(estado, falhas) do PR: no 1.º head (o do 1.º run do PR depois de aberto), a 1.ª execução de cada workflow exigido."""
+    do_pr = sorted((r for r in runs if r["event"] == "pull_request" and r["headBranch"] == pr["headRefName"]
+                    and r["workflowName"] in exigidos and r["quando"] >= pr["quando"]), key=lambda r: r["quando"])
+    primeiras = {}
+    for r in do_pr:
+        if r["headSha"] == do_pr[0]["headSha"]:
+            anterior = primeiras.get(r["workflowName"])
+            if anterior is None or estado_da_execucao(anterior) == "cancelado":
+                primeiras[r["workflowName"]] = r  # D7: cancelada sem envio novo (rótulo, edição) dá lugar à seguinte do mesmo head
+    if set(primeiras) != set(exigidos):
+        return "lacuna", []  # workflow exigido sem execução no 1.º head
+    estados = {w: estado_da_execucao(r) for w, r in primeiras.items()}
+    falhas = sorted(w for w, e in estados.items() if e == "vermelho")
+    falhas += sorted(f"{w}/{j.get('name')}" for w in falhas for j in primeiras[w].get("jobs") or []
+                     if isinstance(j, dict) and j.get("conclusion") not in ("success", "skipped", None))
+    for estado in ("vermelho", "pendente", "cancelado"):
+        if estado in estados.values():
+            return estado, falhas
+    return "verde", []
+
+
+def cmd_primeira(args):
+    exigidos = tuple(w.strip() for w in args.exigidos.split(",") if w.strip())
+    if not exigidos:
+        raise SystemExit("forge-placar: --exigidos sem workflow")
+    ate = data(args.ate, "--ate")
+    janela = (ate - datetime.timedelta(days=args.dias), ate)
+    runs = lista_do_gh(args.runs, CAMPOS_DO_RUN.split(","))
+    prs = lista_do_gh(args.pr_lista, ("number", "headRefName", "createdAt", "author"))
+    if runs is None or prs is None:
+        motivo = f"{'--runs' if runs is None else '--pr-lista'} ausente ou ilegível"
+        print(json.dumps({"lacuna": motivo}, ensure_ascii=False) if args.json else f"ci-primeira: lacuna ({motivo})")
+        return 2
+    grupos, itens = {}, []
+    for pr in prs:
+        dia = datetime.datetime.fromtimestamp(pr["quando"], datetime.timezone.utc).date()
+        autor = pr["author"].get("login") if isinstance(pr["author"], dict) else pr["author"]
+        if str(autor) in AUTORES_DEPENDABOT or not dentro(dia, janela):  # str: login lista ou objeto não quebra o conjunto
+            continue
+        estado, falhas = primeira_execucao(pr, runs, exigidos)
+        itens.append({"pr": pr["number"], "dia": dia.isoformat(), "estado": estado, "falhas": falhas})
+        ano, semana, _ = dia.isocalendar()
+        for chave in (f"dia {dia}", f"semana {ano}-W{semana:02d}", "total"):
+            g = grupos.setdefault(chave, {"verde": 0, "vermelho": 0, "cancelado": 0, "pendente": 0, "lacuna": 0, "falhas": {}})
+            g[estado] += 1
+            for f in falhas:
+                g["falhas"][f] = g["falhas"].get(f, 0) + 1
+    for g in grupos.values():
+        g["taxa"] = razao(g["verde"], g["verde"] + g["vermelho"])
+    if args.json:
+        print(json.dumps({"janela": [str(d) for d in janela], "exigidos": exigidos, "meta": META_PRIMEIRA, "grupos": grupos,
+                          "prs": itens}, ensure_ascii=False, sort_keys=True))
+        return 0
+    print(f"ci-primeira [{janela[0]}, {janela[1]}) (D7: 1.º head do PR, 1.ª execução de {', '.join(exigidos)}; meta {META_PRIMEIRA:.0%}):")
+    for chave in sorted(grupos, key=lambda c: (c == "total", c)):
+        g = grupos[chave]
+        falhas = ", ".join(f"{f} {n}" for f, n in sorted(g["falhas"].items())) or "-"
+        print(f"{chave}: verde na 1.ª {fmt(g['taxa'])} ({g['verde']}/{g['verde'] + g['vermelho']}) · vermelhos por workflow: {falhas}"
+              f" · cancelados {g['cancelado']} · pendentes {g['pendente']} · lacunas {g['lacuna']}")
+    if not grupos:
+        print("total: nenhum PR aberto na janela")
+    return 0
 
 
 def analisar(argv):
@@ -471,6 +933,7 @@ def analisar(argv):
     comum.add_argument("--git")
     comum.add_argument("--ref", default="origin/develop")
     comum.add_argument("--ci")
+    comum.add_argument("--prs", metavar="ARQ.json", help="gh pr list --state merged --json body,mergedAt, gerado fora")
     comum.add_argument("--dias", type=int, default=7)
     comum.add_argument("--json", action="store_true")
     comum.add_argument("--evals", default=str(FORGE / "tests" / "evals"))
@@ -489,6 +952,19 @@ def analisar(argv):
         p.add_argument("--hoje")
         p.add_argument("--max-abertas", type=int, default=1)
         return cmd_propostas, p.parse_args(argv[1:])
+    if argv[:1] == ["fases"]:
+        p = argparse.ArgumentParser(prog="forge-placar fases", parents=[comum])
+        p.add_argument("--dia")
+        p.add_argument("--desde", help="AAAA-MM-DDTHH:MM[±HH:MM]: corte por hora do merge (sem fuso, a hora local)")
+        p.add_argument("--ate", help="AAAA-MM-DDTHH:MM[±HH:MM], exclusivo")
+        return cmd_fases, p.parse_args(argv[1:])
+    if argv[:1] == ["ci-primeira"]:
+        p = argparse.ArgumentParser(prog="forge-placar ci-primeira", parents=[comum])
+        p.add_argument("--runs", required=True, metavar="ARQ.json", help="gh run list --event pull_request --limit 1000 --json " + CAMPOS_DO_RUN)
+        p.add_argument("--pr-lista", required=True, metavar="ARQ.json", help="gh pr list --state all --limit 1000 --json number,headRefName,createdAt,author")
+        p.add_argument("--exigidos", default=EXIGIDOS, help="workflows exigidos, separados por vírgula")
+        p.add_argument("--ate", default=datetime.date.today().isoformat(), help="AAAA-MM-DD, exclusivo (padrão hoje)")
+        return cmd_primeira, p.parse_args(argv[1:])
     p = argparse.ArgumentParser(prog="forge-placar", parents=[comum])
     p.add_argument("--ate")
     return cmd_placar, p.parse_args(argv)

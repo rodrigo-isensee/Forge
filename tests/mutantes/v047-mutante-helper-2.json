@@ -1,0 +1,25 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "MH-M9",
+      "guarda": "só arquivo de tests/ pode ser apoio",
+      "arquivo": "bin/forge-mutante",
+      "de": "if a.startswith(\"tests/\") and apoio(a))",
+      "para": "if apoio(a))",
+      "testes": [
+        "tests.test_forge_mutante.MutacaoDirigida.test_so_o_mutante_do_arquivo_mudado_roda",
+        "tests.test_forge_mutante.MutacaoDirigida.test_test_py_importado_em_qualquer_forma_e_apoio_e_o_grep_que_falha_nao_e_nada_achado"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-mutante",
+      "linha_base": 918,
+      "trecho": "not a.startswith(\"tests/mutantes/\")",
+      "motivo": "a condição velha virou apoio(a), cujos ramos têm os mutantes MH-M3 a MH-M9"
+    }
+  ]
+}

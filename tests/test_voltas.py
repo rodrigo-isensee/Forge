@@ -213,9 +213,26 @@ class RodadasDeBrief(SemQueda, Raiz):
     def test_pedido_so_em_docs_pedidos_existe_sem_historico(self):  # F6, E5.4
         self.gravar("docs/pedidos/P1.md", "# p\n")
         self.gravar("docs/kanban/historico.md", "")
-        self.assertEqual(self.rodar("voltas", "--pedido", "p1")[:2], (0, [
-            "voltas: P1 resumo: brief=0 conferencia=0 review=0 revalidacao=0 barrada=0 nao-classificado=0 minutos=0 construcao=- razao=-",
-            "voltas: total: pedidos=1 voltas=0 minutos=0"]))
+        self.assertEqual(self.rodar("voltas", "--pedido", "p1")[:2], (0, [  # E147.1: sem cartão com movimento é nao-medido, não 0
+            "voltas: P1 resumo: brief=0 conferencia=nao-medido review=nao-medido revalidacao=nao-medido barrada=nao-medido "
+            "nao-classificado=nao-medido minutos=nao-medido construcao=- razao=-",
+            "voltas: total: pedidos=0 voltas=nao-medido minutos=nao-medido nao-medidos=1"]))
+
+    def test_sem_cartao_com_movimento_a_reversao_do_pedido_segue_na_saida(self):  # E147.1
+        self.gravar("docs/pedidos/P2.md", "# p\n\n## Histórico\n- 2026-10-17 11:00: suposição revertida: a fila\n")
+        self.gravar("docs/kanban/historico.md", "")
+        cod, linhas, _ = self.rodar("voltas", "--pedido", "p2")
+        self.assertEqual(cod, 0)
+        self.assertIn("voltas: P2 reversoes=1", linhas)
+        self.assertIn(" minutos=nao-medido ", linhas[0])
+
+    def test_rodada_extra_sem_cartao_conta_o_brief_e_nao_mede_o_quadro(self):  # E147.1: o brief vem do registro, não do quadro
+        self.gravar("docs/kanban/conferencias.md", CONFERENCIAS)
+        self.gravar("docs/kanban/historico.md", "")
+        _, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        self.assertIn("voltas: xpto resumo: brief=1 conferencia=nao-medido review=nao-medido revalidacao=nao-medido barrada=nao-medido "
+                      "nao-classificado=nao-medido minutos=7 construcao=- razao=-", linhas)
+        self.assertEqual(linhas[-1], "voltas: total: pedidos=1 voltas=1 minutos=7")
 
     def test_sem_conferencias_vale_o_disco_dos_briefs_por_destino(self):
         for nome in ("xpto-tech-lead-1", "xpto-tech-lead-2", "xpto-tech-lead-3", "xpto-qa-engineer-1", "xptoz-tech-lead-1", "xpto-2-tech-lead-1"):
@@ -324,6 +341,89 @@ class RamosDeFalhaDoModuloVoltas(Raiz):
             cod = fv.cmd_voltas(self.tmp, "xpto", fc.ctx_das_voltas())
         self.assertEqual((cod, saida.getvalue(), erro.getvalue()),
                          (1, "", "voltas: docs/kanban/historico.md ilegivel (Permission denied); nada medido\n"))
+
+
+# A15 (TEMPO-A): trechos reais de docs/kanban/historico.md (cartões de 17/10 e 01/11), anonimizados: cartão, shas, PRs e motivos trocados
+HISTORICO_REAL = """| Data/hora | Cartão | De | Para | Motivo |
+|---|---|---|---|---|
+| 2026-10-17T17:29:30-03:00 | CARTAO-A | nenhuma | Pronto para começar | pedido aberto |
+| 2026-10-17T17:31:30-03:00 | CARTAO-A | Pronto para começar | Em andamento | brief aprovado |
+| 2026-10-17T17:44:46-03:00 | CARTAO-A | Em andamento | Review | entregue |
+| 2026-10-17T17:50:28-03:00 | CARTAO-A | Review | Em andamento | review reprovou |
+| 2026-10-17T17:57:56-03:00 | CARTAO-A | Em andamento | Review | retrabalho entregue |
+| 2026-10-17T18:01:49-03:00 | CARTAO-A | Review | QA | review aprovado |
+| 2026-10-17T18:13:32-03:00 | CARTAO-A | QA | Integração | QA aprovado |
+| 2026-10-17T18:26:54-03:00 | CARTAO-A | - | - | parada; estado salvo |
+| 2026-10-17T18:44:33-03:00 | CARTAO-A | Integração | Integração | retomada |
+| 2026-10-17T18:53:10-03:00 | CARTAO-A | Integração | Pronto | PR mesclado |
+| 2026-11-01T08:21:21-03:00 | CARTAO-B | Empatizar e definir | Em andamento | — |
+| 2026-11-01T12:35:18-03:00 | CARTAO-B | Em andamento | Code review | conferida |
+| 2026-11-01T20:43:21-03:00 | CARTAO-B | Code review | Em andamento | volta 2 |
+| 2026-11-01T21:26:24-03:00 | CARTAO-B | Em andamento | Code review | volta 2 conferida |
+| 2026-11-02T21:14:23-03:00 | CARTAO-B | Code review | Aguardando sua validação | pareceres aprovados |
+| 2026-11-02T21:46:39-03:00 | CARTAO-B | Aguardando sua validação | Aguardando sua validação | Aguardando o dono: rótulo no PR |
+| 2026-11-02T21:47:39-03:00 | CARTAO-B | Aguardando sua validação | Aguardando sua validação | fim da espera do dono |
+| 2026-11-02T22:06:47-03:00 | CARTAO-B | Aguardando sua validação | Pronto | PR mesclado |
+| 2026-10-18T10:00:00-03:00 | CARTAO-C | Pronto para fazer | Em andamento | brief |
+| 2026-10-18T10:05:00-03:00 | CARTAO-C | Em andamento | Pronto | feito |
+| 2026-10-18T11:00:00-03:00 | CARTAO-D | Pronto para fazer | Em andamento | brief |
+| 2026-10-18T11:00:00-03:00 | CARTAO-D | Em andamento | Review | entregue no mesmo segundo |
+| 2026-10-18T11:10:00-03:00 | CARTAO-D | Review | Pronto | aprovado |
+"""
+
+
+class VoltasTempo(SemQueda, Raiz):
+    """A15: `voltas --tempo`, minutos por fase lidos das transições; o que não foi medido sai `nao-medido`, nunca zero inventado."""
+    def setUp(self):
+        super().setUp()
+        self.gravar("docs/kanban/historico.md", HISTORICO_REAL)
+
+    def rodar(self, *args, home=None):  # ambiente limpo e Python isolado (-I), sem herdar o do executor
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": str(home or self.tmp / "home")}
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), *args],
+                           capture_output=True, text=True, env=env, cwd=self.tmp)
+        self.assertNotIn("Traceback", r.stderr)
+        return r.returncode, r.stdout.splitlines(), r.stderr
+
+    def tempo(self, pedido):
+        cod, linhas, erro = self.rodar("voltas", "--pedido", pedido, "--tempo")
+        self.assertEqual(cod, 0, erro)
+        return [l for l in linhas if " tempo: " in l]
+
+    def test_fases_do_historico_real_com_parada_fora_e_ultima_coluna_aberta(self):
+        self.assertEqual(self.tempo("cartao-a"), [
+            "voltas: CARTAO-A tempo: autor=20.7 conferencia=nao-medido review=9.6 qa=11.7 integracao=39.6 brief=nao-medido "
+            "dono=nao-medido processo=60.9 razao_processo=2.94"])
+
+    def test_espera_do_dono_na_mesma_linha_e_fora_do_processo(self):
+        self.assertEqual(self.tempo("cartao-b"), [
+            "voltas: CARTAO-B tempo: autor=297 conferencia=nao-medido review=1916 qa=nao-medido integracao=nao-medido brief=nao-medido "
+            "dono=1 processo=1916 razao_processo=6.45"])
+
+    def test_fase_ainda_aberta_e_nao_medido_e_a_razao_tambem(self):
+        self.gravar("docs/kanban/historico.md", HISTORICO)  # o XPTO termina em Em andamento: o autor segue aberto
+        self.assertEqual(self.tempo("xpto"), [
+            "voltas: XPTO tempo: autor=nao-medido conferencia=8 review=19 qa=nao-medido integracao=nao-medido brief=nao-medido "
+            "dono=20 processo=nao-medido razao_processo=nao-medido"])
+
+    def test_so_autor_sem_processo_e_autor_zero_nao_dao_razao(self):
+        self.assertEqual(self.tempo("cartao-c"), [
+            "voltas: CARTAO-C tempo: autor=5 conferencia=nao-medido review=nao-medido qa=nao-medido integracao=nao-medido "
+            "brief=nao-medido dono=nao-medido processo=nao-medido razao_processo=nao-medido"])
+        self.assertEqual(self.tempo("cartao-d"), [
+            "voltas: CARTAO-D tempo: autor=0 conferencia=nao-medido review=10 qa=nao-medido integracao=nao-medido "
+            "brief=nao-medido dono=nao-medido processo=nao-medido razao_processo=nao-medido"])
+
+    def test_rodadas_de_brief_medidas_e_rodada_sem_hora(self):
+        self.gravar("docs/kanban/conferencias.md", CONFERENCIAS.replace("xpto", "cartao-a"))
+        self.assertIn(" brief=7 dono=nao-medido processo=67.9 razao_processo=3.28", self.tempo("cartao-a")[0])
+        self.gravar("docs/kanban/conferencias.md", CONFERENCIAS.replace("xpto", "cartao-a").replace("| brief | 1 |", "| brief | 9 |", 1))
+        self.assertIn(" brief=nao-medido dono=", self.tempo("cartao-a")[0])
+
+    def test_sem_tempo_nao_ha_linha_de_tempo(self):
+        _, linhas, _ = self.rodar("voltas", "--pedido", "cartao-a")
+        self.assertTrue(linhas, linhas)
+        self.assertFalse([l for l in linhas if " tempo: " in l], linhas)
 
 
 class PastasPadrao(Raiz):

@@ -168,18 +168,10 @@
       "id": "I26",
       "guarda": "bin/forge-check:1522 paralelo (negada)",
       "arquivo": "bin/forge-check",
-      "de": "            if paralelo:  # AQ-5: o `commit:` é o HEAD com os pareceres paralelos, não o código revisado",
-      "para": "            if not (paralelo):  # AQ-5: o `commit:` é o HEAD com os pareceres paralelos, não o código revisado",
+      "de": "if paralelo := commit_de_pareceres_paralelos(raiz, campos[\"commit\"], pedido):",
+      "para": "if not (paralelo := commit_de_pareceres_paralelos(raiz, campos[\"commit\"], pedido)):",
       "testes": [
-        "tests.test_t1_codigo_sem_teste",
-        "tests.test_aq5_parecer_novo",
-        "tests.test_brief_gerar_custo",
-        "tests.test_brief_forma_aceita",
-        "tests.test_selo_e_entrega",
-        "tests.evals.test_regressao_forma",
-        "tests.test_erros_no_brief",
-        "tests.test_conferencia_registrar",
-        "tests.test_governanca"
+        "tests.test_aq5_parecer_novo"
       ]
     },
     {
@@ -258,8 +250,8 @@
       "id": "I31",
       "guarda": "bin/forge-check:1926 ref or 'HEAD' (negada)",
       "arquivo": "bin/forge-check",
-      "de": "    cod, saida = git(raiz, \"rev-list\", \"--first-parent\", f\"--max-count={TETO_DE_COMMITS_SO_DE_PARECER}\", \"--end-of-options\", ref or \"HEAD\")",
-      "para": "    cod, saida = git(raiz, \"rev-list\", \"--first-parent\", f\"--max-count={TETO_DE_COMMITS_SO_DE_PARECER}\", \"--end-of-options\", not (ref or \"HEAD\"))",
+      "de": "    return ref or \"HEAD\"",
+      "para": "    return not (ref or \"HEAD\")",
       "testes": [
         "tests.test_t1_codigo_sem_teste",
         "tests.test_aq5_parecer_novo",
@@ -276,8 +268,8 @@
       "id": "I32",
       "guarda": "bin/forge-check:1927 cod (negada)",
       "arquivo": "bin/forge-check",
-      "de": "    cod, saida = git(raiz, \"rev-list\", \"--first-parent\", f\"--max-count={TETO_DE_COMMITS_SO_DE_PARECER}\", \"--end-of-options\", ref or \"HEAD\")\n    if cod:",
-      "para": "    cod, saida = git(raiz, \"rev-list\", \"--first-parent\", f\"--max-count={TETO_DE_COMMITS_SO_DE_PARECER}\", \"--end-of-options\", ref or \"HEAD\")\n    if not (cod):",
+      "de": "                     ref_publicada(raiz, ref))\n    if cod:",
+      "para": "                     ref_publicada(raiz, ref))\n    if not (cod):",
       "testes": [
         "tests.test_t1_codigo_sem_teste",
         "tests.test_aq5_parecer_novo",

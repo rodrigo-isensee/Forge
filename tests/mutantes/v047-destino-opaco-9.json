@@ -1,0 +1,66 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O50",
+      "guarda": "U4 (E1.232), A3 da segurança: o corpo da lista positiva que cita o .git sai dela",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return bool(CORPO_POSITIVO.fullmatch(corpo)) and not cita_o_dir_do_git(corpo)",
+      "para": "    return bool(CORPO_POSITIVO.fullmatch(corpo))",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O51",
+      "guarda": "U4: teto de 64 combinações de valores por palavra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if len(valores) > TETO_DE_VALORES:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O54",
+      "guarda": "U4: a função definida duas vezes na linha não tem corpo que o hook escolha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if len(definicoes) != 1:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O55",
+      "guarda": "U4: o corpo da lista positiva vale como saída que o hook não sabe, mas que sozinha nunca é o .git",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if na_lista_positiva(corpo, linha):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O56",
+      "guarda": "U4: a função da linha (também a chamada `echo`) vale pelo corpo dela",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if definida:  # a função da linha",
+      "para": "    if False:  # a função da linha",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O57",
+      "guarda": "U4: `echo` com opção fica fora da lista positiva",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if palavras[0] == \"echo\" and not any(p.startswith(\"-\") for p in palavras[1:]):",
+      "para": "    if palavras[0] == \"echo\":",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

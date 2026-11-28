@@ -77,8 +77,8 @@
       "id": "M34",
       "guarda": "sem arquivo e com falha não é nada a conferir",
       "arquivo": "bin/forge-check",
-      "de": "    if not arquivos and not falhas:",
-      "para": "    if not arquivos:",
+      "de": "    elif not arquivos and not falhas:",
+      "para": "    elif not arquivos:",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_sem_commit_so_com_todos_os_git_em_zero",
         "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_caminho_simples_em_toda_etapa"
@@ -118,7 +118,7 @@
       "id": "M36",
       "guarda": "o que não é integração da base não usa o escopo dos dois pais",
       "arquivo": "bin/forge-check",
-      "de": "    if proprios.split() != [head] or not e_ancestral(raiz, outro, base_ref):",
+      "de": "    if proprios.split() != [head] or not na_base(raiz, outro, base_ref, ancoras):",
       "para": "    if False:",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_merge_de_outra_coisa_nao_e_integracao_da_base"

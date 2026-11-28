@@ -1,0 +1,21 @@
+{
+  "descricao": "Diretriz 36 (R-CONTRIB, A4): comentar issue do Forge vindo de sessão de projeto é recusado.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh issue comment 70 -R rodrigo-isensee/Forge --body ok"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh"
+  }
+}

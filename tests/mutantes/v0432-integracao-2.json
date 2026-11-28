@@ -52,10 +52,10 @@
     },
     {
       "id": "I20",
-      "guarda": "bin/forge-check:2425 isinstance(lido, FalhaDoGit) (negada)",
+      "guarda": "bin/forge-check:3200 isinstance(lido, FalhaDoGit) (negada)",
       "arquivo": "bin/forge-check",
-      "de": "    q, dispensados = testes_do_qa(raiz, campos.get(\"pedido\"), campos.get(\"branch\"), fim, inicio) if tipo == \"review\" else (None, set())\n    lido = intervalo_do_delta(raiz, inicio, fim, base)\n    if isinstance(lido, FalhaDoGit):",
-      "para": "    q, dispensados = testes_do_qa(raiz, campos.get(\"pedido\"), campos.get(\"branch\"), fim, inicio) if tipo == \"review\" else (None, set())\n    lido = intervalo_do_delta(raiz, inicio, fim, base)\n    if not (isinstance(lido, FalhaDoGit)):",
+      "de": "    lido = intervalo_do_delta(raiz, inicio, fim, base)\n    if isinstance(lido, FalhaDoGit):\n        print(\"parecer delta: \"",
+      "para": "    lido = intervalo_do_delta(raiz, inicio, fim, base)\n    if not (isinstance(lido, FalhaDoGit)):\n        print(\"parecer delta: \"",
       "testes": [
         "tests.test_classe_risco",
         "tests.test_proximo",
@@ -118,24 +118,8 @@
       "id": "I24",
       "guarda": "bin/forge-check:6974 (m := ENTREGA_CONFERIDA.match(linha)) and sha_do_commit(raiz, m.group(1)) == m.group(1) (negada)",
       "arquivo": "bin/forge-check",
-      "de": "        elif (m := ENTREGA_CONFERIDA.match(linha)) and sha_do_commit(raiz, m.group(1)) == m.group(1):",
-      "para": "        elif not ((m := ENTREGA_CONFERIDA.match(linha)) and sha_do_commit(raiz, m.group(1)) == m.group(1)):",
-      "testes": [
-        "tests.test_classe_risco",
-        "tests.test_proximo",
-        "tests.test_etapa_do_brief",
-        "tests.test_volta_por_delta",
-        "tests.test_entrega_git_falha",
-        "tests.test_reval_delta",
-        "tests.test_forge"
-      ]
-    },
-    {
-      "id": "I25",
-      "guarda": "bin/forge-check:6976 sha_do_commit(raiz, f'refs/heads/{branch}') or sha_do_commit(raiz, f'refs/remotes/origin/{branch}') (negada)",
-      "arquivo": "bin/forge-check",
-      "de": "                head = sha_do_commit(raiz, f\"refs/heads/{branch}\") or sha_do_commit(raiz, f\"refs/remotes/origin/{branch}\")",
-      "para": "                head = not (sha_do_commit(raiz, f\"refs/heads/{branch}\") or sha_do_commit(raiz, f\"refs/remotes/origin/{branch}\"))",
+      "de": "        elif (m := ENTREGA_CONFERIDA.match(linha)):\n            conferidas.update",
+      "para": "        elif not ((m := ENTREGA_CONFERIDA.match(linha))):\n            conferidas.update",
       "testes": [
         "tests.test_classe_risco",
         "tests.test_proximo",
@@ -150,8 +134,8 @@
       "id": "I26",
       "guarda": "bin/forge-check:6977 head and e_ancestral(raiz, m.group(1), head) (negada)",
       "arquivo": "bin/forge-check",
-      "de": "                if head and e_ancestral(raiz, m.group(1), head):",
-      "para": "                if not (head and e_ancestral(raiz, m.group(1), head)):",
+      "de": "for cobre, branch in pendentes if contem(branch, m.group(1)))",
+      "para": "for cobre, branch in pendentes if not (contem(branch, m.group(1))))",
       "testes": [
         "tests.test_classe_risco",
         "tests.test_proximo",
@@ -216,10 +200,10 @@
     },
     {
       "id": "I31",
-      "guarda": "bin/forge-upgrade:35 subprocess.run(['git', '-C', str(projeto), 'merge-base', '--is-ancestor', sha, f'refs/heads/{base}'], capture_output=Tru (negada)",
+      "guarda": "bin/forge-upgrade:35 subprocess.run(['git', '-C', str(projeto), 'merge-base', '--is-ancestor', sha, ref_base], capture_output=Tru (negada)",
       "arquivo": "bin/forge-upgrade",
-      "de": "    mesclada = subprocess.run([\"git\", \"-C\", str(projeto), \"merge-base\", \"--is-ancestor\", sha, f\"refs/heads/{base}\"],\n                              capture_output=True).returncode == 0",
-      "para": "    mesclada = not (subprocess.run([\"git\", \"-C\", str(projeto), \"merge-base\", \"--is-ancestor\", sha, f\"refs/heads/{base}\"],\n                              capture_output=True).returncode == 0)",
+      "de": "    mesclada = subprocess.run([\"git\", \"-C\", str(projeto), \"merge-base\", \"--is-ancestor\", sha, ref_base],\n                              capture_output=True).returncode == 0",
+      "para": "    mesclada = not (subprocess.run([\"git\", \"-C\", str(projeto), \"merge-base\", \"--is-ancestor\", sha, ref_base],\n                              capture_output=True).returncode == 0)",
       "testes": [
         "tests.test_forge"
       ]

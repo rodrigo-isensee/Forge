@@ -1,0 +1,36 @@
+{
+  "pedido": "v0481-rotulo-base-alheia",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "RB1",
+      "guarda": "v0481 E17.1: o aceite do usuário (docs/security/aceites/) nunca fica fora da comparação do rótulo",
+      "arquivo": "tests/catraca.py",
+      "de": "if a.startswith(PARECERES) and not a.startswith(ACEITES)}",
+      "para": "if a.startswith(PARECERES)}",
+      "testes": [
+        "tests.test_catraca.RotuloSobreviveAoConteudo.test_aceite_do_usuario_ou_parecer_de_seguranca_alheio_depois_do_rotulo_invalida"
+      ]
+    },
+    {
+      "id": "RB2",
+      "guarda": "v0481 E17.1: o parecer de segurança da branch, depois do rótulo, não muda o diff do item",
+      "arquivo": "tests/catraca.py",
+      "de": "PARECERES = (\"docs/reviews/\", \"docs/qa/\", \"docs/security/\")",
+      "para": "PARECERES = (\"docs/reviews/\", \"docs/qa/\")",
+      "testes": [
+        "tests.test_catraca.RotuloSobreviveAoConteudo.test_parecer_de_seguranca_do_pedido_e_merge_da_base_mantem_o_rotulo"
+      ]
+    },
+    {
+      "id": "RB3",
+      "guarda": "v0481 E17.5: ACEITES da catraca é igual ao ACEITES_DO_USUARIO do forge-check",
+      "arquivo": "tests/catraca.py",
+      "de": "ACEITES = (\"docs/security/aceites/\",)",
+      "para": "ACEITES = (\"docs/security/aceite/\",)",
+      "testes": [
+        "tests.test_catraca.RotuloSobreviveAoConteudo.test_aceites_da_catraca_igual_ao_aceites_do_usuario_do_forge_check"
+      ]
+    }
+  ]
+}

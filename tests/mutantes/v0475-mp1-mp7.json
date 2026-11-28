@@ -1,0 +1,87 @@
+{
+  "pedido": "v0475-mp1-mp7",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "MP1 (diretriz 35): ATIVOS em link não é seguido (segurança A1)",
+      "arquivo": "hooks/_comum.py",
+      "de": "os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)",
+      "para": "os.O_RDONLY | os.O_NONBLOCK)",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_ativos_em_link_fifo_grande_ou_com_nomes_demais_nao_mede"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "MP1 (diretriz 35): ATIVOS em FIFO não trava o Stop (segurança A1)",
+      "arquivo": "hooks/_comum.py",
+      "de": "os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)",
+      "para": "os.O_RDONLY | os.O_NOFOLLOW)",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_ativos_em_fifo_nao_troca_a_recusa_do_stop"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "MP1 (diretriz 35): só arquivo regular é lido (segurança A1)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if not stat.S_ISREG(os.fstat(fd).st_mode):\n            return None",
+      "para": "        if False:\n            return None",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_ativos_em_link_fifo_grande_ou_com_nomes_demais_nao_mede",
+        "tests.test_meta.VariosProjetos.test_ativos_em_fifo_com_escritor_e_json_valido_nao_vale"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "MP1 (diretriz 35): ATIVOS acima de TETO_DE_ATIVOS conta como um projeto só (segurança A1)",
+      "arquivo": "hooks/_comum.py",
+      "de": "if len(bruto) <= TETO_DE_ATIVOS else {}",
+      "para": "if len(bruto) <= TETO_DE_ATIVOS * 2 else {}",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_ativos_em_link_fifo_grande_ou_com_nomes_demais_nao_mede"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "MP1 (diretriz 35): ATIVOS aninhado demais conta como um projeto só, sem erro",
+      "arquivo": "hooks/_comum.py",
+      "de": "    except (ValueError, RecursionError):\n        return None",
+      "para": "    except (ValueError,):\n        return None",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_um_projeto_so_registro_ilegivel_ou_sessao_do_forge_nao_mede"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "MP1 (diretriz 35): registro que não é objeto conta como um projeto só",
+      "arquivo": "hooks/_comum.py",
+      "de": "if isinstance(dados, dict) else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_um_projeto_so_registro_ilegivel_ou_sessao_do_forge_nao_mede"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "MP1 (diretriz 35): lista de projetos que não é lista conta como um projeto só",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if not isinstance(lista, list):\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_um_projeto_so_registro_ilegivel_ou_sessao_do_forge_nao_mede"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "MP1 (diretriz 35): nome vazio no registro não conta como projeto",
+      "arquivo": "hooks/_comum.py",
+      "de": "if isinstance(n, str) and n.strip() and len(n)",
+      "para": "if isinstance(n, str) and len(n)",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_um_projeto_so_registro_ilegivel_ou_sessao_do_forge_nao_mede"
+      ]
+    }
+  ]
+}

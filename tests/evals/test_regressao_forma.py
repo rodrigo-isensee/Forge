@@ -16,10 +16,11 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 TESTES = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(TESTES))  # os apoios de tests/ também no modo `tests.evals.<módulo>`
-from ambiente_git import sem_manutencao  # noqa: E402
+from ambiente_git import sem_git_herdado  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 import test_forge as tf  # noqa: E402  (módulo, não as classes: os testes dele não rodam de novo aqui)
 import test_volta_por_delta as tvd  # noqa: E402
@@ -60,8 +61,8 @@ class RaizSintetica(unittest.TestCase):
         arq.write_text(texto, encoding="utf-8")
 
     def rodar(self, *args):
-        env = dict(os.environ, HOME=str(self.tmp / "home"))
-        r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.tmp), *args], capture_output=True, text=True, env=env, timeout=120)
+        env = sem_git_herdado(HOME=str(self.tmp / "home"))
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), *args], capture_output=True, text=True, env=env, timeout=120)
         return r.returncode, r.stdout
 
     def conferir(self, brief=BRIEF, pedido=PEDIDO):
@@ -316,8 +317,8 @@ class FragmentoDoChangelog(unittest.TestCase):
         self.escrever("agents/a.md", "b\n")
 
     def git(self, *args):
-        env = sem_manutencao({**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null", "GIT_AUTHOR_NAME": "t",
-                              "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
+        env = sem_git_herdado(GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_SYSTEM="/dev/null", GIT_AUTHOR_NAME="t",
+                              GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
         subprocess.run(["git", *args], cwd=self.tmp, env=env, capture_output=True, check=True)
 
     def escrever(self, rel, texto):
@@ -331,7 +332,7 @@ class FragmentoDoChangelog(unittest.TestCase):
     def conferir(self, nome, texto):
         self.escrever(f"changelog.d/{nome}", texto)
         self.commitar()
-        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_HEAD_REF", "CI")}
+        env = {k: v for k, v in sem_git_herdado().items() if k not in ("GITHUB_HEAD_REF", "CI")}
         r = subprocess.run([sys.executable, "-I", FORGE_CHANGELOG, "conferir", "--base", "develop", "--branch=melhoria/minha"],
                            cwd=self.tmp, env=env, capture_output=True, text=True)
         return r.returncode, r.stdout + r.stderr
@@ -349,6 +350,17 @@ class FragmentoDoChangelog(unittest.TestCase):
         self.assertEqual(rc, 1, saida)
         self.assertIn("(CHANGELOG-BRANCH)", saida)
 
+
+
+class AmbienteGitHerdado(unittest.TestCase):
+    """AR-4: quem roda a suíte de dentro de um hook exporta `GIT_DIR`; os evals não o herdam (`sem_git_herdado`)."""
+
+    def test_evals_passam_com_git_dir_herdado(self):
+        for caso in (Controle("test_o_brief_da_fixture_passa"), FragmentoDoChangelog("test_controle_fragmento_certo_passa")):
+            resultado = unittest.TestResult()
+            with mock.patch.dict(os.environ, {"GIT_DIR": "/nonexistent", "GIT_WORK_TREE": "/nonexistent"}):
+                caso.run(resultado)
+            self.assertTrue(resultado.wasSuccessful(), [texto for _, texto in resultado.errors + resultado.failures])
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,88 @@
+{
+  "pedido": "v0480-d5-filtro-decisao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D5M1",
+      "guarda": "D5: a confirmação só vale em docs/security/<nome>.md",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if not (isinstance(caminho, str) and CONFIRMACAO.fullmatch(caminho)):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_fora_de_docs_security_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M18",
+      "guarda": "A1 do #863: sem o git, a confirmação não vale (falha fechada, sem exceção)",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "except (OSError, subprocess.SubprocessError):\n        return 1, b\"\"",
+      "para": "except ():\n        return 1, b\"\"",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_git_ausente_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M19",
+      "guarda": "A1 do #863: a raiz precisa ser a do repositório que o git lê",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if rc != 0 or Path(topo.decode(\"utf-8\", \"replace\").strip()).resolve() != Path(raiz).resolve():",
+      "para": "if rc != 0:",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_raiz_que_nao_e_a_do_repositorio_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M20",
+      "guarda": "A1 do #863: o parecer no HEAD é arquivo comum (modo 100644), não executável nem link",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if rc != 0 or len(campos) != 5 or campos[0] != \"100644\":",
+      "para": "if rc != 0 or len(campos) != 5:",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_parecer_executavel_no_git_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M21",
+      "guarda": "A1 do #863: o parecer no HEAD acima de 1 MiB não vale",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if not campos[3].isdigit() or int(campos[3]) > TETO_DA_CONFIRMACAO:",
+      "para": "if not campos[3].isdigit():",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_parecer_acima_do_teto_vira_pergunta",
+        "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_grande_demais_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M22",
+      "guarda": "A1 do #863: parecer com diferença na árvore ou no índice não vale",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if _git(raiz, \"diff\", \"--quiet\", \"HEAD\", \"--\", caminho)[0] != 0:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_arquivo_mudado_na_arvore_ou_no_indice_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M6",
+      "guarda": "D5: o decisor só decide com só aperta e a confirmação da segurança",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "(\"so_aperta\", so_aperta), (\"seguranca\", seguranca)):",
+      "para": "):",
+      "testes": [
+        "tests.test_forge_dono.SoApertaComSeguranca.test_nao_so_aperta_vira_pergunta",
+        "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_fora_de_docs_security_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M7",
+      "guarda": "D5: --so-aperta sim|nao é fato obrigatório do registrar",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "\"erro_barato\", \"so_aperta\")}",
+      "para": "\"erro_barato\")}",
+      "testes": [
+        "tests.test_forge_dono.SoApertaComSeguranca.test_sem_so_aperta_nao_grava"
+      ]
+    }
+  ]
+}

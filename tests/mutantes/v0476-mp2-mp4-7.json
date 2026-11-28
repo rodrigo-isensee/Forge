@@ -1,0 +1,33 @@
+{
+  "pedido": "v0476-mp2-mp4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N17",
+      "guarda": "review A2: no caminho rápido, a senha presa pela vez do projeto dela não segura quem tem vaga",
+      "arquivo": "hooks/pesado.py",
+      "de": "and frente_parada(fila_viva(pasta_da_fila()), agora):",
+      "para": "and not fila_viva(pasta_da_fila()):",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_com_vaga_e_a_frente_parada_nao_entra_na_fila"
+      ]
+    },
+    {
+      "id": "N18",
+      "guarda": "review A1: na fila, a vaga solta passa por cima da senha presa",
+      "arquivo": "hooks/pesado.py",
+      "de": "and frente_parada(vivas, agora, senha):",
+      "para": "and vivas[:1] == [senha]:",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_na_espera_a_vaga_solta_passa_por_cima_da_senha_presa"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/pesado.py",
+      "trecho": "c.is_symlink()",
+      "motivo": "a checagem de link da senha passou ao O_NOFOLLOW de abrir_senha (mutante N7) e a da pasta a pasta_da_fila (N5)"
+    }
+  ]
+}

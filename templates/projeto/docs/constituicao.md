@@ -10,6 +10,7 @@ Princípios e portões que valem para toda decisão deste sistema. As **regras i
 ## Portões de qualidade
 <!-- O que precisa ser verdade para entregar. -->
 - Comando de pronto verde (ver `CLAUDE.md`), code review e QA aprovados (`R-REVIEW`, `R-QA`).
+- Discovery com interface: painel ou protótipo de dado simulado só vai à validação com prova de coleta real ou de amostra anonimizada (origem, data, quantidade); sem ela, o painel é hipótese.
 - 
 
 ## Governança

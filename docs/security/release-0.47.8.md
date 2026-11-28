@@ -1,0 +1,29 @@
+---
+tipo: revisao-seguranca
+contrato: 1
+pedido: release-0.47.8
+branch: melhoria/v0478-release-0478
+commit: 3a621ba09372145609a045581aba0e79c85f6688
+parecer: aprovado
+revisor: forge:security-engineer
+data: 2026-11-18
+---
+# Review de segurança: release 0.47.8 (versão inteira)
+
+Escopo: `git diff v0.47.6..3a621ba0` (84 arquivos). A parte da 0.47.7 (#667, #668 e a marca `4182a6b9`, igual em árvore ao `55e4db4b` que o parecer `release-0.47.7` aprovou) não é relida. O que a 0.47.8 leva aos projetos: #675 devops-lote, #676 token do bot, #677 T1 como portão (COBERTURA C1), #678 mutante pulado, #679 mensagem da promoção, #680 índice do Forge, #681 develop verde, #683 guardas do forge-check e a marca `3a621ba0` (E27.1).
+
+Gatilhos: workflow `.github/workflows/catraca.yml` (T1 vira portão), guardas do `bin/forge-check` (`pr` com pareceres divergentes, filtros L08/G2/E2 ancorados no Base-sha), download de binário em `scripts/preparar-estacao.sh`, ADR 0009 (identidade do token) e a release usada por todos os projetos.
+
+## Detalhe
+Sem achados novos. Junção conferida item a item: o patch mesclado (fora de `docs/{qa,reviews,security,devops}`, `CHANGELOG.md` e `changelog.d/`) contra o patch aprovado desde o merge-base, por `git patch-id --stable`:
+- #675 `544b659e` = revisado `f00c3da2`; #676 `fec4dd60` = `d3dc41a5`; #677 `7468d9fb` = `67ef9dfb`; #678 `ec7b63d7` = `c3cbb941`; #679 `82bb9e57` = `8989baa0`; #680 `1621a5c7` = `35a78d74`; #681 `0c47762a` = `1bd10c54`. Pareceres dos itens aprovados nesses shas.
+- #683 `2904a68a` contra `63326514`: 10 de 12 arquivos com patch-id igual, inclusive `bin/forge-check` e `bin/forge-testes`; diferem só `tests/pesos-d4.json` (contexto: `test_ferramentas_portoes` da #675) e `tests/test_testes_tocados.py` (a contagem exclui `test_indice_forge`, da #680). É a junção com a develop, só em teste; o código das guardas é o aprovado.
+- Workflow (#677): o passo `pr-texto` roda o `tests/catraca.py` da base (`CATRACA_DA_BASE` vindo do passo anterior, valor que o PR não controla); o corpo do PR segue só por `env:`; `permissions` só leitura, `pull_request` (nunca `pull_request_target`), `persist-credentials: false`. O recuo para o script do PR só acontece se o passo de regras falhou antes do `echo`, e aí o job já está vermelho: sem desvio do T1.
+- Download (#675): binário só com o sha256 da release e o fixado no script; zizmor e semgrep por pipx com versão fixada; `--container` não baixa.
+- `forge-fechar` (#679): título e corpo vão como argumentos ao `gh`, sem shell.
+- Marca `3a621ba0`: fora do changelog, só `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json`, 0.47.7 para 0.47.8 nos dois; `CHANGELOG.md` com `[0.47.8] - 2026-11-18` em português e `[Não publicado]` vazio; os 8 fragmentos apagados (`changelog.d/` só com o `README.md`) e as 12 entradas da [0.47.8] são as linhas deles, sem sobra nem falta.
+
+Recomendações abertas, sem recópia e sem bloquear: `v0478-guardas-forge-check` A1 (`merges_nao_conferidos` sem âncora) e as do review do mesmo item (A1 a A3), mais as listadas em `release-0.47.7`.
+
+## Riscos aceitos e ferramentas
+Nenhum risco aceito nem pendente de aceite. Rodado em `3a621ba0`: `python3 -m unittest` de `tests.test_changelog` (89, OK), `tests.test_fc_pr_parecer_forjado` (7, OK) e `tests.test_filtros_l08_g2_ancora` (4, OK); `tests.test_catraca` não terminou em 600 s nesta estação (ambiente do sandbox), e quem o decide é o CI. A suíte inteira é do CI do PR (a local falha por ambiente: `/proc` e `gh` no sandbox); não há run do CI no head `3a621ba0` (`gh run list --commit` vazio), e a integração e a promoção exigem o CI verde. Lacuna: gitleaks, osv-scanner, semgrep, zizmor e actionlint não estão no PATH desta estação (o `preparar-estacao.sh --ferramentas` desta versão os instala, pelo dono).

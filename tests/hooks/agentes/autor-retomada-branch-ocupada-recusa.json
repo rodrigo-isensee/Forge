@@ -1,0 +1,43 @@
+{
+  "descricao": "H2-AUTOR-FICA-ATE-O-MERGE (Z10, R-TETO): retomar o autor cuja branch outra reserva escreve é recusado (uma delegação de escrita por branch).",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "afedcba9876543210",
+          "tipo": "Explore",
+          "descricao": "outro",
+          "desde": "{agora-60}",
+          "branches": [
+            "melhoria/a"
+          ],
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ],
+      "autores": [
+        {
+          "id": "a0123456789abcdef",
+          "desde": "{agora-60}",
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "SendMessage",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "to": "a0123456789abcdef",
+      "message": "continue"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: melhoria/a ocupada por Explore"
+  }
+}

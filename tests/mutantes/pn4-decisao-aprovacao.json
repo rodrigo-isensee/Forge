@@ -97,8 +97,8 @@
       "id": "M10",
       "guarda": "o brief conferido leva o nome dele a aprovacao",
       "arquivo": "bin/forge-check",
-      "de": "pedido_txt, brief)",
-      "para": "pedido_txt, None)",
+      "de": "pedido_txt, brief, pedido_id)",
+      "para": "pedido_txt, None, pedido_id)",
       "testes": [
         "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_aprovado_com_decisao_posterior_avisa_e_passa"
       ]
@@ -117,8 +117,8 @@
       "id": "M12",
       "guarda": "a hora da aprovacao so se le com o brief",
       "arquivo": "bin/forge-check",
-      "de": "hora_da_aprovacao(raiz, brief) if brief else None",
-      "para": "hora_da_aprovacao(raiz, brief) if not brief else None",
+      "de": "hora_da_aprovacao(raiz, brief, pedido_id) if brief and pedido_id else None",
+      "para": "hora_da_aprovacao(raiz, brief, pedido_id) if not (brief and pedido_id) else None",
       "testes": [
         "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_aprovado_com_decisao_posterior_avisa_e_passa"
       ]

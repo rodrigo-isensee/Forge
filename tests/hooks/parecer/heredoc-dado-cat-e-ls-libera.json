@@ -1,0 +1,29 @@
+{
+  "descricao": "HOOK-HEREDOC-PALAVRA-FP: o corpo do cat > arq cita gh pr merge e git merge e o ls só lista o arquivo; nenhum programa da chamada roda o corpo, que é dado e não marca; libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat > docs/nota.md <<'FIM'\nPassos: gh pr merge 12 --squash e git merge melhoria/x\nFIM\nls -l docs/nota.md"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

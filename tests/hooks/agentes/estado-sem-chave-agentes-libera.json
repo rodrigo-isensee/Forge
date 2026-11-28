@@ -1,0 +1,27 @@
+{
+  "descricao": "HOOK-ESTADO-ILEGIVEL-LIBERA (A1, R-TETO): `{}` (sem a chave) é o registro vazio legítimo: libera e reserva.",
+  "estado": {
+    "agentes.json": {}
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "Explore",
+          "Validar a entrega"
+        ]
+      }
+    }
+  }
+}

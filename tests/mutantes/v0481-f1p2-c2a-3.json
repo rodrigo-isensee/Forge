@@ -1,0 +1,36 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "registro: status sem target_url não derruba a conferência",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "        u = URL_DO_COMENTARIO.fullmatch(s.get(\"target_url\") or \"\")",
+      "para": "        u = URL_DO_COMENTARIO.fullmatch(s.get(\"target_url\"))",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_item_que_nao_e_objeto_e_status_sem_descricao_ficam_de_fora"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "cada tipo lê só o próprio contexto",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "lista if s.get(\"context\") == contexto]",
+      "para": "lista if True]",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_c14_aprovado_herdado_traz_a_origem"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "tipo sem status fica de fora",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "            if dela:\n                _, origem, s = max(",
+      "para": "            if True:\n                _, origem, s = max(",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_c0_2_commit_fora_do_pr_nao_conta"
+      ]
+    }
+  ]
+}

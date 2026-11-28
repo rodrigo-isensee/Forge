@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S161",
+      "guarda": "forge_sempre_atual.py:850 decide por `e[\"chave\"] not in adiados`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "livres = [e for e in ativos if e[\"chave\"] not in adiados]",
+      "para": "livres = [e for e in ativos if not (e[\"chave\"] not in adiados)]",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S162",
+      "guarda": "forge_sempre_atual.py:851 decide por `not livres`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not livres:",
+      "para": "if livres:",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S163",
+      "guarda": "forge_sempre_atual.py:854 decide por `e[\"chave\"] not in self.res or e[\"chave\"] in mudaram or self.res[e[\"cha`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "com_boa = self.checar([e for e in livres if e[\"chave\"] not in self.res or e[\"chave\"] in mudaram or\n                               self.res[e[\"chave\"]][\"resultado\"] == \"em_dia\"], mudaram)",
+      "para": "com_boa = self.checar([e for e in livres if not (e[\"chave\"] not in self.res or e[\"chave\"] in mudaram or\n                               self.res[e[\"chave\"]][\"resultado\"] == \"em_dia\")], mudaram)",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_adocao_sem_ultima_boa_so_confere_o_local"
+      ]
+    },
+    {
+      "id": "S164",
+      "guarda": "forge_sempre_atual.py:857 decide por `e[\"chave\"] in mudaram`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if e[\"chave\"] in mudaram:",
+      "para": "if not (e[\"chave\"] in mudaram):",
+      "testes": [
+        "tests.test_sempre_atual.Estado.test_registro_tem_sete_colunas_e_guarda_so_as_ultimas_500"
+      ]
+    },
+    {
+      "id": "S165",
+      "guarda": "forge_sempre_atual.py:858 decide por `e[\"chave\"] not in self.res`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if e[\"chave\"] not in self.res:  # a checagem sem conclusão ou sem última boa já deu o resultado do escopo",
+      "para": "if not (e[\"chave\"] not in self.res):  # a checagem sem conclusão ou sem última boa já deu o resultado do escopo",
+      "testes": [
+        "tests.test_sempre_atual.Ancora.test_estado_e_a_pasta_fixa_do_forge_forge"
+      ]
+    },
+    {
+      "id": "S166",
+      "guarda": "forge_sempre_atual.py:862 decide por `e[\"chave\"] not in self.res`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "elif e[\"chave\"] not in self.res:",
+      "para": "elif not (e[\"chave\"] not in self.res):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_instalada_mais_nova_que_a_publicada_nao_desce_sem_fixacao"
+      ]
+    },
+    {
+      "id": "S167",
+      "guarda": "forge_sempre_atual.py:864 decide por `com_boa`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if com_boa:",
+      "para": "if not (com_boa):",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_fixacao_gravada_antes_de_mexer_no_catalogo"
+      ]
+    },
+    {
+      "id": "S168",
+      "guarda": "forge_sempre_atual.py:866 decide por `self.gatilho == \"atalho\" and self.projeto`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if self.gatilho == \"atalho\" and self.projeto:",
+      "para": "if not (self.gatilho == \"atalho\" and self.projeto):",
+      "testes": [
+        "tests.test_sempre_atual.Modelo.test_escopo_de_usuario_que_subiu_prepara_a_branch"
+      ]
+    }
+  ]
+}

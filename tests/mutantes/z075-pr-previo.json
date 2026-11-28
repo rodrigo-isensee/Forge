@@ -27,8 +27,8 @@
       "id": "M3",
       "guarda": "previo nunca vem do ambiente (PP-5/C-1)",
       "arquivo": "bin/forge-check",
-      "de": "    saida = []\n\n    def ausente(linha):",
-      "para": "    saida = []\n    previo = previo or bool(os.environ.get(\"FORGE_PREVIO\"))\n\n    def ausente(linha):",
+      "de": "    saida, ci = [], {}\n\n    def ausente(linha):",
+      "para": "    saida, ci = [], {}\n    previo = previo or bool(os.environ.get(\"FORGE_PREVIO\"))\n\n    def ausente(linha):",
       "testes": [
         "tests.test_revisor_wt.PrPrevio.test_cmd_pr_como_o_hook_parecer_chama_nao_le_ambiente"
       ]
@@ -37,8 +37,8 @@
       "id": "M4",
       "guarda": "reprovado continua violação com --previo (PP-5/C-2)",
       "arquivo": "bin/forge-check",
-      "de": "        elif campos.get(\"parecer\") not in (\"aprovado\", \"riscos-aceitos\"):",
-      "para": "        elif not previo and campos.get(\"parecer\") not in (\"aprovado\", \"riscos-aceitos\"):",
+      "de": "        if campo == \"parecer\":\n            saida.append(f\"{caminho_impresso(rel)}: parecer: {motivo} ({rid})\")",
+      "para": "        if campo == \"parecer\" and not previo:\n            saida.append(f\"{caminho_impresso(rel)}: parecer: {motivo} ({rid})\")",
       "testes": [
         "tests.test_revisor_wt.PrPrevio.test_reprovado_com_previo_e_rc_1"
       ]
@@ -57,8 +57,8 @@
       "id": "M6",
       "guarda": "a CLI repassa o --previo a pr_da_cli",
       "arquivo": "bin/forge-check",
-      "de": "previo=getattr(a, \"previo\", False))}[a.cmd]()",
-      "para": "previo=False)}[a.cmd]()",
+      "de": "previo=getattr(a, \"previo\", False), sem_checks=sem_checks)}[a.cmd]()",
+      "para": "previo=False, sem_checks=sem_checks)}[a.cmd]()",
       "testes": [
         "tests.test_revisor_wt.PrPrevio.test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao"
       ]
@@ -67,18 +67,18 @@
       "id": "M7",
       "guarda": "pr_da_cli sem --base repassa previo ao cmd_pr",
       "arquivo": "bin/forge-check",
-      "de": "return cmd_pr(raiz, pedido, ref, None, branch, previo) + (",
-      "para": "return cmd_pr(raiz, pedido, ref, None, branch) + (",
+      "de": "return cmd_pr(raiz, pedido, ref, None, branch, previo, suite, True) + (",
+      "para": "return cmd_pr(raiz, pedido, ref, None, branch, False, suite, True) + (",
       "testes": [
-        "tests.test_revisor_wt.PrPrevio.test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao"
+        "tests.test_revisor_wt.PrPrevio.test_ausente_sem_base_e_sem_develop_o_diff_literal_leva_o_previo"
       ]
     },
     {
       "id": "M8",
       "guarda": "pr_da_cli com --base repassa previo ao cmd_pr",
       "arquivo": "bin/forge-check",
-      "de": "return cmd_pr(raiz, pedido, ref, resolvida, branch, previo) + (",
-      "para": "return cmd_pr(raiz, pedido, ref, resolvida, branch) + (",
+      "de": "return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite, True) + (",
+      "para": "return cmd_pr(raiz, pedido, ref, resolvida, branch, False, suite, True) + (",
       "testes": [
         "tests.test_revisor_wt.PrPrevio.test_ausente_com_base_como_o_pre_voo_chama"
       ]

@@ -1,0 +1,27 @@
+{
+  "descricao": "M9.2 do G2: Write em .forge/pareceres/<pedido>/review.md pelo tech-lead registra a autoria do parecer a publicar.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".forge/pareceres/v9/review.md": "parecer\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.forge/pareceres/v9/review.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PostToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "autoria.jsonl": {
+        "contem": [
+          ".forge/pareceres/v9/review.md",
+          "\"papel\": \"tech-lead\""
+        ]
+      }
+    }
+  }
+}

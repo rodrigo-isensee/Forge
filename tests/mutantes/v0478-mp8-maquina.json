@@ -1,0 +1,76 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "MP8-1",
+      "guarda": "MP8: versão em link ou ilegível passa à próxima fonte",
+      "arquivo": "bin/forge-status",
+      "de": "        except (OSError, ValueError):\n            continue",
+      "para": "        except (OSError, ValueError):\n            raise",
+      "testes": [
+        "tests.test_maquina.UmProjeto.test_versao_do_clone_do_forge_link_e_sem_versao"
+      ]
+    },
+    {
+      "id": "MP8-2",
+      "guarda": "MP8: só o número X.Y.Z vale como versão",
+      "arquivo": "bin/forge-status",
+      "de": "        if achado:\n            return achado.group(0)",
+      "para": "        if False:\n            return achado.group(0)",
+      "testes": [
+        "tests.test_maquina.UmProjeto.test_versao_do_clone_do_forge_link_e_sem_versao"
+      ]
+    },
+    {
+      "id": "MP8-3",
+      "guarda": "MP8: decisões com docs por link valem ?",
+      "arquivo": "bin/forge-status",
+      "de": "\"?\" if codigo else str(",
+      "para": "\"?\" if False else str(",
+      "testes": [
+        "tests.test_maquina.UmProjeto.test_decisoes_por_link_e_uso_fora_da_forma"
+      ]
+    },
+    {
+      "id": "MP8-4",
+      "guarda": "MP8: sessão sem pasta absoluta fica fora",
+      "arquivo": "bin/forge-status",
+      "de": "if isinstance(s.get(\"pasta\"), str) and Path(s[\"pasta\"]).is_absolute():",
+      "para": "if isinstance(s.get(\"pasta\"), str):",
+      "testes": [
+        "tests.test_maquina.SemProjeto.test_sessao_sem_pasta_absoluta_fica_fora"
+      ]
+    },
+    {
+      "id": "MP8-5",
+      "guarda": "MP8: uso fora da forma vale uso 0 e peso 1",
+      "arquivo": "bin/forge-status",
+      "de": "usos[p] if isinstance(usos.get(p), dict) else {}",
+      "para": "usos[p] if True else {}",
+      "testes": [
+        "tests.test_maquina.UmProjeto.test_decisoes_por_link_e_uso_fora_da_forma"
+      ]
+    },
+    {
+      "id": "MP8-6",
+      "guarda": "MP8: com dois ou mais projetos o teto se reparte pelo peso",
+      "arquivo": "bin/forge-status",
+      "de": "parte = total if len(grupos) < 2 else",
+      "para": "parte = total if len(grupos) < 3 else",
+      "testes": [
+        "tests.test_maquina.VariosProjetos.test_varios_projetos_repartem_o_teto_pelo_peso_e_o_escape_nao_vale"
+      ]
+    },
+    {
+      "id": "MP8-7",
+      "guarda": "MP8: sem projeto ativo, a linha nenhum",
+      "arquivo": "bin/forge-status",
+      "de": "return sorted(saida) or [\"forge: nenhum projeto ativo na máquina\"]",
+      "para": "return sorted(saida)",
+      "testes": [
+        "tests.test_maquina.SemProjeto.test_sem_projeto_diz_nenhum_e_mede_a_maquina"
+      ]
+    }
+  ]
+}

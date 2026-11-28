@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S105",
+      "guarda": "forge_sempre_atual.py:647 decide por `rc is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.rodar([str(doutor), \"--rapido\", projeto], self.neutro, PRAZO_CINI)\n        if rc is None:\n            return [], False",
+      "para": "rc, saida = self.rodar([str(doutor), \"--rapido\", projeto], self.neutro, PRAZO_CINI)\n        if not (rc is None):\n            return [], False",
+      "testes": [
+        "tests.test_sempre_atual.VoltaDentro.test_cada_item_da_checagem_de_inicio_reprova"
+      ]
+    },
+    {
+      "id": "S106",
+      "guarda": "forge_sempre_atual.py:649 decide por `rc == 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return [], False\n        if rc == 0:\n            return [], True",
+      "para": "return [], False\n        if not (rc == 0):\n            return [], True",
+      "testes": [
+        "tests.test_sempre_atual.VoltaDentro.test_cada_item_da_checagem_de_inicio_reprova"
+      ]
+    },
+    {
+      "id": "S107",
+      "guarda": "forge_sempre_atual.py:651 decide por `[l[2:].strip() for l in saida.splitlines() if l.startswith(\"- \")] or [`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return [l[2:].strip() for l in saida.splitlines() if l.startswith(\"- \")] or [saida or \"o doutor terminou com erro\"], True",
+      "para": "return not ([l[2:].strip() for l in saida.splitlines() if l.startswith(\"- \")] or [saida or \"o doutor terminou com erro\"]), True",
+      "testes": [
+        "tests.test_sempre_atual.VoltaDentro.test_cada_item_da_checagem_de_inicio_reprova"
+      ]
+    },
+    {
+      "id": "S108",
+      "guarda": "forge_sempre_atual.py:657 decide por `novo is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if novo is None:",
+      "para": "if not (novo is None):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S109",
+      "guarda": "forge_sempre_atual.py:661 decide por `not isinstance(json.loads(texto), dict)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not isinstance(json.loads(texto), dict):",
+      "para": "if isinstance(json.loads(texto), dict):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S110",
+      "guarda": "forge_sempre_atual.py:666 decide por `completa`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if completa:",
+      "para": "if not (completa):",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_adocao_sem_ultima_boa_so_confere_o_local"
+      ]
+    },
+    {
+      "id": "S111",
+      "guarda": "forge_sempre_atual.py:668 decide por `rc is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.claude([\"plugin\", \"validate\", novo], cap=max(fim - time.monotonic(), 1))\n            if rc is None:\n                return None, \"prazo da checagem\"",
+      "para": "rc, saida = self.claude([\"plugin\", \"validate\", novo], cap=max(fim - time.monotonic(), 1))\n            if not (rc is None):\n                return None, \"prazo da checagem\"",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_fixacao_gravada_antes_de_mexer_no_catalogo"
+      ]
+    },
+    {
+      "id": "S112",
+      "guarda": "forge_sempre_atual.py:670 decide por `rc != 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return None, \"prazo da checagem\"\n            if rc != 0:\n                return False, \"validate do manifesto: \" + resumo(saida)",
+      "para": "return None, \"prazo da checagem\"\n            if not (rc != 0):\n                return False, \"validate do manifesto: \" + resumo(saida)",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    }
+  ]
+}

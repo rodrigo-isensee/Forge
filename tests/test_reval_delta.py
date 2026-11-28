@@ -118,24 +118,34 @@ _NOME = {"bin/forge-check": 1, "scripts/suite-paralela.py": 1, "bin/forge-novo-p
          "tests/test_changelog.py": 1, "tests/test_ci_local.py": 7, "tests/test_estado_da_branch.py": 1, "tests/test_etapa_do_brief.py": 1,
          "tests/test_hooks.py": 2, "tests/test_isencoes.py": 5, "tests/test_pre_push_parecer.py": 1, "tests/test_prepush_so_docs.py": 2,
          "tests/test_salvar_desfazer.py": 3, "tests/test_suite_reuso.py": 1, "tests/e2e-instalacao.sh": 1,
-         "tests/test_classe_risco.py": 1, "tests/test_parecer_conteudo.py": 2,
-         "tests/test_t1_codigo_sem_teste.py": 1}  # 0.43.1 G e F: nome de arquivo sintético
+         "tests/test_classe_risco.py": 1, "tests/test_modelo_ci.py": 4, "tests/test_parecer_conteudo.py": 2,
+         "tests/test_t1_codigo_sem_teste.py": 1,
+         "tests/test_forge_contador.py": 2,  # 0.43.1 G e F: nome de arquivo sintético
+         "tests/test_fechar_corte.py": 3,  # v0478 E174.26 e v0481 E13.15: o README.md sintético da changelog.d/ do projeto de teste
+         "tests/test_forge_check_base_igual.py": 3}  # v0481 E30.4: o README.md sintético (texto à mão no merge) e a sonda S1
 CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items()},
                        ("hooks/conformidade.json", "docs/propostas/"): (1, "destino"),
                        ("agents/agile-coach.md", "docs/retrospectivas/"): (2, "destino"),
-                       ("skills/kanban-scrum/SKILL.md", "docs/retrospectivas/"): (1, "destino"),
+                       ("skills/kanban-metricas/SKILL.md", "docs/retrospectivas/"): (1, "destino"),  # v047 P1: movida da kanban-scrum
                        ("tests/test_hooks.py", "docs/propostas/"): (17, "destino"),
                        ("tests/test_brief_forma_aceita.py", "docs/propostas/"): (14, "destino"),  # 0.43.3: briefs sintéticos
                        ("hooks/conformidade.py", "README.md"): (1, "prosa"),  # 0.43.1 T: o jarvis.md não cita mais o README.md
                        ("skills/novo-projeto/SKILL.md", "docs/propostas/"): (1, "prosa"),
                        ("tests/apoio_volta_unica.py", "docs/propostas/"): (1, "prosa"),
-                       ("tests/test_forge.py", "README.md"): (15, "teste-le"), ("tests/test_conferir_reversao.py", "README.md"): (14, "teste-le"), ("tests/test_doutor.py", "README.md"): (1, "teste-le"),
+                       ("tests/test_forge.py", "README.md"): (16, "teste-le"), ("tests/test_conferir_reversao.py", "README.md"): (14, "teste-le"), ("tests/test_doutor.py", "README.md"): (1, "teste-le"),
                        ("tests/test_forge.py", "docs/propostas/"): (2, "teste-le"),
+                       # v0478 E81.1 (K152): o teste aplica o diff da proposta do modelo travado numa cópia temporária; o mapa
+                       # do forge-testes só compara o caminho do diff com a regra
+                       ("tests/test_prepush_k152.py", "docs/propostas/"): (1, "teste-le"), ("bin/forge-testes", "docs/propostas/"): (1, "nome"),
+                       ("tests/test_retro_pendentes.py", "docs/retrospectivas/"): (1, "teste-le"),  # v0478 AE5.1: confere que os dois modelos da retro são iguais
                        # 0.45.7 E1: o texto da R-WIP mora em docs/regras/README.md; o invariante, o teste e o apoio o leem
                        ("tests/test_jarvis_nucleo.py", "README.md"): (1, "teste-le"),  # lê a linha da R-WIP em docs/regras/README.md
                        ("tests/config.json", "README.md"): (2, "teste-le"), ("tests/apoio_regra_id.py", "README.md"): (1, "teste-le"),
+                       ("tests/apoio_jarvis.py", "README.md"): (1, "teste-le"),  # v047 P4: o índice das regras (IDs e a linha da R-WIP)
                        ("tests/test_ambiente_sem_auto_update.py", "README.md"): (1, "teste-le"),  # v047: o teste lê o texto do README
-                       ("tests/test_sessao_automatica.py", "README.md"): (1, "teste-le")}  # v047 E2.222: o teste lê o README para conferir que nenhuma instrução abre o claude sem o modo
+                       ("tests/test_sessao_automatica.py", "README.md"): (1, "teste-le"),  # v047 E2.222: o teste lê o README para conferir que nenhuma instrução abre o claude sem o modo
+                       ("tests/test_guia_varios_projetos.py", "README.md"): (1, "teste-le"),  # v0478 E24.1 (MP9): o teste lê o guia no README
+                       ("bin/forge_comparar.py", "README.md"): (1, "nome")}  # v0478 AE7: arquivo do projeto sintético de cada caso, só escrito
 MOTIVOS = ("nome", "destino", "prosa", "teste-le")
 LE_CONTEUDO = ("read_text(", "open(", '"show"', "cat ")  # (d): leitura de conteúdo não se esconde atrás de `nome`
 

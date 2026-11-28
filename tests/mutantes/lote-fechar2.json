@@ -28,8 +28,8 @@
       "id": "M3",
       "guarda": "SHELLCHECK-FECHAR: bin/forge-fechar na lista do shellcheck do CI",
       "arquivo": ".github/workflows/ci.yml",
-      "de": "run: shellcheck bin/forge-init bin/forge-fechar scripts/jarvis",
-      "para": "run: shellcheck bin/forge-init scripts/jarvis",
+      "de": "'#!'*bash*|'#!'*/sh|'#!'*' sh') lista+=(\"$f\")",
+      "para": "'#!'*/sh|'#!'*' sh') lista+=(\"$f\")",
       "testes": [
         "tests.test_fechar.Fechar.test_shellcheck_fechar_esta_na_lista_do_ci"
       ]
@@ -38,20 +38,10 @@
       "id": "M4",
       "guarda": "2b: a contagem da base exclui todos os pontos de partida, nao so o primeiro",
       "arquivo": "bin/forge-fechar",
-      "de": "--not \"${lista_mb[@]}\")\"",
-      "para": "--not \"${lista_mb[0]}\")\"",
+      "de": "n=\"$(git rev-list --count \"$base_sha\" --not \"$remoto_sha\")\"",
+      "para": "n=\"$(git rev-list --count \"$base_sha\" --not \"$(git merge-base \"$base_sha\" \"$remoto_sha\")\")\"",
       "testes": [
         "tests.test_fechar_base_andou.Teste.test_varios_pontos_de_partida_entram_todos_na_contagem_da_base"
-      ]
-    },
-    {
-      "id": "M5",
-      "guarda": "2b: falha de sort ou comm ao cruzar as listas para, nao segue como sem arquivo em comum",
-      "arquivo": "bin/forge-fechar",
-      "de": "die \"parou no passo 2b: não consegui cruzar as listas de arquivos\"",
-      "para": ":",
-      "testes": [
-        "tests.test_fechar_base_andou.Teste.test_comm_que_falha_para_no_passo_2b_sem_abrir_pr"
       ]
     },
     {

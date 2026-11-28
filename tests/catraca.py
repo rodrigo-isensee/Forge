@@ -3,7 +3,7 @@
 
 Só biblioteca padrão. Lê a base com `git show <base>:<arquivo>` (a base efetiva é o merge-base com o HEAD).
 Exceção estreita: PR de `dependabot[bot]` que só troca SHA de `uses:` em workflows passa sem rótulo e sem parecer.
-Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY), `pareceres` e `degrau` (o "Nada pula degrau" do CI).
+Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY, com o T1: código sem teste), `pareceres` e `degrau` (o "Nada pula degrau" do CI).
 Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
 último push, ou cujos arquivos protegidos (VIGIADOS_DO_ROTULO e forma compilada: mesmo blob e modo) e a piora dos testes não
 mudaram desde o rótulo (P9), ou cujo diff efetivo (merge-base, fora dos pareceres dos pedidos desta branch) não mudou desde ele, e
@@ -17,6 +17,7 @@ do head no servidor, vale como sem rótulo. Cada violação: `<R-ID>: <o quê>. 
 import argparse
 import ast
 from collections import Counter
+import functools
 import hashlib
 import http.client
 import importlib.util
@@ -40,12 +41,13 @@ from neutralidade import normalizar  # noqa: E402
 
 ROTULO = "afrouxa-regra"
 ADR = "docs/adr/0008-governanca-de-contribuicoes.md"
-PARECERES = ("docs/reviews/", "docs/qa/")  # mudar só o parecer do pedido não muda o conteúdo que o dono viu (o modo `pareceres` o confere)
+PARECERES = ("docs/reviews/", "docs/qa/", "docs/security/")  # mudar só o parecer do pedido não muda o conteúdo que o dono viu (o modo `pareceres` o confere)
+ACEITES = ("docs/security/aceites/",)  # o aceite do usuário (ACEITES_DO_USUARIO do forge-check) nunca é parecer livre (v0481 E17.1)
 CURINGA = re.compile(r"[*?\[\]\\]")  # pathspec do git casa curinga: caminho com eles nunca é ignorado
 REESCRITA = ("head_ref_force_pushed", "head_ref_deleted", "head_ref_restored")
 PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", ".github/dependabot.yml", ".githooks/", "tests/catraca.py",
               "tests/neutralidade.py", "hooks/conformidade.py", "hooks/parecer.py", "hooks/_comum.py", "bin/forge-check",
-              "scripts/arvore-testada.py", "scripts/conferir-release.py")
+              "bin/forge_pareceres.py", "scripts/arvore-testada.py", "scripts/conferir-release.py")
 SENSIVEIS = ("hooks/", "bin/", "scripts/", "migrations/", ".github/workflows/", "tests/catraca.py")
 PASTAS_CUSTO = ("hooks/", "bin/", "scripts/", ".github/")
 CUSTO = {
@@ -89,10 +91,50 @@ def existe(raiz, ref, caminho):
     return bool(saida.strip())
 
 
+# --- Teto de aninhamento dos JSON que a catraca lê (JSON-PROFUNDO-PY314) ----------------------------------------------
+# O `json` do 3.12 recusava o aninhamento fundo com RecursionError (contador fixo em C) e o 3.14 o aceita: a catraca não
+# conta mais com essa recusa. Cópia de hooks/_json_raso.py (a fonte do teto) e não carga dele: as funções do I7 não
+# importam nem executam nada (TestesNoCi); tests/test_json_raso.py prova as cópias iguais, caractere a caractere.
+# Ficam fora as chaves que a própria catraca serializou com `json.dumps` (fundo já conferido) e a resposta da API do GitHub.
+TETO_ANINHAMENTO = 64  # níveis de [ e { aceitos; os JSON do Forge usam até 8 (hooks/hooks.json)
+
+
+def fundo_demais(texto, teto=TETO_ANINHAMENTO):
+    """Aninhamento de [ e { acima do teto, fora das strings. Um passe só sobre os caracteres, sem recursão: custo linear."""
+    nivel = 0
+    em_string = escapado = False
+    for c in texto:
+        if em_string:
+            if escapado:
+                escapado = False
+            elif c == "\\":
+                escapado = True
+            elif c == '"':
+                em_string = False
+        elif c == '"':
+            em_string = True
+        elif c in "[{":
+            nivel += 1
+            if nivel > teto:
+                return True
+        elif c in "]}":
+            nivel -= 1
+    return False
+
+
+def json_raso(texto, **extras):
+    """`json.loads` com teto de aninhamento: acima do teto, `ValueError`, como todo JSON ilegível (quem chama já o trata).
+
+    Mensagem fixa, sem eco da entrada, igual em toda versão do python."""
+    if fundo_demais(texto):
+        raise ValueError(f"aninhado acima de {TETO_ANINHAMENTO} níveis")
+    return json.loads(texto, **extras)
+
+
 def json_de(raiz, ref, caminho):
     texto = ler(raiz, ref, caminho)
     try:
-        return None if texto is None else json.loads(texto)
+        return None if texto is None else json_raso(texto)
     except ValueError:
         return {}
 
@@ -107,6 +149,12 @@ class ErroDeDiff(ErroDeGit):
 
 SEM_LISTA = "não consegui listar os arquivos alterados"
 NAO_LIBERAVEL = "o rótulo não libera esta violação"  # marca comum das violações de falha do git (a guarda do rótulo a procura)
+# F1-ESPERA-NAO-E-VERMELHO (v0481 E47.1): rc 3 = só falta parecer ou rótulo; o workflow deixa o check exigido pendente
+# (amarelo, ainda barrando a junção). Defeito (teste, conflito, regra quebrada, parecer que reprova) segue no rc 1.
+ESPERA = 3
+SO_ESPERA_PARECER = "espera: só falta o parecer"  # texto para quem lê; a decisão é o booleano de pareceres_e_espera (E47.6)
+LINHA_DE_ESPERA = re.compile(r"^(?:(docs/[a-z]+): [a-z-]+: sem parecer (?:para o pedido|da branch) |(docs/[a-z]+/[^:\s]+\.md): commit: desatualizado)")
+TITULO_AFROUXA = re.compile(r"\[afrouxa-regra\b")
 
 
 def msg_falha_git(detalhe):
@@ -325,7 +373,7 @@ def script_do_hook(hk):
 def hooks_contados(texto):
     """Cada hook como (evento, matcher, tipo, interpretador, script, timeout, campos extras), contado: dois hooks com a mesma chave são dois."""
     try:
-        dados = json.loads(texto) if texto else {}
+        dados = json_raso(texto) if texto else {}
     except ValueError:
         return Counter()
     return Counter((evento, g.get("matcher", ""), *script_do_hook(hk))
@@ -375,7 +423,7 @@ def erros_de_forma(texto):
     """A10 da segurança: a carga do plugin valida o hooks.json inteiro, e uma entrada fora do esquema descarta todos os hooks.
     Lista fechada de eventos e dos tipos de cada campo; o que não reconheço é erro (falha fechada)."""
     try:
-        dados = json.loads(texto, parse_constant=_constante_fora_do_json)
+        dados = json_raso(texto, parse_constant=_constante_fora_do_json)
     except ValueError as e:
         return [f"JSON ilegível ({e})"]
     if not isinstance(dados, dict) or not isinstance(dados.get("hooks"), dict):
@@ -618,6 +666,246 @@ def regra_controles_enfraquecidos(raiz, b, h):
             for arq in modulos if any(_piora(fb[arq], fh[arq]))]
 
 
+# --- D3 do estudo determinístico (decisão do dono de 24/11): teste existente afrouxado, por função -------------------------
+# As somas de cima se compensam entre testes (asserção tirada de um e posta em outro) e não veem o valor esperado trocado.
+# Aqui cada `def test_*` da base nos módulos que o PR toca é comparado com ele mesmo no head; só o rótulo do dono libera.
+def _pulos_dos_decoradores(no):
+    return sum(_nome(d.func if isinstance(d, ast.Call) else d) in PULOS for d in no.decorator_list)
+
+
+def _constantes(*nos):
+    return Counter(repr(c.value) for no in nos for c in ast.walk(no) if isinstance(c, ast.Constant))
+
+
+def _so_constantes(*nos):
+    return bool(nos) and not any(isinstance(x, ast.Name) for no in nos for x in ast.walk(no))
+
+
+def _vacua(n):
+    """Asserção só sobre constantes (`assert True`, `assertEqual(1 + 2, 3)`) não prova nada: não conta nem tem valor esperado."""
+    if isinstance(n, ast.Assert):
+        return _so_constantes(n.test)
+    return isinstance(n, ast.Call) and _nome(n.func).startswith("assert") and _so_constantes(*n.args, *(k.value for k in n.keywords))
+
+
+FUNCOES = (ast.FunctionDef, ast.AsyncFunctionDef)
+FUNDO_DOS_AJUDANTES = 8  # ajudante que chama ajudante: além disso não segue (a recursão conta até aqui, sempre igual)
+TETO_DAS_EXPANSOES = 2_000_000  # nós lidos e chaves somadas por módulo; acima, o módulo conta só as asserções diretas
+
+
+class AjudantesDemais(Exception):
+    """O módulo estourou `TETO_DAS_EXPANSOES` (ajudantes que se chamam em leque crescem perto do quadrado do tamanho)."""
+
+
+def _metodos(classe, classes, vistas=frozenset()):
+    """{nome: def} da classe e das bases dela no mesmo módulo; o da derivada prevalece, como na resolução do Python."""
+    metodos, vistas = {}, vistas | {classe.name}
+    for base in reversed(classe.bases):
+        if (b := classes.get(_nome(base))) is not None and b.name not in vistas:
+            metodos.update(_metodos(b, classes, vistas))
+    metodos.update({f.name: f for f in classe.body if isinstance(f, FUNCOES)})
+    return metodos
+
+
+def _alvo(func, ajudantes):
+    """O `def` chamado: `self.x()` ou `cls.x()` entre os métodos da classe, `x()` entre as funções do módulo."""
+    if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name) and func.value.id in ("self", "cls"):
+        return ajudantes["self"].get(func.attr)
+    return ajudantes["modulo"].get(func.id) if isinstance(func, ast.Name) else None
+
+
+def _ajudantes(metodos, funcoes, orcamento):
+    """Onde `_assercoes` acha os ajudantes, com o corpo de cada um contado uma vez por fundo (a classe tem o seu: `self.x` muda).
+    `orcamento` é `[resta]`, um só para o módulo inteiro."""
+    ajudantes = {"self": metodos, "modulo": funcoes, "orcamento": orcamento}
+    ajudantes["corpo"] = functools.cache(lambda alvo, fundo: _assercoes(alvo.body, ajudantes, fundo))
+    return ajudantes
+
+
+def _gasta(ajudantes, n):
+    ajudantes["orcamento"][0] -= n
+    if ajudantes["orcamento"][0] < 0:
+        raise AjudantesDemais
+
+
+def _assercoes(corpo, ajudantes, fundo):
+    """(asserções, pulos, valores esperados) do corpo. A chamada a ajudante da classe ou do módulo que faz asserção soma as
+    dele, e o nome e os argumentos constantes dela viram valor esperado (trocar `self.fica` por `self.sai` aparece)."""
+    asserts, pulos, esperados = 0, 0, Counter()
+    nos = [n for c in corpo for n in ast.walk(c) if not _vacua(n)]
+    _gasta(ajudantes, len(nos))
+    for n in nos:
+        if isinstance(n, ast.Assert):
+            asserts += 1
+            esperados += _constantes(n.test)
+        elif isinstance(n, ast.Call):
+            nome = _nome(n.func)
+            if nome.startswith("assert") and nome != "assert":
+                asserts += 1
+                esperados += _constantes(*n.args, *(k.value for k in n.keywords if k.arg != "msg"))
+            elif fundo and (alvo := _alvo(n.func, ajudantes)) is not None:
+                a, _, e = ajudantes["corpo"](alvo, fundo - 1)
+                if a:
+                    _gasta(ajudantes, len(e))
+                    asserts += a
+                    esperados += e + _constantes(*n.args, *(k.value for k in n.keywords))
+                    esperados[f"ajudante {nome}"] += 1
+            pulos += nome in PULOS
+    return asserts, pulos, esperados
+
+
+def _perfil_do_teste(fn, pulos_da_classe, ajudantes=None, fundo=FUNDO_DOS_AJUDANTES):
+    """(asserções, pulos, vazio, valores esperados) de um `def test_*`; o `msg=` da asserção não é valor esperado."""
+    asserts, pulos, esperados = _assercoes(fn.body, ajudantes or _ajudantes({}, {}, [math.inf]), fundo)
+    corpo = [c for c in fn.body if not (isinstance(c, ast.Expr) and isinstance(c.value, ast.Constant))]
+    return asserts, pulos_da_classe + _pulos_dos_decoradores(fn) + pulos, all(isinstance(c, ast.Pass) for c in corpo), esperados
+
+
+def testes_da_arvore(arvore, fundo=FUNDO_DOS_AJUDANTES, teto=TETO_DAS_EXPANSOES, onde="o módulo"):
+    """{`Classe.test_x` ou `test_x`: perfil} dos testes no corpo do módulo e das classes (aninhadas inclusive). O módulo que
+    estoura o teto conta só as asserções diretas, como antes dos ajudantes: nada do que barrava deixa de barrar, e o lado que
+    perde as dos ajudantes barra como "perdeu asserção" (falha fechada; tratá-lo como ilegível soltaria os testes da base)."""
+    testes, orcamento = {}, [teto]
+    classes = {c.name: c for c in ast.walk(arvore) if isinstance(c, ast.ClassDef)}
+    funcoes = {f.name: f for f in arvore.body if isinstance(f, FUNCOES)}
+
+    def visita(no, prefixo, pulos_da_classe, metodos):
+        ajudantes = _ajudantes(metodos, funcoes, orcamento)
+        for filho in ast.iter_child_nodes(no):
+            if isinstance(filho, ast.ClassDef):
+                visita(filho, prefixo + filho.name + ".", pulos_da_classe + _pulos_dos_decoradores(filho), _metodos(filho, classes))
+            elif isinstance(filho, FUNCOES) and filho.name.startswith("test_"):
+                testes[prefixo + filho.name] = _perfil_do_teste(filho, pulos_da_classe, ajudantes, fundo)
+    try:
+        visita(arvore, "", 0, {})
+    except AjudantesDemais:
+        print(f"catraca: {onde} estourou o teto de {teto} expansões dos ajudantes; contou só as asserções diretas.")
+        return testes_da_arvore(arvore, 0, math.inf)
+    return testes
+
+
+VALOR_TROCADO = "trocou ou tirou valor esperado"
+
+
+def afrouxamentos(antes, depois):
+    """O que o teste perdeu de `antes` para `depois` (perfis); vazio se não afrouxou."""
+    perdas = []
+    if depois[0] < antes[0]:
+        sumiu = sorted(k.removeprefix("ajudante ") for k in antes[3] - depois[3] if k.startswith("ajudante "))
+        perdas.append("perdeu asserção" + (f" (estava no ajudante {', '.join(sumiu)})" if sumiu else ""))
+    if depois[1] > antes[1]:
+        perdas.append("ganhou skip/skipIf/skipUnless/expectedFailure/skipTest")
+    if depois[2] and not antes[2]:
+        perdas.append("ficou vazio")
+    if antes[3] - depois[3]:
+        perdas.append(VALOR_TROCADO)
+    return perdas
+
+
+def _duras(perdas):
+    """As perdas que barram sempre (decisão do dono de 24/11): todas menos o valor esperado trocado."""
+    return [p for p in perdas if p != VALOR_TROCADO]
+
+
+def mesmas_assercoes(antes, depois):
+    """Teste renomeado não conta quando o novo tem as mesmas asserções: a mesma quantidade e os mesmos valores esperados.
+    Sem asserção não há o que parear: qualquer teste novo sem asserção casaria, e o apagado sumiria sem o rótulo."""
+    return antes[0] > 0 and depois[0] == antes[0] and depois[3] == antes[3] and not afrouxamentos(antes, depois)
+
+
+def _testes_por_modulo(raiz, ref, modulos):
+    presentes = set(listar(raiz, ref, "tests"))
+    return {arq: testes_da_arvore(a, onde=f"{arq} em {ref}") for arq in modulos
+            if (a := _arvore_do_modulo(raiz, ref, arq, presentes)) is not None}
+
+
+def perdas_dos_testes(raiz, b, h):
+    """[(módulo, teste, perdas)] de cada `def test_*` de `b` num módulo tocado que afrouxou em `h`. Movido de módulo vale pela
+    cópia menos afrouxada; sem cópia, o teste novo de `h` com as mesmas asserções é o renomeado (cada novo serve a um só)."""
+    modulos = [a for a in alterados(raiz, b, h) if a.endswith(".py") and a != "tests/catraca.py"]  # fora de tests/: não lido
+    tb, th = _testes_por_modulo(raiz, b, modulos), _testes_por_modulo(raiz, h, modulos)
+    nomes_da_base = {nome for testes in tb.values() for nome in testes}
+    novos = [t for testes in th.values() for nome, t in sorted(testes.items()) if nome not in nomes_da_base]
+    achados = []
+    for arq, testes in sorted(tb.items()):
+        for nome, antes in sorted(testes.items()):
+            junto = th.get(arq, {}).get(nome)
+            copias = [junto] if junto else [t[nome] for t in th.values() if nome in t]
+            if copias:
+                perdas = min((afrouxamentos(antes, c) for c in copias), key=lambda p: (len(_duras(p)), len(p)))
+            else:
+                gemeo = next((i for i, n in enumerate(novos) if mesmas_assercoes(antes, n)), None)
+                perdas = ["foi apagado ou renomeado"] if gemeo is None else []
+                if gemeo is not None:
+                    del novos[gemeo]
+            if perdas:
+                achados.append((arq, nome, perdas))
+    return achados
+
+
+def _msg_afrouxado(arq, nome, perdas):
+    return msg("R-CONFORMIDADE", f"o teste {arq}::{nome} {', '.join(perdas)}",
+               "teste existente afrouxado deixa a regra sem proteção com o CI verde, e as somas se compensam entre testes",
+               f"restaure o teste como na base ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md")
+
+
+def regra_testes_afrouxados(raiz, b, h, aprovado=None):
+    """Contra a base, barra o teste apagado (sem renomeado de mesmas asserções), pulado, esvaziado ou com asserção a menos. O valor
+    esperado trocado só barra na volta, contra o commit `aprovado` pelos revisores; na primeira entrega, `valores_para_conferir`."""
+    contra_a_base = perdas_dos_testes(raiz, b, h)
+    v = [_msg_afrouxado(arq, nome, _duras(perdas)) for arq, nome, perdas in contra_a_base if _duras(perdas)]
+    if aprovado:  # só o que a branch trocou: o valor que a base mudou e entrou por merge depois da aprovação não conta
+        da_branch = {(arq, nome) for arq, nome, perdas in contra_a_base if VALOR_TROCADO in perdas}
+        v += [_msg_afrouxado(arq, nome, [f"{VALOR_TROCADO} depois da versão aprovada {aprovado[:12]}"])
+              for arq, nome, perdas in perdas_dos_testes(raiz, aprovado, h) if VALOR_TROCADO in perdas and (arq, nome) in da_branch]
+    return v
+
+
+def valores_para_conferir(raiz, base, head="HEAD"):
+    """Os testes da base cuja única perda é o valor esperado trocado: na primeira entrega não barram, e o revisor os confere."""
+    return [f"{arq}::{nome}" for arq, nome, perdas in perdas_dos_testes(raiz, base_efetiva(raiz, base, head), head)
+            if perdas == [VALOR_TROCADO]]
+
+
+def listar_valores_para_conferir(raiz, base, head):
+    """Imprime (e põe no resumo) os valores esperados trocados que não barram, para o revisor conferir no parecer."""
+    try:
+        casos = valores_para_conferir(raiz, base, head)
+    except FALHAS_DO_GIT:  # a falha do git já é violação das regras (falha fechada lá)
+        return
+    for caso in casos:
+        print(f"catraca: confira no parecer (valor esperado trocado; não barra na primeira entrega): {caso}")
+    if casos:
+        resumo("valores esperados trocados (confira no parecer)", casos)
+
+
+SHA = re.compile(r"[0-9a-f]{7,40}")
+
+
+def commit_aprovado(raiz, b, h):
+    """O commit mais novo de `b..h` citado em `commit:` por um parecer aprovado que a branch toca (pastas do `PASTA_E_REGRA`
+    do forge-check); None sem ele (primeira entrega). Parecer de tipo trocado ou SHA fora de `b..h` não vale."""
+    pastas, candidatos = None, []
+    for rel in alterados(raiz, b, h):
+        if not (rel.startswith("docs/") and rel.endswith(".md")):
+            continue
+        if pastas is None:
+            fc = forge_check()
+            pastas = {p: t for t, (p, _) in fc.PASTA_E_REGRA.items()}
+        texto = ler(raiz, h, rel)
+        campos = fc.ler_frontmatter(texto)[0] if texto else None
+        if not campos or campos.get("tipo") != pastas.get(rel.rsplit("/", 1)[0]) or campos.get("parecer") != "aprovado":
+            continue
+        if not SHA.fullmatch(campos.get("commit", "")):
+            continue
+        cod, sha = git(raiz, "rev-parse", "--verify", "--quiet", campos["commit"] + "^{commit}")
+        sha = sha.strip()
+        if cod or git(raiz, "merge-base", "--is-ancestor", sha, h)[0] or not git(raiz, "merge-base", "--is-ancestor", sha, b)[0]:
+            continue
+        candidatos.append((int(git(raiz, "rev-list", "--count", sha)[1]), sha))
+    return max(candidatos)[1] if candidatos else None
+
+
 def modulos_descobriveis(raiz, ref, arquivos=None):
     """Módulos que o `discover -s tests` carrega em `ref` (o que `scripts/suite-partes.py` divide no CI): `test*.py` de nome
     importável na raiz de tests/ ou em pacote com `__init__.py` em cada pasta, pela árvore do git."""
@@ -800,7 +1088,7 @@ def _specs_do_diff(raiz, h, fm, mudados):
         if not texto:
             continue
         try:
-            dados = json.loads(texto)
+            dados = json_raso(texto)
             problemas = fm.validar_spec(dados)
         except (ValueError, TypeError, AttributeError, KeyError) as e:
             problemas = [type(e).__name__]
@@ -858,12 +1146,18 @@ def regra_guardas_dos_hooks(raiz, b, h):
     except (OSError, SyntaxError, ImportError) as e:
         return [msg_guarda(f"não consegui carregar bin/forge-mutante para conferir as guardas de {', '.join(hooks)} ({type(e).__name__})")]
     mutantes, isentas, v = _specs_do_diff(raiz, h, fm, mudados)
+    lidos, por_arquivo = [], []
     for arq in hooks:
         try:
-            saida = fm.analisar(arq, _hunks(raiz, b, h, arq, fm), _texto_no(raiz, b, arq), _texto_no(raiz, h, arq), mutantes, isentas, set())
+            por_arquivo.append(fm.analisar_com_textos(arq, _hunks(raiz, b, h, arq, fm), _texto_no(raiz, b, arq),
+                                                      _texto_no(raiz, h, arq), mutantes, isentas, set()))
         except ILEGIVEL as e:
             v.append(msg_guarda(f"não consegui analisar as guardas de {arq} ({neutralizar(str(e))[:CORTE_DA_DECISAO]})"))
             continue
+        lidos.append(arq)
+    linhas = iter(fm.movidas(por_arquivo))  # como o `forge-mutante --cobertura`: a apagada coberta noutro arquivo é movida
+    for arq, (saida, _textos) in zip(lidos, por_arquivo):
+        saida = [next(linhas) for _ in saida]
         faltas = [neutralizar(x) for x in saida if x.startswith(FALTAS_DE_MUTANTE)]
         if faltas:
             mais = f" e mais {len(faltas) - MOSTRADAS_POR_ARQUIVO}" if len(faltas) > MOSTRADAS_POR_ARQUIVO else ""
@@ -1044,6 +1338,7 @@ def _violacoes_das_regras(raiz, base, head):
     permitido = (ch or {}).get("custo_permitido", {})
     return (regras_de_config(cb, ch or {}) + regra_arquivos_de_regras(raiz, b, head, cb or {}) + regra_hooks(raiz, b, head) + regra_testes(raiz, b, head)
             + regra_testes_enfraquecidos(raiz, b, head) + regra_controles_enfraquecidos(raiz, b, head)
+            + regra_testes_afrouxados(raiz, b, head, commit_aprovado(raiz, b, head))
             + regra_testes_no_ci(raiz, b, head, cb, ch) + regra_teto_pulados(cb, ch) + regra_guardas_dos_hooks(raiz, b, head)
             + regra_politica(raiz, b, head)
             + regra_custo(raiz, head, permitido) + regra_protegidos(raiz, b, head) + regra_compilados(raiz, b, head))
@@ -1098,9 +1393,11 @@ def commit_do_rotulo(eventos, execucoes, numero, dono):
 
 def pareceres_do_pedido(raiz, base, rotulado, head, ramo):
     """Pareceres que podem mudar depois do rótulo: os que o PR já tocava no head rotulado e os de nome igual ao último
-    segmento da branch (`melhoria/x` -> `docs/reviews/x.md`, `docs/qa/x.md`). Caminho com curinga fica de fora (falha fechada)."""
+    segmento da branch (`melhoria/x` -> `docs/reviews/x.md`, `docs/qa/x.md`, `docs/security/x.md`; v0481 E17.1: o de segurança,
+    commitado depois do rótulo, derrubava o rótulo no merge da base do passo 2b do forge-fechar). O aceite do usuário
+    (`docs/security/aceites/`) nunca. Caminho com curinga fica de fora (falha fechada)."""
     def tocados(ref):
-        return {a for a in alterados(raiz, base_efetiva(raiz, base, ref), ref) if a.startswith(PARECERES)}
+        return {a for a in alterados(raiz, base_efetiva(raiz, base, ref), ref) if a.startswith(PARECERES) and not a.startswith(ACEITES)}
     nome = ramo.rsplit("/", 1)[-1]
     antes = tocados(rotulado)
     livres = antes | {a for a in tocados(head) if nome and Path(a).stem == nome and Path(a).parent.as_posix() + "/" in PARECERES}
@@ -1619,7 +1916,7 @@ def liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono, motivos=None):
     return sem(motivos, f"sem PR rotulado com o mesmo arquivo (blob e modo) e a mesma violação para: {', '.join(sorted(pendentes))}")
 
 
-def liberado_por_pr_mesclado_ou_none(raiz, base, head, viol, fonte, dono):
+def liberado_por_pr_mesclado_ou_none(raiz, base, head, viol, fonte, dono, falhas=None):
     """`liberado_por_pr_mesclado`, mas git que estoura o prazo ou não executa vale como sem rótulo (M5), com mensagem; na promoção
     que não libera, imprime o motivo de cada PR candidato (antes a conferência voltava calada)."""
     motivos = []
@@ -1627,6 +1924,8 @@ def liberado_por_pr_mesclado_ou_none(raiz, base, head, viol, fonte, dono):
         prs = liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono, motivos)
     except FALHAS_DO_GIT as e:
         aviso(f"o git não terminou ({type(e).__name__})")
+        if falhas is not None:  # E47.6: o git que não terminou não vale como "falta o rótulo"
+            falhas.append("o git")
         return None
     if not prs and motivos:
         aviso(f"a conferência do PR mesclado não liberou ({' | '.join(motivos)})")
@@ -1650,8 +1949,56 @@ def violacoes_do_texto(corpo):
             for t in ("Projeto de origem", "Como medir") if len(secao(corpo, t)) < MINIMO_SECAO]
 
 
+SEM_TESTE = "Sem teste"  # a seção do modelo do PR (.github/pull_request_template.md) que justifica o código sem teste (T1)
+
+
+def citado(caminho, texto):
+    """O caminho inteiro no texto, sem ser pedaço de outro (`bin/app` não vale por `bin/app2` nem por `x/bin/app`)."""
+    return re.search(rf"(?<![\w./-]){re.escape(caminho)}(?!\.?[\w/-])", texto) is not None
+
+
+def violacoes_do_t1(raiz, base, head, corpo):
+    """T1 (COBERTURA-ESTUDO C1): código mudado sem teste mudado nem novo barra o PR, salvo a seção `## Sem teste` que cita cada
+    arquivo com o motivo dele na mesma linha (regra em docs/engineering/praticas.md). A regra de código, teste e classe é a do `forge-check` (T1 da 0.43.3: a classe T fica isenta); a
+    catraca só a torna portão. O git que falha barra (falha fechada)."""
+    fc = forge_check()
+    b = base_efetiva(raiz, base, head)
+    nomes = alterados(raiz, b, head)
+    if fc.classe_para_o_t1(raiz, head, b) == "T":
+        return []
+    achados = fc.codigo_sem_teste(raiz, f"{b}...{head}", nomes)
+    if achados == []:
+        return []
+    if achados is None:
+        raise ErroDeGit(msg_falha_git("o `git diff` dos testes falhou (T1)"))
+    texto = secao(corpo, SEM_TESTE)
+    faltam = [n for n in achados if not citado(n, texto)]
+    curtos = [n for n in achados if n not in faltam and not com_motivo(n, achados, texto)]
+    if not faltam and not curtos:
+        return []
+    lista = faltam or curtos
+    nomes = ", ".join(lista[:5]) + (f" e mais {len(lista) - 5}" if len(lista) > 5 else "")
+    oque = (f"sem citar {nomes}" if faltam
+            else f"com motivo de menos de {MINIMO_SECAO} caracteres por arquivo, além dos caminhos, para {nomes}")
+    return [msg("R-QA", f"código mudado sem teste mudado ou novo e '## {SEM_TESTE}' {oque} (T1)",
+                "código sem teste entra sem prova do comportamento; a exceção só vale escrita, arquivo por arquivo, para o review conferir",
+                f"acrescente o teste ou, em '## {SEM_TESTE}' do corpo do PR, cite cada arquivo e o motivo dele na mesma linha",
+                "docs/engineering/praticas.md")]
+
+
+def com_motivo(caminho, achados, texto):
+    """True se uma linha do texto cita `caminho` e traz MINIMO_SECAO caracteres além dos caminhos por arquivo que cita: o motivo
+    vale por arquivo, e um texto genérico não cobre N arquivos (segurança A2 da cobertura C1)."""
+    for linha in texto.splitlines():
+        nela = [n for n in achados if citado(n, linha)]
+        resto = re.sub(r"\s", "", functools.reduce(lambda t, n: t.replace(n, ""), achados, linha))
+        if caminho in nela and len(resto) >= MINIMO_SECAO * len(nela):
+            return True
+    return False
+
+
 def forge_check():
-    """O `bin/forge-check` ao lado deste script (uma fonte só, ADR 0002): no CI, a versão da base."""
+    """O `bin/forge-check` ao lado deste script (uma fonte só, ADR 0002): no CI, a versão da base, nos passos de regras e de texto do PR."""
     caminho = Path(__file__).resolve().parent.parent / "bin" / "forge-check"
     loader = SourceFileLoader("forge_check", str(caminho))
     modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader("forge_check", loader))
@@ -1736,12 +2083,30 @@ def violacao_de_fork(repo_head, repo_base):
 
 
 def violacoes_de_pareceres(raiz, base, head, ramo, base_ref, repo_head="", repo_base=""):
+    return pareceres_e_espera(raiz, base, head, ramo, base_ref, repo_head, repo_base)[0]
+
+
+def pareceres_e_espera(raiz, base, head, ramo, base_ref, repo_head="", repo_base=""):
+    """(violações, só espera): o booleano é True só com cada linha do `cmd_pr` de parecer ausente ou desatualizado (E47.6)."""
     if violacao_de_fork(repo_head, repo_base):
-        return violacao_de_fork(repo_head, repo_base)
+        return violacao_de_fork(repo_head, repo_base), False
     try:
-        return _violacoes_de_pareceres(raiz, base, head, ramo, base_ref)
+        return _pareceres_e_espera(raiz, base, head, ramo, base_ref)
     except FALHAS_DO_GIT as e:
-        return [violacao_de_git(e)]
+        return [violacao_de_git(e)], False
+
+
+def linha_de_espera(linha, caminhos):
+    """A linha do `cmd_pr` é só espera: o padrão ancorado no início casa e o caminho que ele separa é o mais longo dos `caminhos`
+    conhecidos (pastas e pareceres) que abre a linha. Um nome de arquivo com `: commit: desatualizado` dentro não forja a espera."""
+    m = LINHA_DE_ESPERA.match(linha)
+    dono = max((c for c in caminhos if linha.startswith(c + ": ")), key=len, default=None)
+    return bool(m) and dono == (m.group(1) or m.group(2))
+
+
+def caminhos_de_pareceres(fc, raiz, head):
+    pastas = {pasta for pasta, _ in fc.PASTA_E_REGRA.values()}
+    return pastas | {fc.caminho_impresso(rel) for tipo in fc.PASTA_E_REGRA for rel, _ in fc.documentos(Path(raiz), tipo, head)}
 
 
 def pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo=None):
@@ -1770,15 +2135,19 @@ def pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo=None):
 
 
 def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
+    return _pareceres_e_espera(raiz, base, head, ramo, base_ref)[0]
+
+
+def _pareceres_e_espera(raiz, base, head, ramo, base_ref):
     if promocao_aceita(raiz, ramo, base_ref, head):
-        return []
+        return [], False
     b = base_efetiva(raiz, base, head)
     tocados = [a for a in alterados(raiz, b, head) if a.startswith(SENSIVEIS)]
     fc = forge_check()
     pedidos = fc.pedidos_da_branch(Path(raiz), ramo, head)
     nao_aprovam = pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo)
     if not tocados:
-        return nao_aprovam
+        return nao_aprovam, False
     achados = []
     for ped in pedidos:  # todos os pedidos da branch passam: um aprovado não cobre o reprovado de outro
         linhas = [l for l in fc.cmd_pr(Path(raiz), ped, head, base, ramo) if l.strip()]  # E11: o parecer é o da branch do PR
@@ -1786,16 +2155,21 @@ def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
             linhas = [l for l in linhas if not l.startswith("docs/qa") and "(R-QA)" not in l]
         achados += linhas
     if pedidos and not achados:
-        return nao_aprovam
+        return nao_aprovam, False
     exige = "review e QA" if base_ref == "homolog" else "review"
     detalhe = f" ({'; '.join(achados[:2])})" if achados else ""
+    caminhos = caminhos_de_pareceres(fc, raiz, head) if achados else set()
+    so_espera = all(linha_de_espera(l, caminhos) for l in achados)  # ausente ou de commit anterior; o resto é defeito
+    if so_espera:
+        detalhe += f" ({SO_ESPERA_PARECER})"
     sem_parecer = [msg("R-REVIEW", f"PR toca {tocados[0]} (e outros {len(tocados) - 1}) sem parecer aprovado de {exige}{detalhe}",
                        "código que muda o comportamento dos agentes precisa de revisão antes de entrar",
                        f"peça o parecer e confira com `bin/forge-check pr <pedido>` (parecer com `branch: {ramo}`)",
                        "docs/regras/R-REVIEW.md")]
     # o parecer de tipo exigido que não aprova já está dito no `detalhe`: só entra o que o `cmd_pr` não lê (tipo não exigido, QA na develop)
     ja_ditos = [l.split(": parecer:", 1)[0] for l in achados if ": parecer: o último" in l]
-    return sem_parecer + [v for v in nao_aprovam if not any(caminho in v for caminho in ja_ditos)]
+    outros = [v for v in nao_aprovam if not any(caminho in v for caminho in ja_ditos)]
+    return sem_parecer + outros, so_espera and not outros
 
 
 def resumo(titulo, linhas):
@@ -1845,7 +2219,7 @@ def modo_rotulados(a):
 
 
 def fonte_json(a):
-    return FonteJson(json.loads(Path(a.mesclados).read_text(encoding="utf-8")))
+    return FonteJson(json_raso(Path(a.mesclados).read_text(encoding="utf-8")))
 
 
 def main(argv=None):
@@ -1889,45 +2263,68 @@ def _main(a):
         resumo(a.modo, ["PR do dependabot que só troca SHA de ações em workflows: passa sem rótulo e sem parecer (ADR 0008)"])
         return 0
     if a.modo == "pr-texto":
-        viol, titulo = violacoes_do_texto(os.environ.get("PR_BODY", "")), "pr-texto"
+        corpo = os.environ.get("PR_BODY", "")
+        viol, titulo = violacoes_do_texto(corpo) + violacoes_do_t1(raiz, a.base, a.head, corpo), "pr-texto"
     elif a.modo == "degrau":
         viol, titulo = violacoes_do_degrau(raiz, a.ramo, a.base_ref, a.head, os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "degrau"
     elif a.modo == "pareceres":
-        viol, titulo = violacoes_de_pareceres(raiz, a.base, a.head, a.ramo, a.base_ref,
-                                          os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "pareceres"
+        (viol, so_espera), titulo = pareceres_e_espera(raiz, a.base, a.head, a.ramo, a.base_ref,
+                                                       os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "pareceres"
     else:
         viol, titulo = violacoes_das_regras(raiz, a.base, a.head), "catraca"
+        listar_valores_para_conferir(raiz, a.base, a.head)
         if viol:
             if a.eventos:
-                eventos, push = json.loads(Path(a.eventos).read_text(encoding="utf-8")), a.ultimo_push
+                eventos, push = json_raso(Path(a.eventos).read_text(encoding="utf-8")), a.ultimo_push
             else:
                 eventos, push = eventos_do_github()
             cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json")  # só a base: o head é do autor
             cfg = cfg if isinstance(cfg, dict) else {}
             custo = [x for x in viol if x.startswith("R-CUSTO:") or NAO_LIBERAVEL in x]  # só `custo_permitido` abre exceção de custo; o rótulo não vale nem com o git falho
-            dono, liberado = cfg.get("dono"), None
+            dono, liberado, falhas = cfg.get("dono"), None, []  # E47.6: consulta sem resposta tira a espera do rótulo
             if not custo and eventos is not None:
                 if push and rotulo_liberado(eventos, dono, push):
                     liberado = "aplicado depois do último push"
                 else:
-                    execucoes = json.loads(Path(a.execucoes).read_text(encoding="utf-8")) if a.execucoes else ([] if a.eventos else execucoes_do_pr())
+                    execucoes = json_raso(Path(a.execucoes).read_text(encoding="utf-8")) if a.execucoes else ([] if a.eventos else execucoes_do_pr())
                     ramo = a.ramo or ("" if a.eventos else ramo_do_pr())
-                    if execucoes is not None and rotulo_vale_pelo_conteudo(raiz, a.base, a.head, eventos, execucoes, a.pr, dono, ramo, viol):
+                    if execucoes is None:
+                        falhas.append("as execuções do PR")
+                    elif rotulo_vale_pelo_conteudo(raiz, a.base, a.head, eventos, execucoes, a.pr, dono, ramo, viol):
                         liberado = "arquivos protegidos ou diff efetivo iguais aos do instante do rótulo"
             if not custo and not liberado:
-                fonte = FonteJson(json.loads(Path(a.mesclados).read_text(encoding="utf-8"))) if a.mesclados else (
+                fonte = FonteJson(json_raso(Path(a.mesclados).read_text(encoding="utf-8"))) if a.mesclados else (
                     None if a.eventos else fonte_do_github())
-                prs = liberado_por_pr_mesclado_ou_none(raiz, a.base, a.head, viol, fonte, dono)
+                prs = liberado_por_pr_mesclado_ou_none(raiz, a.base, a.head, viol, fonte, dono, falhas)
                 if prs:
                     liberado = f"mesmo conteúdo já rotulado no PR mesclado {', '.join('#' + n for n in prs)}"
+            if not custo and not liberado and eventos is not None and TITULO_AFROUXA.search(os.environ.get("PR_TITULO", "")):
+                if fonte is None or fonte.pr_atual() is None:
+                    falhas.append("o PR")
+                if not falhas:
+                    return espera(f"o título declara `[{ROTULO}` e falta o rótulo do dono", viol)
+                print(f"catraca: o título declara `[{ROTULO}`, mas {', '.join(falhas)} não respondeu: vermelho, não espera")
             if liberado:
                 resumo(titulo, [f"liberado pelo rótulo `{ROTULO}` do dono ({liberado}): {len(viol)} violação(ões) aceita(s)"] + viol)
                 print(f"catraca: {len(viol)} violação(ões) liberada(s) pelo rótulo `{ROTULO}` do dono ({liberado}).")
+                for v in viol:
+                    print(f"catraca: liberada: {v}")
                 return 0
+    if a.modo == "pareceres" and viol and so_espera:
+        return espera("falta o parecer aprovado", viol)
     for v in viol:
         print(v)
     resumo(titulo, viol)
     return 1 if viol else 0
+
+
+def espera(motivo, viol):
+    """Só espera (parecer ou rótulo), sem defeito: rc ESPERA, que o workflow mostra pendente, nunca verde."""
+    print(f"catraca: espera ({motivo}); o check exigido fica pendente, sem vermelho")
+    for v in viol:
+        print(v)
+    resumo(f"espera: {motivo}", viol)
+    return ESPERA
 
 
 if __name__ == "__main__":

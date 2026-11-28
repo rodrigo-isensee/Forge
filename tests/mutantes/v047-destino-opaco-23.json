@@ -1,0 +1,46 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O153",
+      "guarda": "E1.334, volta do lote B (A13 da segurança E1.332): o corpo de heredoc sem aspas que atribui a nome minúsculo marca a linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return all(expansao_conhecida(corpo) and not PADRAO_QUE_ATRIBUI.search(corpo) for corpo in corpos)",
+      "para": "    return all(expansao_conhecida(corpo) for corpo in corpos)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O154",
+      "guarda": "E1.334, volta do lote B (A14 da segurança E1.332): `${d:=v}` na linha não deixa `$d` valer como do ambiente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return atribui_por_expansao(nome, linha)  # A14 (E1.332): `${d:=v}` atribui na linha",
+      "para": "    return False  # A14 (E1.332): `${d:=v}` atribui na linha",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O155",
+      "guarda": "E1.338, volta do lote B (A15 da segurança E1.336): `${d:=v}` ou `${d=v}` faz o prefixo nascer na linha; `\"$d\"t` não vale como do ambiente; desde a E1.342 (A16 da segurança E1.340), o prefixo passa por `nasce_fora_do_ambiente`, que também recusa o que o bash grava (`\"$_\"t`)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not atribuicoes and any(nasce_fora_do_ambiente(nome[:k], linha) or re.search(rf\"(?<![\\w$]){nome[:k]}=\", linha)",
+      "para": "    if not atribuicoes and any(re.search(rf\"(?<![\\w$]){nome[:k]}=\", linha)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O156",
+      "guarda": "E1.338, volta do lote B (A15 da segurança E1.336): `atribui_por_expansao` reconhece `${d:=v}` e `${d=v}` (com índice), para o nome e para o prefixo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return re.search(rf\"\\$\\{{#?{nome}(\\[[^]]*\\])?:?=\", linha) is not None",
+      "para": "    return False",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

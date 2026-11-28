@@ -1,0 +1,87 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "só statuses das contas aceitas entram na leitura (M1.4)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "for s in statuses_de(raiz, repo, c) if login(s.get(\"creator\")) in contas]",
+      "para": "for s in statuses_de(raiz, repo, c) if True]",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_c13_status_forjado_nao_vale"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o mais novo de cada tipo vale (C0-1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "max(dela, key=lambda x: x[0])",
+      "para": "min(dela, key=lambda x: x[0])",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_c13_failure_mais_novo_barra_success_antigo",
+        "tests.test_forge_pareceres.Vigentes.test_mais_novo_pelo_tempo_nao_pelo_commit"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "commits do PR fora da forma recusam",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "not all(re.fullmatch(r\"[0-9a-f]{40}\", c) for c in commits) or head",
+      "para": "False or head",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_pr_de_outro_numero_ou_sem_o_head"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "registro: só linhas dos contextos de parecer",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "linha[0] in do_pr and linha[1] in CONTEXTOS.values() and not",
+      "para": "linha[0] in do_pr and not",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_registro_sem_status_falha_fechada"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "resposta fora do contrato vira Recusa",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    except (KeyError, TypeError, AttributeError, ValueError) as e:\n        raise Recusa(f\"leitura do PR: resposta do gh fora do contrato",
+      "para": "    except (KeyError,) as e:\n        raise Recusa(f\"leitura do PR: resposta do gh fora do contrato",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_status_sem_created_at_fora_do_contrato"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "item da página que não é objeto fica de fora",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "return [s for p in paginas for s in p if isinstance(s, dict)]",
+      "para": "return [s for p in paginas for s in p if True]",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_item_que_nao_e_objeto_e_status_sem_descricao_ficam_de_fora"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "origem não ancestral: rc 1 dá falso (C0-2)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    return rc == 0",
+      "para": "    return True",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_c13_origem_fora_da_historia_do_head"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "registro: status sem descrição não derruba a conferência",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "        d = DESCRICAO.fullmatch(s.get(\"description\") or \"\")",
+      "para": "        d = DESCRICAO.fullmatch(s.get(\"description\"))",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_item_que_nao_e_objeto_e_status_sem_descricao_ficam_de_fora"
+      ]
+    }
+  ]
+}

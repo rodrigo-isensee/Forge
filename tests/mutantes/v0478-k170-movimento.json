@@ -1,0 +1,67 @@
+{
+  "pedido": "v0478-k170-movimento",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "so --de Bloqueado passa pela conferencia",
+      "arquivo": "bin/forge-check",
+      "de": "    if _sem_acento(de) != \"bloqueado\":\n        return None",
+      "para": "    if True:\n        return None",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoDeBloqueado.test_sem_historico_recusa_e_nao_cria_o_arquivo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a ultima linha vem do historico do cartao (sem linha, None)",
+      "arquivo": "bin/forge-check",
+      "de": "ultimo = (movimentos_do_cartao(arq, cartao) or [None])[-1]",
+      "para": "ultimo = ([None] or movimentos_do_cartao(arq, cartao))[-1]",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoDeBloqueado.test_com_a_entrada_registrada_aceita"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a ultima linha do cartao precisa por o cartao em Bloqueado",
+      "arquivo": "bin/forge-check",
+      "de": "if ultimo is not None and _sem_acento(ultimo[3]) == \"bloqueado\":",
+      "para": "if ultimo is not None:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoDeBloqueado.test_ultimo_movimento_fora_de_bloqueado_recusa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a mensagem diz o ultimo movimento quando ha",
+      "arquivo": "bin/forge-check",
+      "de": "nome_seguro(ultimo[3])}\" if ultimo else",
+      "para": "nome_seguro(ultimo[3])}\" if not ultimo else",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoDeBloqueado.test_sem_historico_recusa_e_nao_cria_o_arquivo",
+        "tests.test_sobreposicao_quadro.MovimentoDeBloqueado.test_ultimo_movimento_fora_de_bloqueado_recusa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a recusa sai antes de gravar",
+      "arquivo": "bin/forge-check",
+      "de": "    if recusa := sem_entrada_em_bloqueado(arq, campos[0], campos[1]):",
+      "para": "    if (recusa := sem_entrada_em_bloqueado(arq, campos[0], campos[1])) and False:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoDeBloqueado.test_sem_historico_recusa_e_nao_cria_o_arquivo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a recusa sai com rc 2",
+      "arquivo": "bin/forge-check",
+      "de": "        if a.cmd == \"movimento\" and linhas[0].startswith(MOVIMENTO_RECUSADO):",
+      "para": "        if a.cmd == \"movimento\" and False:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoDeBloqueado.test_sem_historico_recusa_e_nao_cria_o_arquivo"
+      ]
+    }
+  ]
+}

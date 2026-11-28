@@ -1,0 +1,86 @@
+{
+  "pedido": "v0475-dir36",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "diretriz 36 (R-CONTRIB): gh no Forge só lê: comentar e criar ficam fora da lista de leitura",
+      "arquivo": "hooks/conformidade.py",
+      "de": "GH_SO_LE = {\"view\", \"list\",",
+      "para": "GH_SO_LE = {\"comment\", \"create\", \"view\", \"list\",",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "diretriz 36 (R-CONTRIB): gh api com URL completa: o endpoint é normalizado antes do slug",
+      "arquivo": "hooks/conformidade.py",
+      "de": "caminho = endpoint_normalizado(endpoint)",
+      "para": "caminho = endpoint",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "diretriz 36 (R-CONTRIB): createPullRequest pelo GraphQL na sessão de projeto falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "r\"createPullRequest|closePullRequest|",
+      "para": "r\"closePullRequest|",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "diretriz 36 (R-CONTRIB): switch com opção agrupada (-qc) cria branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"switch\": (re.compile(r\"-[a-zA-Z]*[cCt][a-zA-Z]*\")",
+      "para": "\"switch\": (re.compile(r\"-[cC]\")",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "diretriz 36 (R-CONTRIB): checkout --orphan cria branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"checkout\": (re.compile(r\"-[a-zA-Z]*[bBt][a-zA-Z]*\"), (\"--orphan\", \"--track\"))}",
+      "para": "\"checkout\": (re.compile(r\"-[a-zA-Z]*[bBt][a-zA-Z]*\"), (\"--track\",))}",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "diretriz 36 (R-CONTRIB): a recusa do worktree diz `git worktree add`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "{' add' if sub == 'worktree' else ''}",
+      "para": "{' add' if sub == 'worktree-x' else ''}",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "diretriz 36 (R-CONTRIB): todo subcomando do gh que não só lê é recusado no Forge",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if grupo not in GH_DO_REPO or sub is None or sub in GH_SO_LE:",
+      "para": "if grupo not in GH_DO_REPO or sub is None or sub != \"create\":",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "diretriz 36 (R-CONTRIB): -C encadeado: o 2º é relativo ao 1º",
+      "arquivo": "hooks/conformidade.py",
+      "de": "cwd = pasta_git = self.caminho(cwd, palavras[i + 1])",
+      "para": "cwd = pasta_git = self.caminho(pasta, palavras[i + 1])",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    }
+  ]
+}

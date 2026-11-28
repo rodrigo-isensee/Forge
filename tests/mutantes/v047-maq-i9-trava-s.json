@@ -1,0 +1,26 @@
+{
+  "pedido": "v047-maq-i9-trava-s",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "com o PID vivo a trava vale até 1.200 s; voltar a 600 solta a suíte em série no meio (MAQ-I9, fatia 2)",
+      "arquivo": "hooks/pesado.py",
+      "de": "TRAVA_S = 1200",
+      "para": "TRAVA_S = 600",
+      "testes": [
+        "tests.test_pesado_fila.TravaDeVinteMinutos.test_pid_vivo_ha_mais_de_10_min_segue_ocupado_e_vai_para_a_fila"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "com o PID vivo a trava vence em 1.200 s, não depois (MAQ-I9, fatia 2)",
+      "arquivo": "hooks/pesado.py",
+      "de": "TRAVA_S = 1200",
+      "para": "TRAVA_S = 1400",
+      "testes": [
+        "tests.test_pesado_fila.TravaDeVinteMinutos.test_pid_vivo_ha_mais_de_20_min_solta"
+      ]
+    }
+  ]
+}

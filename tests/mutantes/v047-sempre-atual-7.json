@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "V1",
+      "guarda": "o --status da suíte vem da cópia instalada, nunca da pasta do projeto (segurança A1)",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "[bash, str(GANCHO_DA_SUITE), \"--status\"], self.neutro, PRAZO_LEITURA)",
+      "para": "[str(Path(self.projeto or self.neutro) / \".githooks\" / \"pre-push\"), \"--status\"], self.neutro, PRAZO_LEITURA)",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_pre_push_da_pasta_do_projeto_nunca_roda"
+      ]
+    },
+    {
+      "id": "V2",
+      "guarda": "init do repositório da origem que falha reprova",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        if rc != 0:\n            return False, \"init: \" + saida",
+      "para": "        if False:\n            return False, \"init: \" + saida",
+      "testes": [
+        "tests.test_sempre_atual.OrigemDaTag.test_init_que_falha_reprova"
+      ]
+    },
+    {
+      "id": "V3",
+      "guarda": "busca da main e da tag que falha reprova",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        if rc != 0:\n            return False, \"prazo\" if rc is None else \"busca: \" + saida",
+      "para": "        if False:\n            return False, \"prazo\" if rc is None else \"busca: \" + saida",
+      "testes": [
+        "tests.test_sempre_atual.OrigemDaTag.test_busca_que_falha_ou_main_ilegivel_reprova"
+      ]
+    },
+    {
+      "id": "V4",
+      "guarda": "commit da tag fora da main reprova",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        if rc != 0:\n            return False, f\"o commit da {tag}",
+      "para": "        if rc not in (0, 1):\n            return False, f\"o commit da {tag}",
+      "testes": [
+        "tests.test_sempre_atual.OrigemDaTag.test_tag_na_main_vale_e_fora_dela_nao"
+      ]
+    },
+    {
+      "id": "V5",
+      "guarda": "merge-base com erro é dúvida, não fora da main",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "não está na main\" if rc == 1 else",
+      "para": "não está na main\" if rc != 0 else",
+      "testes": [
+        "tests.test_sempre_atual.OrigemDaTag.test_busca_que_falha_ou_main_ilegivel_reprova"
+      ]
+    },
+    {
+      "id": "V6",
+      "guarda": "origem reprovada registra falhou:origem-da-tag",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        if not ok:\n            self.falhar(escopos, \"origem-da-tag\", motivo)",
+      "para": "        if False:\n            self.falhar(escopos, \"origem-da-tag\", motivo)",
+      "testes": [
+        "tests.test_sempre_atual.OrigemDaTag.test_tag_fora_da_main_nada_muda"
+      ]
+    },
+    {
+      "id": "V7",
+      "guarda": "avanço com origem reprovada não mexe no catálogo",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        if not self.origem_conferida(tag, pendentes):\n            return {}",
+      "para": "        if not self.origem_conferida(tag, pendentes) and False:\n            return {}",
+      "testes": [
+        "tests.test_sempre_atual.OrigemDaTag.test_tag_fora_da_main_nada_muda"
+      ]
+    },
+    {
+      "id": "V8",
+      "guarda": "volta com origem reprovada não mexe no catálogo",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if self.url and self.origem_conferida(f\"v{para}\", escopos) and self.catalogo",
+      "para": "if self.url and (self.origem_conferida(f\"v{para}\", escopos) or True) and self.catalogo",
+      "testes": [
+        "tests.test_sempre_atual.OrigemDaTag.test_volta_com_origem_reprovada_nao_mexe_no_catalogo"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S17",
+      "guarda": "forge_sempre_atual.py:178 decide por `comm == \"gh\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "linha = Path(f\"{PROC}/{n}/cmdline\").read_bytes().split(b\"\\0\") if comm == \"gh\" else []",
+      "para": "linha = Path(f\"{PROC}/{n}/cmdline\").read_bytes().split(b\"\\0\") if not (comm == \"gh\") else []",
+      "testes": [
+        "tests.test_sempre_atual.ProcFalso.test_coerente_le_claude_fechar_e_gh_de_merge"
+      ]
+    },
+    {
+      "id": "S18",
+      "guarda": "forge_sempre_atual.py:184 decide por `comm == \"claude\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if comm == \"claude\":",
+      "para": "if not (comm == \"claude\"):",
+      "testes": [
+        "tests.test_sempre_atual.ProcFalso.test_coerente_le_claude_fechar_e_gh_de_merge"
+      ]
+    },
+    {
+      "id": "S19",
+      "guarda": "forge_sempre_atual.py:186 decide por `comm == \"forge-fechar\" or (comm == \"gh\" and b\"pr\" in linha and b\"merge`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "elif comm == \"forge-fechar\" or (comm == \"gh\" and b\"pr\" in linha and b\"merge\" in linha):",
+      "para": "elif not (comm == \"forge-fechar\" or (comm == \"gh\" and b\"pr\" in linha and b\"merge\" in linha)):",
+      "testes": [
+        "tests.test_sempre_atual.ProcFalso.test_coerente_le_claude_fechar_e_gh_de_merge"
+      ]
+    },
+    {
+      "id": "S20",
+      "guarda": "forge_sempre_atual.py:194 decide por `projeto and os.path.isdir(projeto)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.projeto = os.path.realpath(projeto) if projeto and os.path.isdir(projeto) else None",
+      "para": "self.projeto = os.path.realpath(projeto) if not (projeto and os.path.isdir(projeto)) else None",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_gravada_pelo_dono_e_respeitada_na_abertura_seguinte"
+      ]
+    },
+    {
+      "id": "S21",
+      "guarda": "forge_sempre_atual.py:213 decide por `not base.is_dir()`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not base.is_dir():",
+      "para": "if base.is_dir():",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S22",
+      "guarda": "forge_sempre_atual.py:223 decide por `stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode) or st.st_uid `",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid():",
+      "para": "if not (stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid()):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S23",
+      "guarda": "forge_sempre_atual.py:229 decide por `texto is not None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "dados = json.loads(texto) if texto is not None else None",
+      "para": "dados = json.loads(texto) if not (texto is not None) else None",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S24",
+      "guarda": "forge_sempre_atual.py:233 decide por `isinstance(dados, dict)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.estado = dados if isinstance(dados, dict) else {}",
+      "para": "self.estado = dados if not (isinstance(dados, dict)) else {}",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B-M17",
+      "guarda": "M4.2 (review A1): o heredoc sem aspas com $ ou crase no corpo é ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                ilegivel |= any(not literal and re.search(r\"[$`]\", corpo) for corpo, literal in corpos)",
+      "para": "                ilegivel |= False",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_volta1_corpo_repetido_ou_com_expansao_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M18",
+      "guarda": "M4.2: o heredoc com delimitador entre aspas é texto ($ e crase não expandem)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                ilegivel |= any(not literal and re.search(r\"[$`]\", corpo) for corpo, literal in corpos)",
+      "para": "                ilegivel |= any(re.search(r\"[$`]\", corpo) for corpo, literal in corpos)",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M19",
+      "guarda": "M4.2 (review A1): o literal é a palavra do parser, não o texto entre aspas em qualquer ponto da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                ilegivel |= bool(re.search(r\"[$`]\", texto)) and nivel.get(texto, 2) > 0",
+      "para": "                ilegivel |= bool(re.search(r\"[$`]\", texto)) and f\"'{texto}'\" not in self.linha",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_volta1_corpo_repetido_ou_com_expansao_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M20",
+      "guarda": "M4.2: o --body entre aspas simples é texto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                ilegivel |= bool(re.search(r\"[$`]\", texto)) and nivel.get(texto, 2) > 0",
+      "para": "                ilegivel |= bool(re.search(r\"[$`]\", texto))",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M21",
+      "guarda": "M4.2 (segurança A1): todo --body é lido, não só o 1.º",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        for texto in valores_da_opcao(args, \"--body\", \"-b\"):",
+      "para": "        for texto in valores_da_opcao(args, \"--body\", \"-b\")[:1]:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_volta1_corpo_repetido_ou_com_expansao_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M22",
+      "guarda": "M4.2 (segurança A1): todo --body-file é lido, não só o 1.º",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        for arquivo in valores_da_opcao(args, \"--body-file\", \"-F\"):",
+      "para": "        for arquivo in valores_da_opcao(args, \"--body-file\", \"-F\")[:1]:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_volta1_corpo_repetido_ou_com_expansao_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M23",
+      "guarda": "M4.2: o arquivo - (a entrada) e o caminho com expansão são ilegíveis",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            lidos, falhou = ([], True) if arquivo == \"-\" or re.search(r\"[$`]\", arquivo) else",
+      "para": "            lidos, falhou = ([], True) if False else",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M24",
+      "guarda": "M4.2: a opção curta separada do valor é lida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if a in (longa, curta) and i + 1 < len(args):",
+      "para": "        if a == longa and i + 1 < len(args):",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    }
+  ]
+}

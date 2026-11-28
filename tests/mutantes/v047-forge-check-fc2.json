@@ -1,0 +1,26 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FC2-M1",
+      "guarda": "a volta sem outra etapa diz que o pedido não tem outra (BRIEF-VOLTA-FORA-COMPACTO)",
+      "arquivo": "bin/forge-check",
+      "de": "    saida += linhas_de_ids_do_fora(etapas) or [\"- (o pedido não tem outra etapa)\\n\"]",
+      "para": "    saida += linhas_de_ids_do_fora(etapas) and [\"- (o pedido não tem outra etapa)\\n\"]",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_sem_outra_etapa_diz_que_o_pedido_nao_tem"
+      ]
+    },
+    {
+      "id": "FC2-M2",
+      "guarda": "o Fora do escopo da volta agrupa 40 ids por linha (BRIEF-VOLTA-FORA-COMPACTO)",
+      "arquivo": "bin/forge-check",
+      "de": "for i in range(0, len(ids), IDS_POR_LINHA_DO_FORA)]",
+      "para": "for i in range(0, len(ids), 1)]",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_de_pedido_grande_cabe_no_teto_e_passa_na_conferencia"
+      ]
+    }
+  ]
+}

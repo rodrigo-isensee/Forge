@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S41",
+      "guarda": "forge_sempre_atual.py:345 decide por `saida or \"sem resposta\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.extras.append((\"-\", \"-\", \"-\", \"-\", \"falhou:lista:\" + resumo(saida or \"sem resposta\")))",
+      "para": "self.extras.append((\"-\", \"-\", \"-\", \"-\", \"falhou:lista:\" + resumo(not (saida or \"sem resposta\"))))",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_lista_que_falha_registra_o_erro_do_claude"
+      ]
+    },
+    {
+      "id": "S42",
+      "guarda": "forge_sempre_atual.py:350 decide por `not (isinstance(item, dict) and item.get(\"id\") == fv.PLUGIN and item.g`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not (isinstance(item, dict) and item.get(\"id\") == fv.PLUGIN and item.get(\"scope\") in (\"user\", \"project\", \"local\")):",
+      "para": "if (isinstance(item, dict) and item.get(\"id\") == fv.PLUGIN and item.get(\"scope\") in (\"user\", \"project\", \"local\")):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S43",
+      "guarda": "forge_sempre_atual.py:352 decide por `isinstance(item.get(\"projectPath\"), str)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "projeto = item.get(\"projectPath\") if isinstance(item.get(\"projectPath\"), str) else \"\"",
+      "para": "projeto = item.get(\"projectPath\") if not (isinstance(item.get(\"projectPath\"), str)) else \"\"",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S44",
+      "guarda": "forge_sempre_atual.py:353 decide por `item[\"scope\"] in CASCA and not projeto`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if item[\"scope\"] in CASCA and not projeto:",
+      "para": "if not (item[\"scope\"] in CASCA and not projeto):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S45",
+      "guarda": "forge_sempre_atual.py:366 decide por `isinstance(ref, str)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return ref if isinstance(ref, str) else None",
+      "para": "return ref if not (isinstance(ref, str)) else None",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S46",
+      "guarda": "forge_sempre_atual.py:377 decide por `(real / \".orphaned_at\").exists()`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return None if (real / \".orphaned_at\").exists() else caminho",
+      "para": "return None if not ((real / \".orphaned_at\").exists()) else caminho",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S47",
+      "guarda": "forge_sempre_atual.py:380 decide por `e[\"versao\"] or \"-\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.res[e[\"chave\"]] = {\"antes\": e[\"versao\"] or \"-\", \"depois\": depois or e[\"versao\"] or \"-\", \"resultado\": resultado}",
+      "para": "self.res[e[\"chave\"]] = {\"antes\": not (e[\"versao\"] or \"-\"), \"depois\": depois or e[\"versao\"] or \"-\", \"resultado\": resultado}",
+      "testes": [
+        "tests.test_sempre_atual.RamosSemMundo.test_resultado_sem_versao_registra_traco"
+      ]
+    },
+    {
+      "id": "S48",
+      "guarda": "forge_sempre_atual.py:380 decide por `depois or e[\"versao\"] or \"-\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.res[e[\"chave\"]] = {\"antes\": e[\"versao\"] or \"-\", \"depois\": depois or e[\"versao\"] or \"-\", \"resultado\": resultado}",
+      "para": "self.res[e[\"chave\"]] = {\"antes\": e[\"versao\"] or \"-\", \"depois\": not (depois or e[\"versao\"] or \"-\"), \"resultado\": resultado}",
+      "testes": [
+        "tests.test_sempre_atual.RamosSemMundo.test_resultado_sem_versao_registra_traco"
+      ]
+    }
+  ]
+}

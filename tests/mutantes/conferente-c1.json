@@ -6,8 +6,8 @@
       "id": "C1",
       "guarda": "o pr volta a recusar o --desde",
       "arquivo": "bin/forge-check",
-      "de": "    if desde is not None:  # C1: vale em todas as etapas",
-      "para": "    if desde is not None and etapa in ETAPAS_DE_BRANCH_INTEIRA:\n        linhas.append((\"escopo: --desde fora da etapa\", True))\n    elif desde is not None:  # C1: vale em todas as etapas",
+      "de": "    # C1: vale em todas as etapas; as checagens de ato (PR, checks, merge) não passam por aqui\n",
+      "para": "    if desde is not None:\n        linhas.append((\"escopo: --desde fora da etapa\", True))\n",
       "testes": ["tests.test_volta_por_delta.Entrega.test_desde_nas_etapas_de_branch_inteira_le_so_o_delta"]
     },
     {
@@ -54,8 +54,8 @@
       "id": "C7",
       "guarda": "nas etapas de merge o desfeito nao sai pelo conteudo da base",
       "arquivo": "bin/forge-check",
-      "de": "diferem |= desfeitos_da_entrega(raiz, base_sha, valido)",
-      "para": "pass",
+      "de": "desfeitos = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set()",
+      "para": "desfeitos = set()",
       "testes": ["tests.test_volta_por_delta.Entrega.test_arquivo_acrescentado_antes_da_conferida_e_apagado_depois_fica_no_escopo"]
     },
     {

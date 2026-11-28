@@ -1,0 +1,18 @@
+{
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP, volta 1 da E4.4, caso verdadeiro: A1 do QA, sonda 3: os.posix_spawnp com gh pr merge.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 - <<'EOF'\nimport os\nos.posix_spawnp(\"gh\",[\"gh\",\"pr\",\"merge\",\"5\"],os.environ)\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: "
+  }
+}

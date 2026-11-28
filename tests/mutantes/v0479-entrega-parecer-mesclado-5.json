@@ -1,0 +1,88 @@
+{
+  "pedido": "v0479-entrega-parecer-mesclado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "a construção que o hook não modela recusa quando a linha cita pasta de parecer alheia (E50.11, A5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            bool(ESTADO_NO_TEXTO.search(linha)) or self.parecer_no_texto(linha))\n",
+      "para": "            bool(ESTADO_NO_TEXTO.search(linha)))\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "a linha que cita qualquer pasta de parecer recusa, dono incluído (E50.15, A6)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return bool(PARECER_NO_TEXTO.search(juntar_continuacoes(linha)))\n",
+      "para": "        return False\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "a caixa não conta na pasta citada (`${d,,}`; E50.15, A6)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "security)(?![\\w.-])\", re.I)",
+      "para": "security)(?![\\w.-])\", 0)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "a linha que o hook não lê e cita pasta de parecer alheia recusa (E50.11, A5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if guarda.no_clone and isinstance(alvo, str) and guarda.parecer_no_texto(alvo):  # A5 e A6 da segurança\n",
+      "para": "        if False:  # A5 e A6 da segurança\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "a linha sem leitura não vai ao registro de erro interno (E50.11, A5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if erro_interno:\n",
+      "para": "            if True:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "o vizinho de nome (docs/reviewsx/) não é pasta de parecer (E50.11, A5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "security)(?![\\w.-])\", re.I)",
+      "para": "security))\", re.I)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "docs/security cobre docs/security/aceites na variável do dono (S17; E50.15, A6)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "docs/(?:reviews|qa|devops|security)(?![",
+      "para": "docs/(?:reviews|qa|devops|security/aceites)(?![",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "self.papel not in e[\"quem\"]",
+      "motivo": "apagada de propósito pelo A6 da segurança: a isenção do dono era a brecha (S17 a S19); a recusa sem papel é provada por M26 e pelas fixtures pp-sessao-forge-wt-*-variavel-*"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "e[\"caminho\"] in CAMINHOS_DE_PARECER and casa(m.group(0) + \"/\", e[\"caminho\"])",
+      "motivo": "apagada com a isenção do dono (A6): sem papel a conferir, a busca da entrada da política não tem mais uso; a recusa é provada por M26 e M31"
+    }
+  ]
+}

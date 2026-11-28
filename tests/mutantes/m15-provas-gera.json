@@ -5,7 +5,7 @@
     {
       "id": "M1",
       "guarda": "C-1: o que entra é decidido só pelo comando_permitido do script (sem ele, test -s e git -C entrariam)",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_provas.py",
       "de": "motivo = script.comando_permitido(argv)",
       "para": "motivo = None",
       "testes": [
@@ -35,7 +35,7 @@
     {
       "id": "M4",
       "guarda": "só PQ do tipo cmd entra (PQ arquivo com crases não vira prova nem fora)",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_provas.py",
       "de": ".strip().lower() != \"cmd\":",
       "para": ".strip().lower() not in (\"cmd\", \"arquivo\"):",
       "testes": [
@@ -45,7 +45,7 @@
     {
       "id": "M5",
       "guarda": "linha do Pronto quando sem PQ é pulada",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_provas.py",
       "de": "if not m or (m.group(2) or \"\").split(\",\")[0].strip().lower()",
       "para": "if (m.group(2) or \"\").split(\",\")[0].strip().lower()",
       "testes": [
@@ -55,7 +55,7 @@
     {
       "id": "M6",
       "guarda": "PQ sem tipo entre parênteses é pulada",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_provas.py",
       "de": "if not m or (m.group(2) or \"\").split(\",\")[0].strip().lower()",
       "para": "if not m or (m.group(2)).split(\",\")[0].strip().lower()",
       "testes": [
@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "PQ cmd sem comando entre crases sai fora, não quebra",
       "arquivo": "bin/forge-check",
-      "de": "        comando = re.search(r\"`([^`]+)`\", resto)\n        try:\n            argv = shlex.split(comando.group(1)) if comando else []",
-      "para": "        comando = re.search(r\"`([^`]+)`\", resto)\n        try:\n            argv = shlex.split(comando.group(1)) if True else []",
+      "de": "    return shlex.split(comando.group(1)) if comando else []",
+      "para": "    return shlex.split(comando.group(1)) if True else []",
       "testes": [
         "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
       ]
@@ -95,7 +95,7 @@
     {
       "id": "M10",
       "guarda": "C-9: o fora traz o motivo fixo do script",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_provas.py",
       "de": "({motivo or 'espera recusada",
       "para": "({'espera recusada",
       "testes": [
@@ -105,9 +105,9 @@
     {
       "id": "M11",
       "guarda": "C-6: o script do CI que não carrega dá rc 2 não verificável",
-      "arquivo": "bin/forge-check",
-      "de": "(C-1).\"\"\"\n    script = carregar_reexecutar_provas()\n    if script is None:\n",
-      "para": "(C-1).\"\"\"\n    script = carregar_reexecutar_provas()\n    if script is not None:\n",
+      "arquivo": "bin/forge_provas.py",
+      "de": "    script = carregar_reexecutar_provas()\n    if script is None:\n        print(\"provas: não verificável",
+      "para": "    script = carregar_reexecutar_provas()\n    if script is not None:\n        print(\"provas: não verificável",
       "testes": [
         "tests.test_brief_gravar.ProvasGerar.test_so_a_lista_do_script_entra_e_a_espera_sem_rc0_ganha_o_prefixo"
       ]
@@ -115,7 +115,7 @@
     {
       "id": "M12",
       "guarda": "sem PQ elegível: nada sai e rc 0 (não manda texto vazio ao ler_provas)",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_provas.py",
       "de": "    if not provas:\n",
       "para": "    if provas == [0]:\n",
       "testes": [
@@ -135,7 +135,7 @@
     {
       "id": "M14",
       "guarda": "C-1: o texto inteiro passa pelo ler_provas do script antes de sair; recusa dá rc 2",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_provas.py",
       "de": "script.ler_provas(\"docs/provas/gerado.md\", gerado, Path(raiz))",
       "para": "pass",
       "testes": [

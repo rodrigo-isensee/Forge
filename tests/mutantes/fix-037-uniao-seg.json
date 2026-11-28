@@ -24,8 +24,8 @@
       "id": "M2",
       "guarda": "conformidade.py:2003 (A2): fora de projeto, recusa que não é a da prova não vale",
       "arquivo": "hooks/conformidade.py",
-      "de": "if (rid, o_que, corrigir) != PROVA_DA_SUITE:",
-      "para": "if False and (rid, o_que, corrigir) != PROVA_DA_SUITE:",
+      "de": "if (rid, o_que, corrigir) == PROVA_DA_SUITE:\n            super().barrar",
+      "para": "if True:\n            super().barrar",
       "testes": [
         "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"
       ]
@@ -44,8 +44,8 @@
       "id": "M5",
       "guarda": "conformidade.py:2022 (A2): outra recusa antes ou erro interno falha fechado se o alvo cita a prova",
       "arquivo": "hooks/conformidade.py",
-      "de": "if isinstance(alvo, str) and any(MARCA_DA_SUITE",
-      "para": "if False and isinstance(alvo, str) and any(MARCA_DA_SUITE",
+      "de": "if any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in palavras):\n            Guarda.barrar",
+      "para": "if False:\n            Guarda.barrar",
       "testes": [
         "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"
       ]
@@ -64,7 +64,7 @@
       "id": "M7",
       "guarda": "conformidade.py:2054 (A2): o ramo externo is False confere a prova antes de sair",
       "arquivo": "hooks/conformidade.py",
-      "de": "            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz)\n",
+      "de": "            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, na_sessao_do_forge)\n",
       "para": "            pass\n",
       "testes": [
         "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"

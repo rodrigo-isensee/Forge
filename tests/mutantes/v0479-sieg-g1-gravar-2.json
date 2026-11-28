@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "G1.2 (item 6, D1): sem prazo escrito vale 48 h",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if termo in SEM_PRAZO_ESCRITO:\n        return fala + datetime.timedelta(hours=48)",
+      "para": "    if False:\n        return fala + datetime.timedelta(hours=48)",
+      "testes": [
+        "tests.test_autorizacao_gravar.Validade.test_mapa_fechado_do_termo"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "G1.2 (item 6): o fim do pedido vale 7 dias; o resto, uso único",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if \"pedido\" in termo else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_autorizacao_gravar.Validade.test_mapa_fechado_do_termo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "G1.2 (item 5, A2): alvo numa frase sem termo de ato marca a pendência",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "fora_do_ato or bool(achados and not termos)",
+      "para": "fora_do_ato",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_recorte_ou_ressalva_nasce_pendente_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "G1.2 (item 5): sem termo do ato declarado no texto, recusa e nada grava",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if ato not in atos:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_sem_termo_de_ato_ou_com_ato_diferente_recusa_e_nada_grava"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "G1.2 (item 5): mais de um ato nasce pendente",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(len(atos) > 1, \"mais de um ato\")",
+      "para": "(False, \"mais de um ato\")",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_recorte_ou_ressalva_nasce_pendente_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "G1.2 (item 5, A2): alvos do texto diferentes dos declarados nascem pendentes",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(do_texto != (set() if fixo else {normal(a) for a in alvos.split(\", \")}),",
+      "para": "(False,",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_recorte_ou_ressalva_nasce_pendente_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "G1.2 (item 5): alvo fora da frase do ato nasce pendente",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(fora_do_ato, \"alvo fora da frase do ato\")",
+      "para": "(False, \"alvo fora da frase do ato\")",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_recorte_ou_ressalva_nasce_pendente_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "G1.2 (item 5): termos de validade em conflito nascem pendentes",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(len(termos) > 1, \"mais de um termo de validade\")",
+      "para": "(False, \"mais de um termo de validade\")",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_recorte_ou_ressalva_nasce_pendente_com_o_motivo"
+      ]
+    }
+  ]
+}

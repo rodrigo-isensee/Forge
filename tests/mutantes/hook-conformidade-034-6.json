@@ -38,8 +38,8 @@
       "id": "M20",
       "guarda": "o marcador crítico vale também na forma juntada (prazo e falha fechada)",
       "arquivo": "hooks/_comum.py",
-      "de": "any(critico.search(t) is not None for t in [texto, *formas_que_o_shell_le(texto)])",
-      "para": "any(critico.search(t) is not None for t in [texto])",
+      "de": "formas = [texto, *formas_que_o_shell_le(texto)]",
+      "para": "formas = [texto]",
       "testes": [
         "tests.test_hooks.Hooks.test_marcador_critico_tambem_na_forma_juntada"
       ]
@@ -139,8 +139,8 @@
       "id": "M45",
       "guarda": "formas demais marcam a ação como crítica (falha fechado)",
       "arquivo": "hooks/_comum.py",
-      "de": "        except RuntimeError:  # formas demais: marca, e o erro que volta na decisão falha fechado\n            hook.marcado = True",
-      "para": "        except RuntimeError:  # formas demais: marca, e o erro que volta na decisão falha fechado\n            hook.marcado = False",
+      "de": "except Exception:  # noqa: BLE001 - formas demais ou erro do marcador: marca, e a falha fecha\n            hook.marcado = True",
+      "para": "except Exception:  # noqa: BLE001 - formas demais ou erro do marcador: marca, e a falha fecha\n            hook.marcado = False",
       "testes": [
         "tests.test_hooks.Hooks.test_formas_compostas_ate_o_ponto_fixo_e_teto_fecha"
       ]

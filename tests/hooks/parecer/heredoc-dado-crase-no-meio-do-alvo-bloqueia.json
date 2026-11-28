@@ -1,0 +1,30 @@
+{
+  "descricao": "HOOK-HEREDOC-PALAVRA-FP, caso verdadeiro (A1 da E2.6-E2.8): a crase no meio do alvo (bin/`echo l`s) faz bin/ls, sem valor literal; o ls da chamada o roda; recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat > bin/`echo l`s <<'FIM'\n#!/bin/sh\ngit merge melhoria/x\nFIM\nls"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW"
+  }
+}

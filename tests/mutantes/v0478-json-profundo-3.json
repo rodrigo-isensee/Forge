@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-json-profundo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M13",
+      "guarda": "copia da catraca: dentro de string o colchete nao conta",
+      "arquivo": "tests/catraca.py",
+      "de": "        if em_string:\n            if escapado:",
+      "para": "        if False:\n            if escapado:",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "copia da catraca: o caractere escapado e consumido",
+      "arquivo": "tests/catraca.py",
+      "de": "            if escapado:\n                escapado = False",
+      "para": "            if False:\n                escapado = False",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "copia da catraca: a barra abre o escape dentro da string",
+      "arquivo": "tests/catraca.py",
+      "de": "            elif c == \"\\\\\":\n                escapado = True",
+      "para": "            elif False:\n                escapado = True",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "copia da catraca: a aspa fecha a string",
+      "arquivo": "tests/catraca.py",
+      "de": "            elif c == '\"':\n                em_string = False",
+      "para": "            elif False:\n                em_string = False",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "copia da catraca: a aspa abre a string",
+      "arquivo": "tests/catraca.py",
+      "de": "        elif c == '\"':\n            em_string = True",
+      "para": "        elif False:\n            em_string = True",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "copia da catraca: chave e colchete abrem nivel",
+      "arquivo": "tests/catraca.py",
+      "de": "        elif c in \"[{\":\n            nivel += 1",
+      "para": "        elif c in \"[\":\n            nivel += 1",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "copia da catraca: o teto aceita exatamente 64 niveis",
+      "arquivo": "tests/catraca.py",
+      "de": "            if nivel > teto:",
+      "para": "            if nivel >= teto:",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "copia da catraca: chave e colchete fecham nivel",
+      "arquivo": "tests/catraca.py",
+      "de": "        elif c in \"]}\":\n            nivel -= 1",
+      "para": "        elif c in \"]\":\n            nivel -= 1",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    }
+  ]
+}

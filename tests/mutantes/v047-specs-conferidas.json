@@ -1,0 +1,87 @@
+{
+  "pedido": "v047-specs-conferidas",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "T1",
+      "guarda": "--todas: rev que não é commit para com a mensagem",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if sha_rev is None:\n        raise ValueError(\"--rev precisa resolver",
+      "para": "    if False:\n        raise ValueError(\"--rev precisa resolver",
+      "testes": [
+        "tests.test_forge_mutante.ConferirTodas.test_sem_spec_rev_que_nao_e_commit_ou_spec_invalida_saem_2"
+      ]
+    },
+    {
+      "id": "T2",
+      "guarda": "--todas: sem spec no rev é entrada inválida (rc 2)",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if not nomes:\n        raise ValueError(f\"nenhuma spec",
+      "para": "    if False:\n        raise ValueError(f\"nenhuma spec",
+      "testes": [
+        "tests.test_forge_mutante.ConferirTodas.test_sem_spec_rev_que_nao_e_commit_ou_spec_invalida_saem_2"
+      ]
+    },
+    {
+      "id": "T3",
+      "guarda": "--todas lê todas as specs do rev, não o diff",
+      "arquivo": "bin/forge-mutante",
+      "de": "        if todas:\n            (sha_rev, nomes), mb",
+      "para": "        if False:\n            (sha_rev, nomes), mb",
+      "testes": [
+        "tests.test_forge_mutante.ConferirTodas.test_spec_antiga_fora_do_diff_que_envelheceu_sai_1_e_a_alinhada_sai_0"
+      ]
+    },
+    {
+      "id": "T4",
+      "guarda": "--todas não confere linha_base (é do --base)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if todas else dados, mb, sha_rev)",
+      "para": "if False else dados, mb, sha_rev)",
+      "testes": [
+        "tests.test_forge_mutante.ConferirTodas.test_spec_antiga_fora_do_diff_que_envelheceu_sai_1_e_a_alinhada_sai_0"
+      ]
+    },
+    {
+      "id": "T5",
+      "guarda": "--todas diz quantas specs conferiu",
+      "arquivo": "bin/forge-mutante",
+      "de": "mutante no lugar\" if todas\n",
+      "para": "mutante no lugar\" if False\n",
+      "testes": [
+        "tests.test_forge_mutante.ConferirTodas.test_spec_antiga_fora_do_diff_que_envelheceu_sai_1_e_a_alinhada_sai_0"
+      ]
+    },
+    {
+      "id": "T6",
+      "guarda": "--todas é despachado antes do --conferir --base",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if args.todas:\n        if not args.conferir",
+      "para": "    if False:\n        if not args.conferir",
+      "testes": [
+        "tests.test_forge_mutante.ConferirTodas.test_spec_antiga_fora_do_diff_que_envelheceu_sai_1_e_a_alinhada_sai_0",
+        "tests.test_forge_mutante.ConferirTodas.test_todas_vem_so_com_conferir_e_sem_base_spec_nem_cobertura"
+      ]
+    },
+    {
+      "id": "T7",
+      "guarda": "--todas sem --conferir é recusado",
+      "arquivo": "bin/forge-mutante",
+      "de": "if not args.conferir or args.base or args.spec or args.cobertura:",
+      "para": "if args.base or args.spec or args.cobertura:",
+      "testes": [
+        "tests.test_forge_mutante.ConferirTodas.test_todas_vem_so_com_conferir_e_sem_base_spec_nem_cobertura"
+      ]
+    },
+    {
+      "id": "T8",
+      "guarda": "spec ilegível ou sem teste segue na suíte completa, sem o test_forge_mutante sozinho",
+      "arquivo": "bin/forge-testes",
+      "de": "return tuple(sorted({*da_spec, \"test_forge_mutante\"})) if da_spec else None",
+      "para": "return tuple(sorted({*da_spec, \"test_forge_mutante\"})) if True else None",
+      "testes": [
+        "tests.test_testes_tocados.MapaDosNovos.test_spec_ilegivel_sem_teste_ou_com_teste_de_fora_segue_na_completa"
+      ]
+    }
+  ]
+}

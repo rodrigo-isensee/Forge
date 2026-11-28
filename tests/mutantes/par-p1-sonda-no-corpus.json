@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "C-5: a conferencia da volta cobra toda sonda do parecer no Entregar",
       "arquivo": "bin/forge-check",
-      "de": "if not re.search(rf\"\\(sonda",
-      "para": "if False and not re.search(rf\"\\(sonda",
+      "de": "            if not entradas:\n                saida.append((f\"volta: falta sonda",
+      "para": "            if False:\n                saida.append((f\"volta: falta sonda",
       "testes": [
         "tests.test_volta_por_delta.SondaNoCorpus.test_gerar_volta_copia_a_sonda_e_a_conferencia_a_cobra"
       ]

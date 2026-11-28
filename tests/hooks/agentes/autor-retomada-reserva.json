@@ -1,0 +1,36 @@
+{
+  "descricao": "H2-AUTOR-FICA-ATE-O-MERGE (Z10, R-TETO): retomar o autor por SendMessage reserva as branches dele com o id dele.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [],
+      "autores": [
+        {
+          "id": "a0123456789abcdef",
+          "desde": "{agora-60}",
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "SendMessage",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "to": "a0123456789abcdef",
+      "message": "continue"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "SendMessage"
+        ]
+      }
+    }
+  }
+}

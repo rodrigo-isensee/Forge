@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-placar-fases",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M42",
+      "guarda": "aninhamento no teto passa, um acima sai com 2",
+      "arquivo": "bin/forge-placar",
+      "de": "if nivel > teto:",
+      "para": "if nivel >= teto:",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "aspa fora de string abre string",
+      "arquivo": "bin/forge-placar",
+      "de": "        elif c == '\"':\n            em_string = True",
+      "para": "        elif c != '\"':\n            em_string = True",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "fechamento abate o nivel",
+      "arquivo": "bin/forge-placar",
+      "de": "        elif c in \"]}\":",
+      "para": "        elif c in \"]\":",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_varredura_de_aninhamento_e_de_um_passe_e_trata_escape"
+      ]
+    },
+    {
+      "id": "M47",
+      "guarda": "dentro de string o colchete nao conta",
+      "arquivo": "bin/forge-placar",
+      "de": "        if em_string:\n            if escapado:",
+      "para": "        if not em_string:\n            if escapado:",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "a barra marca o escape",
+      "arquivo": "bin/forge-placar",
+      "de": "            elif c == \"\\\\\":",
+      "para": "            elif c == \"/\":",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_varredura_de_aninhamento_e_de_um_passe_e_trata_escape"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "o escape vale so para o proximo caractere",
+      "arquivo": "bin/forge-placar",
+      "de": "            if escapado:\n                escapado = False",
+      "para": "            if False:\n                escapado = False",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_varredura_de_aninhamento_e_de_um_passe_e_trata_escape"
+      ]
+    },
+    {
+      "id": "M48",
+      "guarda": "aspa nao escapada fecha a string",
+      "arquivo": "bin/forge-placar",
+      "de": "            elif c == '\"':\n                em_string = False",
+      "para": "            elif c == '\\'':\n                em_string = False",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_varredura_de_aninhamento_e_de_um_passe_e_trata_escape"
+      ]
+    },
+    {
+      "id": "M49",
+      "guarda": "a varredura abre nivel em chave",
+      "arquivo": "bin/forge-placar",
+      "de": "        elif c in \"[{\":",
+      "para": "        elif c in \"[\":",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_varredura_de_aninhamento_e_de_um_passe_e_trata_escape"
+      ]
+    }
+  ]
+}

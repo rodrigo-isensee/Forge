@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-fechar-ci-topo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o CI cancelado do merge segue o topo (condição do while)",
+      "arquivo": "bin/forge-fechar",
+      "de": "while [ \"$ci_st\" = cancelado ] && topo=",
+      "para": "while false && topo=",
+      "testes": [
+        "tests.test_fechar_ci_topo.CiDoTopo.test_topo_verde_que_contem_o_merge_fecha_com_0"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "só o topo que contém o merge (ahead ou identical) decide",
+      "arquivo": "bin/forge-fechar",
+      "de": "{ [ \"$st\" = ahead ] || [ \"$st\" = identical ]; }; do",
+      "para": "true; do",
+      "testes": [
+        "tests.test_fechar_ci_topo.CiDoTopo.test_topo_que_nao_contem_o_merge_fica_cancelado"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o verde do topo fecha com 0",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$ci_st\" = verde ]; then echo \"CI do push na $alvo verde no ${sha_ci:0:7}.\"",
+      "para": "if false; then echo \"CI do push na $alvo verde no ${sha_ci:0:7}.\"",
+      "testes": [
+        "tests.test_fechar_ci_topo.CiDoTopo.test_topo_verde_que_contem_o_merge_fecha_com_0"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a cópia principal na branch para antes do passo 1 (condição)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$(cd \"$arvore_lock\" && pwd -P)/.git\" = ",
+      "para": "if false && [ \"$(cd \"$arvore_lock\" && pwd -P)/.git\" = ",
+      "testes": [
+        "tests.test_fechar_ci_topo.CopiaCerta.test_copia_principal_na_branch_para_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a parada da cópia principal sai com código 1",
+      "arquivo": "bin/forge-fechar",
+      "de": "die \"parou antes do passo 1: a cópia",
+      "para": "echo \"parou antes do passo 1: a cópia",
+      "testes": [
+        "tests.test_fechar_ci_topo.CopiaCerta.test_copia_principal_na_branch_para_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "com o commit aqui, segue o modo só remota",
+      "arquivo": "bin/forge-fechar",
+      "de": "if git cat-file -e \"$sha_conferido^{commit}\" 2>/dev/null; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar_sha_conferido.SoBranchRemota.test_branch_so_no_servidor_fecha_no_sha_do_servidor"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "sem o commit depois da busca, para e pede o fetch",
+      "arquivo": "bin/forge-fechar",
+      "de": "2>/dev/null || die \"parou no passo 1: sem a branch local e sem o commit",
+      "para": "2>/dev/null || true || die \"parou no passo 1: sem a branch local e sem o commit",
+      "testes": [
+        "tests.test_fechar_sha_conferido.SoBranchRemota.test_commit_que_falta_aqui_pede_o_fetch"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "a branch local que não se cria para no passo 1",
+      "arquivo": "bin/forge-fechar",
+      "de": ">/dev/null 2>&1 || die \"parou no passo 1: não consegui criar",
+      "para": ">/dev/null 2>&1 || true || die \"parou no passo 1: não consegui criar",
+      "testes": [
+        "tests.test_fechar_sha_conferido.SoBranchRemota.test_branch_local_que_nao_se_cria_para_antes_do_passo_1"
+      ]
+    }
+  ]
+}

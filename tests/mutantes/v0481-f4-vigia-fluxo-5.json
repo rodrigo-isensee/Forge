@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-f4-vigia-fluxo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "número fora de inteiro é ignorado",
+      "arquivo": "hooks/vigia.py",
+      "de": "and type(p.get(\"number\")) is int and 1 <= p[\"number\"] <= 9999999",
+      "para": "and 1 <= p[\"number\"] <= 9999999",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_item_fora_da_forma_e_ignorado"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "número fora da faixa é ignorado",
+      "arquivo": "hooks/vigia.py",
+      "de": "and type(p.get(\"number\")) is int and 1 <= p[\"number\"] <= 9999999",
+      "para": "and type(p.get(\"number\")) is int",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_item_fora_da_forma_e_ignorado"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "branch fora do formato é ignorada",
+      "arquivo": "hooks/vigia.py",
+      "de": "and isinstance(p.get(\"head\"), str) and _HEAD.fullmatch(p[\"head\"]) and p.get(\"papel\") in PAPEIS",
+      "para": "and isinstance(p.get(\"head\"), str) and p.get(\"papel\") in PAPEIS",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_item_fora_da_forma_e_ignorado"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "papel fora da lista é ignorado",
+      "arquivo": "hooks/vigia.py",
+      "de": "and isinstance(p.get(\"head\"), str) and _HEAD.fullmatch(p[\"head\"]) and p.get(\"papel\") in PAPEIS",
+      "para": "and isinstance(p.get(\"head\"), str) and _HEAD.fullmatch(p[\"head\"])",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_item_fora_da_forma_e_ignorado"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "sem PR na lista não lê o teto",
+      "arquivo": "hooks/vigia.py",
+      "de": "if not prs or len(vivos) >= agentes.calcular_teto(",
+      "para": "if len(vivos) >= agentes.calcular_teto(",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_sem_quadro_cala"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "sem vaga no teto não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "if not prs or len(vivos) >= agentes.calcular_teto(",
+      "para": "if not prs or False and len(vivos) >= agentes.calcular_teto(",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_sem_vaga_no_teto_nao_conta"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "PR com agente vivo na branch não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "for n, head, papel in prs if head not in ocupadas]",
+      "para": "for n, head, papel in prs if True]",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_pr_com_agente_vivo_na_branch_nao_conta"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "até três itens e o resto em `e mais`",
+      "arquivo": "hooks/vigia.py",
+      "de": "resto = f\" e mais {len(itens) - quantos}\" if len(itens) > quantos else \"\"",
+      "para": "resto = f\" e mais {len(itens) - quantos}\" if True else \"\"",
+      "testes": [
+        "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_pr_parado_sem_cartao_avisa_com_o_papel"
+      ]
+    }
+  ]
+}

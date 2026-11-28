@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O36",
+      "guarda": "A9, U1: `?` do curinga casa um caractere (`.gi?`)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\".\" if c == \"?\" else re.escape(c)",
+      "para": "\".\" if False else re.escape(c)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O37",
+      "guarda": "A9, U1: o curinga casa o nome inteiro",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return re.fullmatch(regex, nome, re.I) is not None",
+      "para": "    return re.fullmatch(regex, nome, re.I) is None",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O38",
+      "guarda": "A9, U1: a linha inteira entra no texto quando a variável ou a função nasce nela de outro jeito",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return precisos, precisos + [linha] if largo else precisos",
+      "para": "        return precisos, precisos + [linha] if False else precisos",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O39",
+      "guarda": "A9, U3: o destino em `-t` é o opaco",
+      "arquivo": "hooks/conformidade.py",
+      "de": "`git rev-parse --show-toplevel`).\"\"\"\n        alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in (\"-t\", \"--target-directory\")), None)\n",
+      "para": "`git rev-parse --show-toplevel`).\"\"\"\n        alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ()), None)\n",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O40",
+      "guarda": "A9, U3: o destino em `--target-directory=` é o opaco",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        alvo = alvo or next((a.split(\"=\", 1)[1] for a in args if a.startswith(\"--target-directory=\")), None)\n        alvo = alvo or next((a for a in reversed(args) if not a.startswith(\"-\") or \"`\" in a), None)\n        if not alvo or",
+      "para": "        alvo = alvo or None and next((a.split(\"=\", 1)[1] for a in args if a.startswith(\"--target-directory=\")), None)\n        alvo = alvo or next((a for a in reversed(args) if not a.startswith(\"-\") or \"`\" in a), None)\n        if not alvo or",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O41",
+      "guarda": "A9, U3: sem `-t`, o destino é a última palavra que não é opção",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        alvo = alvo or next((a for a in reversed(args) if not a.startswith(\"-\") or \"`\" in a), None)\n        if not alvo or",
+      "para": "        alvo = alvo or None and next((a for a in reversed(args) if not a.startswith(\"-\") or \"`\" in a), None)\n        if not alvo or",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O42",
+      "guarda": "A9, U3: só a origem com nome da C18 recusa (`x` segue livre)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        achado = next((n for n in nomes if nome_da_c18(n)), None)",
+      "para": "        achado = next((n for n in nomes if not nome_da_c18(n)), None)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O43",
+      "guarda": "A9, U3: o corpo é o de `$(…)`; o da crase só quando não há `$(`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        corpo = m[\"sub\"] if m[\"sub\"] is not None else m[\"crase\"]",
+      "para": "        corpo = m[\"sub\"] if m[\"sub\"] is None else m[\"crase\"]",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-bp1-q1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q9",
+      "guarda": "prorrogação exige OK novo do dono",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "or pror[\"autorizacao\"] == e.get(\"autorizacao\"):",
+      "para": ":",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_prorrogacao_sem_ok_novo"
+      ]
+    },
+    {
+      "id": "Q10",
+      "guarda": "teto de 3 entradas ativas",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "> TETO_ENTRADAS:",
+      "para": ">= TETO_ENTRADAS:",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_no_maximo_tres_entradas_ativas"
+      ]
+    },
+    {
+      "id": "Q11",
+      "guarda": "ativas com erro não exclui nada (falha fechada)",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "    if validar(entradas, hoje):\n        return []\n    return [e for e in entradas if hoje <=",
+      "para": "    if False:\n        return []\n    return [e for e in entradas if hoje <=",
+      "testes": [
+        "tests.test_forge_quarentena.AtivasEVencidas.test_com_erro_nao_exclui_nada_de_ativas_nem_de_vencidas"
+      ]
+    },
+    {
+      "id": "Q12",
+      "guarda": "vencidas com erro não devolve nada",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "    if validar(entradas, hoje):\n        return []\n    return [e for e in entradas if prazo_efetivo(e) < hoje]",
+      "para": "    if False:\n        return []\n    return [e for e in entradas if prazo_efetivo(e) < hoje]",
+      "testes": [
+        "tests.test_forge_quarentena.AtivasEVencidas.test_com_erro_nao_exclui_nada_de_ativas_nem_de_vencidas"
+      ]
+    },
+    {
+      "id": "Q13",
+      "guarda": "prorrogação só vale se for objeto",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "if isinstance(pror, dict) else",
+      "para": "if pror else",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_prorrogacao_que_nao_e_objeto"
+      ]
+    },
+    {
+      "id": "Q14",
+      "guarda": "prorrogação é validada",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "if \"prorrogacao\" in e:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_prorrogacao_fora_do_prazo"
+      ]
+    },
+    {
+      "id": "Q15",
+      "guarda": "campo vazio vale como faltando",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "if not e.get(c)]",
+      "para": "if c not in e]",
+      "testes": [
+        "tests.test_forge_quarentena.AtivasEVencidas.test_com_erro_nao_exclui_nada_de_ativas_nem_de_vencidas"
+      ]
+    },
+    {
+      "id": "Q16",
+      "guarda": "ativa vale até o prazo, inclusive",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "hoje <= prazo_efetivo(e)]",
+      "para": "hoje < prazo_efetivo(e)]",
+      "testes": [
+        "tests.test_forge_quarentena.AtivasEVencidas.test_vale_ate_o_prazo_inclusive"
+      ]
+    }
+  ]
+}

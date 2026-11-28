@@ -1,0 +1,86 @@
+{
+  "pedido": "v0474-merge-checks",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M20",
+      "guarda": "gh pr view que falha avisa e marca para o hook (E3.80)",
+      "arquivo": "bin/forge-check",
+      "de": "if not isinstance(pr, dict) and not any(m in erro for m in GH_SEM_PR):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_pr_view_que_falha_avisa_e_marca_para_o_hook"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "sem PR, sem remoto do GitHub ou sem gh nao marca (E3.80)",
+      "arquivo": "bin/forge-check",
+      "de": "if not isinstance(pr, dict) and not any(m in erro for m in GH_SEM_PR):",
+      "para": "if not isinstance(pr, dict):",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_sem_pr_sem_remoto_do_github_ou_sem_gh_nao_marca"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "gh ausente diz o motivo que o checks_do_head aceita (E3.80)",
+      "arquivo": "bin/forge-check",
+      "de": "    except FileNotFoundError:\n        return None, GH_AUSENTE\n",
+      "para": "",
+      "testes": [
+        "tests.test_forge_check_pr.GhJson.test_sem_gh_e_teto_dizem_o_motivo"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "o passo 1 do fechar dispensa so os checks (E3.80)",
+      "arquivo": "bin/forge-check",
+      "de": "previo_dos_checks = previo or sem_checks",
+      "para": "previo_dos_checks = previo",
+      "testes": [
+        "tests.test_fechar_forge_check_real.FecharComChecksPendentes.test_checks_pendentes_passam_do_passo_1_e_param_no_4_sem_merge"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "so FORGE_FECHAR_PASSO_1=1 liga o modo do fechar (E3.80)",
+      "arquivo": "bin/forge-check",
+      "de": "sem_checks = a.cmd == \"pr\" and os.environ.get(SEM_CHECKS_DO_FECHAR) == \"1\"",
+      "para": "sem_checks = a.cmd == \"pr\" and bool(os.environ.get(SEM_CHECKS_DO_FECHAR))",
+      "testes": [
+        "tests.test_forge_check_pr.GravarParaOHook.test_sem_a_variavel_confere_e_o_pr_nao_lido_grava_reprovado"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "o modo do fechar avisa no stderr (E3.80)",
+      "arquivo": "bin/forge-check",
+      "de": "    if sem_checks:\n        print(f\"pr: checks do head",
+      "para": "    if False:\n        print(f\"pr: checks do head",
+      "testes": [
+        "tests.test_forge_check_pr.GravarParaOHook.test_passo_1_do_fechar_nao_confere_nem_grava"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "o modo do fechar nao grava o resultado para o hook (E3.80)",
+      "arquivo": "bin/forge-check",
+      "de": "and not sem_checks and branch_do_pr is None",
+      "para": "and branch_do_pr is None",
+      "testes": [
+        "tests.test_forge_check_pr.GravarParaOHook.test_passo_1_do_fechar_nao_confere_nem_grava"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "o PR nao lido grava reprovado para o hook (E3.80)",
+      "arquivo": "bin/forge-check",
+      "de": "violacoes + CHECKS_NAO_CONFERIDOS)",
+      "para": "violacoes)",
+      "testes": [
+        "tests.test_forge_check_pr.GravarParaOHook.test_sem_a_variavel_confere_e_o_pr_nao_lido_grava_reprovado"
+      ]
+    }
+  ]
+}

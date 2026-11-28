@@ -1,0 +1,46 @@
+{
+  "pedido": "v0475-mp1-mp7",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "MP1 (diretriz 35): a fala lida é a do dono, não a do assistente",
+      "arquivo": "hooks/meta.py",
+      "de": "fala = (fala_do_dono(hook.campo(\"transcript_path\"))",
+      "para": "fala = (ultima_mensagem(hook.campo(\"transcript_path\"))",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_fala_que_cita_o_outro_projeto_pede_a_pergunta"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "MP1 (diretriz 35): aviso de subagente, meta e lembrete não são a fala do dono (review A1)",
+      "arquivo": "hooks/meta.py",
+      "de": "texto = texto_do_dono(json.loads(linha))",
+      "para": "texto = json.loads(linha)[\"message\"][\"content\"] if json.loads(linha)[\"type\"] == \"user\" else None",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_so_a_fala_digitada_pelo_dono_conta"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "MP1 (diretriz 35): fala só de espaço não vale como a fala do dono",
+      "arquivo": "hooks/meta.py",
+      "de": "        if texto and texto.strip():\n            return texto",
+      "para": "        if texto:\n            return texto",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_so_a_fala_digitada_pelo_dono_conta"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "MP1 (diretriz 35): transcrito ausente não é erro: sem linhas",
+      "arquivo": "hooks/meta.py",
+      "de": "    except (OSError, TypeError, ValueError):\n        return []",
+      "para": "    except (OSError, ValueError):\n        return []",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_so_a_fala_digitada_pelo_dono_conta"
+      ]
+    }
+  ]
+}

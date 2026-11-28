@@ -36,6 +36,7 @@ PROFUNDIDADE = 3  # teto de aninhamento das leituras (`bash -c`, `$(`, crase, co
 # Um sinal do shell (fora de aspas) se divide em operadores: abertura de substituição de processo (`<(`, `>(`), parênteses,
 # redirecionamento (`>`, `>>`, `2>&`, `&>`, `<<`...) e separadores (`;`, `|`, `&&`, quebra de linha).
 OPERADOR = re.compile(r"[<>]\(|[()]|&?(?:[<>](?!\())+[&|]?|[;|&\n]+")
+DESCRITOR_DA_REDIRECAO = re.compile(r"[0-9]+|\{[A-Za-z_]\w*\}")  # colado antes de `>`/`<`, o bash o lê como o descritor
 # No lugar de uma substituição, o comando de fora recebe uma palavra opaca; o conteúdo dela é conferido como comando
 # próprio. `$(…)` contém `$(`: as regras que já desconfiam de `$(` num caminho (`$X/.forge`) seguem valendo.
 OPACO = {"$": "$(…)", "<": "<(…)", ">": ">(…)"}
@@ -98,11 +99,67 @@ def expandir_home(texto):
     return os.path.expanduser(texto)
 
 
+# MP1 e MP5 (diretriz 35): o sinal de vários projetos ativos é o arquivo, {"projetos": ["<nome>", ...]}, que o registro da
+# máquina (MP2, 0.47.6) vai preencher; os hooks só o leem. O nome do projeto é o da pasta da raiz.
+ARQUIVO_DE_ATIVOS = "~/.forge/maquina/projetos-ativos.json"
+TETO_DE_ATIVOS = 64 * 1024  # bytes; acima, fora da forma
+MAXIMO_DE_ATIVOS = 64  # nomes; acima, idem
+MAXIMO_DO_NOME = 128  # caracteres; nome maior fica de fora
+
+
+def ler_projetos_ativos(caminho=ARQUIVO_DE_ATIVOS, tolerante=False):
+    """Os nomes do registro, sem repetição (sem diferença de maiúsculas): [] sem o arquivo; None em link ou fora de arquivo
+    regular (FIFO, dispositivo), em erro de leitura, acima de TETO_DE_ATIVOS bytes ou de MAXIMO_DE_ATIVOS nomes, ilegível
+    ou fora da forma (quem lê decide: o `meta` conta um projeto só, o `agentes` recusa o escape, MP5). Nome fora da forma
+    (não texto, só espaço, acima de MAXIMO_DO_NOME) torna o registro fora da forma; com `tolerante` (o `meta`), só fica de
+    fora. A leitura não espera nem cresce."""
+    try:
+        fd = os.open(expandir_home(caminho), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return []
+    except OSError:
+        return None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None
+        bruto = os.read(fd, TETO_DE_ATIVOS + 1)  # arquivo regular: a leitura não volta curta antes do fim
+    except OSError:  # erro de leitura (EIO): registro ilegível, nunca exceção que o `executar` libera
+        return None
+    finally:
+        os.close(fd)
+    try:
+        dados = json.loads(bruto) if len(bruto) <= TETO_DE_ATIVOS else {}
+    except (ValueError, RecursionError):
+        return None
+    lista = dados.get("projetos") if isinstance(dados, dict) else None
+    if not isinstance(lista, list):
+        return None
+    nomes = [n for n in lista if isinstance(n, str) and n.strip() and len(n) <= MAXIMO_DO_NOME]
+    if len(nomes) > MAXIMO_DE_ATIVOS or (len(nomes) < len(lista) and not tolerante):
+        return None
+    unicos = {}
+    for nome in nomes:
+        unicos.setdefault(nome.casefold(), nome)  # nome repetido conta uma vez; vale o primeiro
+    return list(unicos.values())
+
+
 def raiz_declarada():
     """`CLAUDE_PROJECT_DIR`: a raiz da sessão, que o Claude Code define no processo do hook (também para os
     subagentes). O Bash roda em outro processo: `export` ou `VAR=...` na linha de comando não a mudam."""
     raiz = os.environ.get("CLAUDE_PROJECT_DIR")
     return Path(raiz) if raiz and Path(raiz).is_absolute() else None
+
+
+def ler_marca_do_git(caminho):
+    """Texto do `.git`, `gitdir` ou `commondir` de uma worktree, sem esperar FIFO (A1 da segurança no #886): só arquivo
+    regular, até 4096 bytes; especial levanta `OSError`."""
+    fd = os.open(caminho, os.O_RDONLY | os.O_NONBLOCK)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise OSError(f"{caminho} não é arquivo regular")
+        return os.read(fd, 4096).decode("utf-8").strip()
+    finally:
+        os.close(fd)
 
 
 def diretorio_comum(topo):
@@ -117,10 +174,10 @@ def diretorio_comum(topo):
     if marca.is_dir():
         return None if os.path.lexists(marca / "commondir") else Path(os.path.realpath(marca))
     try:
-        apontado = marca.read_text(encoding="utf-8").strip()
+        apontado = ler_marca_do_git(marca)
         pasta = Path(os.path.realpath(Path(topo) / apontado[len("gitdir:"):].strip()))
-        volta = (pasta / "gitdir").read_text(encoding="utf-8").strip()
-        desvio = (pasta / "commondir").read_text(encoding="utf-8").strip()
+        volta = ler_marca_do_git(pasta / "gitdir")
+        desvio = ler_marca_do_git(pasta / "commondir")
     except (OSError, ValueError):
         return None
     if not apontado.startswith("gitdir:") or pasta.parent.name != "worktrees":
@@ -225,9 +282,10 @@ def sessao_vigiada(hook, clone_do_forge=False):
         return True
 
 
-def git(raiz, *args):
-    """O git do forge-check (sem GIT_* herdadas, com limite de tempo): uma função só para hooks e validador."""
-    return forge_check().git(raiz, *args)
+def git(raiz, *args, ambiente=None):
+    """O git do forge-check (sem GIT_* herdadas, com limite de tempo; `ambiente` entra depois do filtro): uma função só
+    para hooks e validador."""
+    return forge_check().git(raiz, *args, ambiente=ambiente)
 
 
 # ADR 0013: o `#` só abre comentário onde se prova que o bash também o abre. A varredura de `comentarios` anda da
@@ -609,6 +667,10 @@ def comandos(comando, legado=False, com_sinal=False):
                 if pilha:
                     pilha.pop()
             elif set(op) & set("<>"):
+                # CONFORMIDADE-REDIRECAO-NUMERO (A17): `2>x`, `9<y`, `{fd}>x` colados são o descritor da redireção, não
+                # palavra; o `2` sobrava como destino (`cp a .git/config 2>/dev/null`) ou como programa (`2>x git ...`)
+                if colado and DESCRITOR_DA_REDIRECAO.fullmatch(estado["palavra"]):
+                    estado["palavra"] = None
                 entregar()
                 estado["modo"] = "saida" if ">" in op else "entrada"
             else:
@@ -665,7 +727,9 @@ def fora_da_gramatica_de_leitura(linha):
 # ADR 0011, item 2: `case` como palavra de comando, no que sobra fora de aspas.
 CASE = re.compile(r"(?:^|[\s;&|()])case(?=\s|$)")
 # O único heredoc que o analisador modela: delimitador entre aspas (corpo literal, sem expansão), sem `-`, terminado na
-# palavra. É a forma que `tirar_heredocs` separa igual ao bash; qualquer outro `<<` é não modelado.
+# palavra. É a forma que `tirar_heredocs` separa igual ao bash; qualquer outro `<<` é não modelado. FORMA_DO_HEREDOC é o
+# texto único dela: as recusas do hook e o brief (`bin/forge-check`, formas de commit) o citam, sem reescrevê-lo.
+FORMA_DO_HEREDOC = "heredoc só com o delimitador entre aspas (<<'EOF' ou <<'FIM'), sem -, fechado por uma linha só com ele"
 HEREDOC_MODELADO = re.compile(r"<<[ \t]*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1(?=[\s;&|)]|$)")
 
 
@@ -2448,6 +2512,16 @@ def ler_json(caminho, padrao):
     return json.loads(caminho.read_text(encoding="utf-8"))
 
 
+def ler_trava(caminho):
+    """A trava `pesado.json` (SANDBOX-TRAVA-CONTROLE, A2 da segurança): None quando não há trava, isto é, arquivo ausente, de 0
+    byte (o ponto de montagem vazio 0444 que o runtime do sandbox cria para caminho negado que não existia) ou `null` (o que o
+    hook grava ao soltar, no lugar de apagar). Conteúdo que é JSON inválido continua levantando, como `ler_json`."""
+    if not caminho.exists():
+        return None
+    texto = caminho.read_text(encoding="utf-8")
+    return json.loads(texto) if texto.strip() else None
+
+
 def caminhos_extra(raiz):
     """0.45.4: (pastas, avisos) da chave opcional `caminhos_extra` do `.forge/config.json` da raiz, a mesma leitura do
     `.githooks/pre-push` do modelo de projeto: as pastas que o hook soma ao fim do PATH de quem ele roda (as ferramentas da
@@ -2499,7 +2573,12 @@ def so_do_usuario(pasta):
 
 def gravar_json(caminho, dados):
     tmp = caminho.with_name(caminho.name + f".{os.getpid()}.tmp")
-    tmp.write_text(json.dumps(dados, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    # O_EXCL|O_NOFOLLOW: link plantado em `<alvo>.<pid>.tmp` não é seguido (A5 da segurança, E29.11); sobra de pid antigo sai antes
+    if os.path.lexists(tmp):
+        os.unlink(tmp)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o666)
+    with os.fdopen(fd, "w", encoding="utf-8") as saida:
+        saida.write(json.dumps(dados, ensure_ascii=False, indent=1) + "\n")
     os.replace(tmp, caminho)
 
 
@@ -2708,7 +2787,7 @@ def texto_da_acao(hook, bruto):
 
 def marcado(hook, critico, bruto):
     """O texto da ação tem o marcador crítico? Calculado uma vez e guardado em `hook.marcado`: é o primeiro passo da
-    decisão, sob o vigia de prazo, e o prazo vencido só recusa com o marcador (`prazo_vencido`)."""
+    decisão, sob o vigia de prazo; o prazo vencido recusa com ou sem ele (`prazo_vencido`, VIGIA-PRAZO-TRAVA)."""
     if hook.marcado is None:
         try:
             texto = texto_da_acao(hook, bruto)  # HOOK-CONTINUACAO-LINHA: também a forma juntada
@@ -2748,16 +2827,21 @@ def barrar_sem_versao(hook, critico, bruto):
 
 # O vigia de prazo (bloco T da revalidação 10): o Claude Code mata o hook aos 10 s (`timeout` de hooks.json) e libera a
 # ação, então a decisão de um hook que recusa tem de vir antes. Um alarme do processo (`signal.setitimer`, na thread
-# principal) interrompe qualquer passo lento, de hoje ou futuro, inclusive a busca do `re`; com o marcador crítico na
-# chamada, o prazo vencido recusa, e sem o marcador nada muda. Não existe no Windows nativo (sem `SIGALRM`): lá a decisão
-# fica com os tetos de custo (`excede_o_teto` e o de `DonosDosHeredocs.montar`), sem outro prazo.
+# principal) interrompe qualquer passo lento, de hoje ou futuro, inclusive a busca do `re`; o prazo vencido recusa toda
+# linha que chegou à trava, com ou sem o marcador crítico (VIGIA-PRAZO-TRAVA). Não existe no Windows nativo (sem
+# `SIGALRM`): lá a decisão fica com os tetos de custo (`excede_o_teto` e o de `DonosDosHeredocs.montar`), sem outro prazo.
 PRAZO_DA_DECISAO_S = 3.0
 # O `gh pr merge` decide pelo `forge-check pr` (cerca de 2 s; mais com a máquina carregada): com 3 s ele caía no prazo com
 # o git respondendo rápido. A linha com `gh pr merge` ganha este prazo, abaixo do `timeout` do parecer no hooks.json (10 s)
 # com folga; estourado, recusa como o de 3 s. O resultado gravado pelo `forge-check pr` é um arquivo que o agente pode escrever
 # (v0455): o `gh pr create` o lê (PR-HOOK-PRAZO, v046); no `gh pr ready` e no `gh pr merge` (E2.117) o aprovado libera só no
 # clone do Forge, onde o CI de pareceres é o segundo portão, e o reprovado recusa em todo lugar; no projeto, o merge confere.
-PRAZO_DO_MERGE_S = 8.0
+# 7,5 s (A5 da segurança no #888): somado aos dois vigias abaixo, deixa 1,5 s de parede para a saída do processo.
+PRAZO_DO_MERGE_S = 7.5
+# E7.23: com o prazo vencido, a decisão da sessão (leitura do disco) e, depois, o registro têm cada um este prazo, limitado
+# ao que resta do teto (prazo do hook + 0,5 + 0,5), e todos contam da partida do processo (`idade_do_processo`), e não de
+# depois do Python e dos imports: sob carga, essa parte passava da folga e o corte de 10 s liberava (A6 e A1 no #888).
+PRAZO_DA_SESSAO_S = 0.5
 
 
 class PrazoVencido(BaseException):
@@ -2769,75 +2853,143 @@ def _vencer(signo, quadro):
 
 
 @contextmanager
-def vigia_de_prazo(segundos):
-    """Arma o alarme de `segundos` s (None: não arma) e o desarma na saída, por qualquer caminho."""
+def vigia_de_prazo(segundos, armar):
+    """Arma o alarme de `segundos` s (None: não arma) e o desarma na saída, por qualquer caminho; entrega se armou.
+    `armar` (BP1): o `signal.setitimer`, ou o vigia falso de um teste em processo (`executar`)."""
     if not segundos or not hasattr(signal, "setitimer") or threading.current_thread() is not threading.main_thread():
-        yield
+        yield False
         return
     anterior = signal.signal(signal.SIGALRM, _vencer)
-    signal.setitimer(signal.ITIMER_REAL, segundos)
+    armar(signal.ITIMER_REAL, segundos)
     try:
-        yield
+        yield True
     finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
+        armar(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, anterior)
 
 
-def prazo_vencido(hook, critico, bruto, clone_do_forge, regra):
-    """O vigia venceu: com o marcador crítico (e `marcado` ainda desconhecido vale como marcado: a busca do próprio
-    marcador passou do prazo) ou com corpo de heredoc ainda por conferir (C-4: o último corpo é o que ninguém leu),
-    numa sessão vigiada e antes da ferramenta, recusa pela `regra` do hook; senão, libera, com a linha no erros.log.
-    Roda fora do vigia, e não refaz a busca do marcador."""
-    prazo = hook.prazo_s or PRAZO_DA_DECISAO_S
-    hook.registrar_erro(Aviso(f"prazo de {prazo:g} s da decisão vencido"))
-    if (critico is None or hook.entrada.get("hook_event_name") == "PostToolUse" or (hook.marcado is False and not hook.corpos_pendentes)
-            or not sessao_vigiada(hook, clone_do_forge)):
+def recusa_no_prazo(hook, critico, clone_do_forge):
+    """O prazo vencido recusa nesta sessão? Na vigiada, sim; na do Forge (raiz no clone), também a linha com o marcador
+    crítico ou sem ele calculado (E7.23: FIFO no `commondir` ou no `gitdir` liberava push na main, `--force` e
+    `--no-verify` pelo corte de 10 s)."""
+    if critico is not None and hook.marcado is not False and e_clone_do_forge(raiz_declarada()):
+        return True
+    return sessao_vigiada(hook, clone_do_forge)
+
+
+def idade_do_processo(nome):
+    """Segundos desde a partida do processo (o fork, antes do Python e dos imports), quando ele é o do hook `nome` (o
+    `sys.argv[0]` é o `<nome>.py`): `/proc/self/stat`, campo 22, contra o `CLOCK_BOOTTIME`. Fora dele (o driver do lote,
+    um teste em processo) ou sem `/proc`, 0: o prazo conta do `inicio`, como antes (A6 da segurança no #888)."""
+    if not sys.argv or Path(sys.argv[0]).name != f"{nome}.py":
+        return 0.0
+    try:
+        campos = Path("/proc/self/stat").read_text(encoding="ascii").rpartition(")")[2].split()
+        return max(time.clock_gettime(time.CLOCK_BOOTTIME) - int(campos[19]) / os.sysconf("SC_CLK_TCK"), 0.0)
+    except (OSError, ValueError, IndexError, AttributeError):
+        return 0.0
+
+
+def prazo_da_etapa(resta):
+    """O vigia de uma etapa depois do prazo vencido ou do erro interno (a sessão, o registro): `PRAZO_DA_SESSAO_S`,
+    limitado ao que `resta()` (s) até o teto do hook; 0 quando nada resta, e a etapa não roda. `resta` None: sem teto."""
+    return PRAZO_DA_SESSAO_S if resta is None else min(PRAZO_DA_SESSAO_S, max(resta(), 0.0))
+
+
+def registrar_sob_vigia(hook, erro, armar, segundos=PRAZO_DA_SESSAO_S):
+    """A linha no erros.log sob um vigia próprio de `segundos` (o `git` do `Hook.run` sob carga, ou um FIFO no `.git`,
+    não leva a espera ao corte de 10 s, que libera); sem tempo (`prazo_da_etapa` 0), não registra. O registro que não
+    termina ou falha fica sem a linha e nunca muda a decisão de quem chama."""
+    if segundos <= 0:
         return
-    quem, como = (("a chamada com ação crítica", hook.contorno_do_prazo or CONTORNO_DO_TETO) if hook.marcado is not False else
-                  (f"{hook.corpos_pendentes} corpo(s) de heredoc", "separe o comando em chamadas menores"))
+    try:
+        with vigia_de_prazo(segundos, armar):
+            hook.registrar_erro(erro)
+    except (PrazoVencido, Exception):  # noqa: BLE001 - sem a linha no erros.log, a decisão segue a mesma
+        pass
+
+
+def prazo_vencido(hook, critico, bruto, clone_do_forge, regra, armar=getattr(signal, "setitimer", None), resta=None):
+    """O vigia venceu: onde o prazo recusa (`recusa_no_prazo`) e antes da ferramenta, recusa pela `regra` do hook; senão,
+    libera. Nos dois casos, a linha no erros.log. VIGIA-PRAZO-TRAVA (decisão do dono, 24/11): toda linha que chega a uma
+    trava que pode recusar conta como crítica, com ou sem o marcador; o `marcado` só escolhe o texto (sem ele e com corpo
+    de heredoc por conferir, C-4, cita os corpos). Roda fora do vigia da decisão, e não refaz a busca do marcador; a
+    sessão (leitura do disco, que espera um FIFO no `.git`: E7.23) e o registro rodam cada um sob um vigia próprio de
+    `PRAZO_DA_SESSAO_S`, e a sessão que não se decide nele recusa onde o evento pode recusar. A sessão se decide antes do
+    registro, e o registro tem o seu vigia (`registrar_sob_vigia`), que nunca muda a decisão (A1 da segurança no #888).
+    `resta` (A6 no #888): os dois vigias cabem no que sobra do teto (`prazo_da_etapa`); sem tempo, a sessão não se decide
+    e recusa, e o registro não roda."""
+    prazo = hook.prazo_s or PRAZO_DA_DECISAO_S
+    evento = hook.entrada.get("hook_event_name")
+    # VIGIA-AGENTES-PESADO: sem marcador, só o PreToolUse recusa; depois da ferramenta, nunca
+    recusa = evento != "PostToolUse" and (critico is not None or evento == "PreToolUse")
+    try:
+        segundos = prazo_da_etapa(resta)
+        if segundos <= 0:
+            raise PrazoVencido()
+        with vigia_de_prazo(segundos, armar):
+            recusa = recusa and recusa_no_prazo(hook, critico, clone_do_forge)
+    except (PrazoVencido, Exception):  # noqa: BLE001 - a sessão que não se decide recusa (falha fechado)
+        pass
+    registrar_sob_vigia(hook, Aviso(f"prazo de {prazo:g} s da decisão vencido"), armar, prazo_da_etapa(resta))
+    if not recusa:
+        return
+    quem, como = ((f"{hook.corpos_pendentes} corpo(s) de heredoc", "separe o comando em chamadas menores")
+                  if hook.marcado is False and hook.corpos_pendentes else
+                  ("a chamada com ação crítica", hook.contorno_do_prazo or CONTORNO_DO_TETO))
     bloquear(regra, f"o hook não decidiu em {prazo:g} s {quem} (texto longo ou lento demais, ou um `git` "
                     f"lento): recusa, em vez de deixar o timeout liberá-la. Corrigir: {como}")
 
 
-def estender_prazo(hook, prazo_longo, inicio):
-    """Com o vigia armado e a linha da entrada casando `prazo_longo` (regex), troca o prazo por `PRAZO_DO_MERGE_S` contado
-    de `inicio`; nunca o encurta. Lê a entrada direto, sem `Hook.campo` (o marcador é a 1.a leitura do hook)."""
+def estender_prazo(hook, prazo_longo, inicio, relogio, armar):
+    """Com o vigia armado (quem chama confere) e a linha da entrada casando `prazo_longo` (regex), troca o prazo por
+    `PRAZO_DO_MERGE_S` contado de `inicio` no `relogio`, rearmando por `armar`; nunca o encurta. Lê a entrada direto, sem
+    `Hook.campo` (o marcador é a 1.a leitura do hook)."""
     entrada = hook.entrada.get("tool_input")
     comando = entrada.get("command") if isinstance(entrada, dict) else None
     if not isinstance(comando, str) or not prazo_longo.search(comando) or PRAZO_DO_MERGE_S <= hook.prazo_s:
         return
-    if not hasattr(signal, "getitimer") or signal.getitimer(signal.ITIMER_REAL)[0] <= 0:
-        return
     hook.prazo_s = PRAZO_DO_MERGE_S
-    signal.setitimer(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S - (time.monotonic() - inicio), 0.001))
+    armar(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S - (relogio() - inicio), 0.001))
 
 
-def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None, prazo_longo=None):
+def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None, prazo_longo=None, prazo_do_hook=None, *,
+             relogio=time.monotonic, armar=getattr(signal, "setitimer", None), idade=None):
     """Lê o JSON do stdin, chama `funcao(hook)` e sai com 0; `bloquear` sai com 2. `critico` (regex) liga a falha
     fechada seletiva (`clone_do_forge`: também no clone do Forge); `FORGE_GUARDA_ABERTA=1` no ambiente do processo
     (só o dono) abre a guarda desses hooks. `regra_do_prazo` (a regra que o hook cita ao recusar) liga o vigia de prazo:
     o marcador se calcula primeiro, e a decisão toda roda sob `PRAZO_DA_DECISAO_S`; com a linha casando `prazo_longo`
-    (regex), sob `PRAZO_DO_MERGE_S` (`estender_prazo`)."""
+    (regex), sob `PRAZO_DO_MERGE_S` (`estender_prazo`). `relogio` e `armar` (BP1, só por palavra-chave): o relógio e o
+    alarme do vigia; só um teste em processo os troca (relógio falso), e nenhum hook nem o driver do lote os passa.
+    VIGIA-AGENTES-PESADO (decisão do dono, 24/11): o vigia arma também sem `critico` (`agentes`, `pesado`); lá o prazo
+    vencido recusa só no PreToolUse (`prazo_vencido`). `prazo_do_hook` (s) troca o prazo comum por um maior, abaixo do
+    `timeout` do hook no hooks.json; nunca o encurta. O prazo conta da partida do processo do hook (`idade`, s; None:
+    `idade_do_processo`, A6 da segurança no #888), e a sessão e o registro depois dele cabem no teto do prazo mais
+    2 x `PRAZO_DA_SESSAO_S` contado dela (`prazo_da_etapa`)."""
     hook = Hook(nome)
+    inicio = relogio() - (idade_do_processo(nome) if idade is None else idade)
+
+    def resta():
+        return (hook.prazo_s or PRAZO_DA_DECISAO_S) + 2 * PRAZO_DA_SESSAO_S - (relogio() - inicio)
     bruto = sys.stdin.read()
     if critico is not None and os.environ.get("FORGE_GUARDA_ABERTA") == "1":
         sys.exit(0)
     try:
-        hook.prazo_s = PRAZO_DA_DECISAO_S if regra_do_prazo and critico is not None else None
-        inicio = time.monotonic()
-        with vigia_de_prazo(hook.prazo_s):
+        hook.prazo_s = max(prazo_do_hook or 0, PRAZO_DA_DECISAO_S) if regra_do_prazo else None
+        with vigia_de_prazo(hook.prazo_s and max(hook.prazo_s - (relogio() - inicio), 0.001), armar) as armado:
             entrada = json.loads(bruto or "{}")
             if isinstance(entrada, dict):
                 hook.entrada = entrada
-                if hook.prazo_s and prazo_longo is not None:
-                    estender_prazo(hook, prazo_longo, inicio)
+                if armado and prazo_longo is not None:
+                    estender_prazo(hook, prazo_longo, inicio, relogio, armar)
                 if critico is not None:
                     marcado(hook, critico, bruto)
                     barrar_sem_versao(hook, critico, bruto)
                 funcao(hook)
     except PrazoVencido:
-        prazo_vencido(hook, critico, bruto, clone_do_forge, regra_do_prazo)
+        prazo_vencido(hook, critico, bruto, clone_do_forge, regra_do_prazo, armar, resta)
     except Exception as erro:  # noqa: BLE001 - ADR 0003: erro interno libera e fica no erros.log
-        hook.registrar_erro(erro)
+        # A4 da segurança no #888: o registro não leva ao corte que libera
+        registrar_sob_vigia(hook, erro, armar, prazo_da_etapa(resta if hook.prazo_s else None))
         falhar_fechado(hook, critico, bruto, clone_do_forge)
     sys.exit(0)

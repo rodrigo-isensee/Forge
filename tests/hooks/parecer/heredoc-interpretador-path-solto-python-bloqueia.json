@@ -1,0 +1,18 @@
+{
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP, volta 1 da E4.4, caso verdadeiro: A2 da segurança: PATH=<pasta> antes de python3 - muda quem lê o corpo; segue como antes: o corpo é conferido como comando.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "PATH=/tmp/x:/usr/bin:/bin; python3 - <<'EOF'\ngh pr merge 12\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: PR indicado só por número"
+  }
+}

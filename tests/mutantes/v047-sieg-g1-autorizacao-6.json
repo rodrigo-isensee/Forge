@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M40",
+      "guarda": "G1.1b (ADR 0018 item 7): evento ilegível na pasta tira a ativa (falha fechada)",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "        if erros and est == \"ativa\":",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "G1.1b (ADR 0018 item 1): F-<Pedido> é nome de evento da pasta",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "|F-{PEDIDO}\")",
+      "para": "\")",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "G1.1b (ADR 0018 item 6): a origem sem acento casa com a lista de 48 h",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if not unicodedata.combining(c)",
+      "para": "if True",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_validade_em_utc_a6_e_teto_d1_fala_as_21h_locais_que_ja_e_o_dia_seguinte_em_utc"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "G1.1b (ADR 0018 item 7): concessão não íntegra é adulterada antes da validade",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if achados:\n        return \"adulterada\"",
+      "para": "    if False:\n        return \"adulterada\"",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_adulterado_ou_fora_da_forma"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "G1.1b (ADR 0018 item 7): a hora dada à leitura é a que se compara",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "concessoes(raiz, ctx[\"gravador\"], agora or datetime.datetime.now(UTC))",
+      "para": "concessoes(raiz, ctx[\"gravador\"], datetime.datetime.now(UTC))",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_integra_mostra_a_mensagem_inteira_validade_no_fuso_e_em_utc"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "G1.1b (ADR 0018 item 12): o motivo só aparece quando há",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "{f' ({motivo})' if motivo else ''}",
+      "para": "{f' ({motivo})' if True else ''}",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_integra_mostra_a_mensagem_inteira_validade_no_fuso_e_em_utc"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "G1.1b (ADR 0018 item 12): a concessão adulterada conta e sai com rc 1",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "adulteradas = sum(est == \"adulterada\" for",
+      "para": "adulteradas = sum(est == \"x\" for",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_adulterado_ou_fora_da_forma"
+      ]
+    },
+    {
+      "id": "M47",
+      "guarda": "G1.1b (ADR 0018 item 12): a contagem de ativas",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "ativas = sum(est == \"ativa\" for",
+      "para": "ativas = sum(est == \"x\" for",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_integra_mostra_a_mensagem_inteira_validade_no_fuso_e_em_utc"
+      ]
+    }
+  ]
+}

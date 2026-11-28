@@ -1,0 +1,98 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C2B-M17",
+      "guarda": "sem --ref, o head é o HEAD da cópia",
+      "arquivo": "bin/forge-check",
+      "de": "head = sha_do_commit(raiz, ref or \"HEAD\") or \"\"",
+      "para": "head = sha_do_commit(raiz, ref) or \"\"",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_sem_ref_le_o_head"
+      ]
+    },
+    {
+      "id": "C2B-M18",
+      "guarda": "ref que não resolve vira recusa da leitura, nunca erro solto",
+      "arquivo": "bin/forge-check",
+      "de": "head = sha_do_commit(raiz, ref or \"HEAD\") or \"\"",
+      "para": "head = sha_do_commit(raiz, ref or \"HEAD\") or None",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_ref_que_nao_resolve_reprova"
+      ]
+    },
+    {
+      "id": "C2B-M19",
+      "guarda": "sem PR aberto, nenhum publicado (ausente)",
+      "arquivo": "bin/forge-check",
+      "de": "{} if pr is None else pareceres.vigentes(",
+      "para": "{} if False else pareceres.vigentes(",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_sem_pr_aberto_fica_ausente"
+      ]
+    },
+    {
+      "id": "C2B-M20",
+      "guarda": "status aprovado com domínio intacto vale",
+      "arquivo": "bin/forge-check",
+      "de": "tipo, ref, base, ()) or (None, None)",
+      "para": "tipo, ref, base, ())",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_pr_da_lista_com_status_aprovado_e_dominio_intacto_passa"
+      ]
+    },
+    {
+      "id": "C2B-M21",
+      "guarda": "o git da lista sem as GIT_* herdadas",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "env = {k: v for k, v in os.environ.items() if not k.startswith(\"GIT_\")}\n    try:\n        r = subprocess.run([\"git\", *SEM_CONFIG_DA_COPIA, *args]",
+      "para": "env = {k: v for k, v in os.environ.items() if True}\n    try:\n        r = subprocess.run([\"git\", *SEM_CONFIG_DA_COPIA, *args]",
+      "testes": [
+        "tests.test_forge_pareceres.ListaFechada.test_git_herdado_nao_desvia_a_leitura"
+      ]
+    },
+    {
+      "id": "C2B-M22",
+      "guarda": "o hook `parecer` e a catraca não leem o status (CORPUS-CUSTO-CONTADOR)",
+      "arquivo": "bin/forge-check",
+      "de": "    publicados = pareceres_publicados(raiz, pedido, branch, ref) if de_trabalho and pelo_status else None",
+      "para": "    publicados = pareceres_publicados(raiz, pedido, branch, ref) if de_trabalho else None",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_hook_e_catraca_seguem_o_arquivo"
+      ]
+    },
+    {
+      "id": "C2B-M23",
+      "guarda": "o `forge-check pr` sem --base lê o status",
+      "arquivo": "bin/forge-check",
+      "de": "        return cmd_pr(raiz, pedido, ref, None, branch, previo, suite, True) + (",
+      "para": "        return cmd_pr(raiz, pedido, ref, None, branch, previo, suite) + (",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_forge_check_pr_le_o_status"
+      ]
+    },
+    {
+      "id": "C2B-M24",
+      "guarda": "o `forge-check pr` com --base lê o status",
+      "arquivo": "bin/forge-check",
+      "de": "    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite, True) + (",
+      "para": "    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite) + (",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_forge_check_pr_le_o_status"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_pareceres.py",
+      "trecho": "isinstance(s, dict)",
+      "motivo": "A1 do C2A-RECOMENDADOS: o ler lê pelo statuses_de, que segue com a mesma condição (Ler.test_c17_paginas_ilegiveis e test_item_da_pagina_que_nao_e_objeto_fica_de_fora)"
+    },
+    {
+      "arquivo": "bin/forge_pareceres.py",
+      "trecho": "not isinstance(paginas, list)",
+      "motivo": "A1 do C2A-RECOMENDADOS: o ler lê pelo statuses_de, que segue com a mesma condição (Ler.test_c17_paginas_ilegiveis e test_item_da_pagina_que_nao_e_objeto_fica_de_fora)"
+    }
+  ]
+}

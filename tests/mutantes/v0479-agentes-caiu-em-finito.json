@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E53.1: lapide com `desde` nao finito (10**400, inf, nan) deixa o estado ilegivel",
+      "arquivo": "hooks/agentes.py",
+      "de": "if not caiu_em_finito(l[\"desde\"]):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_lapide_e_autor_com_numero_nao_finito_deixam_o_estado_ilegivel"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E53.1: autor com `desde` nao finito (10**400, inf, nan) deixa o estado ilegivel",
+      "arquivo": "hooks/agentes.py",
+      "de": "if not caiu_em_finito(a[\"desde\"]):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_lapide_e_autor_com_numero_nao_finito_deixam_o_estado_ilegivel"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E53.1: lapide vencida sai da lista",
+      "arquivo": "hooks/agentes.py",
+      "de": "return [l for l in validas if agora - l[\"desde\"] < expira_s]",
+      "para": "return [l for l in validas if True]",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_lapide_e_autor_finitos_seguem_o_prazo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E53.1: autor vencido sai da lista",
+      "arquivo": "hooks/agentes.py",
+      "de": "return [a for a in validos if agora - a[\"desde\"] < expira_s]",
+      "para": "return [a for a in validos if True]",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_lapide_e_autor_finitos_seguem_o_prazo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E53.1: autor sem id de agente valido fica fora, mesmo com desde nao finito",
+      "arquivo": "hooks/agentes.py",
+      "de": "if not (isinstance(a, dict) and isinstance(a.get(\"id\"), str) and ID_DE_AGENTE.fullmatch(a[\"id\"])\n                and isinstance(a.get(\"desde\"), (int, float))):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_lapide_e_autor_finitos_seguem_o_prazo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E53.1: item que nao e registro de `desde` numerico some da lapide",
+      "arquivo": "hooks/agentes.py",
+      "de": "if not isinstance(l, dict) or not isinstance(l.get(\"desde\"), (int, float)):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_lapide_e_autor_finitos_seguem_o_prazo"
+      ]
+    }
+  ]
+}

@@ -21,7 +21,9 @@
         "/workspaces/.forge-contrib"
       ],
       "denyWrite": [
-        ".forge/"
+        ".forge/",
+        ".git/forge/run",
+        "~/.forge/maquina"
       ]
     },
     "network": {

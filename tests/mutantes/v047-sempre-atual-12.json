@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S9",
+      "guarda": "forge_sempre_atual.py:107 decide por `achou`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if achou:",
+      "para": "if not (achou):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S10",
+      "guarda": "forge_sempre_atual.py:109 decide por `achadas`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return max(achadas) if achadas else None",
+      "para": "return max(achadas) if not (achadas) else None",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S11",
+      "guarda": "forge_sempre_atual.py:133 decide por `pasta == raiz or pasta.startswith(raiz.rstrip(os.sep) + os.sep)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return pasta == raiz or pasta.startswith(raiz.rstrip(os.sep) + os.sep)",
+      "para": "return not (pasta == raiz or pasta.startswith(raiz.rstrip(os.sep) + os.sep))",
+      "testes": [
+        "tests.test_sempre_atual.Funcoes.test_dentro_nao_confunde_pasta_irma"
+      ]
+    },
+    {
+      "id": "S12",
+      "guarda": "forge_sempre_atual.py:140 decide por `(pasta / \".git\").exists()`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if (pasta / \".git\").exists():",
+      "para": "if not ((pasta / \".git\").exists()):",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_usuario_cobre_a_raiz_com_claude_que_nao_tem_instalacao_propria"
+      ]
+    },
+    {
+      "id": "S13",
+      "guarda": "forge_sempre_atual.py:150 decide por `os.readlink(f\"{PROC}/self\") == str(os.getpid()) and bool(Path(f\"{PROC}`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return os.readlink(f\"{PROC}/self\") == str(os.getpid()) and bool(Path(f\"{PROC}/{os.getpid()}/comm\").read_text().strip())",
+      "para": "return not (os.readlink(f\"{PROC}/self\") == str(os.getpid()) and bool(Path(f\"{PROC}/{os.getpid()}/comm\").read_text().strip()))",
+      "testes": [
+        "tests.test_sempre_atual.ProcFalso.test_coerente_le_claude_fechar_e_gh_de_merge"
+      ]
+    },
+    {
+      "id": "S14",
+      "guarda": "forge_sempre_atual.py (pids_do_proc) decide por `n.isdigit()`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return [n for n in os.listdir(PROC) if n.isdigit()]",
+      "para": "return [n for n in os.listdir(PROC) if not (n.isdigit())]",
+      "testes": [
+        "tests.test_sempre_atual.ProcFalso.test_coerente_le_claude_fechar_e_gh_de_merge"
+      ]
+    },
+    {
+      "id": "S15",
+      "guarda": "forge_sempre_atual.py:169 decide por `os.stat(f\"{PROC}/{n}\").st_uid != os.getuid()`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if os.stat(f\"{PROC}/{n}\").st_uid != os.getuid():",
+      "para": "if not (os.stat(f\"{PROC}/{n}\").st_uid != os.getuid()):",
+      "testes": [
+        "tests.test_sempre_atual.ProcFalso.test_coerente_le_claude_fechar_e_gh_de_merge"
+      ]
+    },
+    {
+      "id": "S16",
+      "guarda": "forge_sempre_atual.py:174 decide por `comm not in (\"claude\", \"forge-fechar\", \"gh\")`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if comm not in (\"claude\", \"forge-fechar\", \"gh\"):",
+      "para": "if not (comm not in (\"claude\", \"forge-fechar\", \"gh\")):",
+      "testes": [
+        "tests.test_sempre_atual.ProcFalso.test_coerente_le_claude_fechar_e_gh_de_merge"
+      ]
+    }
+  ]
+}

@@ -6,7 +6,7 @@
       "id": "M1",
       "guarda": "specs de pedidos diferentes sao recusadas",
       "arquivo": "bin/forge-mutante",
-      "de": "    if len({dados[\"pedido\"] for dados in lista}) > 1:",
+      "de": "    if len(por_pedido) > 1:",
       "para": "    if False:",
       "testes": [
         "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_specs_com_pedido_diferente_ou_id_repetido_sao_invalidas"
@@ -37,8 +37,8 @@
       "id": "M4",
       "guarda": "problema de uma spec barra o conjunto",
       "arquivo": "bin/forge-mutante",
-      "de": "    if problemas:\n        return problemas\n    if len(",
-      "para": "    if len(",
+      "de": "    if problemas:\n        return problemas\n    por_pedido",
+      "para": "    por_pedido",
       "testes": [
         "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_specs_do_pedido_passam_de_oito_sem_subir_o_teto_por_spec"
       ]

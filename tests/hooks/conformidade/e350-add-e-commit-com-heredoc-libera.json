@@ -1,0 +1,24 @@
+{
+  "descricao": "E3.50: git add && git commit com heredoc <<'EOF' na mesma chamada, com marcador crítico (docs/reviews), passa.",
+  "arquivos": {
+    "docs/a.md": "parecer\n",
+    "docs/reviews/a.md": "## Achados\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git add docs/reviews/a.md && git commit -m \"$(cat <<'EOF'\ndocs(review): parecer do pedido\nEOF\n)\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

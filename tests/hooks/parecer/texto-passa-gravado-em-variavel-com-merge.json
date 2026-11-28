@@ -1,0 +1,29 @@
+{
+  "descricao": "HOOK-TEXTO-COM-MERGE: o cat > \"$TMPDIR/x.md\" grava texto com git merge: a rede D o lê como o alvo literal e passa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat > \"$TMPDIR/x.md\" <<'EOF'\nfaça o git merge da develop depois\nEOF"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

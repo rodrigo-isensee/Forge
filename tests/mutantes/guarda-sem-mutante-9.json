@@ -9,37 +9,37 @@
       "de": "dados.count(trecho) == 1",
       "para": "dados.count(trecho) >= 1",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2"
+        "tests.test_forge_mutante.Cobertura.test_isenta_por_linha_nao_casa_texto_apagado_duas_vezes"
       ]
     },
     {
       "id": "M58",
       "guarda": "trecho da isenta comeca dentro do no",
       "arquivo": "bin/forge-mutante",
-      "de": "ini <= onde and",
-      "para": "True and",
+      "de": "and ini <= onde and",
+      "para": "and True and",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2"
+        "tests.test_forge_mutante.Cobertura.test_isenta_da_apagada_repetida_com_trecho_alem_do_no_e_velha"
       ]
     },
     {
       "id": "M59",
       "guarda": "trecho da isenta termina dentro do no",
       "arquivo": "bin/forge-mutante",
-      "de": "onde + len(trecho) <= fim",
-      "para": "True",
+      "de": "ini <= onde and onde + len(trecho) <= fim",
+      "para": "ini <= onde and True",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2"
+        "tests.test_forge_mutante.Cobertura.test_isenta_da_apagada_repetida_com_trecho_alem_do_no_e_velha"
       ]
     },
     {
       "id": "M60",
       "guarda": "isenta do arquivo da condicao",
       "arquivo": "bin/forge-mutante",
-      "de": "i[\"arquivo\"] == arquivo and",
-      "para": "True and",
+      "de": "if i[\"arquivo\"] != arquivo:",
+      "para": "if False:",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2"
+        "tests.test_forge_mutante.Cobertura.test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1"
       ]
     },
     {

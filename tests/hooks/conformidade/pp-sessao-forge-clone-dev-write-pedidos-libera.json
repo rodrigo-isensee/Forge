@@ -1,0 +1,28 @@
+{
+  "descricao": "PARECER-PELO-PAPEL (v0478 E50.7, A3 da segurança; R-CONFORMIDADE): sessão do Forge, pasta corrente no clone, a regra de docs/pedidos/ (outra pasta) segue fora, como antes.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "docs/pedidos/x.md": "v\n",
+    "a.txt": "v\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/proj/docs/pedidos/x.md",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge-python:python-backend"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

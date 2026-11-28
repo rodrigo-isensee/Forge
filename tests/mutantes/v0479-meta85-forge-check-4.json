@@ -1,0 +1,76 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M14",
+      "guarda": "classe: item acima do teto sai com rc 1 (mutante: sempre rc 0)",
+      "arquivo": "bin/forge-check",
+      "de": "    rc = 1 if len(item) > TETO_DE_ARQUIVOS else 0",
+      "para": "    rc = 0",
+      "testes": [
+        "tests.test_meta85_item_arquivos.ItemAteDezArquivos.test_onze_arquivos_sao_recusados"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "classe: o teto é estrito, 10 passa (mutante: 10 já recusa)",
+      "arquivo": "bin/forge-check",
+      "de": "    rc = 1 if len(item) > TETO_DE_ARQUIVOS else 0",
+      "para": "    rc = 1 if len(item) >= TETO_DE_ARQUIVOS else 0",
+      "testes": [
+        "tests.test_meta85_item_arquivos.ItemAteDezArquivos.test_dez_arquivos_passam"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "classe: a linha item: sai com a recusa (mutante: recusa calada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if rc:\n        print(f\"item: {len(item)} arquivos",
+      "para": "    if False:\n        print(f\"item: {len(item)} arquivos",
+      "testes": [
+        "tests.test_meta85_item_arquivos.ItemAteDezArquivos.test_onze_arquivos_sao_recusados"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "item: teste não conta (mutante: conta)",
+      "arquivo": "bin/forge-check",
+      "de": "    return [n for n in nomes if not e_teste(n) and not n.startswith(FRAGMENTOS) and not livre(n, LIVRES)]",
+      "para": "    return [n for n in nomes if not n.startswith(FRAGMENTOS) and not livre(n, LIVRES)]",
+      "testes": [
+        "tests.test_meta85_item_arquivos.ItemAteDezArquivos.test_testes_mutantes_changelog_e_pareceres_nao_contam"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "item: fragmento de changelog.d/ não conta (mutante: conta)",
+      "arquivo": "bin/forge-check",
+      "de": "    return [n for n in nomes if not e_teste(n) and not n.startswith(FRAGMENTOS) and not livre(n, LIVRES)]",
+      "para": "    return [n for n in nomes if not e_teste(n) and not livre(n, LIVRES)]",
+      "testes": [
+        "tests.test_meta85_item_arquivos.ItemAteDezArquivos.test_testes_mutantes_changelog_e_pareceres_nao_contam"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "item: parecer e quadro não contam (mutante: contam)",
+      "arquivo": "bin/forge-check",
+      "de": "    return [n for n in nomes if not e_teste(n) and not n.startswith(FRAGMENTOS) and not livre(n, LIVRES)]",
+      "para": "    return [n for n in nomes if not e_teste(n) and not n.startswith(FRAGMENTOS)]",
+      "testes": [
+        "tests.test_meta85_item_arquivos.ItemAteDezArquivos.test_testes_mutantes_changelog_e_pareceres_nao_contam"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "classe: diff ilegível (None) não quebra a contagem (mutante: TypeError)",
+      "arquivo": "bin/forge-check",
+      "de": "    item = arquivos_do_item(nomes or [])",
+      "para": "    item = arquivos_do_item(nomes)",
+      "testes": [
+        "tests.test_meta85_item_arquivos.ItemAteDezArquivos.test_base_ilegivel_nao_quebra_e_a_classe_vale_c"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "pedido": "v0478-bp1-relogio-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N1",
+      "guarda": "o teste de AST resolve o apelido de `from _comum import executar as ...`",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "            apelidos |= {a.asname or a.name for a in no.names if a.name == \"executar\"}\n",
+      "para": "            apelidos |= {a.name for a in no.names if a.name == \"executar\"}\n",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_chamada_com_apelido_do_import_e_pega_com_relogio"
+      ]
+    },
+    {
+      "id": "N2",
+      "guarda": "o teste de AST resolve o módulo `_comum` importado com apelido (`c.executar`)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "            modulos |= {a.asname or a.name for a in no.names if a.name == \"_comum\"}\n",
+      "para": "            modulos |= {a.name for a in no.names if a.name == \"_comum\"}\n",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_chamada_com_apelido_do_import_e_pega_com_relogio"
+      ]
+    },
+    {
+      "id": "N3",
+      "guarda": "só o atributo `executar` de um módulo importado de `_comum` conta",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "and isinstance(n.func.value, ast.Name) and n.func.value.id in modulos)]",
+      "para": "and isinstance(n.func.value, ast.Name))]",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_chamada_com_apelido_do_import_e_pega_com_relogio"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M8",
+      "guarda": "T1: cada arquivo sem teste precisa estar citado (mutante: nenhum falta)",
+      "arquivo": "tests/catraca.py",
+      "de": "for n in achados if not citado(n, texto)]",
+      "para": "for n in achados if False]",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_arquivo_nao_citado_ou_so_como_pedaco_de_outro_barra"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "T1: a mensagem diz quais arquivos faltam (mutante: sempre a do motivo curto)",
+      "arquivo": "tests/catraca.py",
+      "de": "f\"sem citar {nomes}\" if faltam",
+      "para": "f\"sem citar {nomes}\" if False",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_codigo_sem_teste_e_sem_secao_barra"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "T1: mais de 5 arquivos, a mensagem resume (mutante: nunca resume)",
+      "arquivo": "tests/catraca.py",
+      "de": "len(lista) > 5",
+      "para": "len(lista) > 50",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_muitos_arquivos_resumem_a_lista"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "T1: o diff dos testes ilegível não segue para a seção (mutante: a condição nunca vale)",
+      "arquivo": "tests/catraca.py",
+      "de": "if achados is None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_diff_dos_testes_ilegivel_barra"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "T1: o motivo vale por arquivo da linha (mutante: um motivo cobre a linha inteira)",
+      "arquivo": "tests/catraca.py",
+      "de": "len(resto) >= MINIMO_SECAO * len(nela)",
+      "para": "len(resto) >= MINIMO_SECAO",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_motivo_vale_por_arquivo"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "T1: o motivo vale só na linha que cita o arquivo (mutante: qualquer linha com motivo)",
+      "arquivo": "tests/catraca.py",
+      "de": "if caminho in nela and len(resto)",
+      "para": "if nela and len(resto)",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_motivo_vale_por_arquivo"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "T1: a mensagem lista os que faltam antes dos sem motivo (mutante: só os sem motivo)",
+      "arquivo": "tests/catraca.py",
+      "de": "lista = faltam or curtos",
+      "para": "lista = curtos",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_codigo_sem_teste_e_sem_secao_barra"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "T1: a linha conta só os arquivos que ela cita (mutante: todos os arquivos)",
+      "arquivo": "tests/catraca.py",
+      "de": "for n in achados if citado(n, linha)]",
+      "para": "for n in achados if True]",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_motivo_vale_por_arquivo"
+      ]
+    }
+  ]
+}

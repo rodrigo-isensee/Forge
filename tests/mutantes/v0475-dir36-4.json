@@ -1,0 +1,86 @@
+{
+  "pedido": "v0475-dir36",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "diretriz 36 (R-CONTRIB): git remote add com o Forge prepara o envio: recusado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if sub == \"remote\" and args[:1] in",
+      "para": "if sub == \"remote-x\" and args[:1] in",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "diretriz 36 (R-CONTRIB): a longa abreviada (`--cr`) cria branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "len(nome) > 2 and nome.startswith(\"--\") and any(o.startswith(nome) for o in longas)",
+      "para": "len(nome) > 2 and nome.startswith(\"--\") and any(o == nome for o in longas)",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "diretriz 36 (R-CONTRIB): a curta com o nome colado (`-c<b>`) cria branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return bool(curta.match(a)) or",
+      "para": "return bool(curta.fullmatch(a)) or",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "diretriz 36 (R-CONTRIB): gh api passa pela conferência do endpoint",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if grupo == \"api\":\n            self.gh_api_no_forge(",
+      "para": "        if grupo == \"api-x\":\n            self.gh_api_no_forge(",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "diretriz 36 (R-CONTRIB): o gh no próprio projeto segue livre",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not (self.alvo_do_forge(pasta, repo) or any(parecer.aponta_para_o_forge(a) for a in pos[2:])):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "diretriz 36 (R-CONTRIB): gh api que só lê o Forge libera",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not parecer.metodo_mutante(args):\n            return\n        endpoint = parecer.endpoint_da_api(args)\n        if e_graphql(endpoint):\n            alvo",
+      "para": "        if False:\n            return\n        endpoint = parecer.endpoint_da_api(args)\n        if e_graphql(endpoint):\n            alvo",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "diretriz 36 (R-CONTRIB): gh api repos/<Forge>/...: o slug do endpoint é o alvo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if dono and \"{\" not in dono.group(1):",
+      "para": "if dono and \"{\" in dono.group(1):",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "diretriz 36 (R-CONTRIB): gh api repos/{owner}/{repo} vale pelo GH_REPO",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif dono or \"{owner}\" in caminho:",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    }
+  ]
+}

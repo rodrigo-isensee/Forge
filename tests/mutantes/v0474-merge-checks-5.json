@@ -1,0 +1,47 @@
+{
+  "pedido": "v0474-merge-checks",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M28",
+      "guarda": "o passo 1 do fechar chama o pr no modo que deixa os checks para os passos 4 e 6 (E3.80)",
+      "arquivo": "bin/forge-fechar",
+      "de": "FORGE_FECHAR_PASSO_1=1 \"$check\" pr",
+      "para": "\"$check\" pr",
+      "testes": [
+        "tests.test_fechar_forge_check_real.FecharComChecksPendentes.test_checks_pendentes_passam_do_passo_1_e_param_no_4_sem_merge"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "a gravacao para o hook obedece ao gravar (E3.80)",
+      "arquivo": "bin/forge-check",
+      "de": "if a.cmd == \"pr\" and gravar:",
+      "para": "if a.cmd == \"pr\" and True:",
+      "testes": [
+        "tests.test_forge_check_pr.GravarParaOHook.test_passo_1_do_fechar_nao_confere_nem_grava"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "o aviso do PR nao lido diz o stderr do gh ou saida vazia (E3.80)",
+      "arquivo": "bin/forge-check",
+      "de": "sem_controle(erro.strip())[:120] or 'saída vazia'",
+      "para": "sem_controle(erro.strip())[:120] and 'saída vazia'",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_pr_view_que_falha_avisa_e_marca_para_o_hook"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "o gh do GitHub Actions sem GH_TOKEN e nada a conferir, nao PR nao lido (E3.185)",
+      "arquivo": "bin/forge-check",
+      "de": "\"set the GH_TOKEN environment variable\", GH_AUSENTE)",
+      "para": "GH_AUSENTE)",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_sem_pr_sem_remoto_do_github_ou_sem_gh_nao_marca",
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_pr_aprovado_grava_e_o_hook_libera_so_lendo"
+      ]
+    }
+  ]
+}

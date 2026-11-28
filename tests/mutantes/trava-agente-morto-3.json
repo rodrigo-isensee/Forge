@@ -22,8 +22,8 @@
       "id": "M19",
       "guarda": "C8: lápides gravadas fora da forma de lista são ignoradas sem derrubar o hook",
       "arquivo": "hooks/agentes.py",
-      "de": "(lista if isinstance(lista, list) else [])",
-      "para": "(lista if lista else [])",
+      "de": "    for l in (lista if isinstance(lista, list) else []):",
+      "para": "    for l in (lista if lista else []):",
       "testes": ["tests.test_trava_agente_morto.C8Lapide.test_lapide_vence_com_o_prazo_do_registro"]
     },
     {

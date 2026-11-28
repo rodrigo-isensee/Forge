@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M23",
+      "guarda": "pontos de partida do find",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        while i < len(args) and not re.match(r\"[-(!)]\", args[i]):",
+      "para": "        while False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "find sem ponto de partida parte da pasta corrente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "partidas, expressao = partidas or [\".\"], args[i:]",
+      "para": "partidas, expressao = partidas or [], args[i:]",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "find -delete apaga os pontos de partida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if a == \"-delete\":",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "find -fprint grava no arquivo seguinte",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            elif a in FIND_GRAVA and j + 1 < len(expressao):",
+      "para": "            elif False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "find -exec roda o comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            elif a in FIND_EXECUTA:",
+      "para": "            elif False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "o comando do -exec vai até ; ou +",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if expressao[k] in (\";\", \"+\")), len(expressao))",
+      "para": "if True), len(expressao))",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "remoção por outro ato diz o ato",
+      "arquivo": "hooks/conformidade.py",
+      "de": "{'apaga' if ato == 'apagar' else 'alcança'}",
+      "para": "{'apaga' if True else 'alcança'}",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDoTetoNoClone.test_find_tar_e_chmod_no_config_da_raiz_recusam"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "o nome exato de outra opção (--checkpoint) não abrevia",
+      "arquivo": "hooks/conformidade.py",
+      "de": "nome not in LONGAS_EXATAS and any(o.startswith(nome) for o in opcoes)",
+      "para": "True and any(o.startswith(nome) for o in opcoes)",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M38",
+      "guarda": "parecer publicar: só vale o registro do mesmo caminho do parecer (S1 da segurança do #914)",
+      "arquivo": "bin/forge-check",
+      "de": "if r.get(\"caminho\") == rel_arq][-1:]",
+      "para": "if True][-1:]",
+      "testes": [
+        "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_s1_texto_de_docs_reviews_copiado_para_o_parecer_a_publicar"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "parecer publicar: vale o último registro do caminho, o superado não volta (S2 da segurança do #914)",
+      "arquivo": "bin/forge-check",
+      "de": "if r.get(\"caminho\") == rel_arq][-1:]",
+      "para": "if r.get(\"caminho\") == rel_arq][:1]",
+      "testes": [
+        "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_s2_veredito_superado_nao_volta_a_publicar"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "parecer publicar: sem registro do caminho, recusa (M9.1)",
+      "arquivo": "bin/forge-check",
+      "de": "if not ultimo or ultimo[0]",
+      "para": "if ultimo and ultimo[0]",
+      "testes": [
+        "tests.test_forge_pareceres.Comando.test_c11_sem_autoria_jsonl_recusa"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "parecer publicar: o arquivo fora da raiz não tem caminho de parecer (S1 da segurança do #914)",
+      "arquivo": "bin/forge-check",
+      "de": "m = PARECER_A_PUBLICAR.fullmatch(rel_arq)",
+      "para": "m = PARECER_A_PUBLICAR.search(p.as_posix())",
+      "testes": [
+        "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_s1_texto_de_docs_reviews_publicado_de_fora_do_projeto"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "parecer publicar: sem autoria.jsonl, recusa sem quebrar (M9.1)",
+      "arquivo": "bin/forge-check",
+      "de": "for r in autorias(raiz) or [] if r.get(\"caminho\")",
+      "para": "for r in autorias(raiz) if r.get(\"caminho\")",
+      "testes": [
+        "tests.test_forge_pareceres.Comando.test_c11_sem_autoria_jsonl_recusa"
+      ]
+    }
+  ]
+}

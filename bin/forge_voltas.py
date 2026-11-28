@@ -93,9 +93,61 @@ def reversoes_do_pedido(arquivo, ctx):
     return sum(1 for linha in linhas_da_secao(texto, "Histórico") if "suposicao revertida" in _sem_acento(linha))
 
 
-def cmd_voltas(raiz, pedido, ctx):
-    """Imprime as voltas por pedido (linhas fixas, números e tipos). Só lê docs/kanban/historico.md, conferencias.md,
-    docs/briefs e docs/pedidos."""
+# ---- A15 (TEMPO-A): `voltas --tempo`, os minutos de cada fase do pedido, lidos das transições do historico.md ----
+FASES_DO_PROCESSO = ("conferencia", "review", "qa", "integracao")  # com `brief`, o processo; `autor` é a entrega
+FASE_DA_COLUNA = {"em andamento": "autor", "conferencia": "conferencia", "review": "review", "code review": "review", "qa": "qa",
+                  "integracao": "integracao"}
+NAO_MOVIMENTO = ("-", "—", "")  # linha de registro no histórico (parada, nota), não mudança de coluna
+NAO_MEDIDO = "nao-medido"
+
+
+def tempo_do_cartao(movimentos, ctx):
+    """De [(hora, de, para, motivo)] em ordem de hora: minutos por fase (`autor`, as de FASES_DO_PROCESSO e `dono`). A fase é a da coluna
+    de destino do movimento (`dono`: a espera do dono de `tipo_da_espera`) e dura até o movimento seguinte. A fase sem trecho, ou com o
+    último trecho ainda aberto, sai `nao-medido`: nunca um número parcial nem zero inventado."""
+    _sem_acento, tipo_da_espera = ctx["_sem_acento"], ctx["tipo_da_espera"]
+    movimentos = [m for m in movimentos if _sem_acento(m[2]).strip() not in NAO_MOVIMENTO]
+    segundos, abertas = {}, set()
+    for i, (hora, _de, para, motivo) in enumerate(movimentos):
+        fase = "dono" if tipo_da_espera(para, motivo) == "dono" else FASE_DA_COLUNA.get(_sem_acento(para).strip())
+        if i + 1 < len(movimentos):  # a fase None (coluna fora do tempo) soma numa chave que não sai
+            segundos[fase] = segundos.get(fase, 0.0) + (movimentos[i + 1][0] - hora).total_seconds()
+        else:
+            abertas.add(fase)
+    return {f: NAO_MEDIDO if f in abertas or f not in segundos else round(segundos[f] / 60, 1)
+            for f in ("autor", *FASES_DO_PROCESSO, "dono")}
+
+
+def minutos_de_brief(rodadas):
+    """Minutos das rodadas extras de brief; `nao-medido` sem docs/kanban/conferencias.md do pedido ou com rodada extra sem hora."""
+    if rodadas["fonte"] != "conferencias" or any(m is None for *_, m in rodadas["extras"]):
+        return NAO_MEDIDO
+    return round(sum(m for *_, m in rodadas["extras"]), 1)
+
+
+def razao_do_processo(tempo):
+    """(processo, razão processo ÷ entrega): processo é a soma das fases medidas de FASES_DO_PROCESSO e do brief; a espera do dono fica
+    fora. `nao-medido` sem minutos do autor ou sem nenhuma fase de processo medida."""
+    medidas = [tempo[f] for f in (*FASES_DO_PROCESSO, "brief") if tempo[f] != NAO_MEDIDO]
+    if tempo["autor"] == NAO_MEDIDO or not tempo["autor"] or not medidas:
+        return NAO_MEDIDO, NAO_MEDIDO
+    return round(sum(medidas), 1), f"{sum(medidas) / tempo['autor']:.2f}"
+
+
+def linha_do_tempo(nome, movimentos, rodadas, ctx):
+    """`voltas: <pedido> tempo: autor=… conferencia=… review=… qa=… integracao=… brief=… dono=… processo=… razao_processo=…`."""
+    _numero = ctx["_numero"]
+    tempo = tempo_do_cartao(movimentos, ctx)
+    tempo["brief"] = minutos_de_brief(rodadas)
+    tempo["processo"], razao = razao_do_processo(tempo)
+    campos = ("autor", *FASES_DO_PROCESSO, "brief", "dono", "processo")
+    return (f"voltas: {nome} tempo: " + " ".join(f"{f}={tempo[f] if tempo[f] == NAO_MEDIDO else _numero(tempo[f])}" for f in campos)
+            + f" razao_processo={razao}")
+
+
+def cmd_voltas(raiz, pedido, ctx, tempo=False):
+    """Imprime as voltas por pedido (linhas fixas, números e tipos); com `tempo` (A15), também a linha `tempo:` de cada pedido.
+    Só lê docs/kanban/historico.md, conferencias.md, docs/briefs e docs/pedidos."""
     _ler_tabela, _hora, ISO8601, _numero = ctx["_ler_tabela"], ctx["_hora"], ctx["ISO8601"], ctx["_numero"]
     rodadas_de_brief, relogios_do_cartao = ctx["rodadas_de_brief"], ctx["relogios_do_cartao"]
     historico = raiz / "docs" / "kanban" / "historico.md"
@@ -121,7 +173,7 @@ def cmd_voltas(raiz, pedido, ctx):
         return 1
     escolhidos = [pedido.casefold()] if pedido else sorted(pedidos)
     pedidos.setdefault(pedido.casefold() if pedido else "", pedido or "")
-    soma = [0, 0, 0.0]
+    soma, nao_medidos = [0, 0, 0.0], 0
     for chave in escolhidos:
         voltas, construcao = voltas_do_cartao(sorted(por_cartao.get(chave, []), key=lambda m: m[0]), ctx)
         rodadas = rodadas_de_brief(raiz, chave)
@@ -130,7 +182,8 @@ def cmd_voltas(raiz, pedido, ctx):
         relogios = relogios_do_cartao(sorted(por_cartao.get(chave, []), key=lambda m: m[0]))  # L49 (D-4): os dois relógios
         if not linhas and not pedido and not relogios:
             continue  # o pedido que andou sem volta segue na lista pelo relógio
-        nome, contagem = pedidos[chave], {t: 0 for t in TIPOS_DE_VOLTA}
+        movimento = chave in por_cartao  # E147.1: sem cartão com movimento, o que vem do quadro é nao-medido, não 0
+        nome, contagem = pedidos[chave], {t: 0 if movimento or t == "brief" else "nao-medido" for t in TIPOS_DE_VOLTA}
         for tipo, inicio, minutos, ref in linhas:
             contagem[tipo] += 1
             print(f"voltas: {nome} {tipo} inicio={inicio or 'sem-hora'} minutos="
@@ -141,16 +194,23 @@ def cmd_voltas(raiz, pedido, ctx):
                                    for j in janelas if j[0]])
         razao = f"{total / construcao:.2f}" if construcao else "-"
         print(f"voltas: {nome} resumo: " + " ".join(f"{t}={n}" for t, n in contagem.items())
-              + f" minutos={_numero(total)} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}")
+              + f" minutos={_numero(total) if movimento or linhas else 'nao-medido'} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}")
         if relogios:
             aberto, pronto = relogios
             dentro = "-" if pronto is None else "sim" if pronto <= META_PRONTO_ATE_DEVELOP else "nao"
             print(f"voltas: {nome} relogios: aberto_ate_develop={_numero(aberto)} pronto_ate_develop="
                   f"{_numero(pronto) if pronto is not None else '-'} meta={META_PRONTO_ATE_DEVELOP} dentro={dentro}")
+        if tempo:
+            print(linha_do_tempo(nome, sorted(por_cartao.get(chave, []), key=lambda m: m[0]), rodadas, ctx))
         if reversoes := reversoes_do_pedido(pasta / f"{nome}.md", ctx):  # L11 (OK-6): o placar da escolha provisória revertida pelo dono
             print(f"voltas: {nome} reversoes={reversoes}")
-        soma = [soma[0] + 1, soma[1] + len(linhas), soma[2] + total]
-    print(f"voltas: total: pedidos={soma[0]} voltas={soma[1]} minutos={_numero(soma[2])}")
+        if movimento or linhas:
+            soma = [soma[0] + 1, soma[1] + len(linhas), soma[2] + total]
+        else:
+            nao_medidos += 1
+    voltas, minutos = ("nao-medido", "nao-medido") if nao_medidos and not soma[0] else (soma[1], _numero(soma[2]))
+    print(f"voltas: total: pedidos={soma[0]} voltas={voltas} minutos={minutos}"
+          + (f" nao-medidos={nao_medidos}" if nao_medidos else ""))
     return 0
 
 

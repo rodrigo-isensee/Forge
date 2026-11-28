@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-hook-heredoc-palavra",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP: só o que vem antes do `-` é opção do Python; o resto vai ao sys.argv",
+      "arquivo": "hooks/parecer.py",
+      "de": "opcoes = args[:args.index(\"-\")] if \"-\" in args else args",
+      "para": "opcoes = args[:args.index(\"-\")] if False else args",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP: python3 - lê o programa da entrada só com opções do Python antes do `-`",
+      "arquivo": "hooks/parecer.py",
+      "de": "if PYTHON_DA_ENTRADA.fullmatch(nome) and all(OPCAO_DO_PYTHON.fullmatch(a) for a in opcoes):",
+      "para": "if PYTHON_DA_ENTRADA.fullmatch(nome) and all(OPCAO_DO_PYTHON.fullmatch(a) for a in args):",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP: a chamada só de programas de dado faz de todo corpo dado",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if corpos_de_dado(original, comando):\n        return [\"dado\"] * len(corpos)",
+      "para": "    if False:\n        return [\"dado\"] * len(corpos)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP: heredoc fora da forma simples (<<$'FIM') não vira dado",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if not heredocs_simples(original):\n        return False\n    if chamada_muda_o_corpo(comando):",
+      "para": "    if False:\n        return False\n    if chamada_muda_o_corpo(comando):",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP: atribuição na chamada (PATH=/tmp ls) não deixa o corpo ser dado",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if chamada_muda_o_corpo(comando):\n        return False\n    if \"`\" in comando:",
+      "para": "    if False:\n        return False\n    if \"`\" in comando:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP: programa fora da lista (sh, python3, git) deixa o corpo marcar",
+      "arquivo": "hooks/parecer.py",
+      "de": "    return nomes <= PROGRAMAS_DE_DADO and not alvos & nomes",
+      "para": "    return not alvos & nomes",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP: arquivo gravado com o nome de um programa da chamada (bin/ls) deixa o corpo marcar",
+      "arquivo": "hooks/parecer.py",
+      "de": "    return nomes <= PROGRAMAS_DE_DADO and not alvos & nomes",
+      "para": "    return nomes <= PROGRAMAS_DE_DADO",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "HOOK-HEREDOC-PALAVRA-FP: o corpo de dado não é conferido como comando",
+      "arquivo": "hooks/parecer.py",
+      "de": "if leitor not in (\"python\", \"dado\") and not corpo_so_lido(dono)]",
+      "para": "if leitor != \"python\" and not corpo_so_lido(dono)]",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
+      ]
+    }
+  ]
+}

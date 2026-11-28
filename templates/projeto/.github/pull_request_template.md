@@ -20,4 +20,4 @@
 <!-- Só quando o `forge-check pr` dá `sem teste:`: por que o código mudou sem teste mudado ou novo; o review confere. Sem o aviso, apague a seção. -->
 
 ## Tamanho
-<!-- Até 150 linhas de código e teste e um comportamento só. Passou: `teto: excedido, <n> linhas, <motivo>`. Dentro do teto, apague a seção. -->
+<!-- Até 150 linhas de código por item, fora testes e documentação, e um comportamento só. Passa só se cortar mais deixa a suíte vermelha: `teto: excedido, <n> linhas, <motivo>`. Dentro do teto, apague a seção. -->

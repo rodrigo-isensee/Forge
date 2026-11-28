@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-placar-fases",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M24",
+      "guarda": "sem --prs, a medida e None",
+      "arquivo": "bin/forge-placar",
+      "de": "    if not arq:\n        return None\n    texto = ler(arq)\n    if texto is None:\n        raise SystemExit(f\"forge-placar: --prs",
+      "para": "    if False:\n        return None\n    texto = ler(arq)\n    if texto is None:\n        raise SystemExit(f\"forge-placar: --prs",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_sem_dados_sai_tracinho_nunca_zero"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "--prs ausente sai com 2",
+      "arquivo": "bin/forge-placar",
+      "de": "    if texto is None:\n        raise SystemExit(f\"forge-placar: --prs",
+      "para": "    if False:\n        raise SystemExit(f\"forge-placar: --prs",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_arquivo_ausente_ou_invalido_sai_com_2"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "--prs que nao e JSON sai com 2",
+      "arquivo": "bin/forge-placar",
+      "de": "        raise SystemExit(f\"forge-placar: --prs {arq} não é JSON legível\")",
+      "para": "        prs = []",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_arquivo_ausente_ou_invalido_sai_com_2"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "--prs que nao e lista sai com 2",
+      "arquivo": "bin/forge-placar",
+      "de": "    if not isinstance(prs, list):",
+      "para": "    if False:",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_arquivo_ausente_ou_invalido_sai_com_2"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "entrada que nao e PR fica fora",
+      "arquivo": "bin/forge-placar",
+      "de": "str(pr.get(\"mergedAt\")) if isinstance(pr, dict) else \"\"",
+      "para": "str(pr.get(\"mergedAt\")) if True else \"\"",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_dados_de_exemplo_por_semana"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "PR sem mergedAt fica fora",
+      "arquivo": "bin/forge-placar",
+      "de": "        if not DATA.match(quando):\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_dados_de_exemplo_por_semana"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "so a janela das duas semanas conta",
+      "arquivo": "bin/forge-placar",
+      "de": "        if not dentro(dia, janela):\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_dados_de_exemplo_por_semana"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "a secao e um titulo de nivel 2 em qualquer linha",
+      "arquivo": "bin/forge-placar",
+      "de": "SEM_TESTE = re.compile(r\"^##[ \\t]+Sem teste[ \\t]*$\", re.M | re.I)",
+      "para": "SEM_TESTE = re.compile(r\"^##[ \\t]+Sem teste[ \\t]*$\", re.I)",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_dados_de_exemplo_por_semana"
+      ]
+    }
+  ]
+}

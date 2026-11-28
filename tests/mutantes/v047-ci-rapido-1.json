@@ -1,0 +1,127 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a guarda por ID reprova unidade fora de toda parte ou em duas",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if cobertas != total:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_suite_partes.DivisaoPorUnidade.test_completude_reprova_unidade_fora_de_toda_parte_ou_em_duas"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "ID do discover sem unidade no plano reprova",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if sem_plano:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_suite_partes.DivisaoPorUnidade.test_completude_reprova_id_sem_unidade_no_plano_e_unidade_sem_teste"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "unidade do plano sem teste no discover reprova",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if sem_teste:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_suite_partes.DivisaoPorUnidade.test_completude_reprova_id_sem_unidade_no_plano_e_unidade_sem_teste"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "menos unidades que partes reprova",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if len(partes) != n:\n        erros.append(f\"{len(unidades)} unidades",
+      "para": "    if False:\n        erros.append(f\"{len(unidades)} unidades",
+      "testes": [
+        "tests.test_suite_partes.DivisaoPorUnidade.test_menos_unidades_que_partes_reprova",
+        "tests.test_suite_partes.Brinquedo5.test_mais_partes_que_unidades_reprova_toda_parte"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a parte confere a completude por ID antes de rodar",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    erros += faltas\n",
+      "para": "    erros += []\n",
+      "testes": [
+        "tests.test_suite_partes.Brinquedo5.test_erro_da_guarda_de_completude_reprova_a_parte_antes_de_rodar"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "anotacao so com nome de unidade no alfabeto seguro (S6)",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "isinstance(k, str) and UNIDADE_SEGURA.fullmatch(k) and type(v)",
+      "para": "isinstance(k, str) and type(v)",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeTempos.test_nome_fora_do_alfabeto_valor_invalido_e_formato_ruim_ficam_de_fora"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "anotacao so com segundos finitos",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "and math.isfinite(v) and v >= 0)",
+      "para": "and v >= 0)",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeTempos.test_nome_fora_do_alfabeto_valor_invalido_e_formato_ruim_ficam_de_fora"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "anotacao nao negativa",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "and math.isfinite(v) and v >= 0)",
+      "para": "and math.isfinite(v))",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeTempos.test_nome_fora_do_alfabeto_valor_invalido_e_formato_ruim_ficam_de_fora"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "acima do limite de anotacoes do passo nao grava",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if not blocos or len(blocos) > MAXIMO_DE_ANOTACOES or",
+      "para": "    if not blocos or False or",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeTempos.test_muitas_unidades_viram_blocos_e_acima_do_limite_nenhuma"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "parte e Python da anotacao no formato",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "not re.fullmatch(r\"[0-9]{1,2}/[0-9]{1,2}\", parte) \\\n            or not re.fullmatch(r\"3\\.[0-9]{1,2}\", python):",
+      "para": "False \\\n            or False:",
+      "testes": [
+        "tests.test_suite_partes.AnotacaoDeTempos.test_nome_fora_do_alfabeto_valor_invalido_e_formato_ruim_ficam_de_fora"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "so a parte verde anota tempo",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if not codigo and anotar:",
+      "para": "    if anotar:",
+      "testes": [
+        "tests.test_suite_partes.Brinquedo5.test_anotacao_de_tempos_so_no_ci_e_so_com_a_parte_verde"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "anotacao so com GITHUB_ACTIONS",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "if environ.get(\"GITHUB_ACTIONS\") == \"true\" else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_suite_partes.Brinquedo5.test_anotacao_de_tempos_so_no_ci_e_so_com_a_parte_verde"
+      ]
+    }
+  ]
+}

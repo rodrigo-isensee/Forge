@@ -1,0 +1,26 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O157",
+      "guarda": "E1.342, volta do lote B (A16 da segurança E1.340): o nome inteiro passa pela mesma conferência do prefixo (`nasce_fora_do_ambiente`)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if nasce_fora_do_ambiente(nome, linha):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O158",
+      "guarda": "E1.342, volta do lote B: o prefixo atribuído na linha (`d=.gi; cp x \"$d\"t`) não vale como do ambiente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not atribuicoes and any(nasce_fora_do_ambiente(nome[:k], linha) or re.search(rf\"(?<![\\w$]){nome[:k]}=\", linha)",
+      "para": "    if not atribuicoes and any(nasce_fora_do_ambiente(nome[:k], linha)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

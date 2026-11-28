@@ -1,0 +1,77 @@
+{
+  "pedido": "varredura-divida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M8",
+      "guarda": "sem spec, o forge-mutante não roda (o rc 2 dele não é achado)",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "if not any((raiz / \"tests\" / \"mutantes\").glob(\"*.json\")):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_spec_recusada_vira_um_achado_e_sem_spec_nenhum"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "só o rc 1 do forge-mutante traz desencontros (o rc 0 traz o resumo)",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "r.stdout.splitlines() if r.returncode == 1 else []",
+      "para": "r.stdout.splitlines() if True else []",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_spec_no_lugar_nao_gera_achado"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "spec recusada (rc 2) vira um achado",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "if r.returncode == 2:",
+      "para": "if r.returncode == 3:",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_spec_recusada_vira_um_achado_e_sem_spec_nenhum"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o ID citado só vale inteiro (R-X2 não cita R-X)",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "re.search(re.escape(ident) + r\"(?![\\w-])\", testes)",
+      "para": "re.search(re.escape(ident), testes)",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_lista_cada_achado_em_ordem_estavel"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "projeto (.forge/versao) não é o Forge",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "if (raiz / \".forge\" / \"versao\").is_file():",
+      "para": "if (raiz / \".forge\" / \"nada\").is_file():",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_copias_abaixo_do_limite_ou_fora_do_forge_nao_se_listam"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "só o manifesto de nome forge é o Forge",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": ".get(\"name\") == \"forge\"",
+      "para": ".get(\"name\") != \"nada\"",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_copias_abaixo_do_limite_ou_fora_do_forge_nao_se_listam"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "sem manifesto não é o Forge",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "    except (OSError, ValueError, AttributeError):\n        return False",
+      "para": "    except (ValueError, AttributeError):\n        return False",
+      "testes": [
+        "tests.test_varredura_divida.ProjetoDoForgeInit.test_projeto_novo_roda_sem_achado",
+        "tests.test_varredura_divida.Varredura.test_pasta_fora_do_git_varre_o_que_tem"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+    "pedido": "v0478-testes-prazo",
+    "executor": "unittest",
+    "mutantes": [
+        {
+            "id": "M9",
+            "guarda": "aproveitamento_da_cpu: sem relógio fora do sono ou sem parcela da referência, aproveitamento zero",
+            "arquivo": "tests/prova_de_carga.py",
+            "de": "    return cpu / (acordado * parcela) if acordado > 0 and parcela > 0 else 0.0",
+            "para": "    return cpu / (acordado * parcela) if parcela > 0 else 0.0",
+            "testes": [
+                "tests.test_hooks.Hooks.test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada"
+            ]
+        },
+        {
+            "id": "M10",
+            "guarda": "referencia_da_cpu: sem a resposta da referência, a parcela fica sem medida",
+            "arquivo": "tests/prova_de_carga.py",
+            "de": "        if parede > 0:",
+            "para": "        if parede >= 0:",
+            "testes": [
+                "tests.test_hooks.Hooks.test_referencia_da_cpu_mede_a_parcela_do_relogio"
+            ]
+        }
+    ]
+}

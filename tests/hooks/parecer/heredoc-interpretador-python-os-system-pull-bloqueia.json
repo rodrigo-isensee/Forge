@@ -1,0 +1,18 @@
+{
+  "descricao": "HOOK-REVIEW-HEREDOC-TIMEOUT, caso verdadeiro: timeout com Python que roda git pull por os.system recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "timeout 60 python3 - <<'EOF'\nimport os\nos.system('git pull origin develop')\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: `timeout (fora da lista de programas)`"
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S25",
+      "guarda": "forge_sempre_atual.py:235 decide por `not isinstance(self.estado.get(chave), tipo)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not isinstance(self.estado.get(chave), tipo):",
+      "para": "if isinstance(self.estado.get(chave), tipo):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S26",
+      "guarda": "forge_sempre_atual.py:249 decide por `self.pasta is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "def salvar_estado(self):\n        if self.pasta is None:\n            return",
+      "para": "def salvar_estado(self):\n        if not (self.pasta is None):\n            return",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S27",
+      "guarda": "forge_sempre_atual.py:260 decide por `self.pasta is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "def gravar_registro(self):\n        if self.pasta is None:\n            return",
+      "para": "def gravar_registro(self):\n        if not (self.pasta is None):\n            return",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_instalada_mais_nova_que_a_publicada_nao_desce_sem_fixacao"
+      ]
+    },
+    {
+      "id": "S28",
+      "guarda": "forge_sempre_atual.py:266 decide por `r`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "r = self.res.get(e[\"chave\"])\n            if r:\n                linhas.append((e[\"escopo\"], e[\"projeto\"] or \"-\", r[\"antes\"], r[\"depois\"], r[\"resultado\"]))",
+      "para": "r = self.res.get(e[\"chave\"])\n            if not (r):\n                linhas.append((e[\"escopo\"], e[\"projeto\"] or \"-\", r[\"antes\"], r[\"depois\"], r[\"resultado\"]))",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_instalada_mais_nova_que_a_publicada_nao_desce_sem_fixacao"
+      ]
+    },
+    {
+      "id": "S29",
+      "guarda": "forge_sempre_atual.py:267 decide por `e[\"projeto\"] or \"-\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "linhas.append((e[\"escopo\"], e[\"projeto\"] or \"-\", r[\"antes\"], r[\"depois\"], r[\"resultado\"]))",
+      "para": "linhas.append((e[\"escopo\"], not (e[\"projeto\"] or \"-\"), r[\"antes\"], r[\"depois\"], r[\"resultado\"]))",
+      "testes": [
+        "tests.test_sempre_atual.Estado.test_registro_tem_sete_colunas_e_guarda_so_as_ultimas_500"
+      ]
+    },
+    {
+      "id": "S30",
+      "guarda": "forge_sempre_atual.py:269 decide por `not linhas`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not linhas:",
+      "para": "if linhas:",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_instalada_mais_nova_que_a_publicada_nao_desce_sem_fixacao"
+      ]
+    },
+    {
+      "id": "S31",
+      "guarda": "forge_sempre_atual.py:272 decide por `resumo(c) or \"-\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "novas = \"\".join(\"\\t\".join([carimbo, self.gatilho, *[resumo(c) or \"-\" for c in l]]) + \"\\n\" for l in linhas)",
+      "para": "novas = \"\".join(\"\\t\".join([carimbo, self.gatilho, *[not (resumo(c) or \"-\") for c in l]]) + \"\\n\" for l in linhas)",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S32",
+      "guarda": "forge_sempre_atual.py:277 decide por `texto is not None and texto.count(\"\\n\") > LINHAS_DO_REGISTRO`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if texto is not None and texto.count(\"\\n\") > LINHAS_DO_REGISTRO:",
+      "para": "if not (texto is not None and texto.count(\"\\n\") > LINHAS_DO_REGISTRO):",
+      "testes": [
+        "tests.test_sempre_atual.Estado.test_registro_tem_sete_colunas_e_guarda_so_as_ultimas_500"
+      ]
+    }
+  ]
+}

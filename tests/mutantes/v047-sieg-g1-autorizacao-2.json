@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "G1.1a (ADR 0018 item 7): campo ausente é adulterada",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if faltam:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_adulterado_ou_fora_da_forma"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "G1.1a (ADR 0018 item 7): Sha256 que não bate com o corpo é adulterada",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(campos[\"Sha256\"] != sha(corpo),",
+      "para": "(False,",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_adulterado_ou_fora_da_forma"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "G1.1a (ADR 0018 item 7): Gravado-por de outro forge-check é adulterada",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(campos[\"Gravado-por\"] != gravador,",
+      "para": "(False,",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_adulterado_ou_fora_da_forma"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "G1.1a (ADR 0018 item 7): Ato fora da lista é adulterada",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(campos[\"Ato\"] not in ATOS,",
+      "para": "(False,",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_adulterado_ou_fora_da_forma"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "G1.1a (ADR 0018 item 7): Alvos fora da forma é adulterada",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(not ALVOS.fullmatch(campos[\"Alvos\"]),",
+      "para": "(False,",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_adulterado_ou_fora_da_forma"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "G1.1a (ADR 0018 item 7): Estado-inicial fora da lista é adulterada",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(campos[\"Estado-inicial\"] not in ESTADOS_INICIAIS,",
+      "para": "(False,",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_adulterado_ou_fora_da_forma"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "G1.1a (ADR 0018 item 7): Autoriza fora do texto fixo é adulterada",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(campos[\"Autoriza\"] != AUTORIZA,",
+      "para": "(False,",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_adulterado_ou_fora_da_forma"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "G1.1a (ADR 0018 item 7): concessão adulterada sai com rc 1",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "return 1 if erros or adulteradas else 0",
+      "para": "return 1 if erros else 0",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_adulterado_ou_fora_da_forma"
+      ]
+    }
+  ]
+}

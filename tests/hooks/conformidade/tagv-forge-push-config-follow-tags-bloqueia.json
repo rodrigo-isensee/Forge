@@ -1,0 +1,24 @@
+{
+  "descricao": "V0474-TAG: push.followTags na linha (segurança A2 da v0474); a tag v* do Forge só nasce do release.yml.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git -c push.followTags=true push origin melhoria/proj-v047-tema"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-FLUXO"
+  }
+}

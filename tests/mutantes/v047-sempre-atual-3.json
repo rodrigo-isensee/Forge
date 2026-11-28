@@ -1,0 +1,159 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "atalho com a sessão tmux aberta só reanexa (não roda a ferramenta)",
+      "arquivo": "scripts/jarvis",
+      "de": "  if [ \"$usa_tmux\" = 1 ] && tmux has-session -t \"$sessao\" 2>/dev/null; then :; else atualizar_plugin; fi",
+      "para": "  if false; then :; else atualizar_plugin; fi",
+      "testes": [
+        "tests.test_oraculo_sempre_atual.Abertura.test_atalho_com_tmux_ja_aberto_so_reanexa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a reentrada dentro do tmux (FORGE_ABERTURA_FEITA) não repete a atualização",
+      "arquivo": "scripts/jarvis",
+      "de": "if [ -z \"${FORGE_ABERTURA_FEITA:-}\" ]; then\n  if [ \"$usa_tmux\"",
+      "para": "if true; then\n  if [ \"$usa_tmux\"",
+      "testes": [
+        "tests.test_oraculo_sempre_atual.Abertura.test_atalho_sem_sessao_tmux_atualiza_uma_vez_so",
+        "tests.test_sempre_atual.Entradas.test_reentrada_dentro_do_tmux_nao_repete_a_atualizacao"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "pasta com .git (work tree) nunca executa a ferramenta (jarvis)",
+      "arquivo": "scripts/jarvis",
+      "de": "if [ ! -x \"$ferramenta\" ] || [ -e \"$raiz/.git\" ]; then return 0; fi",
+      "para": "if [ ! -x \"$ferramenta\" ]; then return 0; fi",
+      "testes": [
+        "tests.test_sempre_atual.Entradas.test_atalho_dentro_de_pasta_com_git_nao_roda_a_ferramenta_e_abre_o_claude"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o fim da ferramenta (erro, sinal) nunca impede a abertura (jarvis)",
+      "arquivo": "scripts/jarvis",
+      "de": "--projeto \"$PWD\" </dev/null || true\n  else",
+      "para": "--projeto \"$PWD\" </dev/null\n  else",
+      "testes": [
+        "tests.test_oraculo_sempre_atual.Falha.test_atalho_abre_mesmo_com_ferramenta_quebrada"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o atalho chama a ferramenta com o gatilho atalho",
+      "arquivo": "scripts/jarvis",
+      "de": "timeout 90 \"$ferramenta\" --gatilho atalho",
+      "para": "timeout 90 \"$ferramenta\" --gatilho poststart",
+      "testes": [
+        "tests.test_oraculo_sempre_atual.Abertura.test_atalho_roda_a_ferramenta_uma_vez_antes_de_abrir_o_claude"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "jarvis-forge com a sessão tmux aberta só reanexa",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "  if ! sessao_aberta; then (cd \"$HOME/Forge\" && atualizar_plugin); fi",
+      "para": "  if true; then (cd \"$HOME/Forge\" && atualizar_plugin); fi",
+      "testes": [
+        "tests.test_sempre_atual.Entradas.test_jarvis_forge_roda_a_ferramenta_uma_vez_e_com_tmux_aberto_so_reanexa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "pasta com .git (work tree) nunca executa a ferramenta (jarvis-forge)",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "if [ ! -x \"$ferramenta\" ] || [ -e \"$raiz/.git\" ]; then return 0; fi",
+      "para": "if [ ! -x \"$ferramenta\" ]; then return 0; fi",
+      "testes": [
+        "tests.test_sempre_atual.Entradas.test_jarvis_forge_dentro_de_pasta_com_git_nao_roda_a_ferramenta"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "trampolim só executa installPath dentro do cache do plugin",
+      "arquivo": "scripts/instalar-atalho.sh",
+      "de": "and real.startswith(cache + os.sep):",
+      "para": "and True:",
+      "testes": [
+        "tests.test_sempre_atual.Entradas.test_trampolim_recusa_installpath_fora_do_cache_do_plugin"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "trampolim segue só a instalação do escopo do usuário",
+      "arquivo": "scripts/instalar-atalho.sh",
+      "de": "i.get(\"scope\") == \"user\"",
+      "para": "i.get(\"scope\") != \"user\"",
+      "testes": [
+        "tests.test_sempre_atual.Entradas.test_trampolim_ignora_instalacao_de_projeto_e_so_segue_a_do_usuario",
+        "tests.test_oraculo_sempre_atual.Ancora.test_trampolim_segue_o_installpath_ativo_e_nao_o_maior_do_cache"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a ferramenta só roda no preparo essencial (postStart)",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "  [ \"${FORGE_PREPARO_ESSENCIAL:-0}\" = 1 ] || return 0\n",
+      "para": "",
+      "testes": [
+        "tests.test_sempre_atual.Entradas.test_preparo_sem_o_modo_essencial_refaz_os_atalhos_e_nao_roda_a_ferramenta"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o postStart chama a ferramenta com o gatilho poststart",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "timeout 90 \"$ativo/bin/forge-sempre-atual\" --gatilho poststart",
+      "para": "timeout 90 \"$ativo/bin/forge-sempre-atual\" --gatilho atalho",
+      "testes": [
+        "tests.test_oraculo_sempre_atual.Atalho.test_recriacao_refaz_jarvis"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "o preparo só usa installPath dentro do cache do plugin",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "    if os.path.isabs(ativos[-1]) and real.startswith(cache + os.sep):",
+      "para": "    if os.path.isabs(ativos[-1]):",
+      "testes": [
+        "tests.test_sempre_atual.Entradas.test_preparo_ignora_installpath_fora_do_cache_do_plugin"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "ferramenta que falha no postStart não derruba o preparo",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "--gatilho poststart </dev/null >/dev/null 2>&1 || true\n    else",
+      "para": "--gatilho poststart </dev/null >/dev/null 2>&1\n    else",
+      "testes": [
+        "tests.test_sempre_atual.Entradas.test_preparo_essencial_com_ferramenta_que_falha_nao_derruba_o_poststart"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "a troca da marketplace é só `add`, nunca `marketplace remove`",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    codigo, saida = claude([\"plugin\", \"marketplace\", \"add\", fonte, \"--scope\", \"user\"])",
+      "para": "    claude([\"plugin\", \"marketplace\", \"remove\", MARKETPLACE, \"--scope\", \"user\"])\n    codigo, saida = claude([\"plugin\", \"marketplace\", \"add\", fonte, \"--scope\", \"user\"])",
+      "testes": [
+        "tests.test_atualizar.SemMarketplaceRemove.test_atualizar_troca_por_add_sem_remove",
+        "tests.test_atualizar.SemMarketplaceRemove.test_fixar_troca_por_add_sem_remove"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "devolver a marketplace de outro escopo também é só `add`",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    return trocar_marketplace(original[\"fonte\"])[0]",
+      "para": "    if original[\"escopo\"] != \"user\":\n        claude([\"plugin\", \"marketplace\", \"remove\", MARKETPLACE, \"--scope\", \"user\"])\n    return trocar_marketplace(original[\"fonte\"])[0]",
+      "testes": [
+        "tests.test_atualizar.SemMarketplaceRemove.test_marketplace_de_outro_escopo_e_devolvida_por_add_sem_remove"
+      ]
+    }
+  ]
+}

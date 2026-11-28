@@ -1,0 +1,66 @@
+{
+  "pedido": "v0474-h1-ferramenta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M15",
+      "guarda": "brief gerar conta as etapas do pedido",
+      "arquivo": "bin/forge-check",
+      "de": "tamanho.aviso_de_etapas(len(dados[\"etapas\"]))",
+      "para": "tamanho.aviso_de_etapas(0)",
+      "testes": [
+        "tests.test_forge_tamanho.NoBriefGerar.test_pedido_com_mais_de_50_etapas_avisa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "brief gerar mede os caracteres do brief",
+      "arquivo": "bin/forge-check",
+      "de": "aviso_de_caracteres(len(texto), TETO_DE_CARACTERES_DO_BRIEF):  # PEDIDO-TETO-BRIEF",
+      "para": "aviso_de_caracteres(0, TETO_DE_CARACTERES_DO_BRIEF):  # PEDIDO-TETO-BRIEF",
+      "testes": [
+        "tests.test_forge_tamanho.NoBriefGerar.test_brief_perto_do_teto_de_caracteres_avisa"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "o pr pede o corpo ao gh",
+      "arquivo": "bin/forge-check",
+      "de": "(\",body,title\" if corpo else \"\")",
+      "para": "(\",body,title\" if False else \"\")",
+      "testes": [
+        "tests.test_forge_tamanho.NoPr.test_pr_aberto_sem_motivo_reprova"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "o corpo lido do gh chega ao pr",
+      "arquivo": "bin/forge-check",
+      "de": "\"title\": str(dados.get(\"title\", \"\"))} if corpo else {})",
+      "para": "\"title\": str(dados.get(\"title\", \"\"))} if False else {})",
+      "testes": [
+        "tests.test_forge_tamanho.NoPr.test_pr_aberto_com_motivo_so_avisa"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "o tamanho mede a ref pedida, nao o HEAD",
+      "arquivo": "bin/forge-check",
+      "de": "contagens_do_intervalo(raiz, b, ref or \"HEAD\", tres_pontos=True, estrito=True)",
+      "para": "contagens_do_intervalo(raiz, b, \"HEAD\", tres_pontos=True, estrito=True)",
+      "testes": [
+        "tests.test_forge_tamanho.NoPr.test_ref_diferente_do_head_mede_a_ref"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "o numero do motivo cobre o total medido",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "int(m.group(1)) >= total",
+      "para": "True",
+      "testes": [
+        "tests.test_forge_tamanho.Funcoes.test_numero_do_motivo_cobre_o_total"
+      ]
+    }
+  ]
+}

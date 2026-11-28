@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "entrega: só a forma antiga cobra as provas (mutante: nunca cobra)",
+      "arquivo": "bin/forge-check",
+      "de": "    if provas is not None:  # META85",
+      "para": "    if False:  # META85",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_codigo_sem_provas_reprova_as_duas"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "entrega: sem código no escopo não cobra (mutante: cobra todo escopo da etapa codigo)",
+      "arquivo": "bin/forge-check",
+      "de": "if etapa != \"codigo\" or not any(e_codigo(n) for n in arquivos):",
+      "para": "if etapa != \"codigo\":",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_sem_codigo_no_escopo_nao_cobra"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "entrega: fora da etapa codigo não cobra (mutante: cobra em toda etapa)",
+      "arquivo": "bin/forge-check",
+      "de": "if etapa != \"codigo\" or not any(e_codigo(n) for n in arquivos):",
+      "para": "if not any(e_codigo(n) for n in arquivos):",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_fora_da_etapa_codigo_nao_cobra"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "entrega: prova inválida reprova (mutante: nunca reprova)",
+      "arquivo": "bin/forge-check",
+      "de": "motivo = motivo_da_prova(log, head)\n        if motivo:",
+      "para": "motivo = motivo_da_prova(log, head)\n        if False:",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_codigo_sem_provas_reprova_as_duas"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "entrega: sem log não prova (mutante: segue sem log)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not log:\n        return \"sem log\"",
+      "para": "    if False:\n        return \"sem log\"",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_codigo_sem_provas_reprova_as_duas"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "entrega: log ilegível reprova com motivo (mutante: a exceção escapa)",
+      "arquivo": "bin/forge-check",
+      "de": "    except OSError:\n        return \"log ilegível\"",
+      "para": "    except ValueError:\n        return \"log ilegível\"",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_log_ausente_reprova"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "entrega: log acima do teto reprova (mutante: nunca)",
+      "arquivo": "bin/forge-check",
+      "de": "    if len(dados) > TETO_DA_PROVA:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_log_acima_do_teto_reprova"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "entrega: 1.ª linha tem de ser o head entregue (mutante: qualquer head)",
+      "arquivo": "bin/forge-check",
+      "de": "if not linhas or linhas[0] != f\"head={head}\":",
+      "para": "if not linhas:",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_log_de_outro_head_reprova"
+      ]
+    }
+  ]
+}

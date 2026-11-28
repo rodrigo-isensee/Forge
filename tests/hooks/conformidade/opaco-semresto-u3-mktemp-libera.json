@@ -1,0 +1,32 @@
+{
+  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO (E1.139, v047): U3: `mktemp -d` está na lista positiva.",
+  "arquivos": {
+    "x": "x\n",
+    "config": "c\n",
+    "pre-push": "p\n",
+    "lugar.txt": "docs\n",
+    "docs/a.md": "a\n",
+    "hooks/pre-push": "p\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "prazo_de_producao": true,
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp config \"$(mktemp -d)\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

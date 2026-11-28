@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-guardas-forge-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "FC-PR-PARECER-FORJADO: o cmd_pr recusa pareceres divergentes do mesmo pedido e branch",
+      "arquivo": "bin/forge-check",
+      "de": "        if divergentes := pareceres_divergentes(da_branch or achados, campos):",
+      "para": "        if (divergentes := pareceres_divergentes(da_branch or achados, campos)) and False:",
+      "testes": [
+        "tests.test_fc_pr_parecer_forjado.ParecerForjado.test_aprovado_forjado_em_outro_arquivo_recusa_e_diz_os_arquivos"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "FC-PR-PARECER-FORJADO: um conjunto só de (parecer, revisor, commit) não diverge",
+      "arquivo": "bin/forge-check",
+      "de": "for _, c in grupo}) < 2:",
+      "para": "for _, c in grupo}) < 1:",
+      "testes": [
+        "tests.test_fc_pr_parecer_forjado.ParecerForjado.test_um_so_parecer_nao_recusa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "FC-PR-PARECER-FORJADO: só os pareceres da branch do vigente entram no grupo",
+      "arquivo": "bin/forge-check",
+      "de": "a[2].get(\"branch\") == vigente.get(\"branch\")",
+      "para": "True",
+      "testes": [
+        "tests.test_fc_pr_parecer_forjado.ParecerForjado.test_sem_branch_so_a_branch_do_vigente_conta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "FC-PR-PARECER-FORJADO: o tipo não exigido também recusa os divergentes",
+      "arquivo": "bin/forge-check",
+      "de": "        if divergentes := pareceres_divergentes(achados, campos):",
+      "para": "        if (divergentes := pareceres_divergentes(achados, campos)) and False:",
+      "testes": [
+        "tests.test_fc_pr_parecer_forjado.ParecerForjado.test_tipo_nao_exigido_forjado_nao_esconde_o_reprovado"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "FILTROS-L08-G2-ORIGIN-LOCAL: com âncoras, o commit da base só conta ancestral de uma delas",
+      "arquivo": "bin/forge-check",
+      "de": "(ancoras is None or any(e_ancestral(raiz, commit, a) for a in ancoras))",
+      "para": "True",
+      "testes": [
+        "tests.test_filtros_l08_g2_ancora.FiltrosAncorados.test_l08_commit_na_origin_develop_reescrita_segue_no_escopo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "FILTROS-L08-G2-ORIGIN-LOCAL: o filtro E2 (dois pais) exige o outro pai ancorado",
+      "arquivo": "bin/forge-check",
+      "de": "not na_base(raiz, outro, base_ref, ancoras)",
+      "para": "not e_ancestral(raiz, outro, base_ref)",
+      "testes": [
+        "tests.test_filtros_l08_g2_ancora.FiltrosAncorados.test_e2_integracao_so_vale_ancorada"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "FILTROS-L08-G2-ORIGIN-LOCAL: o L08 exige o commit da base ancorado",
+      "arquivo": "bin/forge-check",
+      "de": "if len(pais) == 1 and na_base(raiz, commit, base_ref, ancoras):",
+      "para": "if len(pais) == 1 and e_ancestral(raiz, commit, base_ref):",
+      "testes": [
+        "tests.test_filtros_l08_g2_ancora.FiltrosAncorados.test_l08_commit_na_origin_develop_reescrita_segue_no_escopo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "FILTROS-L08-G2-ORIGIN-LOCAL: o G2 exige o segundo pai ancorado",
+      "arquivo": "bin/forge-check",
+      "de": "if len(pais) == 2 and na_base(raiz, pais[1], base_ref, ancoras):",
+      "para": "if len(pais) == 2 and e_ancestral(raiz, pais[1], base_ref):",
+      "testes": [
+        "tests.test_filtros_l08_g2_ancora.FiltrosAncorados.test_g2_merge_da_origin_develop_reescrita_segue_no_escopo"
+      ]
+    }
+  ]
+}

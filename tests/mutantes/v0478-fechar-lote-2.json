@@ -1,0 +1,47 @@
+{
+  "pedido": "v0478-fechar-lote",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FL-M9",
+      "guarda": "o fim espera o registrador de stderr antes do fim: código (TESTE-FECHAR-L5-CORRIDA)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  wait \"$pid_err\" 2>/dev/null || true",
+      "para": "  true",
+      "testes": [
+        "tests.test_fechar.Fechar.test_l5_registrador_de_stderr_lento_ainda_grava_a_parada_antes_do_fim"
+      ]
+    },
+    {
+      "id": "FL-M10",
+      "guarda": "busca da homolog que falha com a local presente avisa que ela pode estar velha (FECHAR-HOMOLOG-FRESCA)",
+      "arquivo": "bin/forge-fechar",
+      "de": "    if homolog_local=\"$(git rev-parse -q --verify \"refs/remotes/origin/homolog^{commit}\" 2>/dev/null)\"; then",
+      "para": "    if false; then",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_busca_que_falha_com_a_homolog_local_avisa_que_ela_pode_estar_velha"
+      ]
+    },
+    {
+      "id": "FL-M11",
+      "guarda": "o --dry-run roda o --conferir-ref de verdade (FECHAR-DRY-RUN-1C)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  conferir_1c \"$sha_dry\" \"",
+      "para": "  : conferir_1c \"$sha_dry\" \"",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_no_dry_run_que_recusa_para_com_1_e_diz_a_homolog_lida",
+        "tests.test_fechar.Fechar.test_1c_no_dry_run_roda_o_conferir_ref_contra_a_homolog_local_sem_busca"
+      ]
+    },
+    {
+      "id": "FL-M13",
+      "guarda": "a recusa do 1c no --dry-run diz a homolog lida e a busca que falta",
+      "arquivo": "bin/forge-fechar",
+      "de": "antes de mesclar outra branch (R-FLUXO)${2:-}\"",
+      "para": "antes de mesclar outra branch (R-FLUXO)\"",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_no_dry_run_que_recusa_para_com_1_e_diz_a_homolog_lida"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "pedido": "v047-mutante-diagnostico",
+  "executor": "unittest",
+  "mutantes": [
+    {"id": "MD1", "guarda": "isenta de outro arquivo não casa", "arquivo": "bin/forge-mutante",
+     "de": "    if i[\"arquivo\"] != arquivo:\n        return False", "para": "    if False:\n        return False",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_isenta_pelo_texto_que_nao_casa_o_no_fica_solta"]},
+    {"id": "MD2", "guarda": "a apagada uma vez casa pelo texto do nó (ISENTA-POR-TEXTO)", "arquivo": "bin/forge-mutante",
+     "de": "    if pelo_texto:\n", "para": "    if False:\n",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_isenta_pelo_texto_libera_a_apagada_repetida_e_sobrevive_a_base_deslocada"]},
+    {"id": "MD3", "guarda": "uma isenta cobre uma condição só", "arquivo": "bin/forge-mutante",
+     "de": "return id(i) not in usadas and dados[ini:fim]", "para": "return dados[ini:fim]",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_isenta_por_linha_cobre_uma_condicao_so"]},
+    {"id": "MD4", "guarda": "o trecho conta só dentro do nó, não no arquivo", "arquivo": "bin/forge-mutante",
+     "de": "usadas and dados[ini:fim].count(trecho) == 1", "para": "usadas and dados.count(trecho) == 1",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_isenta_pelo_texto_libera_a_apagada_repetida_e_sobrevive_a_base_deslocada"]},
+    {"id": "MD5", "guarda": "a condição nova casa o trecho único no arquivo", "arquivo": "bin/forge-mutante",
+     "de": "    return dados.count(trecho) == 1 and ini <= onde", "para": "    return ini <= onde",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_isenta_por_linha_nao_casa_texto_apagado_duas_vezes"]},
+    {"id": "MD6", "guarda": "a apagada duas vezes não casa pelo texto", "arquivo": "bin/forge-mutante",
+     "de": "falta[texto] == 1)", "para": "falta[texto] >= 1)",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_isenta_por_linha_nao_casa_texto_apagado_duas_vezes"]},
+    {"id": "MD7", "guarda": "toda ocorrência do de é olhada", "arquivo": "bin/forge-mutante",
+     "de": "    while onde[-1] >= 0:", "para": "    while False:",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre"]},
+    {"id": "MD8", "guarda": "mutante de outro arquivo não explica", "arquivo": "bin/forge-mutante",
+     "de": "    if m[\"arquivo\"] != arquivo or not any(", "para": "    if not any(",
+     "testes": ["tests.test_forge_mutante.Cobertura.test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre"]}
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "pedido": "v047-h2-autor-fica",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: retomada com entrada fora da forma não reserva",
+      "arquivo": "hooks/agentes.py",
+      "de": "    alvo = entrada.get(\"to\") if isinstance(entrada, dict) else None\n",
+      "para": "    alvo = entrada.get(\"to\") if True else None\n",
+      "testes": [
+        "tests.test_hooks_agentes_autor.Autores.test_retomada_com_entrada_fora_da_forma_nao_reserva"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o autor já ativo não reserva de novo (Z10)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if any(a.get(\"id\") == alvo for a in agentes):\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: retomar quem não é autor não reserva",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if not escrita:\n        return\n    recusar_branch_ocupada(hook, agentes, escrita)\n",
+      "para": "    if False:\n        return\n    recusar_branch_ocupada(hook, agentes, escrita)\n",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: a retomada recusa com a branch do autor ocupada (Z10, R-TETO)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    recusar_branch_ocupada(hook, agentes, escrita)\n    agentes.append({\"id\": alvo,",
+      "para": "    agentes.append({\"id\": alvo,",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o aviso sai depois de gravar a reserva",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if pendente:  # H2",
+      "para": "    if False:  # H2",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: a retomada reserva só as branches do próprio alvo",
+      "arquivo": "hooks/agentes.py",
+      "de": "for a in autores if a[\"id\"] == aid for b in",
+      "para": "for a in autores if True for b in",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
+        "tests.test_hooks_agentes_autor.Autores.test_inicio_sem_autor_nao_reserva_branch"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE (review A5): a reserva da retomada vale o prazo curto (RESERVA_S)",
+      "arquivo": "hooks/agentes.py",
+      "de": "return expira_s if registro.get(\"id\") and registro.get(\"tipo\") != RETOMADA else",
+      "para": "return expira_s if registro.get(\"id\") else",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
+        "tests.test_hooks_agentes_autor.Autores.test_prazo_unico_por_registro"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE (review A5): o SubagentStart do retomado converte a reserva curta",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if retomado is not None:  # H2",
+      "para": "    if False:  # H2",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE (R-TETO): só a reserva da retomada se converte no SubagentStart; o agente ativo com o mesmo id fica como está",
+      "arquivo": "hooks/agentes.py",
+      "de": "a.get(\"id\") == aid and a.get(\"tipo\") == RETOMADA), None)",
+      "para": "a.get(\"id\") == aid), None)",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    }
+  ]
+}
