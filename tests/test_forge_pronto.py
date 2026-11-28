@@ -9,6 +9,7 @@ import importlib.machinery
 import importlib.util
 import io
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -446,7 +447,8 @@ class ProvaDoCi(unittest.TestCase):
                 jobs[atual]["name"] = linha.split("name:", 1)[1].strip()
             elif atual and linha.startswith("    needs: ["):
                 jobs[atual]["needs"] = [n.strip() for n in linha.split("[", 1)[1].split("]")[0].split(",")]
-        agregador = next(j for j in jobs.values() if j.get("name") == "bateria")
+        # E47.1/E47.6: o nome do agregador leva o sufixo da espera (`${{ (...) && needs.pareceres.outputs.espera || '' }}`), vazio sem espera
+        agregador = next(j for j in jobs.values() if re.sub(r"\$\{\{[^}]*outputs\.espera[^}]*\}\}$", "", j.get("name", "")) == "bateria")
         esperados = set()
         for job in agregador["needs"]:
             nome = jobs[job]["name"]
