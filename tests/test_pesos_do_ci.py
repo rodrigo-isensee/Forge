@@ -20,6 +20,9 @@ RAIZ = Path(__file__).resolve().parent.parent
 SCRIPT = RAIZ / "scripts" / "pesos-do-ci.py"
 REPO = "dono/forge"
 CONHECIDAS = {"test_a", "test_b", "test_b.K"}
+SHA = "a" * 40
+PR_MESCLADO = {"number": 7, "merged_at": "2026-11-28T10:00:00Z", "base": {"ref": "develop"},
+               "head": {"sha": SHA, "repo": {"full_name": REPO}}}
 
 
 def carregar():
@@ -244,13 +247,13 @@ class DepoisDoF6(unittest.TestCase):
         cls.p = carregar()
 
     def api(self, pr, **muda):
+        """A API real não preenche `pull_requests` na execução: o PR vem de `commits/<sha>/pulls` (`pr` mescla no PR válido)."""
         jobs, notas = api_completa()
         jobs = {1: [{**j, "name": j["name"].replace("push na develop, ", "")} for j in jobs[1]]}
-        run = execucao(event="pull_request", head_branch="melhoria/x", head_sha="abc", pull_requests=[{"number": 7}], **muda)
-        base = {"merged_at": "2026-11-28T10:00:00Z", "base": {"ref": "develop"}, "head": {"sha": "abc", "repo": {"full_name": REPO}}}
+        run = execucao(event="pull_request", head_branch="melhoria/x", head_sha=SHA, pull_requests=[], **muda)
         api = FalsaApi([run], jobs, notas)
         chamar = api.__call__
-        return lambda c: {**base, **pr} if "/pulls/7" in c else chamar(c)
+        return lambda c: [{**PR_MESCLADO, **pr}] if f"/commits/{SHA}/pulls" in c else chamar(c)
 
     def test_pr_mesclado_na_develop_entra(self):
         amostras = self.p.coletar(REPO, self.api({}), CONHECIDAS)[0]
@@ -258,8 +261,8 @@ class DepoisDoF6(unittest.TestCase):
 
     def test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra(self):
         for nome, pr in {"não mesclado": {"merged_at": None}, "outra base": {"base": {"ref": "homolog"}},
-                         "fork": {"head": {"sha": "abc", "repo": {"full_name": "fork/forge"}}},
-                         "sha antigo": {"head": {"sha": "velho", "repo": {"full_name": REPO}}}}.items():
+                         "fork": {"head": {"sha": SHA, "repo": {"full_name": "fork/forge"}}},
+                         "sha antigo": {"head": {"sha": "b" * 40, "repo": {"full_name": REPO}}}}.items():
             with self.subTest(nome):
                 self.assertEqual(self.p.coletar(REPO, self.api(pr), CONHECIDAS)[0], {})
 
@@ -279,38 +282,90 @@ class DepoisDoF6(unittest.TestCase):
         self.assertEqual(velhos({"test_a": 1.0, "test_b": 1.0, "test_b.K": 1.0}, CONHECIDAS), [])
 
     def test_teto_de_execucoes_conta_as_de_pr_ate_2_vezes_o_limite(self):  # M6
-        pr = {"merged_at": "2026-11-28T10:00:00Z", "base": {"ref": "develop"}, "head": {"sha": "abc", "repo": {"full_name": REPO}}}
-        runs = [execucao(i, event="pull_request", head_branch="melhoria/x", head_sha="abc", pull_requests=[{"number": 7}])
-                for i in (1, 2, 3)]
+        runs = [execucao(i, event="pull_request", head_branch="melhoria/x", head_sha=SHA, pull_requests=[]) for i in (1, 2, 3)]
         jobs, notas = api_completa()
         jobs = {i: [{**j, "name": j["name"].replace("push na develop, ", ""), "run_id": i} for j in jobs[1]] for i in (1, 2, 3)}
         api = FalsaApi(runs, jobs, notas)
         chamar = api.__call__
-        resumo = self.p.coletar(REPO, lambda c: pr if "/pulls/7" in c else chamar(c), CONHECIDAS, 1)[1]
+        resumo = self.p.coletar(REPO, lambda c: [PR_MESCLADO] if "/commits/" in c else chamar(c), CONHECIDAS, 1)[1]
         self.assertIn("2 execução(ões) válida(s)", resumo)
 
-    def test_execucao_de_pr_malformada_nao_quebra_nem_entra(self):  # M7, M8, M9
-        pr = {"merged_at": "2026-11-28T10:00:00Z", "base": {"ref": "develop"}, "head": {"sha": "abc", "repo": {"full_name": REPO}}}
+    def pedidos_de(self, runs, prs):
+        """(amostras, caminhos pedidos de commits/): `coletar` sobre `runs` com `prs` na rota `commits/<sha>/pulls`."""
         jobs, notas = api_completa()
         jobs = {1: [{**j, "name": j["name"].replace("push na develop, ", "")} for j in jobs[1]]}
-        ruim = {"event": "pull_request", "head_branch": "melhoria/x", "head_sha": "abc"}
-        casos = {"não é objeto": ["texto", None, 3], "dois PRs associados": [{"number": 7}, {"number": 8}],
-                 "sem PR associado": [], "PR sem número": [{}], "número de outro tipo": [{"number": "7"}]}
-        for nome, associados in casos.items():
+        api, pedidos = FalsaApi(runs, jobs, notas), []
+
+        def ler(caminho):
+            if "/commits/" in caminho:
+                pedidos.append(caminho)
+                return prs
+            return api(caminho)
+
+        try:
+            return self.p.coletar(REPO, ler, CONHECIDAS)[0], pedidos
+        except Exception as erro:  # a guarda é não quebrar: falha de asserção, não erro do teste
+            self.fail(f"coletar quebrou: {type(erro).__name__}")
+
+    def test_execucao_de_pr_malformada_nao_quebra_nem_entra(self):  # M7: não é objeto; M8: sha fora do formato
+        ruim = {"event": "pull_request", "head_branch": "melhoria/x", "pull_requests": []}
+        casos = {"não é objeto": ["texto", None, 3], "sem sha": [execucao(1, **ruim)],
+                 "sha de outro tipo": [execucao(1, head_sha=7, **ruim)], "sha curto": [execucao(1, head_sha="abc", **ruim)],
+                 "sha com caminho": [execucao(1, head_sha="../" + "a" * 37, **ruim)],
+                 "sha em maiúsculas": [execucao(1, head_sha="A" * 40, **ruim)]}
+        for nome, runs in casos.items():
             with self.subTest(nome):
-                runs = ["texto", None, 3] if nome == "não é objeto" else [execucao(1, pull_requests=associados, **ruim)]
-                api, pedidos = FalsaApi(runs, jobs, notas), []
-
-                def ler(caminho):
-                    pedidos.append(caminho)
-                    return pr if "/pulls/" in caminho else api(caminho)
-
-                try:
-                    amostras = self.p.coletar(REPO, ler, CONHECIDAS)[0]
-                except Exception as erro:  # a guarda é não quebrar: falha de asserção, não erro do teste
-                    self.fail(f"coletar quebrou com {nome}: {type(erro).__name__}")
+                amostras, pedidos = self.pedidos_de(runs, [PR_MESCLADO])
                 self.assertEqual(amostras, {})
-                self.assertEqual([c for c in pedidos if "/pulls/" in c], [])
+                self.assertEqual(pedidos, [])  # o sha ruim nunca vira caminho da API
+
+    def test_resposta_de_prs_que_nao_e_lista_de_prs_validos_nao_entra(self):  # M9
+        run = execucao(1, event="pull_request", head_branch="melhoria/x", head_sha=SHA, pull_requests=[])
+        for nome, prs in {"objeto no lugar da lista": PR_MESCLADO, "lista vazia": [], "nulo": None, "texto": "x", "só não-objetos": ["x", 3]}.items():
+            with self.subTest(nome):
+                amostras, pedidos = self.pedidos_de([run], prs)
+                self.assertEqual(amostras, {})
+                self.assertEqual(len(pedidos), 1)
+
+    def test_corpus_da_api_real_mostra_pull_requests_vazio_e_o_pr_pela_rota_do_commit(self):  # sondas S1 e S2 do review
+        pasta = RAIZ / "tests" / "fixtures" / "pesos-do-ci"
+        s1 = json.loads((pasta / "s1-runs-de-pr.json").read_text(encoding="utf-8"))
+        s2 = json.loads((pasta / "s2-run-do-pr-958.json").read_text(encoding="utf-8"))
+        rota = json.loads((pasta / "s2-commits-pulls.json").read_text(encoding="utf-8"))
+        self.assertGreater(len({r["id"] for r in s1["runs"] if r["pull_requests"] == 0}), 90)  # a maioria vem vazia
+        self.assertEqual(s2["run"]["pull_requests"], [])
+        (pr,) = rota["prs"]
+        self.assertEqual((pr["number"], pr["base"], pr["head"]["sha"]), (958, "develop", s2["run"]["head_sha"]))
+        self.assertTrue(pr["merged_at"])
+
+    def test_o_pr_e_achado_pelo_sha_mesmo_com_pull_requests_vazio_na_execucao(self):  # A1 do review: a API real vem vazia
+        run = execucao(1, event="pull_request", head_branch="melhoria/x", head_sha=SHA, pull_requests=[])
+        amostras, pedidos = self.pedidos_de([run], [PR_MESCLADO])
+        self.assertEqual(self.p.juntar(amostras), {"test_a": 12.0, "test_b": 5.0})
+        self.assertEqual(pedidos, [f"repos/{REPO}/commits/{SHA}/pulls?per_page=100"])
+
+    def test_dois_prs_validos_no_mesmo_sha_descartam_a_execucao_e_o_de_fork_no_sha_nao_conta(self):  # M14 (exatamente um), M15 (fork)
+        fork = {**PR_MESCLADO, "number": 8, "head": {"sha": SHA, "repo": {"full_name": "fork/forge"}}}
+        nao_mesclado = {**PR_MESCLADO, "number": 9, "merged_at": None}
+        outra_base = {**PR_MESCLADO, "number": 10, "base": {"ref": "homolog"}}
+        outro_sha = {**PR_MESCLADO, "number": 11, "head": {"sha": "b" * 40, "repo": {"full_name": REPO}}}
+        run = execucao(1, event="pull_request", head_branch="melhoria/x", head_sha=SHA, pull_requests=[])
+        for nome, prs, entra in (("dois válidos", [PR_MESCLADO, {**PR_MESCLADO, "number": 12}], False),
+                                 ("nenhum válido", [fork, nao_mesclado, outra_base, outro_sha], False),
+                                 ("um válido e os outros barrados", [fork, PR_MESCLADO, nao_mesclado, outra_base, outro_sha], True)):
+            with self.subTest(nome):
+                amostras, _ = self.pedidos_de([run], prs)
+                self.assertEqual(bool(amostras), entra)
+
+    def test_guardas_de_fork_e_de_sha_do_pr_valem_cada_uma_sozinha(self):  # M15 (fork), M16 (sha)
+        run = execucao(1, event="pull_request", head_branch="melhoria/x", head_sha=SHA, pull_requests=[])
+        fork = {**PR_MESCLADO, "head": {"sha": SHA, "repo": {"full_name": "fork/forge"}}}
+        velho = {**PR_MESCLADO, "head": {"sha": "b" * 40, "repo": {"full_name": REPO}}}
+        sem_sha = {**PR_MESCLADO, "head": {"sha": "", "repo": {"full_name": REPO}}}
+        for nome, pr in {"fork": fork, "sha do PR diferente do da execução": velho, "sha vazio": sem_sha}.items():
+            with self.subTest(nome):
+                self.assertFalse(self.p.execucao_de_pr_valida(run, REPO, pr))
+        self.assertTrue(self.p.execucao_de_pr_valida(run, REPO, PR_MESCLADO))
 
     def test_conferir_sai_1_com_pesos_velhos_e_0_com_pesos_em_dia(self):
         p = carregar()

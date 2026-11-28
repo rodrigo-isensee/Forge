@@ -39,6 +39,7 @@ WORKFLOW = ".github/workflows/ci.yml"
 PESOS = RAIZ / "tests" / "pesos-d4.json"
 REPOSITORIO = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 PERNA = re.compile(r"suíte \((push na develop, )?python (3\.[0-9]{1,2}), parte ([1-9][0-9]?)/([1-9][0-9]?)\)")
+SHA = re.compile(r"[0-9a-f]{40}")
 UNIDADE = re.compile(r"[A-Za-z0-9_.]{1,200}")
 TETO_S = 900.0  # o `timeout-minutes` de 15 da perna: unidade acima disto é adulterada ou defeito
 LIMITE_DE_EXECUCOES = 10
@@ -62,7 +63,7 @@ def execucao_valida(execucao, repo):
 
 
 def execucao_de_pr_valida(execucao, repo, pr):
-    """True só para a execução `pull_request` do ci.yml do próprio repositório, concluída com sucesso, cujo PR (`pulls/N`)
+    """True só para a execução `pull_request` do ci.yml do próprio repositório, concluída com sucesso, cujo PR (objeto de `pulls`)
     foi mesclado na develop, é do próprio repositório (não fork) e tinha como head o sha da execução."""
     da_execucao = {"event": "pull_request", "path": WORKFLOW, "repository.full_name": repo,
                    "head_repository.full_name": repo, "status": "completed", "conclusion": "success"}
@@ -70,6 +71,16 @@ def execucao_de_pr_valida(execucao, repo, pr):
             and campo(pr, "merged_at", str) is not None and campo(pr, "base.ref", str) == "develop"
             and campo(pr, "head.repo.full_name", str) == repo and campo(pr, "head.sha", str)
             and campo(pr, "head.sha", str) == campo(execucao, "head_sha", str))
+
+
+def pr_unico_valido(execucao, repo, ler):
+    """True se exatamente um PR do commit `head_sha` da execução (`commits/<sha>/pulls`; o `pull_requests` da execução vem
+    vazio na API) cumpre todas as guardas de `execucao_de_pr_valida`; nenhum ou mais de um descarta a execução."""
+    sha = campo(execucao, "head_sha", str)
+    if not (sha and SHA.fullmatch(sha)):
+        return False
+    prs = ler(f"repos/{repo}/commits/{sha}/pulls?per_page=100")
+    return sum(1 for pr in (prs if isinstance(prs, list) else []) if execucao_de_pr_valida(execucao, repo, pr)) == 1
 
 
 def pesos_velhos(atuais, conhecidas, limite=LIMITE_SEM_PESO):
@@ -149,9 +160,7 @@ def coletar(repo, ler, conhecidas, limite=LIMITE_DE_EXECUCOES):
     for execucao in campo(ler(f"repos/{repo}/actions/workflows/ci.yml/runs?{consulta}"), "workflow_runs", list) or []:
         if len(execucoes) >= 2 * limite:
             break
-        lista = execucao.get("pull_requests") if isinstance(execucao, dict) else None
-        numero = campo(lista[0], "number", int) if isinstance(lista, list) and len(lista) == 1 else None
-        if numero is not None and execucao_de_pr_valida(execucao, repo, ler(f"repos/{repo}/pulls/{numero}")):
+        if pr_unico_valido(execucao, repo, ler):
             execucoes.append(execucao)
     amostras, usadas = {}, 0
     for execucao in execucoes:

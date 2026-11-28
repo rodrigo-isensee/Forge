@@ -70,32 +70,32 @@
     },
     {
       "id": "M7",
-      "guarda": "execucao que nao e objeto nao quebra",
+      "guarda": "sha da execucao fora do formato nao vira caminho da API",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "if isinstance(execucao, dict) else None",
-      "para": "if True else None",
+      "de": "if not (sha and SHA.fullmatch(sha)):",
+      "para": "if False:",
       "testes": [
         "tests.test_pesos_do_ci.DepoisDoF6.test_execucao_de_pr_malformada_nao_quebra_nem_entra"
       ]
     },
     {
       "id": "M8",
-      "guarda": "execucao de PR com um so PR associado",
+      "guarda": "sha so com 40 hexadecimais minusculos",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "if isinstance(lista, list) and len(lista) == 1 else None",
-      "para": "if isinstance(lista, list) else None",
+      "de": "sha and SHA.fullmatch(sha)",
+      "para": "sha",
       "testes": [
         "tests.test_pesos_do_ci.DepoisDoF6.test_execucao_de_pr_malformada_nao_quebra_nem_entra"
       ]
     },
     {
       "id": "M9",
-      "guarda": "PR so com numero e execucao validada",
+      "guarda": "resposta de PRs que nao e lista nao quebra",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "if numero is not None and execucao_de_pr_valida(",
-      "para": "if execucao_de_pr_valida(",
+      "de": "(prs if isinstance(prs, list) else [])",
+      "para": "(prs if True else [])",
       "testes": [
-        "tests.test_pesos_do_ci.DepoisDoF6.test_execucao_de_pr_malformada_nao_quebra_nem_entra"
+        "tests.test_pesos_do_ci.DepoisDoF6.test_resposta_de_prs_que_nao_e_lista_de_prs_validos_nao_entra"
       ]
     },
     {
@@ -138,6 +138,38 @@
       "para": "return 1 if False else 0",
       "testes": [
         "tests.test_pesos_do_ci.DepoisDoF6.test_conferir_sai_1_com_pesos_velhos_e_0_com_pesos_em_dia"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "execucao so conta com exatamente um PR valido no sha",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "execucao_de_pr_valida(execucao, repo, pr)) == 1",
+      "para": "execucao_de_pr_valida(execucao, repo, pr)) >= 1",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_dois_prs_validos_no_mesmo_sha_descartam_a_execucao_e_o_de_fork_no_sha_nao_conta",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_o_pr_e_achado_pelo_sha_mesmo_com_pull_requests_vazio_na_execucao"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "PR de fork nao vale",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "and campo(pr, \"head.repo.full_name\", str) == repo and",
+      "para": "and True and",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_guardas_de_fork_e_de_sha_do_pr_valem_cada_uma_sozinha",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_dois_prs_validos_no_mesmo_sha_descartam_a_execucao_e_o_de_fork_no_sha_nao_conta"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "head.sha do PR igual ao da execucao",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "and campo(pr, \"head.sha\", str) == campo(execucao, \"head_sha\", str))",
+      "para": "and True)",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_guardas_de_fork_e_de_sha_do_pr_valem_cada_uma_sozinha"
       ]
     }
   ]
