@@ -111,5 +111,6 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `suite-paralela.py` | a suíte inteira (`python3 -m unittest discover -s tests`) dividida em até 4 processos (D4, R-TETO). |
 | `suite-partes.py` | uma parte da suíte em paralelo, sobre o mecanismo de `scripts/suite-paralela.py` (D4), sem mudá-lo. |
 | `validar-plugin.sh` | Valida o plugin (claude plugin validate --strict) numa cópia limpa em $TMPDIR. |
+| `validar-yaml-workflow.py` | valida o YAML dos workflows antes do envio (VALIDAR-YAML-DO-WORKFLOW). Só biblioteca padrão, sem custo (R-CUSTO). |
 | `varredura-divida.py` | varredura semanal de dívida técnica; só lê e lista os achados, um por linha, com a sugestão de cartão. |
 | `verificar-contribuicao.sh` | Varre o diff da ponta ($2, padrão HEAD) contra origin/develop (ou a base dada em $1) atrás de segredos |
