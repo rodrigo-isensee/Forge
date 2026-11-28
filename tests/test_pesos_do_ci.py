@@ -270,9 +270,43 @@ class DepoisDoF6(unittest.TestCase):
 
     def test_pesos_velhos_sao_acusados(self):
         velhos = self.p.pesos_velhos
-        self.assertEqual(velhos({"test_a": 1.0, "test_b": 1.0, "test_b.K": 1.0, "test_c": 2.0}, CONHECIDAS)[0][:7], "1 chave")
-        self.assertIn("unidades sem peso", velhos({"test_a": 1.0}, CONHECIDAS)[0])
+        fantasma = velhos({"test_a": 1.0, "test_b": 1.0, "test_b.K": 1.0, "test_c": 2.0}, CONHECIDAS)  # M2: a chave que sobra
+        self.assertEqual(len(fantasma), 1)
+        self.assertTrue(fantasma[0].startswith("1 chave"), fantasma)
+        sem_peso = velhos({"test_a": 1.0}, CONHECIDAS)  # M3: 2 de 3 sem peso, acima de 25%
+        self.assertEqual(len(sem_peso), 1)
+        self.assertIn("unidades sem peso", sem_peso[0])
         self.assertEqual(velhos({"test_a": 1.0, "test_b": 1.0, "test_b.K": 1.0}, CONHECIDAS), [])
+
+    def test_teto_de_execucoes_conta_as_de_pr_ate_2_vezes_o_limite(self):  # M6
+        pr = {"merged_at": "2026-11-28T10:00:00Z", "base": {"ref": "develop"}, "head": {"sha": "abc", "repo": {"full_name": REPO}}}
+        runs = [execucao(i, event="pull_request", head_branch="melhoria/x", head_sha="abc", pull_requests=[{"number": 7}])
+                for i in (1, 2, 3)]
+        jobs, notas = api_completa()
+        jobs = {i: [{**j, "name": j["name"].replace("push na develop, ", ""), "run_id": i} for j in jobs[1]] for i in (1, 2, 3)}
+        api = FalsaApi(runs, jobs, notas)
+        chamar = api.__call__
+        resumo = self.p.coletar(REPO, lambda c: pr if "/pulls/7" in c else chamar(c), CONHECIDAS, 1)[1]
+        self.assertIn("2 execução(ões) válida(s)", resumo)
+
+    def test_execucao_de_pr_malformada_nao_quebra_nem_entra(self):  # M7, M8, M9
+        pr = {"merged_at": "2026-11-28T10:00:00Z", "base": {"ref": "develop"}, "head": {"sha": "abc", "repo": {"full_name": REPO}}}
+        jobs, notas = api_completa()
+        jobs = {1: [{**j, "name": j["name"].replace("push na develop, ", "")} for j in jobs[1]]}
+        ruim = {"event": "pull_request", "head_branch": "melhoria/x", "head_sha": "abc"}
+        casos = {"não é objeto": ["texto", None, 3], "dois PRs associados": [{"number": 7}, {"number": 8}],
+                 "sem PR associado": [], "PR sem número": [{}], "número de outro tipo": [{"number": "7"}]}
+        for nome, associados in casos.items():
+            with self.subTest(nome):
+                runs = ["texto", None, 3] if nome == "não é objeto" else [execucao(1, pull_requests=associados, **ruim)]
+                api, pedidos = FalsaApi(runs, jobs, notas), []
+
+                def ler(caminho):
+                    pedidos.append(caminho)
+                    return pr if "/pulls/" in caminho else api(caminho)
+
+                self.assertEqual(self.p.coletar(REPO, ler, CONHECIDAS)[0], {})
+                self.assertEqual([c for c in pedidos if "/pulls/" in c], [])
 
     def test_conferir_sai_1_com_pesos_velhos_e_0_com_pesos_em_dia(self):
         p = carregar()
@@ -282,6 +316,15 @@ class DepoisDoF6(unittest.TestCase):
                 p.PESOS.write_text(json.dumps(pesos), encoding="utf-8")
                 with unittest.mock.patch("sys.stderr"):
                     self.assertEqual(p.main(["--repo", REPO, "--conferir"], env={}, conhecidas=CONHECIDAS), rc)
+
+    def test_conferir_com_pesos_que_nao_sao_objeto_sai_1(self):  # M12: a lista com as mesmas chaves não pode passar por em dia
+        with tempfile.TemporaryDirectory() as d:
+            p = carregar()
+            p.PESOS = Path(d) / "pesos.json"
+            p.PESOS.write_text(json.dumps(sorted(CONHECIDAS)), encoding="utf-8")
+            with unittest.mock.patch("sys.stderr", new_callable=__import__("io").StringIO) as erro:
+                self.assertEqual(p.main(["--repo", REPO, "--conferir"], env={}, conhecidas=CONHECIDAS), 1)
+            self.assertIn("arquivo não é um objeto", erro.getvalue())
 
 
 if __name__ == "__main__":

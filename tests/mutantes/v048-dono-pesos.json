@@ -65,9 +65,7 @@
       "de": "if len(execucoes) >= 2 * limite:",
       "para": "if False:",
       "testes": [
-        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_mesclado_na_develop_entra",
-        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra",
-        "tests.test_pesos_do_ci.DepoisDoF6.test_perna_de_push_nao_vale_em_execucao_de_pr_e_a_de_pr_nao_vale_em_push"
+        "tests.test_pesos_do_ci.DepoisDoF6.test_teto_de_execucoes_conta_as_de_pr_ate_2_vezes_o_limite"
       ]
     },
     {
@@ -77,9 +75,7 @@
       "de": "if isinstance(execucao, dict) else None",
       "para": "if True else None",
       "testes": [
-        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_mesclado_na_develop_entra",
-        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra",
-        "tests.test_pesos_do_ci.DepoisDoF6.test_perna_de_push_nao_vale_em_execucao_de_pr_e_a_de_pr_nao_vale_em_push"
+        "tests.test_pesos_do_ci.DepoisDoF6.test_execucao_de_pr_malformada_nao_quebra_nem_entra"
       ]
     },
     {
@@ -89,9 +85,7 @@
       "de": "if isinstance(lista, list) and len(lista) == 1 else None",
       "para": "if isinstance(lista, list) else None",
       "testes": [
-        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_mesclado_na_develop_entra",
-        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra",
-        "tests.test_pesos_do_ci.DepoisDoF6.test_perna_de_push_nao_vale_em_execucao_de_pr_e_a_de_pr_nao_vale_em_push"
+        "tests.test_pesos_do_ci.DepoisDoF6.test_execucao_de_pr_malformada_nao_quebra_nem_entra"
       ]
     },
     {
@@ -101,9 +95,7 @@
       "de": "if numero is not None and execucao_de_pr_valida(",
       "para": "if execucao_de_pr_valida(",
       "testes": [
-        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_mesclado_na_develop_entra",
-        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra",
-        "tests.test_pesos_do_ci.DepoisDoF6.test_perna_de_push_nao_vale_em_execucao_de_pr_e_a_de_pr_nao_vale_em_push"
+        "tests.test_pesos_do_ci.DepoisDoF6.test_execucao_de_pr_malformada_nao_quebra_nem_entra"
       ]
     },
     {
@@ -135,7 +127,7 @@
       "de": "if isinstance(atuais, dict) else [\"arquivo",
       "para": "if True else [\"arquivo",
       "testes": [
-        "tests.test_pesos_do_ci.DepoisDoF6.test_conferir_sai_1_com_pesos_velhos_e_0_com_pesos_em_dia"
+        "tests.test_pesos_do_ci.DepoisDoF6.test_conferir_com_pesos_que_nao_sao_objeto_sai_1"
       ]
     },
     {
