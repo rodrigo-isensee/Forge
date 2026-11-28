@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-hook-agente-prazo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "HOOK-AGENTE-PEDIDO-GRANDE (E50.1): ponta que não é sha40 (nome, faixa a..b) vai à chamada de sempre",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if not SHA_COMPLETO.fullmatch(str(novo)):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PedidoGrande.test_mesma_resposta_em_toda_forma_de_pergunta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "HOOK-AGENTE-PEDIDO-GRANDE (E50.1): um rev-list por ponta, não por pergunta",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if (raiz, novo) not in self.ancestrais:",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PedidoGrande.test_o_aviso_e_o_mesmo_com_processos_que_nao_crescem_com_o_pedido"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "HOOK-AGENTE-PEDIDO-GRANDE (E50.1): o antigo no rev-list da ponta é ancestral",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if antigo in self.ancestrais[raiz, novo]:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PedidoGrande.test_mesma_resposta_em_toda_forma_de_pergunta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "HOOK-AGENTE-PEDIDO-GRANDE (E50.1): fora do rev-list, o objeto que não é o próprio commit (tag anotada) volta à chamada de sempre",
+      "arquivo": "hooks/agentes.py",
+      "de": "        return self.sha_do_commit(raiz, antigo) not in (antigo, None) and self.originais[0](raiz, antigo, novo)",
+      "para": "        return False",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PedidoGrande.test_mesma_resposta_em_toda_forma_de_pergunta"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "HOOK-AGENTE-PEDIDO-GRANDE (E50.1): ref que não é sha40 (quebra de linha) não entra no lote",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if not SHA_COMPLETO.fullmatch(str(ref)):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PedidoGrande.test_mesma_resposta_em_toda_forma_de_pergunta"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "HOOK-AGENTE-PEDIDO-GRANDE (E50.1): um cat-file por raiz, não por pergunta",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if raiz not in self.lotes:",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PedidoGrande.test_o_aviso_e_o_mesmo_com_processos_que_nao_crescem_com_o_pedido"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "HOOK-AGENTE-PEDIDO-GRANDE (E50.1): objeto ausente ou que não é commit: None",
+      "arquivo": "hooks/agentes.py",
+      "de": "        return achado[0] if achado[1:] == [\"commit\"] else None",
+      "para": "        return achado[0] if True else None",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PedidoGrande.test_mesma_resposta_em_toda_forma_de_pergunta"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "HOOK-AGENTE-PEDIDO-GRANDE (E50.1): o aviso de brief vencido roda com o git em lote",
+      "arquivo": "hooks/agentes.py",
+      "de": "        with GitEmLote(fc):",
+      "para": "        with open(os.devnull):",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PedidoGrande.test_o_aviso_e_o_mesmo_com_processos_que_nao_crescem_com_o_pedido"
+      ]
+    }
+  ]
+}

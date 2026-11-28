@@ -123,6 +123,25 @@ class Release(Base):
         (self.dir / "changelog.d").mkdir()
         (self.dir / "changelog.d" / "x.md").write_text("### Corrigido\n- X\n", encoding="utf-8")
 
+    def test_versao_com_patch_acima_de_9_e_recusada_sem_mexer(self):
+        # VERSAO-PATCH-ATE-9 (v048 E2.1): depois de X.Y.9 vem X.(Y+1).0; 0.47.10 e 0.47.20 não existem
+        self._com_fragmento()
+        for versao in ("0.47.10", "0.47.20"):
+            with self.subTest(versao=versao):
+                r = forge_changelog(self.dir, "release", versao, "2026-02-02")
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn("vem 0.48.0", r.stderr)
+                self.assertEqual((self.dir / "CHANGELOG.md").read_text(encoding="utf-8"), CABECALHO)
+                self.assertEqual((self.dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"),
+                                 '{"version": "0.1.0"}\n')
+                self.assertTrue((self.dir / "changelog.d" / "x.md").exists())
+
+    def test_patch_9_ainda_e_aceito(self):
+        self._com_fragmento()
+        r = forge_changelog(self.dir, "release", "0.1.9", "2026-02-02")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("## [0.1.9] - 2026-02-02", (self.dir / "CHANGELOG.md").read_text(encoding="utf-8"))
+
     def test_sobe_a_versao_dos_dois_manifestos_quando_o_dev_existe(self):
         dev = self.dir / "dev" / ".claude-plugin"
         dev.mkdir(parents=True)

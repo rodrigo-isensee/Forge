@@ -4,6 +4,7 @@ Cada teste roda o hook de verdade, dentro de um repositório descartável com um
 disparar a suíte do Forge de dentro dela. A trava vive em XDG_RUNTIME_DIR apontada para uma pasta temporária.
 """
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -20,6 +21,9 @@ RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
 # FORGE_SUITE_* (processos, medição, trava) da suíte que roda estes testes não vazam para a suíte de brinquedo.
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_"))})
+
+# O bash avisa do locale ausente na máquina com o caminho da cópia (o CI tem o locale): o texto não vem da trava.
+AVISO_DE_LOCALE = re.compile(r"^.*: line \d+: warning: setlocale: .*\n?", re.M)
 
 AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 SUITE_RAPIDA = '''import unittest, pathlib
@@ -599,15 +603,17 @@ class PrePushTrava(unittest.TestCase):
         primeira = self.hook()
         self.filhos.append(primeira)
         self.assertTrue(self.espera_ate(lambda: self.roda("--status")[0] == 0))
-        self.trava.write_bytes(b"\x1b]0;x\x07\x1b[2J" + b"A" * (1 << 20))
+        # o segundo campo (o pid lido pela fila) também traz controle e não tem fim
+        self.trava.write_bytes(b"\x1b]0;x\x07 \x1b[2J" + b"A" * (1 << 20))
         _, saida, _ = self.roda("--status")
         self.assertNotIn("\x1b", saida)
         self.assertNotIn("\x07", saida)
         self.assertLessEqual(len(saida), 200 + 120, "o texto da trava saiu sem limite")
         _, _, erro = self.roda(FORGE_TRAVA_ESPERA="1")
         self.assertIn("esperando a vez", erro)
+        erro = AVISO_DE_LOCALE.sub("", erro)  # mede o texto do hook, não o caminho da cópia
         self.assertNotIn("\x1b", erro)
-        self.assertLessEqual(len(erro), 200 + 400)
+        self.assertLessEqual(len(erro), 200 + 400, "o texto da trava saiu sem limite na fila")
         (self.repo / "liberar").write_text("")
         self.assertEqual(primeira.wait(timeout=60), 0)
 
