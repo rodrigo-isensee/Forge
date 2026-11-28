@@ -12,7 +12,6 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ambiente_git import sem_manutencao  # noqa: E402
@@ -135,25 +134,6 @@ class ListaDaCatracaReal(unittest.TestCase):
         self.assertIn(".github/workflows/", protegidos)
         self.assertEqual(f.custo_e_catraca(["scripts/conferir-release.py"], RAIZ), (("test_hooks_volta_corpus",), True))
         self.assertEqual(f.custo_e_catraca(["docs/guia.md"], RAIZ), ((), False))
-
-
-class RecorteDoMutante(unittest.TestCase):
-    """Review e QA c7df039 A1 (sonda S1): com a catraca no plano, o modulos_listados do forge-mutante, que lê o stdout
-    inteiro do --listar, segue dando o recorte H5 do diff em bin/ (antes, conjunto vazio)."""
-
-    def test_modulos_listados_de_bin_forge_mutante(self):
-        origem = os.getcwd()
-        os.chdir(RAIZ)  # o forge-mutante chama o forge-testes na pasta atual, com o ambiente dela (sem os GIT_* do CI)
-        self.addCleanup(os.chdir, origem)
-        ambiente = mock.patch.dict(os.environ, AMBIENTE, clear=True)
-        ambiente.start()
-        self.addCleanup(ambiente.stop)
-        carregador = importlib.machinery.SourceFileLoader("forge_mutante_e92", str(RAIZ / "bin" / "forge-mutante"))
-        spec = importlib.util.spec_from_loader("forge_mutante_e92", carregador)
-        mutante = importlib.util.module_from_spec(spec)
-        carregador.exec_module(mutante)
-        listados = mutante.modulos_listados(["bin/forge-mutante"])
-        self.assertLessEqual({"test_forge_mutante", "test_hooks_volta_corpus", "test_pre_push_patch"}, listados)
 
 
 class PeloComando(Brinquedo):

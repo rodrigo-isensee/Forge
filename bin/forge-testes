@@ -212,8 +212,7 @@ MAPA = [
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
-    # v0478 E94.5: o test_pre_push_patch roda a cópia; E9.2: o test_afetados_catraca_custo roda o modulos_listados
-    (r"bin/forge-mutante", ("test_forge_mutante", "test_forge", "test_pre_push_patch", "test_afetados_catraca_custo")),
+    (r"bin/forge-mutante", ("test_forge_mutante", "test_forge", "test_pre_push_patch")),  # v0478 E94.5: o test_pre_push_patch roda a cópia
     (r"bin/forge-status", ("test_forge_status", "test_maquina", "test_forge")),  # MP2: o --maquina
     (r"bin/forge-contador", ("test_forge_contador", "test_forge_status_estado", "test_forge")),  # S1a (v0481 E20.1): o status roda o contador
     (r"bin/forge-copia", ("test_forge_copia", "test_forge_copia_nome", "test_forge")),  # v0478 E111.13: o test_forge_copia_nome roda o script (CLONE-NOME-UNICO)

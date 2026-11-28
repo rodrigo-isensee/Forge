@@ -69,7 +69,7 @@
       "de": " arquivo protegido.\", file=sys.stderr)",
       "para": " arquivo protegido.\")",
       "testes": [
-        "tests.test_afetados_catraca_custo.RecorteDoMutante.test_modulos_listados_de_bin_forge_mutante"
+        "tests.test_forge_mutante.ContratoDoListar.test_modulos_listados_de_bin_forge_mutante_no_forge"
       ]
     },
     {
