@@ -4,10 +4,10 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "execucao de PR com id inteiro",
+      "guarda": "execucao de PR so com o PR mesclado",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "return (campo(execucao, \"id\", int) is not None and all(",
-      "para": "return (True and all(",
+      "de": "and campo(pr, \"merged_at\", str) is not None and",
+      "para": "and True and",
       "testes": [
         "tests.test_pesos_do_ci.DepoisDoF6.test_pr_mesclado_na_develop_entra",
         "tests.test_pesos_do_ci.DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra",
@@ -132,8 +132,8 @@
       "id": "M12",
       "guarda": "pesos que nao sao objeto sao peso velho",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "pesos_velhos(atuais, conhecidas) if isinstance(atuais, dict) else",
-      "para": "pesos_velhos(atuais, conhecidas) if True else",
+      "de": "if isinstance(atuais, dict) else [\"arquivo",
+      "para": "if True else [\"arquivo",
       "testes": [
         "tests.test_pesos_do_ci.DepoisDoF6.test_conferir_sai_1_com_pesos_velhos_e_0_com_pesos_em_dia"
       ]
@@ -143,7 +143,7 @@
       "guarda": "--conferir sai 1 com peso velho",
       "arquivo": "scripts/pesos-do-ci.py",
       "de": "return 1 if motivos else 0",
-      "para": "return 0",
+      "para": "return 1 if False else 0",
       "testes": [
         "tests.test_pesos_do_ci.DepoisDoF6.test_conferir_sai_1_com_pesos_velhos_e_0_com_pesos_em_dia"
       ]
