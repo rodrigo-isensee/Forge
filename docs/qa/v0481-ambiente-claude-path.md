@@ -17,7 +17,7 @@ data: 2026-11-28
 Delta de código: uma linha, `# shellcheck disable=SC2016` acima de scripts/preparar-estacao.sh:197, sem mudança de comportamento. Conteúdo aprovado; a reprovação é só pelo CI do head (R-QA, PARECER-LE-O-CI).
 
 ## Achados
-- A1 (bloqueante) .github/workflows:0 · CI do head 75f2e456 sem verde: `bateria (passos)` falha porque scripts/verificar-contribuicao.sh acusa caminho pessoal no parecer de segurança (docs/security/v0481-ambiente-claude-path.md:28, fora do código); `bateria` e `bateria (pareceres)` seguem vermelhas. A segurança regrava o parecer; o QA regrava a linha ci: no head novo.
+- A1 (bloqueante) .github/workflows:0 · CI do 75f2e456 sem verde: `bateria (passos)` falha por caminho pessoal no parecer de segurança (docs/security/v0481-ambiente-claude-path.md:28, fora do código); `bateria` e `bateria (pareceres)` vermelhas. Regravar a linha ci: no head novo.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
