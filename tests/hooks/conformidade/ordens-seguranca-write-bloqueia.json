@@ -1,0 +1,36 @@
+{
+  "descricao": "ORDENS-SO-JARVIS (v0478 E123.6, A1 da segurança E123.3; R-CONFORMIDADE): sessão do Forge, papel seguranca: Write no arquivo, papel seguranca.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "a.txt": "v\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge-contrib/docs/ordens/ordens-em-vigor.md",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:security-engineer"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  },
+  "repos": {
+    "home/.forge-contrib": {
+      "arquivos": {
+        "docs/ordens/ordens-em-vigor.md": "ordem\n",
+        "docs/briefs/b1.md": "b\n"
+      }
+    }
+  }
+}

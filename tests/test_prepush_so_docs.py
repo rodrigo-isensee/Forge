@@ -438,6 +438,35 @@ class TravaDaChecagem(Repo):
         self.assertTrue(fila.is_dir(), "a fila não nasceu")
         self.assertEqual(list(fila.iterdir()), [])
 
+    def path_sem(self, nome):
+        """PATH com os mesmos programas do ambiente, menos `nome` (links numa pasta só; o primeiro do PATH vence)."""
+        pasta = self.fora / f"sem-{nome}"
+        pasta.mkdir()
+        for d in AMBIENTE["PATH"].split(os.pathsep):
+            if not os.path.isdir(d):
+                continue
+            for n in os.listdir(d):
+                if n != nome and not (pasta / n).exists() and os.access(os.path.join(d, n), os.X_OK):
+                    (pasta / n).symlink_to(os.path.join(d, n))
+        return str(pasta)
+
+    def test_trava_nao_passa_para_os_registros(self):  # espelho do anterior para a chave registros (A1 da segurança, E57.83)
+        (self.dir / ".forge").mkdir()
+        pids = self.fora / "pids"
+        (self.dir / ".forge" / "config.json").write_text(json.dumps({"registros": f"setsid sleep 300 >/dev/null 2>&1 & echo $! >> {pids}"}))
+        for nome, path in (("com timeout", AMBIENTE["PATH"]), ("sem timeout", self.path_sem("timeout"))):
+            with self.subTest(nome):
+                amb = dict(self.amb, PATH=path)
+                try:
+                    self.assertEqual(self.fim(self.lanca(amb))[0], 0)
+                    self.assertTrue(pids.exists(), "o comando de registros não rodou")
+                    rc, err, _ = self.fim(self.lanca(dict(amb, FORGE_PREPUSH_ESPERA="1")))
+                    self.assertEqual(rc, 0, err)
+                finally:
+                    for pid in (pids.read_text().split() if pids.exists() else []):
+                        matar_se_vivo(int(pid))
+                    pids.unlink(missing_ok=True)
+
     def test_xdg_com_escrita_alheia_recua_para_o_home(self):
         self.fora.chmod(0o777)
         self.assertEqual(self.fim(self.lanca())[0:3:2], (0, True))
@@ -788,6 +817,101 @@ class CaminhosExtra(Repo):
         achado, erro = self.envia_com({"caminhos_extra": ["relativa", str(self.pasta)]})
         self.assertEqual(achado, str(self.pasta / self.FERRAMENTA))
         self.assertIn("ignorada", erro)
+
+
+class ConferenciaDeRegistros(Repo):
+    """PR-VERDE D3 (v0478 E57.75): o comando da chave `registros` do .forge/config.json roda em todo envio de branch; saída
+    fora de 0, chave que não é comando de uma linha ou prazo inválido barram o envio; sem a chave, nada roda."""
+    MARCA = "reg-marca"
+
+    def setUp(self):
+        super().setUp()
+        self.amb.pop("FORGE_REGISTROS_PRAZO", None)
+        (self.dir / ".forge").mkdir()
+
+    def configura(self, config):
+        texto = config if isinstance(config, str) else json.dumps(config)
+        (self.dir / ".forge" / "config.json").write_text(texto, encoding="utf-8")
+
+    def envia_texto(self, ambiente=None):
+        self.escreve("docs/a.md", str(time.monotonic_ns()))
+        novo = self.commit("texto")
+        r, _ = self.envia([self.ref(novo, self.base)], ambiente)
+        return r, (self.dir / self.MARCA).exists()
+
+    def test_sem_a_chave_ou_sem_o_config_nada_roda(self):
+        for config in ({}, {"registros": ""}, None):
+            with self.subTest(config=config):
+                if config is None:
+                    (self.dir / ".forge" / "config.json").unlink()
+                else:
+                    self.configura(config)
+                r, marca = self.envia_texto()
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertNotIn("pre-push: registros:", r.stdout)
+                self.assertFalse(marca)
+
+    def test_comando_verde_roda_tambem_no_envio_so_de_texto(self):
+        self.configura({"registros": f"touch {self.MARCA}"})
+        self.base = self.commit("config")  # o envio leva só docs/a.md
+        r, marca = self.envia_texto()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(PULO, r.stdout)
+        self.assertIn("pre-push: registros: touch", r.stdout)
+        self.assertTrue(marca)
+
+    def test_saida_fora_de_zero_barra_o_envio(self):
+        for rc in (1, 2):
+            with self.subTest(rc=rc):
+                self.configura({"registros": f"exit {rc}"})
+                r, _ = self.envia_texto()
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn(f"a conferência de registros saiu {rc}", r.stderr)
+
+    def test_chave_que_nao_e_comando_de_uma_linha_barra_sem_rodar(self):
+        for valor in ([f"touch {self.MARCA}"], None, 5, f"touch {self.MARCA}\ntrue"):
+            with self.subTest(valor=valor):
+                self.configura({"registros": valor})
+                r, marca = self.envia_texto()
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn("precisa ser um comando de uma linha", r.stderr)
+                self.assertFalse(marca)
+
+    def test_config_ilegivel_avisa_e_o_envio_segue(self):
+        self.configura("{nao e json")
+        r, marca = self.envia_texto()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("pre-push: aviso: .forge/config.json ilegível; registros", r.stderr)
+        self.assertFalse(marca)
+
+    def test_config_que_e_link_nao_e_lido(self):
+        alvo = self.fora / "config.json"
+        alvo.write_text(json.dumps({"registros": f"touch {self.MARCA}"}), encoding="utf-8")
+        (self.dir / ".forge" / "config.json").symlink_to(alvo)
+        r, marca = self.envia_texto()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse(marca)
+
+    def test_prazo_invalido_barra_sem_rodar(self):
+        self.configura({"registros": f"touch {self.MARCA}"})
+        for prazo in ("abc", "--help", "0", "-5", "", "1234567"):
+            with self.subTest(prazo=prazo):
+                r, marca = self.envia_texto(dict(self.amb, FORGE_REGISTROS_PRAZO=prazo))
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn("FORGE_REGISTROS_PRAZO precisa ser um inteiro", r.stderr)
+                self.assertFalse(marca)
+
+    def test_prazo_estourado_barra_o_envio(self):  # o timeout é do coreutils, presente no CI e no container do time
+        self.configura({"registros": "sleep 5"})
+        r, _ = self.envia_texto(dict(self.amb, FORGE_REGISTROS_PRAZO="1"))
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("a conferência de registros saiu 124", r.stderr)
+
+    def test_envio_so_de_remocao_nao_roda(self):
+        self.configura({"registros": f"touch {self.MARCA}"})
+        r, _ = self.envia([self.ref(ZERO, self.base)])
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.dir / self.MARCA).exists())
 
 
 if __name__ == "__main__":

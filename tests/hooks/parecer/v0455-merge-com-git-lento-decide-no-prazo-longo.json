@@ -1,10 +1,10 @@
 {
-  "descricao": "gh pr merge com pareceres e o 1.o git do hook levando 4 s (máquina carregada), com o vigia de produção: o prazo do merge (PRAZO_DO_MERGE_S, 8 s) cobre a decisão e libera; com os 3 s de antes, recusava por prazo.",
+  "descricao": "gh pr merge com pareceres e o 1.o git do hook levando 3,5 s (máquina carregada), com o vigia de produção: o prazo do merge (PRAZO_DO_MERGE_S, 7,5 s) cobre a decisão e libera; com os 3 s de antes, recusava por prazo.",
   "arquivos": {
     "src/app.js": "v1\n",
     "lento/git": [
       "#!/bin/sh",
-      "[ -e \"{tmp}/git-ja-dormiu\" ] || { : > \"{tmp}/git-ja-dormiu\"; sleep 4; }",
+      "[ -e \"{tmp}/git-ja-dormiu\" ] || { : > \"{tmp}/git-ja-dormiu\"; sleep 3.5; }",
       "PATH=\"${PATH#*:}\" exec git \"$@\""
     ]
   },

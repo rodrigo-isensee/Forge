@@ -6,8 +6,8 @@
       "id": "M17",
       "guarda": "o passo 4 le os exigidos do destino (E3.45)",
       "arquivo": "bin/forge-fechar",
-      "de": "[ \"$armar\" = 1 ] || ler_exigidos_do_destino",
-      "para": "[ \"$armar\" = 0 ] || ler_exigidos_do_destino",
+      "de": "  ler_exigidos_do_destino\n  inicio=$SECONDS",
+      "para": "  : ler_exigidos_do_destino\n  inicio=$SECONDS",
       "testes": [
         "tests.test_forge_fechar.FecharExigidosDoDestino.test_exigido_do_ruleset_ausente_para"
       ]

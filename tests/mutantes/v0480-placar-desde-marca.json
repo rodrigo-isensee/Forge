@@ -1,0 +1,62 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PDM1",
+      "guarda": "E138.3 placar: --desde na marca anterior da develop não avisa",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "    if commit == marca_anterior(raiz):",
+      "para": "    if False:",
+      "testes": ["tests.test_forge_mutante.PlacarDaRelease.test_marca_anterior_na_develop_vale_como_a_tag_sem_aviso"]
+    },
+    {
+      "id": "PDM2",
+      "guarda": "E138.3 placar: commit que não é a marca segue avisando",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "    if commit == marca_anterior(raiz):",
+      "para": "    if commit:",
+      "testes": ["tests.test_forge_mutante.PlacarDaRelease.test_marca_anterior_na_develop_vale_como_a_tag_sem_aviso"]
+    },
+    {
+      "id": "PDM6",
+      "guarda": "E138.3 placar: o aviso recebe o commit do --desde",
+      "arquivo": "scripts/placar-mutacao.py",
+      "de": "aviso_do_desde(raiz, a.desde, a.versao, base.stdout.strip()):",
+      "para": "aviso_do_desde(raiz, a.desde, a.versao, \"\"):",
+      "testes": ["tests.test_forge_mutante.PlacarDaRelease.test_marca_anterior_na_develop_vale_como_a_tag_sem_aviso"]
+    },
+    {
+      "id": "PDM3",
+      "guarda": "E138.3 forge-changelog: sem marca, não procura tag nela",
+      "arquivo": "bin/forge-changelog",
+      "de": "\"v[0-9]*\") if marca else []",
+      "para": "\"v[0-9]*\") if True else []",
+      "testes": ["tests.test_changelog.ReleaseAvisaMedidasDaVersao.test_sem_marca_pede_a_marca_anterior_a_mao"]
+    },
+    {
+      "id": "PDM4",
+      "guarda": "E138.3 forge-changelog: com tag ou marca, sugere uma delas",
+      "arquivo": "bin/forge-changelog",
+      "de": "[0]) if tags or marca else \"<marca da release anterior>\"",
+      "para": "[0]) if False else \"<marca da release anterior>\"",
+      "testes": ["tests.test_changelog.ReleaseAvisaMedidasDaVersao.test_sem_tag_na_marca_sugere_o_commit_da_marca",
+                 "tests.test_changelog.ReleaseAvisaMedidasDaVersao.test_tag_fora_da_develop_cede_a_marca_anterior_na_develop"]
+    },
+    {
+      "id": "PDM5",
+      "guarda": "E138.3 forge-changelog: a tag na marca vence o commit",
+      "arquivo": "bin/forge-changelog",
+      "de": "shlex.quote((tags or marca)[0])",
+      "para": "shlex.quote((marca or tags)[0])",
+      "testes": ["tests.test_changelog.ReleaseAvisaMedidasDaVersao.test_no_forge_imprime_o_placar_desde_a_tag_anterior_e_o_bench"]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-changelog",
+      "trecho": "tag.returncode == 0 and tag.stdout.strip()",
+      "motivo": "guarda trocada por `if tags or marca` na linha 285, que PDM4 e o M10 de v046-mutacao-bench-2 cobrem; a tag passou a vir do git tag --points-at na marca"
+    }
+  ]
+}

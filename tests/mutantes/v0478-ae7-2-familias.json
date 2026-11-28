@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE72-1",
+      "guarda": "AE7.2 gerados_de: sem o gerador, nenhum caso gerado (nunca falha)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "f\"{sha}:{GERADORES}\")[0] != 0:\n        return \"\"",
+      "para": "f\"{sha}:{GERADORES}\")[0] == 0:\n        return \"\"",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_familias_entram_no_corpus_com_a_semente_na_saida"
+      ]
+    },
+    {
+      "id": "AE72-2",
+      "guarda": "AE7.2 gerados_de: gerador que passa do prazo é None",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "        except (subprocess.SubprocessError, OSError):\n            return None\n        if os.fstat",
+      "para": "        except (subprocess.SubprocessError, OSError):\n            return \"\"\n        if os.fstat",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_gerador_que_passa_do_prazo_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-3",
+      "guarda": "AE7.2 gerados_de: git que falha ao ler o gerador é None",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if cod == 0 and r.returncode == 0 and len(texto.splitlines()) <= TETO_CASOS else None",
+      "para": "if r.returncode == 0 and len(texto.splitlines()) <= TETO_CASOS else None",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_git_que_falha_ao_ler_o_gerador_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-4",
+      "guarda": "AE7.2 gerados_de: gerador com rc diferente de 0 é None",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if cod == 0 and r.returncode == 0 and len(texto.splitlines()) <= TETO_CASOS else None",
+      "para": "if cod == 0 and len(texto.splitlines()) <= TETO_CASOS else None",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_gerador_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-5",
+      "guarda": "AE7.2 corpus_de: o corpus presente é lido",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "f\"{sha}:{CORPUS}\")[0] == 0:",
+      "para": "f\"{sha}:{CORPUS}\")[0] != 0:",
+      "testes": [
+        "tests.test_comparar.Medida.test_head_que_libera_aparece_como_aceite_novo"
+      ]
+    },
+    {
+      "id": "AE72-6",
+      "guarda": "AE7.2 corpus_de: corpus que não se lê é None",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if cod != 0 or gerados is None:",
+      "para": "if gerados is None:",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_corpus_que_nao_se_le_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-7",
+      "guarda": "AE7.2 corpus_de: gerador que falha é None",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if cod != 0 or gerados is None:",
+      "para": "if cod != 0 or gerados == 0:",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_gerador_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-8",
+      "guarda": "AE7.2 medir_entrega: extração que falha é None",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "        if not extrair(ctx, raiz, sha, arvore):\n            return None\n        niveis = {}",
+      "para": "        if False:\n            return None\n        niveis = {}",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_extracao_que_falha_e_nao_verificavel"
+      ]
+    }
+  ]
+}

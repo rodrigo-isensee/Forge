@@ -1,0 +1,36 @@
+{
+  "pedido": "v0479-testes-prazo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E43.1 estado_da_branch: o teto do gh do `gerar` é de 10 s (P5), conferido no valor passado ao gh e não na duração",
+      "arquivo": "bin/forge-check",
+      "de": "TETO_DO_GH_S = 10  # o `gerar` nunca espera mais que isto pela rede (P5)",
+      "para": "TETO_DO_GH_S = 11  # o `gerar` nunca espera mais que isto pela rede (P5)",
+      "testes": [
+        "tests.test_estado_da_branch.Estado.test_gh_lento_respeita_o_teto"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E43.1 estado_da_branch: o gh que estoura vira `não verificável`, sem barrar",
+      "arquivo": "bin/forge-check",
+      "de": "        return None, f\"gh passou de {TETO_DO_GH_S} s\"",
+      "para": "        return None, \"gh sem rede ou sem acesso\"",
+      "testes": [
+        "tests.test_estado_da_branch.Estado.test_gh_lento_respeita_o_teto"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E43.1 relógio do doutor: o prazo total corta o fio da conexão que nunca responde",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "    fio.join(limite)  # prazo total",
+      "para": "    fio.join(25)  # prazo total",
+      "testes": [
+        "tests.test_doutor_relogio.DesvioDoRelogio.test_conexao_que_nunca_responde_estoura_no_prazo_total"
+      ]
+    }
+  ]
+}

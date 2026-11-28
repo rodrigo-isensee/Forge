@@ -1,0 +1,20 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA: erro ao ler o arquivo de ordens: sai 0, sem contexto, e a linha vai ao erros.log.",
+  "arquivos": {
+    ".forge/ordens/ordens-em-vigor.md": "ordem 1\n"
+  },
+  "forcar": {
+    "onde": "ler_ordens",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "prompt": "siga"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "ordens RuntimeError"
+  }
+}

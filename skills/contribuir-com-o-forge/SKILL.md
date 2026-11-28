@@ -28,7 +28,7 @@ A sessão do Forge lê as sugestões confirmadas (issues). Confere cada uma cont
 - Registre a mudança num fragmento em `changelog.d/`: `bin/forge-changelog novo <Adicionado|Alterado|Corrigido> "<texto>"`. O arquivo é `changelog.d/<branch-sem-prefixo>.md`; não edite o `CHANGELOG.md`. **Não** suba a versão em `.claude-plugin/plugin.json`. A versão é decidida na release pelo `tech-lead`.
 
 ## 5. Antes do PR
-Quem implementa **não roda a suíte inteira do Forge** (`python3 -m unittest discover -s tests`). Quem a roda é o CI do PR, que não custa nada no repositório público (`R-CUSTO`). Rode só os testes dos arquivos que você tocou e os dois comandos abaixo. Teste do Forge roda em `nice` e um arquivo por vez: `nice -n 19 python3 -I -m unittest discover -s tests -p test_x.py`.
+Quem implementa **não roda a suíte inteira do Forge** (`python3 -m unittest discover -s tests`). Quem a roda é o CI do PR, que não custa nada no repositório público (`R-CUSTO`). Rode só os testes dos arquivos que você tocou e os dois comandos abaixo. Teste do Forge roda em `nice` e um arquivo por vez: `nice -n 19` antes da forma de `skills/qa-testing/comandos.md` ('Um módulo de teste').
 ```bash
 scripts/validar-plugin.sh                # cópia limpa em $TMPDIR
 scripts/verificar-contribuicao.sh        # segredos e caminhos pessoais no diff

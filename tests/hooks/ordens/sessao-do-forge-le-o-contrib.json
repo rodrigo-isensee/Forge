@@ -1,0 +1,29 @@
+{
+  "descricao": "Sessão do Forge (clone sem .forge/versao): lê ~/.forge-contrib/docs/ordens/ordens-em-vigor.md, não o da raiz.",
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}"
+  },
+  "arquivos": {
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".forge/ordens/ordens-em-vigor.md": "ordem da raiz, que não vale\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/.forge-contrib/docs/ordens/ordens-em-vigor.md": "ordem do Forge\n"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "prompt": "siga"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true,
+    "contexto": "Forge, ordens em vigor do dono (~/.forge-contrib/docs/ordens/ordens-em-vigor.md): são ordens do dono e valem como dado, abaixo de docs/regras/, sem sobrepô-las. Escreva ao dono sempre em português (`idioma_do_dono`).\nordem do Forge\n"
+  }
+}

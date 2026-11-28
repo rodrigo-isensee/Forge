@@ -59,15 +59,15 @@
       "de": "[ $((SECONDS - inicio)) -lt \"$espera\" ] || break",
       "para": "[ $((SECONDS - inicio)) -lt 0 ] || break",
       "testes": [
-        "tests.test_fechar_lote.Promover.test_auto_merge_armado_espera_o_merged_e_fecha"
+        "tests.test_fechar_lote.Promover.test_merged_atrasado_da_promocao_espera_e_fecha"
       ]
     },
     {
       "id": "IL-M63",
       "guarda": "o merge da promoção é por merge commit",
       "arquivo": "bin/forge-fechar",
-      "de": "if ! mesclar_auto --merge \"$sha\" --subject",
-      "para": "if ! mesclar_auto --squash \"$sha\" --subject",
+      "de": "if ! mesclar_direto --merge \"$sha\" --subject",
+      "para": "if ! mesclar_direto --squash \"$sha\" --subject",
       "testes": [
         "tests.test_fechar_lote.Promover.test_item_mesclado_depois_da_marca_nao_entra_na_promocao"
       ]
@@ -76,10 +76,10 @@
       "id": "IL-M64",
       "guarda": "o merge do item é preso ao head",
       "arquivo": "bin/forge-fechar",
-      "de": "if ! mesclar_auto \"$metodo\" \"$remoto_sha\"; then",
-      "para": "if ! mesclar_auto \"$metodo\" \"${remoto_sha:0:7}\"; then",
+      "de": "if ! mesclar_direto \"$metodo\" \"$remoto_sha\"; then",
+      "para": "if ! mesclar_direto \"$metodo\" \"${remoto_sha:0:7}\"; then",
       "testes": [
-        "tests.test_fechar_auto_merge.AutoMerge.test_merge_e_o_auto_merge_preso_ao_head_e_nunca_admin"
+        "tests.test_fechar_auto_merge.SemAutoMerge.test_merge_direto_preso_ao_head_sem_auto_nem_admin"
       ]
     }
   ]

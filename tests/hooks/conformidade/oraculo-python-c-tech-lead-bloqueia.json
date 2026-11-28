@@ -1,0 +1,26 @@
+{
+  "descricao": "EXT-1 (C-8 a): o texto do python -c que grava o teste-oráculo (o padrão `tests/test_oraculo_*.py`, com `*`) recusa. Era limite registrado (C-8/C-9 do modelo de ameaças da 0.36, rc 0); fechado na v0478 E63.5 (A9 da segurança E63.3: o `*` da política casa um trecho sem barra no texto do interpretador).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "tests/test_oraculo_x.py": "import unittest\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 -c \"open('tests/test_oraculo_x.py','w')\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "teste-oráculo do portão"
+  }
+}

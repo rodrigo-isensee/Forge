@@ -1,0 +1,16 @@
+{
+  "pedido": "v0479-entrega-parecer-mesclado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "só o erro interno vai ao registro; a linha sem leitura não (E50.11, A5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            erro_interno = not isinstance(erro, ForaDaProva)",
+      "para": "            erro_interno = True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
+      ]
+    }
+  ]
+}

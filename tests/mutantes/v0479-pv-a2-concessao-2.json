@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "PV-A2 (E1): Commit de outra branch (fora do histórico do Ramo) não ativa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if git(raiz, \"merge-base\", \"--is-ancestor\", commit, ponta) is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "PV-A2 (E1): depois do Commit só pareceres",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if depois is None or any(not a.startswith(PARECERES) or",
+      "para": "    if depois is None or any(",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_so_o_parecer_de_review_ou_codigo_renomeado_para_a_pasta_de_parecer_fica_inativa"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "PV-A2 (E1): só conta parecer do Ramo pelo nome exato, não pelo trecho",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if p.get(\"branch\") == ramo]",
+      "para": "if True]",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_ramo_sem_parecer_dele_fica_inativo_e_a_ref_do_origin_vale_antes_da_local"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "PV-A2 (E1): os pareceres exigidos (review, QA, segurança) estão no Ramo, não basta um",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if not set(EXIGIDOS) <= {p.get(\"tipo\") for p in pareceres} or any(",
+      "para": "    if not pareceres or any(",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_so_o_parecer_de_review_ou_codigo_renomeado_para_a_pasta_de_parecer_fica_inativa"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "PV-A2 (E1): parecer reprovado não ativa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "p.get(\"parecer\") != \"aprovado\" or len(",
+      "para": "False or len(",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "PV-A2 (E1): parecer com sha de menos de 7 caracteres (ou vazio) não ativa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "len(p.get(\"commit\", \"\")) < 7",
+      "para": "False",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "PV-A2 (E1): parecer que aprova outro commit não ativa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "or not commit.startswith(p.get(\"commit\", \"\")) for p in pareceres",
+      "para": "for p in pareceres",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "PV-A2 (E1): a conferência do head roda para o alvo item:",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    revisado = fora_do_revisado(raiz, campos) if campos[\"Alvos\"].startswith(\"item:\") else \"\"",
+      "para": "    revisado = \"\"",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "pedido": "v0480-d3-teste-enfraquecido",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D3C1",
+      "guarda": "decorador de pulo no teste ou na classe conta",
+      "arquivo": "tests/catraca.py",
+      "de": "isinstance(d, ast.Call) else d) in PULOS for d in no.decorator_list",
+      "para": "isinstance(d, ast.Call) else d) not in PULOS for d in no.decorator_list",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_skip_no_teste_na_classe_ou_skiptest_barra"
+      ]
+    },
+    {
+      "id": "D3C2",
+      "guarda": "só a constante é valor esperado",
+      "arquivo": "tests/catraca.py",
+      "de": "for c in ast.walk(no) if isinstance(c, ast.Constant))",
+      "para": "for c in ast.walk(no) if isinstance(c, ast.Name))",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_na_primeira_entrega_nao_barra_e_fica_listado"
+      ]
+    },
+    {
+      "id": "D3C3",
+      "guarda": "o assert da linguagem conta",
+      "arquivo": "tests/catraca.py",
+      "de": "if isinstance(n, ast.Assert):\n            asserts += 1\n            esperados",
+      "para": "if isinstance(n, ast.Pass):\n            asserts += 1\n            esperados",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_na_primeira_entrega_nao_barra_e_fica_listado"
+      ]
+    },
+    {
+      "id": "D3C4",
+      "guarda": "chamada é lida como asserção ou pulo",
+      "arquivo": "tests/catraca.py",
+      "de": "elif isinstance(n, ast.Call):\n            nome = _nome(n.func)\n            if nome.startswith(\"assert\") and nome != \"assert\":\n                asserts += 1\n                esperados",
+      "para": "elif isinstance(n, ast.Name):\n            nome = _nome(n.func)\n            if nome.startswith(\"assert\") and nome != \"assert\":\n                asserts += 1\n                esperados",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_assercao_levada_a_outro_teste_barra_com_a_soma_igual"
+      ]
+    },
+    {
+      "id": "D3C5",
+      "guarda": "skipTest no corpo conta como pulo",
+      "arquivo": "tests/catraca.py",
+      "de": "            pulos += nome in PULOS\n    return asserts, pulos, esperados",
+      "para": "            pulos += nome in ()\n    return asserts, pulos, esperados",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_skip_no_teste_na_classe_ou_skiptest_barra"
+      ]
+    },
+    {
+      "id": "D3C6",
+      "guarda": "a docstring não tira o teste de vazio",
+      "arquivo": "tests/catraca.py",
+      "de": "corpo = [c for c in fn.body if not (isinstance(c, ast.Expr) and isinstance(c.value, ast.Constant))]\n    return asserts",
+      "para": "corpo = [c for c in fn.body if not (isinstance(c, ast.Expr) and False)]\n    return asserts",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_teste_sem_assercao_esvaziado_barra"
+      ]
+    }
+  ]
+}

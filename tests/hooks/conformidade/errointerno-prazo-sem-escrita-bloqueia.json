@@ -1,0 +1,21 @@
+{
+  "descricao": "VIGIA-PRAZO-TRAVA (E169.1, decisão do dono de 24/11): prazo vencido em linha sem o marcador crítico recusa; antes, liberava (HOOK-ERRO-LIBERA C5).",
+  "forcar": {
+    "onde": "Guarda.bash",
+    "como": "prazo"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat docs/pedidos/v047.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "não decidiu",
+    "erros_log": "prazo de"
+  }
+}

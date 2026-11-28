@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "no clone, a recusa do estado vale na GuardaDaProva",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if self.recusa_do_estado(o_que):\n            super().barrar(rid, o_que, corrigir)",
-      "para": "        if False:\n            super().barrar(rid, o_que, corrigir)",
+      "de": "        if self.recusa_do_estado(o_que):\n            super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)",
+      "para": "        if False:\n            super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_escrita_remocao_e_link_no_estado_recusam_para_todo_papel"
       ]
@@ -36,7 +36,7 @@
       "id": "M4",
       "guarda": "a construção não modelada vale na linha que cita o estado",
       "arquivo": "hooks/conformidade.py",
-      "de": "        return \"o hook não modela\" in o_que and isinstance(linha, str) and bool(ESTADO_NO_TEXTO.search(linha))",
+      "de": "        return \"o hook não modela\" in o_que and isinstance(linha, str) and (\n            bool(ESTADO_NO_TEXTO.search(linha)) or self.parecer_no_texto(linha))",
       "para": "        return False",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_escrita_remocao_e_link_no_estado_recusam_para_todo_papel"
@@ -46,7 +46,7 @@
       "id": "M5",
       "guarda": "a construção não modelada só vale se a linha cita o estado",
       "arquivo": "hooks/conformidade.py",
-      "de": "        return \"o hook não modela\" in o_que and isinstance(linha, str) and bool(ESTADO_NO_TEXTO.search(linha))",
+      "de": "        return \"o hook não modela\" in o_que and isinstance(linha, str) and (\n            bool(ESTADO_NO_TEXTO.search(linha)) or self.parecer_no_texto(linha))",
       "para": "        return \"o hook não modela\" in o_que",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_leitura_e_resto_do_clone_seguem_livres"

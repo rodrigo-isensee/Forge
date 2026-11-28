@@ -10,6 +10,8 @@ Pronto completo: o comando sugerido, que o autor roda antes de entregar e o CI r
 
 Detecção: `package.json`
 
+Versões: as de Node da matriz `node-version` do CI do projeto; sem matriz, a do `engines` do `package.json` (ou do `.nvmrc`). A stack não roda Python. O autor roda os testes rápidos em cada uma antes de entregar, um log por versão com `head=` e `rc=`; sem o intérprete, a versão não é verde.
+
 Instalação na cópia (`forge-copia --instalar`, `instalar.json`): só com `pnpm-lock.yaml` (`pnpm install --frozen-lockfile`); sem o lockfile não instala e avisa, em vez de falhar. A instalação roda sem as variáveis de ambiente com `TOKEN`, `SECRET` ou `PASSWORD` no nome (como `NPM_TOKEN`), então registro privado que dependa delas não autentica na cópia.
 
 Pronto existente: `package.json` com `"pronto":` → `pnpm run pronto`; `package.json` com `"test":` → `npm test`

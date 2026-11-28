@@ -1,0 +1,36 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o -k inteiro ou com = é opção leve do forge-testes (E64.1)",
+      "arquivo": "hooks/pesado.py",
+      "de": "if argumento.split(\"=\", 1)[0] in (\"--\", \"-k\"):",
+      "para": "if argumento.split(\"=\", 1)[0] in (\"--\",):",
+      "testes": [
+        "tests.test_forge_pesado.FormasLevesDoForgeTestes.test_formas_da_lista_seguem_leves"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "opção fora de LEVES_DO_FORGE_TESTES não é leve (E64.1)",
+      "arquivo": "hooks/pesado.py",
+      "de": "return any(pede_opcao(argumento, o) for o in LEVES_DO_FORGE_TESTES)",
+      "para": "return True",
+      "testes": [
+        "tests.test_forge_pesado.FormasLevesDoForgeTestes.test_versoes_e_opcao_fora_da_lista_pesam"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "toda palavra que começa por - é lida como opção, também a curta (-kx, -h) (E64.1)",
+      "arquivo": "hooks/pesado.py",
+      "de": "for a in argumentos if a.startswith(\"-\"))",
+      "para": "for a in argumentos if a.startswith(\"--\"))",
+      "testes": [
+        "tests.test_forge_pesado.FormasLevesDoForgeTestes.test_versoes_e_opcao_fora_da_lista_pesam"
+      ]
+    }
+  ]
+}

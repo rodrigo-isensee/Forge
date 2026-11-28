@@ -148,7 +148,7 @@ class Gerar(Base):
             with self.subTest(etapa=etapa):
                 rc, saida = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:revisor-exemplo", "--etapa", etapa)
                 self.assertEqual(rc, 0, saida)
-                self.assertIn("- PQ-N (cmd): `forge-check docs` · espera: rc=0", saida)
+                self.assertIn("- PQ-N (cmd): `forge-check docs --base develop` · espera: rc=0", saida)
         self.assertTrue(fc.comando_do_conferente("forge-check docs"))
         _, saida = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo", "--etapa", "codigo")
         self.assertNotIn("`forge-check docs`", saida)

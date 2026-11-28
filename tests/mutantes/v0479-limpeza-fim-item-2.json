@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-limpeza-fim-item",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: cópia suja fica",
+      "arquivo": "bin/forge-copia",
+      "de": "        if rc or saida.strip():",
+      "para": "        if rc:",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_copia_suja_fica"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: clone com worktree ligada fica",
+      "arquivo": "bin/forge-copia",
+      "de": "    if not worktree and ler(",
+      "para": "    if False and ler(",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_clone_com_worktree_ligada_fica"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: item não acabou: a cópia fica",
+      "arquivo": "bin/forge-copia",
+      "de": "    if motivo:\n        return recusa(f\"o item",
+      "para": "    if False:\n        return recusa(f\"o item",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_pr_aberto_fica"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: worktree sai por git worktree remove",
+      "arquivo": "bin/forge-copia",
+      "de": "    if worktree:\n        if subprocess",
+      "para": "    if False:\n        if subprocess",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_worktree_de_pr_fechado_sai_e_a_branch_fica"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: worktree remove que falha sai 1",
+      "arquivo": "bin/forge-copia",
+      "de": "        if subprocess.run([*g, \"worktree\", \"remove\", real]).returncode:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_worktree_travada_fica_com_codigo_1"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: base com cara de opção recusada",
+      "arquivo": "bin/forge-copia",
+      "de": "    if a.base.startswith(\"-\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_base_com_cara_de_opcao_e_recusada"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: modo limpar não cria cópia",
+      "arquivo": "bin/forge-copia",
+      "de": "    if a.modo == \"limpar\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_clone_de_pr_fechado_sem_merge_e_apagado"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: criar pede --branch",
+      "arquivo": "bin/forge-copia",
+      "de": "    if not a.branch and not a.d2:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_criar_sem_branch_e_recusado"
+      ]
+    }
+  ]
+}

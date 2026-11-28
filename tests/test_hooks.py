@@ -31,7 +31,7 @@ Formato do fixture:
               {"git": [argumentos]} roda o git no projeto (como um comando que o hook não viu, ex.: sparse-checkout)
               Em caminhos e textos, {marca} e {marca_wt} valem pela marca da sessão (`.git/forge/projeto-<hash da raiz>`) do
               projeto e da worktree `{tmp}/wt`
-  esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
+  esperado    codigo, saida (trecho do systemMessage; só o `vigia` e o `decisao`, no Stop, escrevem no stdout), pergunta (trecho do motivo: só o
               `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), stderr_sem ([trechos] que a recusa não pode ter), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
               aviso (trecho; só o `agentes`, código 0: a linha no stderr e o mesmo trecho no `systemMessage` do stdout)
@@ -52,6 +52,7 @@ import re
 import shlex
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -63,11 +64,13 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git, minimo  # noqa: E402
+from ambiente_git import remoto_sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 from modelo_git import copiar_modelo  # noqa: E402
 from prova_de_carga import (APROVEITAMENTO_MINIMO, FOLGA_DA_CPU_NO_PRAZO_S, PARCELA_DE_DISPUTA,  # noqa: E402
                             aproveitamento_da_cpu, carga_explica_a_recusa, referencia_da_cpu)
 from apoio_sandbox import exigir, sinais_de_ci  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
+from apoio_time_parado import REASON_DO_TIME_PARADO, TETO_DO_REASON  # noqa: E402  (emenda da ADR 0003, item 7; F4)
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
@@ -187,6 +190,8 @@ PARES_QUE_O_BASH_IGNORA = (("x=`#'`; ", " # '"), ('x=`#"`; ', ' # "'), ("echo `#
                                                ("cat <<EOF\n$(", ")\nEOF"), ("cat <<EOF\n`", "`\nEOF"),
                                                # o corpo já tirado não volta a ser tirado na palavra relida
                                                ("x=\"$(cat <<'X'\nX\n", "\n)\""))))
+FATIAS_DE_FIXTURES = 4  # `Hooks.test_fixtures` dividido em 4 unidades abaixo de 225 s (G3, tests/pesos-d4.json)
+FATIAS_DO_T1 = 4  # o T1 das variantes dividido em 4 unidades abaixo de 225 s
 VARIANTES_QUE_O_BASH_IGNORA = (tuple((p, "") for p in PREFIXOS_QUE_O_BASH_IGNORA)
                                + tuple(("", s) for s in SUFIXOS_QUE_O_BASH_IGNORA) + PARES_QUE_O_BASH_IGNORA)
 # T2: uma variante por mecanismo, aplicada a uma fixture de cada família de recusa (o motivo vai ao lado).
@@ -648,8 +653,10 @@ def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_co
 # carregada passa disso e o teste falharia sem o hook ter erro algum. Os testes rodam o hook pelo mesmo script, só com
 # o prazo do git largo: o prazo de produção segue em bin/forge-check e é conferido à parte (test_timeout_de_rede...).
 # O vigia de prazo (3 s, `_comum.PRAZO_DA_DECISAO_S`) segue o mesmo caminho: largo nos testes, de produção só onde o
-# teste mede o prazo (`producao=True`). `lento` injeta num passo da decisão um `sleep` de 60 s, uma vez só (monkeypatch
-# do processo do teste, sem tocar os hooks): o segundo `Hook.campo`, o primeiro que o hook lê depois do marcador.
+# teste mede o prazo (`producao=True`); o vigia do registro no erros.log (0,5 s, `_comum.PRAZO_DA_SESSAO_S`) também,
+# senão o `git` do `Hook.run` sob a carga do CI passa dele e a linha some (E44.1, v0481). `lento` injeta num passo da
+# decisão um `sleep` de 60 s, uma vez só (monkeypatch do processo do teste, sem tocar os hooks): o segundo
+# `Hook.campo`, o primeiro que o hook lê depois do marcador.
 PRAZO_GIT_NOS_TESTES = 120
 PRAZO_DA_DECISAO_NOS_TESTES = 120
 def trabalhadores_do_pool(nucleos):
@@ -666,7 +673,7 @@ sys.path.insert(0, sys.argv[1])
 import _comum
 _comum.forge_check().GIT_TIMEOUT_S = int(sys.argv[3])
 if sys.argv[4] != "producao":
-    _comum.PRAZO_DA_DECISAO_S = float(sys.argv[4])
+    _comum.PRAZO_DA_DECISAO_S = _comum.PRAZO_DA_SESSAO_S = float(sys.argv[4])
 if sys.argv[5] == "lento":
     campo, chamadas = _comum.Hook.campo, []
     def lento(self, *chaves):
@@ -737,10 +744,36 @@ class Hooks(unittest.TestCase):
         self.fixtures = minimo([f for f in todos if f.dados.get("prazo_de_producao") is not True], 460, "fixtures em tests/hooks/")
         self.de_prazo = [f for f in todos if f.dados.get("prazo_de_producao") is True]
 
-    def test_fixtures(self):
+    def fixtures_da_fatia(self, k):
+        """A fatia `k` (de 0 a FATIAS_DE_FIXTURES - 1) das fixtures, pelo índice (`i % FATIAS_DE_FIXTURES`): as fatias
+        repartem o conjunto sem sobra nem repetição (`test_fixtures_as_fatias_cobrem_todas`), e cada uma é uma unidade
+        do CI abaixo do limite de 225 s do test_pesos_teto."""
+        return [f for i, f in enumerate(self.fixtures) if i % FATIAS_DE_FIXTURES == k]
+
+    def verificar_fatia_de_fixtures(self, k):
         self.assertTrue(self.fixtures, "nenhum fixture em tests/hooks/")
-        casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures]
-        self.assertEqual(self.executar_em_lote(casos), len(self.fixtures), "todo fixture é verificado")
+        fatia = self.fixtures_da_fatia(k)
+        self.assertTrue(fatia, f"fatia {k} sem fixture")
+        casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in fatia]
+        self.assertEqual(self.executar_em_lote(casos), len(fatia), "todo fixture da fatia é verificado")
+
+    def test_fixtures_fatia_1(self):
+        self.verificar_fatia_de_fixtures(0)
+
+    def test_fixtures_fatia_2(self):
+        self.verificar_fatia_de_fixtures(1)
+
+    def test_fixtures_fatia_3(self):
+        self.verificar_fatia_de_fixtures(2)
+
+    def test_fixtures_fatia_4(self):
+        self.verificar_fatia_de_fixtures(3)
+
+    def test_fixtures_as_fatias_cobrem_todas(self):
+        """A união das fatias é o conjunto inteiro, sem repetição: dividir `test_fixtures` não tira fixture da verificação."""
+        nomes = [f.caminho for k in range(FATIAS_DE_FIXTURES) for f in self.fixtures_da_fatia(k)]
+        self.assertEqual(sorted(nomes), sorted(f.caminho for f in self.fixtures))
+        self.assertEqual(len(nomes), len(set(nomes)))
 
     def test_sem_ns_de_pid_do_pai_as_fixtures_de_pid_e_sessao_saem_puladas_com_motivo(self):  # E1.90 (v047)
         def ilegivel(_caminho):
@@ -827,14 +860,24 @@ class Hooks(unittest.TestCase):
         f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra, producao=producao))
         r = rodar(f.hook, entrada, raiz, proc, extra, producao=producao, forcar=f.dados.get("forcar"))
         esperado = f.dados["esperado"]
-        if "saida" in esperado:  # só o vigia: aviso ao usuário, nunca contexto para o modelo
-            self.assertEqual(f.hook, "vigia")
+        if "saida" in esperado or "reason" in esperado:  # só o vigia: aviso ao usuário; contexto só no reason fixo do Stop (emenda da ADR 0003, item 7)
+            self.assertIn(f.hook, ("vigia", "decisao"))  # o decisao: só o systemMessage, só no Stop (R-DECISAO, E172.15)
+            self.assertTrue(f.hook == "vigia" or ("reason" not in esperado and entrada.get("hook_event_name") == "Stop"))
             self.assertNotEqual(entrada.get("hook_event_name"), "SessionStart", "SessionStart é silencioso")
             saida = json.loads(r.stdout)
-            self.assertEqual(list(saida), ["systemMessage"])
-            self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
-            self.assertRegex(saida["systemMessage"], r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
-            self.assertIn(esperado["saida"], saida["systemMessage"])
+            chaves = ["systemMessage"] * ("saida" in esperado) + ["decision", "reason"] * ("reason" in esperado)
+            self.assertEqual(list(saida), chaves)
+            if "reason" in esperado:  # o Stop sem `stop_hook_active` (uma vez por vez), com o texto fixo e curto
+                self.assertEqual(entrada.get("hook_event_name"), "Stop")
+                self.assertIsNot(entrada.get("stop_hook_active"), True, "o Stop que segue o bloqueio não bloqueia")
+                self.assertEqual(saida["decision"], "block")
+                self.assertIsNotNone(re.fullmatch(REASON_DO_TIME_PARADO, saida["reason"]), saida["reason"])
+                self.assertLessEqual(len(saida["reason"]), TETO_DO_REASON, "teto do item 7 da emenda da ADR 0003 (F4)")
+                self.assertEqual(saida["reason"], esperado["reason"])
+            if "saida" in esperado:
+                self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
+                self.assertRegex(saida["systemMessage"], r"^Forge decisao: " if f.hook == "decisao" else r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
+                self.assertIn(esperado["saida"], saida["systemMessage"])
         elif "pergunta" in esperado:  # só o conformidade: pede a confirmação da pessoa, com a consequência
             self.assertEqual(f.hook, "conformidade")
             saida = json.loads(r.stdout)["hookSpecificOutput"]
@@ -850,6 +893,11 @@ class Hooks(unittest.TestCase):
             self.assertIn(esperado["aviso"], r.stderr)
             for linha in r.stderr.splitlines():
                 self.assertRegex(linha, r"^R-[A-Z]+: aviso: ", "só linhas de aviso no stderr")
+        elif "contexto" in esperado:  # só o ordens: texto puro no stdout (emenda "ordens em vigor" da ADR 0003)
+            self.assertEqual(f.hook, "ordens")
+            self.assertIn(entrada.get("hook_event_name"), ("SessionStart", "UserPromptSubmit"))
+            self.assertTrue(r.stdout.startswith("Forge, ordens em vigor do dono ("), "linha fixa primeiro")
+            self.assertEqual(r.stdout, esperado["contexto"])
         else:
             self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
         self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
@@ -1183,8 +1231,8 @@ class Hooks(unittest.TestCase):
 
     def test_prazo_do_merge(self):  # v0455: o `gh pr merge` decide com PRAZO_DO_MERGE_S; o resto, com os 3 s
         """Os fixtures com `prazo_de_producao` (tests/hooks/parecer/v0455-*.json), com o vigia de produção e um `git` lento
-        no PATH: o merge com 4 s de git libera; o `gh pr create` e o `git merge` com o mesmo git recusam em 3 s; o merge
-        com 9 s recusa em 8 s, antes do timeout do hooks.json. Os merges que liberam rodam em série, depois, com a CPU de
+        no PATH: o merge com 3,5 s de git libera; o `gh pr create` e o `git merge` com o mesmo git recusam em 3 s; o merge
+        com 9 s recusa em 7,5 s, antes do timeout do hooks.json. Os merges que liberam rodam em série, depois, com a CPU de
         cada hook medida sozinha (`liberar_ou_provar_a_carga`, DEFEITO-TESTES-DE-PRAZO-SOB-CARGA)."""
         casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in minimo(self.de_prazo, 4, "fixtures de prazo de produção")]
         merges = [c for c in casos if c[1].hook == "parecer" and c[1].dados["esperado"]["codigo"] == 0]
@@ -1262,7 +1310,7 @@ class Hooks(unittest.TestCase):
         self.assertEqual(aproveitamento_da_cpu(8.0, 1.0, 8.0, 0.5), 0.0, "sem relógio fora do sono")
         self.assertEqual(aproveitamento_da_cpu(9.0, 1.0, 4.0, 0.0), 0.0, "referência sem CPU")
         self.assertEqual(sono_do_git_lento(json.loads((FIXTURES / "parecer/v0455-merge-com-git-lento-decide-no-prazo-longo.json")
-                                                      .read_text(encoding="utf-8"))), 4.0)
+                                                      .read_text(encoding="utf-8"))), 3.5)
         self.assertEqual(sono_do_git_lento({"arquivos": {}}), 0.0)
 
     def test_referencia_da_cpu_mede_a_parcela_do_relogio(self):  # v0478
@@ -1286,7 +1334,7 @@ class Hooks(unittest.TestCase):
         self.assertIsNone(referencia["parcela"])
 
     def test_liberar_ou_provar_a_carga_aceita_so_a_recusa_explicada_pela_carga(self):  # v0478
-        """O fixture de merge que libera, com o hook trocado por uma recusa: a do vigia de 8 s com CPU folgada e disputa
+        """O fixture de merge que libera, com o hook trocado por uma recusa: a do vigia do prazo longo com CPU folgada e disputa
         provada passa (linha PRAZO-CARGA); com a CPU acima da folga, pelo vigia dos 3 s ou com a referência livre, reprova;
         e a recusa de regra de verdade, também."""
         _comum, _, _ = modulos_dos_hooks()
@@ -1317,19 +1365,16 @@ class Hooks(unittest.TestCase):
                     with self.assertRaises(AssertionError):
                         self.liberar_ou_provar_a_carga("parecer/caso", f)
         dados = json.loads(json.dumps(f.dados))
-        dados["arquivos"]["lento/git"][1] = dados["arquivos"]["lento/git"][1].replace("sleep 4", "sleep 0")
+        dados["arquivos"]["lento/git"][1] = dados["arquivos"]["lento/git"][1].replace("sleep 3.5", "sleep 0")
         del dados["git"][2]  # sem os pareceres
         with self.assertRaises(AssertionError):  # recusa de regra (R-REVIEW sem review), rápida: nada de carga
             self.liberar_ou_provar_a_carga("parecer/sem-pareceres", Fixture(f.caminho, dados))
 
-    @unittest.skip("quarentena (OK do dono 19/11 18:12): falha no CI sob carga mesmo com o conserto do #701; volta "
-                   "quando o desenho da BP1 (relógio injetado no hook) entrar com 10 rodadas verdes sob carga no CI; "
-                   "cartão TESTE-SONDA-S1-RELOGIO; prazo 2026-11-26")
     def test_liberar_ou_provar_a_carga_recusa_a_sonda_s1(self):  # v0478, A1 do review
-        """A sonda S1 do review, de verdade e só na direção da recusa (BP1, E37.16): o 1.o git dorme 12 s a mais que os 4 s
-        do fixture, o vigia de 8 s recusa e a recusa não passa como carga (o tempo a mais é sono, não fila da CPU: o hook não
+        """A sonda S1 do review, de verdade e só na direção da recusa (BP1, E37.16): o 1.o git dorme 12 s a mais que os 3,5 s
+        do fixture, o vigia de 7,5 s recusa e a recusa não passa como carga (o tempo a mais é sono, não fila da CPU: o hook não
         aproveita a parcela da referência). Com os 3,8 s de antes, a folga de 0,2 s deixava a máquina rápida liberar
-        ('AssertionError not raised' no CI); a carga só alonga o sono, e a fronteira dos 8 s fica com a S1 pequena
+        ('AssertionError not raised' no CI); a carga só alonga o sono, e a fronteira do prazo longo fica com a S1 pequena
         (`SondaS1ComRelogioFalso`, relógio falso). O sono a mais não segura os tubos do hook (redirecionado).
         O hook e a recusa do vigia são reais; a parcela da referência, a CPU e o relógio do hook são os da S1 medidos no
         review (`PAREDE_DA_S1_S`, `CPU_DA_S1_S`, `PARCELA_DA_S1`), não os da hora (E33.6): o mínimo de aproveitamento com
@@ -1338,8 +1383,10 @@ class Hooks(unittest.TestCase):
         _comum, _, _ = modulos_dos_hooks()
         f = Fixture(FIXTURES / "parecer/v0455-merge-com-git-lento-decide-no-prazo-longo.json")
         dados = json.loads(json.dumps(f.dados))
-        dados["arquivos"]["lento/git"][1] = dados["arquivos"]["lento/git"][1].replace(
-            "sleep 4;", "sleep 4; sleep 12 </dev/null >/dev/null 2>&1;")  # 16 s de git contra 8 s: só a recusa
+        linha = dados["arquivos"]["lento/git"][1]
+        self.assertIn("sleep 3.5;", linha, "o sono do fixture, onde a S1 soma os 12 s")
+        dados["arquivos"]["lento/git"][1] = linha.replace(
+            "sleep 3.5;", "sleep 3.5; sleep 12 </dev/null >/dev/null 2>&1;")  # 15,5 s de git contra 7,5 s: só a recusa
         recusas, original = [], rodar
 
         def rodar_e_guardar(*args, **kwargs):
@@ -1487,20 +1534,28 @@ class Hooks(unittest.TestCase):
             codigos = {f.dados["esperado"]["codigo"] for f in self.fixtures if f.hook == hook}
             nomes = {f.caminho.stem for f in self.fixtures if f.hook == hook}
             with self.subTest(hook=hook):
-                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente") else {0, 2})  # o vigia, o doutor e o ambiente avisam, nunca bloqueiam
+                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens", "decisao", "salvar", "estado") else {0, 2})  # o vigia, o doutor, o ambiente, o ordens (emenda "ordens em vigor" da ADR 0003), o estado (emenda "estado na pergunta do dono") e o decisao (R-DECISAO, fatia L28a) avisam, nunca bloqueiam; o salvar (D6 a) só grava na cópia
                 self.assertIn("sem-forge-versao", nomes)
                 self.assertIn("erro-interno", nomes)
+                if hook == "ordens":  # a emenda pede também os casos do teto e do arquivo ausente
+                    self.assertLessEqual({"teto-linhas-corta-e-avisa", "teto-caracteres-corta-e-avisa",
+                                          "arquivo-ausente-silencio"}, nomes)
 
     def test_hooks_json(self):
         d = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
-        self.assertNotIn("UserPromptSubmit", d["hooks"], "hook não injeta contexto")
+        no_prompt = {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get("UserPromptSubmit", []) for h in g["hooks"]}
+        self.assertEqual(no_prompt, {"ordens.py", "estado.py"},
+                         "no UserPromptSubmit só o ordens e o estado injetam contexto (emendas \"ordens em vigor\" e \"estado na pergunta do dono\" da ADR 0003)")
         self.assertNotIn("additionalContext", (HOOKS / "vigia.py").read_text(encoding="utf-8").replace(
             "nunca `additionalContext`", ""), "o vigia só avisa o usuário (systemMessage)")
         for evento in ("SessionStart", "Stop"):  # SessionStart: o stdout vira contexto do modelo (ADR 0003, item 1)
             comandos = {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get(evento, []) for h in g["hooks"]}
-            permitidos = {"vigia.py", "doutor.py", "_maquina.py"} | ({"ambiente.py"} if evento == "SessionStart" else set()) | ({"meta.py"} if evento == "Stop" else set())  # 0.44.2: S4/S6, sem stdout
-            self.assertLessEqual(comandos, permitidos, f"só o vigia e o doutor (sem stdout no SessionStart), o ambiente (exceção da emenda da ADR 0003, E2.54) e o meta no Stop ficam em {evento}")
+            permitidos = {"vigia.py", "doutor.py", "_maquina.py"} | ({"ambiente.py", "ordens.py"} if evento == "SessionStart" else set()) | ({"meta.py", "decisao.py"} if evento == "Stop" else set())  # 0.44.2: S4/S6, sem stdout; E172.15: o decisao só com systemMessage
+            self.assertLessEqual(comandos, permitidos, f"só o vigia e o doutor (sem stdout no SessionStart), o ambiente (exceção da emenda da ADR 0003, E2.54), o ordens (emenda \"ordens em vigor\" da ADR 0003) e, no Stop, o meta e o decisao (só aviso ao usuário, R-DECISAO; ADR 0003, item 1) ficam em {evento}")
         self.assertNotIn("print(", (HOOKS / "meta.py").read_text(encoding="utf-8"), "o meta não escreve no stdout: recusa só pelo stderr")
+        decisao = (HOOKS / "decisao.py").read_text(encoding="utf-8").replace("nunca `additionalContext` nem `decision`", "")
+        for chave in ("additionalContext", "decision"):  # o decisao só avisa o usuário (systemMessage): nem contexto nem bloqueio
+            self.assertNotIn(chave, decisao, f"o decisao não devolve {chave} (ADR 0003, item 1)")
         self.assertNotIn("meta.py", {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get("SessionStart", []) for h in g["hooks"]})
         usados = set()
         for evento, grupos in d["hooks"].items():
@@ -1509,7 +1564,9 @@ class Hooks(unittest.TestCase):
                     with self.subTest(evento=evento, matcher=g.get("matcher")):
                         self.assertEqual(h["command"], "python3", "forma exec, sem shell")
                         # 0.44.2: o pesado espera a vez no PreToolUse (orkastery 5, teto 240 s) e o meta roda as checagens no Stop (S4)
-                        espera = 300 if (evento, h["args"][-1].rsplit("/", 1)[-1]) in (("PreToolUse", "pesado.py"), ("Stop", "meta.py")) else 10
+                        # D6 (a), v0481 E11.2: o salvar faz o commit na cópia no SubagentStop (prazo total de 50 s)
+                        espera = {("PreToolUse", "pesado.py"): 300, ("Stop", "meta.py"): 300, ("SubagentStop", "salvar.py"): 60}.get(
+                            (evento, h["args"][-1].rsplit("/", 1)[-1]), 10)
                         self.assertEqual(h.get("timeout"), espera, "sem timeout, o padrão do Claude Code é 600 s")
                         # HOOK-ERRO-LIBERA (C6): sem o site do usuário (`usercustomize`, `.pth`) nem as PYTHON* do ambiente
                         self.assertEqual(h["args"][:-1], ["-s", "-E"], "python3 -s -E <hook>")
@@ -1743,7 +1800,13 @@ class Hooks(unittest.TestCase):
                        "branch não texto": {"caminho": ".github/", "quem": [], "motivo": "m", "branch": 7},
                        "quem não lista": {"caminho": ".github/", "quem": "jarvis", "motivo": "m"},
                        "so_forge não booleano": {"caminho": ".github/", "quem": [], "motivo": "m", "so_forge": "s"},
-                       "entrada não objeto": "docs/"}
+                       "entrada não objeto": "docs/",
+                       # E123.19: um caso por guarda de `entrada_valida` (mutantes em tests/mutantes/v0480-ordens-guarda-2.json)
+                       "caminho vazio": {"caminho": "", "quem": [], "motivo": "m"},
+                       "caminho não texto": {"caminho": 7, "quem": [], "motivo": "m"},
+                       "motivo vazio": {"caminho": ".github/", "quem": [], "motivo": ""},
+                       "quem com item não texto": {"caminho": ".github/", "quem": [7], "motivo": "m"},
+                       "branch vazia": {"caminho": ".github/", "quem": [], "motivo": "m", "branch": ""}}
         for nome, entrada in malformadas.items():
             with self.subTest(nome):
                 tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
@@ -2571,7 +2634,8 @@ class Hooks(unittest.TestCase):
         self.assertFalse(_comum.corpo_so_lido(lidos[-1][0]))
 
     def test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa(self):  # HEREDOC-DONOS, C-4 (variante A)
-        """O vigia vence no 2.o de 3 corpos: sem o marcador, recusa pelos 2 pendentes; sem pendente ou depois da ferramenta, libera."""
+        """O vigia vence no 2.o de 3 corpos: sem o marcador, recusa pelos 2 pendentes; sem pendente, recusa como ação crítica
+        (VIGIA-PRAZO-TRAVA); depois da ferramenta, libera."""
         _comum, conformidade, _ = modulos_dos_hooks()
         hook = _comum.Hook("conformidade")
         hook.raiz, hook.marcado, hook.entrada = RAIZ, False, {"hook_event_name": "PreToolUse"}
@@ -2584,9 +2648,33 @@ class Hooks(unittest.TestCase):
                 _comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE")
             self.assertRegex(erro.getvalue(), "2 corpo.s. de heredoc.*separe o comando")
             hook.corpos_pendentes = 0
-            self.assertIsNone(_comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE"))
+            with self.assertRaises(SystemExit):
+                _comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE")
+            self.assertRegex(erro.getvalue(), "a chamada com ação crítica")
             hook.corpos_pendentes, hook.entrada = 2, {"hook_event_name": "PostToolUse"}
             self.assertIsNone(_comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE"))
+
+    def test_vigia_prazo_trava_sem_marcador_recusa_e_fora_da_sessao_vigiada_libera(self):  # VIGIA-PRAZO-TRAVA, E169.1
+        """Prazo vencido sem o marcador crítico e sem corpo pendente: recusa numa sessão vigiada (antes, liberava);
+        fora da sessão vigiada, só a linha no erros.log. Num hook sem marcador (`critico` None: `agentes`, `pesado`), recusa
+        no PreToolUse e só registra nos outros eventos (VIGIA-AGENTES-PESADO, E172.3, decisão do dono de 24/11)."""
+        _comum, _, _ = modulos_dos_hooks()
+        hook = _comum.Hook("parecer")
+        hook.raiz, hook.marcado, hook.entrada, hook.prazo_s = RAIZ, False, {"hook_event_name": "PreToolUse"}, 3.0
+        with contextlib.redirect_stderr(io.StringIO()) as erro:
+            with mock.patch.object(_comum, "sessao_vigiada", return_value=True):
+                with self.assertRaises(SystemExit) as saida:
+                    _comum.prazo_vencido(hook, re.compile("x"), "", False, "R-REVIEW")
+                self.assertEqual(saida.exception.code, 2)
+                self.assertRegex(erro.getvalue(), "R-REVIEW.*não decidiu em 3 s a chamada com ação crítica")
+                with self.assertRaises(SystemExit) as saida:
+                    _comum.prazo_vencido(hook, None, "", False, "R-TETO")
+                self.assertEqual(saida.exception.code, 2)
+                hook.entrada = {"hook_event_name": "SubagentStop"}
+                self.assertIsNone(_comum.prazo_vencido(hook, None, "", False, "R-TETO"))
+                hook.entrada = {"hook_event_name": "PreToolUse"}
+            with mock.patch.object(_comum, "sessao_vigiada", return_value=False):
+                self.assertIsNone(_comum.prazo_vencido(hook, re.compile("x"), "", False, "R-REVIEW"))
 
     def test_fronteira_limpa_so_se_os_comentarios_atravessam_o_prefixo(self):  # HEREDOC-DONOS-AJUSTES, S-A1
         _comum, _, _ = modulos_dos_hooks()
@@ -2642,11 +2730,42 @@ class Hooks(unittest.TestCase):
             _CORPUS.extend(f.dados["entrada"]["tool_input"]["command"] for f in todas if f.caminho.stem not in fora)
         return minimo(_CORPUS, 500, "linhas de recusa de Bash")
 
-    def test_t1_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
+    def test_t1_fatia_1_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):
+        self.verificar_t1_da_fatia(0)
+
+    def test_t1_fatia_2_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):
+        self.verificar_t1_da_fatia(1)
+
+    def test_t1_fatia_3_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):
+        self.verificar_t1_da_fatia(2)
+
+    def test_t1_fatia_4_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):
+        self.verificar_t1_da_fatia(3)
+
+    def corpus_da_fatia(self, k):
+        """O corte do T1: a fatia `k` do corpus (`corpus[k::FATIAS_DO_T1]`). Uma função só: as fatias e o teste de
+        cobertura a usam, então mudar o corte quebra a cobertura."""
+        return list(self.corpus_de_recusas())[k::FATIAS_DO_T1]
+
+    def test_fatias_travadas_aos_metodos(self):
+        """As constantes de fatias batem com o número de métodos `test_fixtures_fatia_*` e `test_t1_fatia_*`."""
+        nomes = dir(self)
+        self.assertEqual(sum(n.startswith("test_fixtures_fatia_") for n in nomes), FATIAS_DE_FIXTURES)
+        self.assertEqual(sum(n.startswith("test_t1_fatia_") for n in nomes), FATIAS_DO_T1)
+
+    def test_t1_as_fatias_cobrem_todo_o_corpus(self):
+        """A união das fatias do T1 é o corpus inteiro, sem repetição: dividir o T1 não tira linha da verificação."""
+        corpus = list(self.corpus_de_recusas())
+        juntas = [linha for k in range(FATIAS_DO_T1) for linha in self.corpus_da_fatia(k)]
+        self.assertEqual(sorted(juntas), sorted(corpus))
+        self.assertEqual(len(juntas), len(corpus))
+
+    def verificar_t1_da_fatia(self, k):  # HOOK-COMENTARIO-SHLEX, ADR 0013
         """T1, inclusão no leitor: com qualquer variante que o bash ignora, todo comando da leitura fiel da linha continua
         lido (as palavras dele no começo de um comando da variante, os destinos entre os dela), ou a variante é ilegível
         (e quem confere recusa). Pela composição de teste do `conformidade` (heredoc, palavras relidas, `bash -c`), sem
-        subprocesso."""
+        subprocesso. Fatia `k` do corpus (`corpus[k::FATIAS_DO_T1]`); o piso de variantes lidas é o de 500 linhas
+        repartido pelas fatias, arredondado para cima: a soma dos pisos nunca é menor que o do teste inteiro."""
         _comum, _, _ = modulos_dos_hooks()
 
         def lidos(linha, todas=True):
@@ -2656,7 +2775,7 @@ class Hooks(unittest.TestCase):
                 return None
 
         lidas = 0
-        for linha in self.corpus_de_recusas():
+        for linha in self.corpus_da_fatia(k):
             base = lidos(linha, todas=False) or []
             for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA:
                 if '$(' in prefixo and '"' in prefixo and ('"' in linha or _comum.CASE.search(linha)
@@ -2677,7 +2796,7 @@ class Hooks(unittest.TestCase):
                     achou = any(p[:len(palavras)] == palavras and set(destinos) <= set(d) for p, d in outra)
                     if not achou:
                         self.fail(f"{variante!r}: some {palavras} {destinos}")
-        self.assertGreaterEqual(lidas, 500 * len(VARIANTES_QUE_O_BASH_IGNORA))
+        self.assertGreaterEqual(lidas, -(-500 * len(VARIANTES_QUE_O_BASH_IGNORA) // FATIAS_DO_T1))
 
     def test_t2_cada_familia_de_recusa_recusa_com_cada_mecanismo(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
         """T2, ligação leitor → recusa, pelo hook real: uma fixture por família de recusa, com uma variante por mecanismo
@@ -2758,6 +2877,11 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 2, "as fixtures da medida")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_vigia_prazo_trava(self):  # E169.1: prazo vencido sem o marcador recusa, para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("VIGIA-PRAZO-TRAVA")]
+        self.assertGreaterEqual(len(lote), 2, "as fixtures do vigia")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_da_trilha_034(self):  # trilha hooks/conformidade da 0.34: a descrição abre com o cartão, para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith(CARTOES_DA_TRILHA_034)]
@@ -2791,6 +2915,46 @@ class Hooks(unittest.TestCase):
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("PROFUNDIDADE-BASH-C (")]
         self.assertGreaterEqual(len(lote), 14, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_do_parecer_pelo_papel(self):  # PARECER-PELO-PAPEL (v0478 E50.7): pastas de parecer na sessão do Forge
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("PARECER-PELO-PAPEL (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 13, "o papel dono, o vizinho, outra regra e o repositório que não é do Forge")
+        self.assertGreaterEqual(len(lote) - len(liberam), 25, "papel × pasta × forma, no clone e em wt/*; a variável no alvo e a linha sem leitura, dono incluído (A5, A6)")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_da_raiz_do_forge(self):  # HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1): o que roda fora do sandbox
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 29, "o erro interno do Bash e o do Write sem a entrada (volta 6), a cópia de wt/, scripts/ (também pela variável de for e read), a leitura, o valor calculado fora, a linha sem a entrada, o repositório fora do Forge e a variável colada que não casa entrada (S1-S4 do review, $TMPDIR inteiro e $f colado a x)")
+        self.assertGreaterEqual(len(lote) - len(liberam), 19, "Write, Edit e MultiEdit (o erro interno incluído), o caminho literal do Bash; wt/ e a cópia principal (volta 6: a grafia do Bash fica com o sandbox do SO, A16)")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_do_controle_so_jarvis(self):  # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1): pedido e brief da pasta de controle
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 12, "o jarvis em cada forma, a leitura e a pasta vizinha")
+        self.assertGreaterEqual(len(lote) - len(liberam), 30, "papel × pasta × forma (Write, Edit, >>, cp), a variável, o opaco e o teto")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_da_escrita_no_indice(self):  # CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1): git add e update-index em quem: []
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("CONFORMIDADE-ESCRITA-NO-INDICE (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 8, "o código, a varredura (limite), a pasta com dono e o update-index sem caminho")
+        self.assertGreaterEqual(len(lote) - len(liberam), 21, "as sondas S1-S4 e cada forma do add e do update-index")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_da_substituicao_no_projeto(self):  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.1): envio com parte opaca
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 7, "o envio literal, a leitura com $(…), o commit em heredoc e o shell sem envio")
+        self.assertGreaterEqual(len(lote) - len(liberam), 18, "programa, subcomando, flag e destino por $(…), crase, <(…) e pipe")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
     def test_fixtures_do_n3(self):  # IMPL-FURO-HOOK-N, N3 (0.45.1): link com caminho protegido
@@ -2973,6 +3137,105 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 40, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_publicar(self):  # V0481-PUBLICAR (segurança A1 do #878): para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("V0481-PUBLICAR")]
+        self.assertGreaterEqual(len(lote), 9, "as fixtures do item (E6.21: mais 3, duas --raiz e vale a última; E6.25: mais 1, --raiz depois do --)")
+        self.assertEqual({f.dados["esperado"]["codigo"] for _, f in lote}, {0, 2}, "o lote tem os dois lados")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_do_repo_publico(self):  # CONFORMIDADE-REPO-CREATE-PUBLICO (v0478 E141.2, E141.7): para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("CONFORMIDADE-REPO-CREATE-PUBLICO")]
+        self.assertGreaterEqual(len(lote), 133,"as fixtures do item (E168.1: mais 15 da GRAPHQL-CONSULTA-EM-VARIAVEL; "
+                                                "E168.5: mais 14, opção antes do subcomando, stdin por caminho e curinga; "
+                                                "E168.9: mais 11, dúvida do subcomando, ordem do gh nas travas e chaves; "
+                                                "E168.13: mais 10, chave antes do subcomando, nele e no endpoint)")
+        self.assertEqual({f.dados["esperado"]["codigo"] for _, f in lote}, {0, 2}, "o lote tem os dois lados")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+        # A8 da segurança (S18): 40 KB de string aberta à frente decidem bem antes do prazo de produção; E148.1 (A9):
+        # 8 KB de `gh repo ` repetido também (o marcador das formas de visibilidade é linear)
+        _comum = modulos_dos_hooks()[0]
+        for caso in ("trava-graphql-string-aberta-prazo-bloqueia", "trava-gh-marcador-linear-libera"):
+            dados = json.loads((FIXTURES / "conformidade" / f"{caso}.json").read_text(encoding="utf-8"))
+            custo, parede = self.medir_o_hook(dados, _comum.PRAZO_DA_DECISAO_S / 2)
+            self.assertLess(custo, _comum.PRAZO_DA_DECISAO_S / 2, f"{caso} decide antes do prazo ({parede:.2f} s)")
+
+    def test_ordem_do_gh(self):  # E168.5 (A1 da segurança do #854): o subcomando como o gh o acha
+        parecer = modulos_dos_hooks()[2]
+        casos = {("gh", "-X", "PUT", "api", "x"): ["gh", "api", "-X", "PUT", "x"],
+                 ("gh", "--repo=o/r", "pr", "merge"): ["gh", "pr", "--repo=o/r", "merge"],
+                 ("gh", "--repo=o/r", "issue", "list"): ["gh", "issue", "--repo=o/r", "list"],
+                 ("gh", "-i", "api", "graphql"): ["gh", "graphql", "-i", "api"],  # como o gh: o `-i` toma o `api`
+                 ("gh", "-b", "api", "pr", "merge"): ["gh", "pr", "-b", "api", "merge"],
+                 ("gh", "--help"): ["gh", "--help"], ("gh", "-R"): ["gh", "-R"], ("gh", "--", "x"): ["gh", "--", "x"],
+                 ("gh", "api", "-X", "PUT"): ["gh", "api", "-X", "PUT"], ("git", "-C", "p", "merge"): ["git", "-C", "p", "merge"]}
+        for entrada, esperado in casos.items():
+            self.assertEqual(parecer.ordem_do_gh(list(entrada)), esperado, entrada)
+
+    def test_gh_incerto(self):  # E168.9 (A1 e A2 do review, A4 da segurança do #854): na dúvida, quem chama recusa
+        parecer = modulos_dos_hooks()[2]
+        for toks in (("gh", "-b", "api", "pr", "merge", "1"), ("gh", "-t", "pr", "api", "graphql"),
+                     ("gh", "-X", "$M", "graphql"), ("gh", "-i", "api", "graphql"), ("/usr/bin/gh", "--repo", "`r`", "pr")):
+            self.assertTrue(parecer.gh_incerto(list(toks)), toks)
+        for toks in (("gh", "-R", "o/r", "pr", "merge"), ("gh", "pr", "merge", "-b", "api"), ("gh", "--help", "api"),
+                     ("gh", "-X", "PUT", "api", "$E"), ("git", "-C", "$p", "merge"), ("gh",), ()):
+            self.assertFalse(parecer.gh_incerto(list(toks)), toks)
+
+    def test_gh_incerto_chave(self):  # E168.13 (A7 da segurança do #854): chave antes do subcomando, nele ou no endpoint
+        parecer = modulos_dos_hooks()[2]
+        for toks in (("gh", "-R", "{o/r,api}", "graphql"), ("gh", "{api,graphql}", "-f", "query=$Q"),
+                     ("gh", "{-t,pr}", "api", "graphql"), ("gh", "api", "{graphq,-Hx:}l", "-f", "query=$Q"),
+                     ("gh", "api", "-X", "POST", "graph{q..q}l"), ("gh", "api", "{owner}/{a,b}")):
+            self.assertTrue(parecer.gh_incerto(list(toks)), toks)
+        for toks in (("gh", "api", "repos/{owner}/{repo}/compare/a...b"), ("gh", "api", "repos/{owner}/{repo}/issues?l=a,b"),
+                     ("gh", "api", "graphql", "-f", "query=query{viewer{login,name}}"), ("gh", "pr", "view", "{a,b}"),
+                     ("gh", "api", "graphql", "-H", "Accept: {a,b}"), ("gh", "issue", "{a,b}")):
+            self.assertFalse(parecer.gh_incerto(list(toks)), toks)
+
+    def test_analisar_pula_a_opcao_entre_pr_e_o_subcomando(self):  # E168.9 (A1 do review do #854)
+        """`gh -b x pr merge 1` vira `gh pr -b x merge 1` (`ordem_do_gh`): a opção com valor entre `pr` e o subcomando é
+        pulada como o gh pula, e o `-R` dali segue valendo."""
+        parecer = modulos_dos_hooks()[2]
+        self.assertEqual(parecer.analisar(["gh", "-b", "x", "pr", "merge", "1"]), ("prmerge", None, "1"))
+        self.assertEqual(parecer.analisar(["gh", "-R", "o/r", "-t", "x", "pr", "merge", "1"]), ("prmerge", "o/r", "1"))
+        self.assertEqual(parecer.analisar(["gh", "pr", "--repo=o/r", "--body", "x", "merge", "f"]), ("prmerge", "o/r", "f"))
+        self.assertEqual(parecer.analisar(["gh", "pr", "-Ro/r", "merge", "f"]), ("prmerge", "o/r", "f"))
+        self.assertIsNone(parecer.analisar(["gh", "pr", "--", "x", "merge", "f"]), "o `--` para: não é opção com valor")
+
+    def test_expansao_por_palavra_chaves(self):  # E168.9 (A5 da segurança do #854): a chave que o bash expande
+        _, conformidade, _ = modulos_dos_hooks()
+        casos = {"{a,b}": ("{a,b}", 2), "x{'a','b'}": ("x{a,b}", 2), "{1..3}": ("{1..3}", 2), "'{a,b}'": ("{a,b}", 0),
+                 "\"{a,b}\"": ("{a,b}", 0), "\\{a,b}": ("{a,b}", 0), "a,b": ("a,b", 0), "{a.b}": ("{a.b}", 0),
+                 "x{ a,b": ("a,b", 0), "x{; a,b": ("a,b", 0), "'{'a,b": ("{a,b", 0)}
+        for linha, (palavra, nivel) in casos.items():
+            self.assertEqual(conformidade.expansao_por_palavra(linha).get(palavra), nivel, linha)
+
+    def test_alias_do_gh_com_opcao_antes_do_nome(self):  # E168.9 (A1 do QA do #854): `ordem_do_gh` no `alias_do_gh`
+        """`gh -R o/r junta feature/x`, com `junta: pr merge`, roda o alias: o parecer lê a expansão (o merge)."""
+        parecer = modulos_dos_hooks()[2]
+        pasta = self._pasta_temporaria()
+        (pasta / "config.yml").write_text("aliases:\n    junta: pr merge\n", encoding="utf-8")
+        analise = parecer.alias_do_gh([f"GH_CONFIG_DIR={pasta}"], ["gh", "-R", "o/r", "junta", "feature/x"], None)
+        self.assertEqual((analise or ())[:2], ("alias", "junta"))
+        self.assertIn(("prmerge", "o/r", "feature/x"), analise[2])
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "sem FIFO no sistema")
+    def test_graphql_arquivo_que_nao_e_regular_e_ilegivel(self):  # E168.5 (A2 da segurança do #854)
+        """O `-F query=@fifo` e o `--input fifo` fora de /dev e /proc: o hook não espera o escritor nem toma o vazio por
+        consulta legível; o arquivo regular segue lido."""
+        _, conformidade, _ = modulos_dos_hooks()
+        pasta = self._pasta_temporaria()
+        os.mkfifo(pasta / "q.fifo")
+        (pasta / "q.graphql").write_text("query{viewer{login}}", encoding="utf-8")
+        ler = conformidade.Guarda.textos_da_api
+        self.assertTrue(ler(["-F", "query=@q.fifo"], pasta)[1])
+        self.assertTrue(ler(["--input", "q.fifo"], pasta)[1])
+        self.assertTrue(ler(["-F", "query=@/proc/self/status"], pasta)[1], "/proc é do processo do hook, não do gh")
+        textos, ilegivel = ler(["-F", "query=@q.graphql"], pasta)
+        self.assertFalse(ilegivel)
+        self.assertIn("query{viewer{login}}", textos)
+
     def test_fixtures_do_desenho(self):  # E5-0 (Q-B, PAR-P2): as pastas de arquitetura têm dono doc/aq no hook
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("E5-0")]
         self.assertGreaterEqual(len(lote), 16, "as fixtures do item")
@@ -3078,12 +3341,18 @@ class Hooks(unittest.TestCase):
         self.assertEqual((r.returncode, "invalid choice" in r.stderr), (2, True), r.stderr)
 
 
+# A5 da segurança no #888: a parede entre a soma dos prazos e o `timeout` do hooks.json; medida na S3 com a CPU carregada,
+# 1,1 s. Desde o E7.40 a partida do Python e os imports contam no prazo (`idade_do_processo`); a folga fica para a saída.
+FOLGA_DE_PAREDE_S = 1.5
+
+
 class RelogioFalso:
     """BP1 (E37.16): o relógio e o alarme do vigia para `_comum.executar(relogio=..., armar=...)` num teste em processo. O
-    `dormir` do git falso avança o relógio; chegar ao prazo armado lança `PrazoVencido`, como o SIGALRM do alarme real."""
+    `dormir` do git falso avança o relógio; chegar ao prazo armado lança `PrazoVencido`, como o SIGALRM do alarme real, que
+    interrompe o sono no prazo, ou `atraso` s depois dele (a CPU carregada que entrega o sinal tarde)."""
 
-    def __init__(self, vencido):
-        self.agora, self.prazo, self.armados, self.vencido = 0.0, None, [], vencido
+    def __init__(self, vencido, atraso=0.0):
+        self.agora, self.prazo, self.armados, self.vencido, self.atraso = 0.0, None, [], vencido, atraso
 
     def __call__(self):
         return self.agora
@@ -3095,6 +3364,7 @@ class RelogioFalso:
     def dormir(self, segundos):
         self.agora += segundos
         if self.prazo is not None and self.agora >= self.prazo:
+            self.agora = self.prazo + self.atraso
             raise self.vencido()
 
 
@@ -3110,10 +3380,11 @@ class SondaS1ComRelogioFalso(unittest.TestCase):
         (self.raiz / ".forge").mkdir()
         (self.raiz / ".forge" / "versao").write_text("0.0.0\n", encoding="utf-8")
 
-    def decidir(self, comando, passos):
-        """(código, stderr, relógio) do `executar` com o `principal` trocado pelo git falso, que dorme `passos` s em ordem."""
+    def decidir(self, comando, passos, relogio=None, idade=0.0):
+        """(código, stderr, relógio) do `executar` com o `principal` trocado pelo git falso, que dorme `passos` s em ordem;
+        `idade`: os segundos do processo antes do `executar` (a partida do Python e os imports)."""
         _comum, _, parecer = modulos_dos_hooks()
-        relogio = RelogioFalso(_comum.PrazoVencido)
+        relogio = relogio or RelogioFalso(_comum.PrazoVencido)
         entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "hook_event_name": "PreToolUse",
                    "cwd": str(self.raiz)}
         ambiente = {k: v for k, v in os.environ.items() if k != "FORGE_GUARDA_ABERTA"}
@@ -3122,20 +3393,22 @@ class SondaS1ComRelogioFalso(unittest.TestCase):
                 contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(SystemExit) as saida:
             _comum.executar("parecer", lambda hook: [relogio.dormir(s) for s in passos], parecer.CriticoOuAlias,
                             clone_do_forge=True, regra_do_prazo="R-REVIEW", prazo_longo=parecer.MERGE_DE_PR,
-                            relogio=relogio, armar=relogio.armar)
+                            relogio=relogio, armar=relogio.armar, idade=idade)
         return saida.exception.code, erro.getvalue(), relogio
 
     def test_s1_recusa_no_prazo_longo_libera_dentro_e_recusa_na_fronteira(self):
-        """O merge com o git de 4 s + 3,8 s e 0,3 s do resto do hook recusa pelo vigia de 8 s; 4 s + 3,6 s sem custo e
-        4 s + 3,99 s liberam; 8,0 s exatos recusam. O vigia arma 3 s, o prazo longo o rearma em 8 s, e a saída o desarma.
-        Fora do merge, o mesmo git recusa em 3 s."""
+        """O merge com o git de 4 s, o resto 0,2 s abaixo do prazo longo e 0,3 s do resto do hook recusa pelo vigia do
+        `PRAZO_DO_MERGE_S`; 0,4 s e 0,01 s abaixo dele liberam; o prazo exato recusa. O vigia arma 3 s, o prazo longo o
+        rearma, e a saída o desarma. Fora do merge, o mesmo git recusa em 3 s."""
         _comum, _, _ = modulos_dos_hooks()
-        merge = "gh pr merge feature/x --squash"
-        for passos, codigo in (((4.0, 3.8, 0.3), 2), ((4.0, 3.6), 0), ((4.0, 3.99), 0), ((4.0, 4.0), 2)):
+        merge, resto = "gh pr merge feature/x --squash", _comum.PRAZO_DO_MERGE_S - 4.0
+        for passos, codigo in (((4.0, resto - 0.2, 0.3), 2), ((4.0, resto - 0.4), 0), ((4.0, resto - 0.01), 0),
+                               ((4.0, resto), 2)):
             with self.subTest(passos=passos):
                 saiu, erro, relogio = self.decidir(merge, passos)
                 self.assertEqual(saiu, codigo, erro)
-                self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S, _comum.PRAZO_DO_MERGE_S, 0])
+                sessao = [_comum.PRAZO_DA_SESSAO_S, 0] * 2 if codigo else []  # E7.23: a sessão e depois o registro (E7.27)
+                self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S, _comum.PRAZO_DO_MERGE_S, 0, *sessao])
                 if codigo:
                     self.assertRegex(erro, f"^R-REVIEW: o hook não decidiu em {_comum.PRAZO_DO_MERGE_S:g} s a chamada com ação crítica")
                 else:
@@ -3143,7 +3416,129 @@ class SondaS1ComRelogioFalso(unittest.TestCase):
         saiu, erro, relogio = self.decidir("gh pr create --draft --base develop --title x --body y", (4.0,))
         self.assertEqual(saiu, 2, erro)
         self.assertRegex(erro, f"^R-REVIEW: o hook não decidiu em {_comum.PRAZO_DA_DECISAO_S:g} s ")
-        self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S, 0])
+        self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S, 0, *[_comum.PRAZO_DA_SESSAO_S, 0] * 2])
+
+    def test_recusa_do_prazo_longo_presa_deixa_folga(self):
+        """A5 da segurança no #888: o `gh pr merge` que estoura o prazo longo, com a sessão e o registro presos até o fim
+        dos seus vigias (FIFO no `.git`), recusa no relógio falso com `FOLGA_DE_PAREDE_S` antes do `timeout` do parecer
+        lido do hooks.json. A folga é a parede que o relógio do hook não vê (partida do Python, leitura da entrada, saída):
+        na S3, com a CPU carregada, 1,1 s acima da soma dos prazos, e com 8 s o corte de 10 s liberou 1 de 7 rodadas."""
+        _comum, _, _ = modulos_dos_hooks()
+        d = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
+        limites = [h["timeout"] for grupos in d["hooks"].values() for g in grupos for h in g["hooks"]
+                   if any(a.endswith("/hooks/parecer.py") for a in h.get("args", []))]
+        self.assertTrue(limites, "o parecer.py no hooks.json")
+        relogio = RelogioFalso(_comum.PrazoVencido)
+
+        def preso(*_args, **_kwargs):  # espera até o vigia armado vencer, como a leitura de um FIFO
+            relogio.dormir(relogio.prazo - relogio.agora)
+
+        with mock.patch.object(_comum, "recusa_no_prazo", preso), mock.patch.object(_comum.Hook, "registrar_erro", preso):
+            saiu, erro, _ = self.decidir("gh pr merge feature/x --squash", (4.0, _comum.PRAZO_DO_MERGE_S - 4.0), relogio)
+        self.assertEqual(saiu, 2, erro)
+        self.assertRegex(erro, f"^R-REVIEW: o hook não decidiu em {_comum.PRAZO_DO_MERGE_S:g} s ")
+        self.assertEqual(relogio.agora, _comum.PRAZO_DO_MERGE_S + 2 * _comum.PRAZO_DA_SESSAO_S, "os dois vigias venceram")
+        self.assertLessEqual(relogio.agora, min(limites) - FOLGA_DE_PAREDE_S)
+
+    def test_prazo_conta_da_partida_do_processo(self):
+        """A6 da segurança e A1 do review no #888 (E7.40): os 2 s do processo antes do `executar` (partida e imports, que
+        a carga estica) saem do prazo: o vigia arma 1 s, o prazo longo rearma 5,5 s, e o git que passaria sem a idade
+        recusa; o que cabe no que sobra libera."""
+        _comum, _, _ = modulos_dos_hooks()
+        merge, resto = "gh pr merge feature/x --squash", _comum.PRAZO_DO_MERGE_S - 2.0 - 4.0
+        for passos, codigo in (((4.0, resto - 0.1), 0), ((4.0, resto + 0.4), 2)):
+            with self.subTest(passos=passos):
+                saiu, erro, relogio = self.decidir(merge, passos, idade=2.0)
+                self.assertEqual(saiu, codigo, erro)
+                sessao = [_comum.PRAZO_DA_SESSAO_S, 0] * 2 if codigo else []
+                self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S - 2.0, _comum.PRAZO_DO_MERGE_S - 2.0, 0, *sessao])
+        saiu, erro, relogio = self.decidir("gh pr create --draft --base develop --title x --body y", (1.5,), idade=2.0)
+        self.assertEqual(saiu, 2, erro)
+        self.assertEqual(relogio.agora, _comum.PRAZO_DA_DECISAO_S - 2.0)
+
+    def test_alarme_atrasado_encurta_a_sessao_e_pula_o_registro(self):
+        """A6 da segurança no #888 (E7.40): o alarme do prazo longo entregue 0,8 s tarde (CPU carregada) deixa 0,2 s do
+        teto (prazo + 0,5 + 0,5): a sessão presa ganha só esse vigia, e o registro, sem tempo, não roda; recusa igual."""
+        _comum, _, _ = modulos_dos_hooks()
+        relogio = RelogioFalso(_comum.PrazoVencido, atraso=0.8)
+        registros = []
+
+        def preso(*_args, **_kwargs):
+            relogio.dormir(relogio.prazo - relogio.agora)
+
+        with mock.patch.object(_comum, "recusa_no_prazo", preso), \
+                mock.patch.object(_comum.Hook, "registrar_erro", lambda *a: registros.append(a)):
+            saiu, erro, _ = self.decidir("gh pr merge feature/x --squash", (4.0, _comum.PRAZO_DO_MERGE_S - 4.0), relogio)
+        self.assertEqual(saiu, 2, erro)
+        self.assertRegex(erro, f"^R-REVIEW: o hook não decidiu em {_comum.PRAZO_DO_MERGE_S:g} s ")
+        self.assertEqual(relogio.armados[:3], [_comum.PRAZO_DA_DECISAO_S, _comum.PRAZO_DO_MERGE_S, 0])
+        self.assertEqual(len(relogio.armados), 5, relogio.armados)
+        self.assertAlmostEqual(relogio.armados[3], 2 * _comum.PRAZO_DA_SESSAO_S - 0.8)
+        self.assertEqual((relogio.armados[4], registros), (0, []))
+
+    def test_alarme_que_passa_do_teto_recusa_sem_ler_a_sessao(self):
+        """A6 da segurança no #888 (E7.40): o alarme entregue 1,2 s tarde já passa do teto: a sessão não é lida (nem sob
+        vigia, nem sem ele), o registro não roda, e a linha crítica recusa (falha fechado)."""
+        _comum, _, _ = modulos_dos_hooks()
+        relogio, lidas, registros = RelogioFalso(_comum.PrazoVencido, atraso=1.2), [], []
+        with mock.patch.object(_comum, "recusa_no_prazo", lambda *a: lidas.append(a) or False), \
+                mock.patch.object(_comum.Hook, "registrar_erro", lambda *a: registros.append(a)):
+            saiu, erro, _ = self.decidir("gh pr merge feature/x --squash", (4.0, _comum.PRAZO_DO_MERGE_S - 4.0), relogio)
+        self.assertEqual(saiu, 2, erro)
+        self.assertEqual((relogio.armados, lidas, registros), ([_comum.PRAZO_DA_DECISAO_S, _comum.PRAZO_DO_MERGE_S, 0], [], []))
+
+    def test_erro_interno_sem_vigia_registra_mesmo_tarde(self):
+        """E7.40: o teto do prazo só vale para o hook com vigia; o erro interno de um hook sem `regra_do_prazo`, depois de
+        10 s de relógio, ainda grava a linha no erros.log (sob o vigia de 0,5 s)."""
+        _comum, _, _ = modulos_dos_hooks()
+        relogio, registros = RelogioFalso(_comum.PrazoVencido), []
+
+        def lento_e_quebra(_hook):
+            relogio.dormir(10.0)
+            raise ValueError("interno")
+        entrada = {"tool_name": "Bash", "tool_input": {"command": "ls"}, "hook_event_name": "PreToolUse", "cwd": str(self.raiz)}
+        ambiente = {k: v for k, v in os.environ.items() if k != "FORGE_GUARDA_ABERTA"}
+        with mock.patch.dict(os.environ, {**ambiente, "CLAUDE_PROJECT_DIR": str(self.raiz)}, clear=True), \
+                mock.patch("sys.stdin", io.StringIO(json.dumps(entrada))), \
+                mock.patch.object(_comum.Hook, "registrar_erro", lambda *a: registros.append(a)), \
+                contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as saida:
+            _comum.executar("conformidade", lento_e_quebra, relogio=relogio, armar=relogio.armar, idade=0.0)
+        self.assertEqual((saida.exception.code, len(registros)), (0, 1))
+        self.assertEqual(relogio.armados, [_comum.PRAZO_DA_SESSAO_S, 0])
+
+    def test_prazo_vencido_sem_prazo_do_hook_registra(self):
+        """E7.40: o `PrazoVencido` num hook sem `regra_do_prazo` (o `forcar` dos fixtures HOOK-ERRO-LIBERA) conta o teto
+        pelo prazo comum: depois da ferramenta, libera e grava a linha sob o vigia de 0,5 s."""
+        _comum, _, _ = modulos_dos_hooks()
+        relogio, registros = RelogioFalso(_comum.PrazoVencido), []
+
+        def vence(_hook):
+            raise _comum.PrazoVencido()
+        entrada = {"tool_name": "Bash", "tool_input": {"command": "ls"}, "hook_event_name": "PostToolUse", "cwd": str(self.raiz)}
+        ambiente = {k: v for k, v in os.environ.items() if k != "FORGE_GUARDA_ABERTA"}
+        with mock.patch.dict(os.environ, {**ambiente, "CLAUDE_PROJECT_DIR": str(self.raiz)}, clear=True), \
+                mock.patch("sys.stdin", io.StringIO(json.dumps(entrada))), \
+                mock.patch.object(_comum.Hook, "registrar_erro", lambda *a: registros.append(a)), \
+                contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as saida:
+            _comum.executar("conformidade", vence, relogio=relogio, armar=relogio.armar, idade=0.0)
+        self.assertEqual((saida.exception.code, len(registros)), (0, 1))
+        self.assertEqual(relogio.armados, [_comum.PRAZO_DA_SESSAO_S, 0, _comum.PRAZO_DA_SESSAO_S, 0])
+
+    def test_idade_do_processo_so_no_processo_do_hook_e_zero_sem_proc(self):
+        """E7.40: a idade conta só quando o `sys.argv[0]` é o script do hook; sem `/proc` ou com ele ilegível (outro
+        sistema), ou sem o `CLOCK_BOOTTIME`, é 0 e o prazo conta do `inicio`, como antes."""
+        _comum, _, _ = modulos_dos_hooks()
+        with mock.patch.object(sys, "argv", ["/x/hooks/parecer.py"]):
+            self.assertGreater(_comum.idade_do_processo("parecer"), 0.0)
+            self.assertEqual(_comum.idade_do_processo("conformidade"), 0.0)
+            for nome, troca in {"sem /proc": mock.patch.object(_comum.Path, "read_text", side_effect=OSError("proc")),
+                                "ilegível": mock.patch.object(_comum.Path, "read_text", return_value="1 (x) R"),
+                                "lixo": mock.patch.object(_comum.Path, "read_text", return_value="1 (x) " + "z " * 30),
+                                "sem boottime": mock.patch.object(_comum.time, "clock_gettime", side_effect=AttributeError)}.items():
+                with self.subTest(caso=nome), troca:
+                    self.assertEqual(_comum.idade_do_processo("parecer"), 0.0)
+        with mock.patch.object(sys, "argv", []):
+            self.assertEqual(_comum.idade_do_processo("parecer"), 0.0)
 
     def test_fora_da_thread_principal_o_vigia_nao_arma_nem_estende(self):
         """Fora da thread principal não há SIGALRM: o vigia não arma, o prazo longo não rearma, e o hook decide sem prazo
@@ -3204,7 +3599,7 @@ class PesadoClassePelosArgumentos(unittest.TestCase):
                 self.assertTrue(self.classe(comando))
 
     def test_formas_leves_e_citacoes_nao_sao_pesadas(self):
-        for comando in ("bin/forge-testes --listar", "./bin/forge-testes --dirigida", "bin/forge-testes",
+        for comando in ("bin/forge-testes --listar", "./bin/forge-testes --afetados", "bin/forge-testes",
                         "bin/forge-mutante --listar", "./bin/forge-mutante --listar", "cat bin/forge-mutante",
                         "echo bin/forge-testes --completa", "grep -n x bin/forge-testes", "'' ; bin/forge-testes --listar"):
             with self.subTest(comando=comando):
@@ -3362,6 +3757,120 @@ class CaminhosExtra(unittest.TestCase):
             boas, avisos = self.com_config(json.dumps({"caminhos_extra": [str(self.pasta)]}))
         self.assertEqual(boas, [])
         self.assertIn("nem as pastas acima", avisos[0])
+
+
+class TravouNoPerfil(BaseException):
+    """O alarme de `RecusaComFifoNoPerfil.sem_travar` venceu."""
+
+
+class RecusaComFifoNoPerfil(unittest.TestCase):  # A2 e S3 da segurança no #885 (v0481 E7.15), nas duas sessões
+    """Com um FIFO em `.forge/perfil`, a escolha do texto da recusa não espera nem chama `git`, e o prazo vencido nela não
+    troca a recusa: na sessão do Forge (não vigiada) o prazo vencido liberava push na main e `--force`."""
+    COMANDOS = (("git push origin feature/x:main", "R-MAIN"), ("git push --force origin feature/x", "R-VERIFY"),
+                ("git commit --no-verify -m x", "R-VERIFY"))
+
+    def montar(self, forge, fifo=True):
+        raiz = Path(os.path.realpath(tempfile.mkdtemp(prefix="forge-perfil-")))
+        self.addCleanup(shutil.rmtree, raiz, True)
+        git("init", "-q", "-b", "feature/x", cwd=raiz)
+        if forge:
+            (raiz / ".claude-plugin").mkdir()
+            (raiz / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}\n', encoding="utf-8")
+        (raiz / ".forge" / "run").mkdir(parents=True)
+        if not forge:
+            (raiz / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        if fifo:
+            os.mkfifo(raiz / ".forge" / "perfil")
+        return raiz
+
+    def recusa(self, raiz, comando, forcar=None):
+        entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(raiz),
+                   "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse", "session_id": "s1"}
+        return rodar("conformidade", entrada, raiz, extra={"CLAUDE_PROJECT_DIR": str(raiz)}, producao=True, forcar=forcar)
+
+    def sem_travar(self, funcao, *args):
+        def venceu(*_):
+            raise TravouNoPerfil()
+        antes = signal.signal(signal.SIGALRM, venceu)
+        signal.setitimer(signal.ITIMER_REAL, 5)
+        try:
+            return funcao(*args)
+        except TravouNoPerfil:
+            self.fail("a leitura do perfil esperou o FIFO")
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, antes)
+
+    def test_recusa_com_a_regra_dela_e_sem_prazo_vencido(self):
+        for forge in (True, False):
+            raiz = self.montar(forge)
+            for comando, regra in self.COMANDOS:
+                with self.subTest(sessao="forge" if forge else "projeto", comando=comando):
+                    r = self.recusa(raiz, comando)
+                    self.assertEqual(r.returncode, 2, r.stderr[:200])
+                    self.assertTrue(r.stderr.startswith(f"{regra}: "), r.stderr[:200])
+                    self.assertNotIn("não decidiu", r.stderr)
+
+    def test_prazo_vencido_na_escolha_do_texto_recusa_com_o_texto_tecnico(self):
+        raiz = self.montar(True, fifo=False)
+        r = self.recusa(raiz, "git push --force origin feature/x", {"onde": "perfil_iniciante", "como": "prazo"})
+        self.assertEqual(r.returncode, 2, r.stderr[:200])
+        self.assertTrue(r.stderr.startswith("R-VERIFY: "), r.stderr[:200])
+
+    def test_perfil_iniciante_recebe_o_texto_simples(self):
+        _, conformidade, _ = modulos_dos_hooks()
+        raiz = self.montar(True, fifo=False)
+        (raiz / ".forge" / "perfil").write_text("iniciante\n", encoding="utf-8")
+        r = self.recusa(raiz, "git push --force origin feature/x")
+        self.assertEqual((r.returncode, r.stderr.strip()), (2, f"R-VERIFY: {conformidade.SIMPLES['forca']}"))
+
+    def test_fifo_no_perfil_nao_espera_e_vale_experiente(self):
+        _, conformidade, _ = modulos_dos_hooks()
+        raiz = self.montar(True)
+        with mock.patch.object(subprocess, "Popen", side_effect=AssertionError("git no texto da recusa")):
+            self.assertFalse(self.sem_travar(conformidade.perfil_iniciante, raiz))
+        (raiz / ".forge" / "perfil").unlink()
+        (raiz / ".forge" / "perfil").write_text("Iniciante\n", encoding="utf-8")
+        self.assertTrue(conformidade.perfil_iniciante(raiz))
+
+    def worktree(self):
+        """Cópia principal com perfil `iniciante` e uma worktree dela sem perfil próprio."""
+        principal = self.montar(True, fifo=False)
+        (principal / ".forge" / "perfil").write_text("iniciante\n", encoding="utf-8")
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x", cwd=principal)
+        copia = principal.parent / f"{principal.name}-wt"
+        self.addCleanup(shutil.rmtree, copia, True)
+        git("worktree", "add", "-q", "--detach", str(copia), cwd=principal)
+        (copia / ".forge").mkdir()
+        return principal, copia
+
+    def test_worktree_com_fifo_le_o_perfil_da_copia_principal(self):
+        _, conformidade, _ = modulos_dos_hooks()
+        _, copia = self.worktree()
+        os.mkfifo(copia / ".forge" / "perfil")
+        self.assertTrue(self.sem_travar(conformidade.perfil_iniciante, copia))
+
+    def test_fifo_no_ponto_git_da_worktree_nao_espera(self):  # A1 da segurança no #886
+        _, conformidade, _ = modulos_dos_hooks()
+        _, copia = self.worktree()
+        (copia / ".git").unlink()
+        os.mkfifo(copia / ".git")
+        self.assertIsNone(self.sem_travar(conformidade.diretorio_comum, copia))
+        self.assertFalse(self.sem_travar(conformidade.perfil_iniciante, copia))
+
+    def test_fifo_com_conteudo_no_gitdir_nao_vale(self):  # A1 da segurança no #886: só arquivo regular
+        _, conformidade, _ = modulos_dos_hooks()
+        principal, copia = self.worktree()
+        volta = principal / ".git" / "worktrees" / copia.name / "gitdir"
+        conteudo = volta.read_bytes()
+        self.assertTrue(conformidade.perfil_iniciante(copia))
+        volta.unlink()
+        os.mkfifo(volta)
+        escrita = os.open(volta, os.O_RDWR | os.O_NONBLOCK)  # o FIFO já traz o conteúdo certo na leitura
+        self.addCleanup(os.close, escrita)
+        os.write(escrita, conteudo)
+        self.assertIsNone(self.sem_travar(conformidade.diretorio_comum, copia))
+        self.assertFalse(self.sem_travar(conformidade.perfil_iniciante, copia))
 
 
 class PoolDosFixtures(unittest.TestCase):
@@ -3620,6 +4129,1036 @@ class HookDir36(unittest.TestCase):
 
     def test_fixtures_contrib(self):
         self.rodar_prefixo("contrib", 140)
+
+
+class HookSessaoDoForge(unittest.TestCase):
+    """CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE (v0478 E51.1): na sessão do Forge (raiz sem `.forge/versao`), as travas
+    do `conformidade` valem para todo papel em `wt/*` e no clone, e o `vigia` grava `violacoes.jsonl`. Só as fixtures
+    `e51-*`, pela máquina do `Hooks`, para os mutantes de `tests/mutantes/v0479-conformidade-sessao-forge.json`."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+
+    def rodar(self, hook, piso, codigos):
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / hook).glob("e51-*.json"))], piso, f"{hook}/e51-*")
+        self.assertEqual({f.dados["esperado"]["codigo"] for f in fixtures}, codigos)
+        self.assertEqual(self.executar_em_lote([(f"{hook}/{f.caminho.stem}", f) for f in fixtures]), len(fixtures),
+                         "toda fixture é verificada")
+
+    def test_travas_do_conformidade(self):
+        self.rodar("conformidade", 55, {0, 2})
+
+    def test_vigia_registra(self):
+        self.rodar("vigia", 2, {0})
+
+
+class PrazoVencidoNaSessaoDoForge(unittest.TestCase):  # v0481 E7.23: segurança no #885 (A2) e no #886 (fora do delta)
+    """Na sessão do Forge, o prazo vencido recusa a linha com o marcador crítico: FIFO no `commondir` ou no `gitdir` de uma
+    worktree prendia o `git` do hook e a leitura do disco, e push na main, `--force` e `--no-verify` passavam pelo corte de
+    10 s. O FIFO ou o nó no `.git` é trava nas duas sessões (fixtures `fifo-*`)."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+    rodar_prefixo = HookDir36.rodar_prefixo
+    COMANDOS = ("git push origin feature/x:main", "git push --force origin feature/x", "git commit --no-verify -m x")
+
+    def test_fixtures_fifo(self):
+        self.rodar_prefixo("fifo", 7)
+
+    def pasta(self, forge):
+        raiz = Path(os.path.realpath(tempfile.mkdtemp(prefix="forge-prazo-")))
+        self.addCleanup(shutil.rmtree, raiz, True)
+        nome, texto = (".claude-plugin/plugin.json", '{"name": "forge"}\n') if forge else (".forge/versao", "0.5.0\n")
+        (raiz / nome).parent.mkdir(parents=True)
+        (raiz / nome).write_text(texto, encoding="utf-8")
+        return raiz
+
+    def worktree(self, forge, marca):
+        """Cópia principal (Forge ou projeto) e uma worktree dela, com FIFO no lugar da `marca` da worktree."""
+        principal = self.pasta(forge)
+        git("init", "-q", "-b", "feature/x", cwd=principal)
+        git("add", "-A", cwd=principal)
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "x", cwd=principal)
+        copia = principal.parent / f"{principal.name}-wt"
+        self.addCleanup(shutil.rmtree, copia, True)
+        git("worktree", "add", "-q", "--detach", str(copia), cwd=principal)
+        fifo = principal / ".git" / "worktrees" / copia.name / marca
+        fifo.unlink()
+        os.mkfifo(fifo)
+        return principal, copia
+
+    @staticmethod
+    def chamar(raiz, pasta, comando):
+        entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(pasta),
+                   "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse", "session_id": "s1"}
+        return rodar("conformidade", entrada, pasta, extra={"CLAUDE_PROJECT_DIR": str(raiz)}, como_o_claude_code=True)
+
+    def test_fifo_no_commondir_e_no_gitdir_recusa_nas_duas_sessoes(self):
+        casos = []
+        for forge, marca in itertools.product((True, False), ("commondir", "gitdir")):
+            principal, copia = self.worktree(forge, marca)
+            casos += [(forge, marca, copia, copia, c) for c in self.COMANDOS]
+            casos.append((forge, marca, principal, copia, self.COMANDOS[1]))  # raiz na principal (S2 do #886)
+        with concurrent.futures.ThreadPoolExecutor(trabalhadores_do_pool(nucleos_do_processo())) as pool:
+            resultados = list(pool.map(lambda c: self.chamar(*c[2:]), casos))
+        for (forge, marca, raiz, _, comando), r in zip(casos, resultados):
+            with self.subTest(sessao="forge" if forge else "projeto", marca=marca, raiz=raiz.name, comando=comando):
+                self.assertEqual(r.returncode, 2, r.stderr[:200])
+                self.assertRegex(r.stderr, r"^R-[A-Z]+: ")
+
+    def test_partida_lenta_recusa_o_merge_antes_do_corte(self):
+        """A6 da segurança e A1 do review no #888 (E7.40), na parede real: o `parecer.py` de produção (`-s -E`, como no
+        hooks.json), com FIFO no `HEAD` da worktree do Forge (o `git` do hook espera; o FIFO no `commondir` já recusa
+        antes, sem esperar, desde o #886) e `gh pr merge`, parte 3 s atrasado (o `sleep` antes do `exec`, a mesma idade do
+        processo que a CPU carregada dá à partida e aos imports, sem depender da carga da máquina) e ainda recusa antes do
+        corte de 10 s contado do fork. Contando o prazo de depois dos imports, o corte o mataria e liberaria
+        (3 + 7,5 + 0,5 + 0,5 s)."""
+        _, copia = self.worktree(True, "HEAD")
+        entrada = {"tool_name": "Bash", "tool_input": {"command": "gh pr merge melhoria/x --squash"}, "cwd": str(copia),
+                   "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse", "session_id": "s1"}
+        env = {**ambiente_limpo(), "CLAUDE_PROJECT_DIR": str(copia), "HOME": str(copia.parent)}
+        env.pop("FORGE_GUARDA_ABERTA", None)
+        comando = ["sh", "-c", 'sleep 3; exec "$0" -s -E "$1"', sys.executable, str(HOOKS / "parecer.py")]
+        try:
+            r = subprocess.run(comando, input=json.dumps(entrada), cwd=copia, env=env, capture_output=True, text=True,
+                               timeout=PRAZO_DO_CLAUDE_CODE_S)
+        except subprocess.TimeoutExpired:
+            self.fail(f"o corte de {PRAZO_DO_CLAUDE_CODE_S} s matou o hook, e o Claude Code liberaria o merge")
+        self.assertEqual(r.returncode, 2, r.stderr[:300])
+        self.assertRegex(r.stderr, r"^R-REVIEW: o hook não decidiu em 7\.5 s ")
+
+    def vencer(self, hook, critico=re.compile("x")):
+        _comum, _, _ = modulos_dos_hooks()
+        with contextlib.redirect_stderr(io.StringIO()) as erro:
+            try:
+                _comum.prazo_vencido(hook, critico, "", False, "R-CONFORMIDADE")
+            except SystemExit as saida:
+                return saida.code, erro.getvalue()
+        return None, ""
+
+    def hook(self, raiz, marcado):
+        _comum, _, _ = modulos_dos_hooks()
+        hook = _comum.Hook("conformidade")
+        hook.raiz, hook.marcado, hook.entrada, hook.prazo_s = raiz, marcado, {"hook_event_name": "PreToolUse"}, 3.0
+        return hook
+
+    def test_sessao_do_forge_recusa_so_a_linha_marcada(self):
+        _comum, _, _ = modulos_dos_hooks()
+        forge, outra = self.pasta(True), self.pasta(False)
+        (outra / ".forge" / "versao").unlink()  # nem projeto nem Forge
+        with mock.patch.object(_comum, "sessao_vigiada", return_value=False):
+            with mock.patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": str(forge)}):
+                for marcado, esperado in ((True, 2), (None, 2), (False, None)):
+                    with self.subTest(marcado=marcado):
+                        codigo, texto = self.vencer(self.hook(forge, marcado))
+                        self.assertEqual(codigo, esperado)
+                        self.assertTrue(texto.startswith("R-CONFORMIDADE: ") or esperado is None, texto)
+                self.assertIsNone(self.vencer(self.hook(forge, True), None)[0], "sem marcador, a sessão decide")
+                hook = self.hook(forge, True)
+                hook.entrada = {"hook_event_name": "PostToolUse"}
+                self.assertIsNone(self.vencer(hook)[0], "depois da ferramenta, libera")
+            with mock.patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": str(outra)}):
+                self.assertIsNone(self.vencer(self.hook(outra, True))[0], "fora do Forge, a sessão decide")
+
+    def test_sessao_que_nao_se_decide_recusa(self):
+        _comum, _, _ = modulos_dos_hooks()
+        raiz = self.pasta(False)
+        for efeito in (_comum.PrazoVencido(), OSError("disco")):
+            with self.subTest(efeito=type(efeito).__name__), \
+                    mock.patch.object(_comum, "sessao_vigiada", side_effect=efeito):
+                self.assertEqual(self.vencer(self.hook(raiz, False))[0], 2)
+
+    def test_registro_que_nao_termina_nao_muda_a_decisao(self):
+        """A1 da segurança no #888 (E7.27): a sessão se decide antes do registro, e o registro no erros.log que passa do seu
+        vigia (o `git` do `Hook.run` sob carga) ou falha não muda a decisão: na sessão do Forge, a linha sem o marcador
+        libera e a marcada recusa. O sono de 5 s só acaba pelo vigia real de 0,5 s."""
+        _comum, _, _ = modulos_dos_hooks()
+        forge = self.pasta(True)
+        efeitos = {"lento": lambda *_: time.sleep(5), "falha": OSError("disco")}
+        with mock.patch.object(_comum, "sessao_vigiada", return_value=False), \
+                mock.patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": str(forge)}):
+            for (nome, efeito), (marcado, esperado) in itertools.product(efeitos.items(), ((False, None), (True, 2))):
+                with self.subTest(registro=nome, marcado=marcado), \
+                        mock.patch.object(_comum.Hook, "registrar_erro", side_effect=efeito) as registro:
+                    inicio = time.monotonic()
+                    self.assertEqual(self.vencer(self.hook(forge, marcado))[0], esperado)
+                    self.assertLess(time.monotonic() - inicio, 4)
+                    registro.assert_called_once()
+
+    def test_erro_interno_com_registro_lento_nao_espera_o_corte(self):
+        """A4 da segurança no #888 (E7.27): no erro interno, o registro no erros.log roda sob o vigia próprio; o que não
+        termina nele não leva a espera ao corte de 10 s, e a falha fechada decide como sem ele (aqui, sem marcador, libera)."""
+        _comum, _, _ = modulos_dos_hooks()
+        raiz = self.pasta(False)
+        entrada = {"tool_name": "Bash", "tool_input": {"command": "ls"}, "hook_event_name": "PreToolUse", "cwd": str(raiz)}
+
+        def quebra(_hook):
+            raise ValueError("interno")
+        ambiente = {k: v for k, v in os.environ.items() if k != "FORGE_GUARDA_ABERTA"}
+        with mock.patch.dict(os.environ, {**ambiente, "CLAUDE_PROJECT_DIR": str(raiz)}, clear=True), \
+                mock.patch("sys.stdin", io.StringIO(json.dumps(entrada))), \
+                mock.patch.object(_comum.Hook, "registrar_erro", side_effect=lambda *_: time.sleep(5)) as registro, \
+                contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as saida:
+            inicio = time.monotonic()
+            _comum.executar("conformidade", quebra)
+        self.assertLess(time.monotonic() - inicio, 4)
+        self.assertEqual(saida.exception.code, 0)
+        registro.assert_called_once()
+
+
+class VigiaTimeParadoNasFixtures(unittest.TestCase):
+    """VIGIA-TIME-PARADO (emenda da ADR 0003, item 7; v0478 E123.1): as fixtures `vigia/time-parado-*` pelo laço das
+    fixtures, que aceita `decision` e `reason` só no `Stop` sem `stop_hook_active` e com o texto fixo."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+
+    def fixtures(self):
+        return minimo([Fixture(p) for p in sorted((FIXTURES / "vigia").glob("time-parado-*.json"))], 4, "vigia/time-parado-*")
+
+    def test_fixtures(self):
+        fixtures = self.fixtures()
+        self.assertEqual(sum("reason" in f.dados["esperado"] for f in fixtures), 2, "bloqueia com e sem o ID")
+        self.assertEqual(self.executar_em_lote([(f"vigia/{f.caminho.stem}", f) for f in fixtures]), len(fixtures))
+
+    def test_laco_recusa_reason_fora_do_stop_ou_fora_do_formato(self):
+        """O laço, e não o hook, reprova: o hook falso devolve o bloqueio num evento que não é o `Stop`, com
+        `stop_hook_active`, com `decision` diferente de `block` ou com texto livre; o mesmo bloqueio no `Stop` passa."""
+        base = json.loads((FIXTURES / "vigia/time-parado-bloqueia-uma-vez.json").read_text(encoding="utf-8"))
+        certo = base["esperado"]["reason"]
+        casos = {"stop": ({}, "block", certo, True),
+                 "subagentstop": ({"entrada": {**base["entrada"], "hook_event_name": "SubagentStop"}}, "block", certo, False),
+                 "stop-hook-active": ({"entrada": {**base["entrada"], "stop_hook_active": True}}, "block", certo, False),
+                 "decision-approve": ({}, "approve", certo, False),
+                 "texto-livre": ({"esperado": {"codigo": 0, "reason": "time parado: leia o cartão X"}}, "block",
+                                 "time parado: leia o cartão X", False)}
+        for nome, (troca, decisao, reason, passa) in casos.items():
+            def falso(_hook, entrada, *_a, **_k):
+                saida = "" if entrada.get("hook_event_name") == "SessionStart" else json.dumps(
+                    {"decision": decisao, "reason": reason}, ensure_ascii=False)
+                return subprocess.CompletedProcess([], 0, saida, "")
+            with self.subTest(caso=nome), mock.patch(f"{__name__}.rodar", falso):
+                tmp = self._pasta_temporaria()
+                arquivo = tmp / "vigia" / "caso.json"
+                arquivo.parent.mkdir()
+                arquivo.write_text(json.dumps({**base, **troca}), encoding="utf-8")
+                if passa:
+                    self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+                else:
+                    with self.assertRaises(AssertionError):
+                        self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+
+
+class GuardaDasOrdens(unittest.TestCase):
+    """ORDENS-SO-JARVIS (v0478 E123.25, corte do hook de ordens pelo teto H1, item 1): o `conformidade` recusa a escrita do
+    arquivo de ordens fora do jarvis, na pasta do Forge e na cópia principal do projeto. Só a guarda: o hook `ordens` vem
+    depois (item 2); os mutantes estão em `tests/mutantes/v0480-ordens-guarda*.json`."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+
+    def setUp(self):
+        self.base = Path(os.path.realpath(self._pasta_temporaria()))
+        (self.base / ".git").mkdir()  # cópia principal: a pasta comum do git (A2 da segurança E123.3)
+
+    def worktree(self, comum=None):
+        """Worktree vinculada à `self.base` (ou ao repositório `comum`), montada no disco como o git a grava, com o próprio
+        arquivo de ordens."""
+        wt = Path(os.path.realpath(self._pasta_temporaria())) / "wt"
+        meta = (comum or self.base / ".git") / "worktrees" / "wt"
+        meta.mkdir(parents=True)
+        (meta / "gitdir").write_text(f"{wt}/.git\n", encoding="utf-8")
+        (meta / "commondir").write_text("../..\n", encoding="utf-8")
+        (wt / ".forge" / "ordens").mkdir(parents=True)
+        (wt / ".git").write_text(f"gitdir: {meta}\n", encoding="utf-8")
+        (wt / ".forge" / "ordens" / "ordens-em-vigor.md").write_text("ordem do dev na worktree\n", encoding="utf-8")
+        return wt
+
+    def test_conformidade_recusa_a_escrita_do_arquivo_de_ordens_na_sessao_do_forge(self):  # A1 da segurança E123.3
+        lote = [Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("ordens-*.json"))]
+        lote = minimo([f for f in lote if f.dados["descricao"].startswith("ORDENS-SO-JARVIS")], 20, "conformidade/ordens-*")
+        self.assertEqual({f.dados["esperado"]["codigo"] for f in lote}, {0, 2})
+        self.assertEqual(self.executar_em_lote([(f"conformidade/{f.caminho.stem}", f) for f in lote]), len(lote))
+
+    def test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal(self):  # A1 e A2 da segurança E123.8, S1-S4
+        nomes = ["ordens-s1-cp-para-a-pasta-bloqueia", "ordens-s2-cp-com-curinga-bloqueia", "ordens-s3-rm-da-pasta-bloqueia",
+                 "ordens-s3-mv-de-pasta-forjada-bloqueia", "ordens-dev-cat-libera", "ordens-s4-acrescenta-na-principal-bloqueia",
+                 "ordens-s4-relativo-na-principal-bloqueia", "ordens-s4-write-na-principal-bloqueia",
+                 "ordens-s4-cp-na-principal-bloqueia", "ordens-s4-ln-na-principal-bloqueia",
+                 "ordens-s4-jarvis-na-principal-libera", "ordens-dev-pasta-corrente-variavel-bloqueia"]
+        lote = [(f"conformidade/{n}", Fixture(FIXTURES / "conformidade" / f"{n}.json")) for n in nomes]
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_conformidade_recusa_curinga_no_nome_das_ordens_do_projeto(self):  # A4 da segurança E123.12, S1-S3
+        lote = [Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("ordens-a4-*.json"))]
+        lote = minimo(lote, 11, "conformidade/ordens-a4-*")
+        self.assertEqual(sorted(f.dados["esperado"]["codigo"] for f in lote), [0, 0] + [2] * 9)
+        self.assertEqual(self.executar_em_lote([(f"conformidade/{f.caminho.stem}", f) for f in lote]), len(lote))
+
+    def test_conformidade_ve_o_arquivo_pela_copia_principal(self):  # A2 da segurança E123.8
+        sys.path.insert(0, str(HOOKS))
+        import conformidade
+        relativos = conformidade.Guarda.relativos_a_copia_principal
+        alvo = f"{self.base}/.forge/ordens/ordens-em-vigor.md"
+        guarda = mock.Mock(h=mock.Mock(raiz=self.worktree()))
+        self.assertEqual(relativos(guarda, alvo), [".forge/ordens/ordens-em-vigor.md"])
+        self.assertEqual(relativos(guarda, "/fora/.forge/ordens/ordens-em-vigor.md"), [])
+        guarda.h.raiz = self.base / "sem-git"
+        self.assertEqual(relativos(guarda, alvo), [])
+        guarda.h.raiz = self.worktree(comum=self.base / "nu.git")  # repositório nu: nenhuma cópia principal
+        self.assertEqual(relativos(guarda, alvo), [])
+
+
+class OrdensEmVigor(unittest.TestCase):
+    """ORDENS-EM-VIGOR (v0478 E123.1; emenda "ordens em vigor" da ADR 0003): o hook `ordens` só lê o arquivo de ordens e o
+    injeta em texto puro, no teto. As fixtures de `tests/hooks/ordens/` rodam pela máquina do `Hooks`; as guardas da leitura e
+    do teto, em processo, para os mutantes de `tests/mutantes/v0480-ordens-hook*.json`."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(HOOKS))
+        import ordens
+        cls.ordens = ordens
+
+    def setUp(self):
+        self.base = Path(os.path.realpath(self._pasta_temporaria()))
+        self.arquivo = self.base / ".forge" / "ordens" / "ordens-em-vigor.md"
+        self.arquivo.parent.mkdir(parents=True)
+        (self.base / ".git").mkdir()  # cópia principal: a fonte é a pasta comum do git (A2 da segurança E123.3)
+
+    def principal(self, evento, raiz):
+        """Roda `ordens.principal` com um hook falso: (stdout, raiz pedida)."""
+        hook = mock.Mock()
+        hook.campo.side_effect = lambda chave: {"hook_event_name": evento}.get(chave)
+        hook.projeto.return_value = raiz
+        saida = io.StringIO()
+        with contextlib.redirect_stdout(saida):
+            self.ordens.principal(hook)
+        return saida.getvalue()
+
+    def test_fixtures(self):
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "ordens").glob("*.json"))], 10, "ordens/*")
+        self.assertEqual({f.dados["esperado"]["codigo"] for f in fixtures}, {0}, "o ordens nunca bloqueia")
+        self.assertEqual(self.executar_em_lote([(f"ordens/{f.caminho.stem}", f) for f in fixtures]), len(fixtures))
+
+    def test_principal_injeta_so_no_sessionstart_e_no_userpromptsubmit(self):
+        self.arquivo.write_text("ordem\n", encoding="utf-8")
+        for evento in ("SessionStart", "UserPromptSubmit"):
+            self.assertTrue(self.principal(evento, self.base).endswith("\nordem\n"), evento)
+        for evento in ("Stop", "PreToolUse", "SubagentStop", None):
+            self.assertEqual(self.principal(evento, self.base), "", evento)
+
+    def test_fora_de_projeto_do_forge_cala(self):
+        self.arquivo.write_text("ordem\n", encoding="utf-8")
+        self.assertEqual(self.principal("UserPromptSubmit", None), "")
+
+    def test_so_brancos_e_controles_cala(self):
+        self.arquivo.write_text("\n \t\n\x1b\n", encoding="utf-8")
+        self.assertEqual(self.principal("UserPromptSubmit", self.base), "")
+
+    def test_ausente_cala_sem_erro(self):
+        self.assertIsNone(self.ordens.ler_ordens(self.arquivo, self.base))
+        self.assertEqual(self.principal("UserPromptSubmit", self.base), "")
+
+    def test_ate_64_kib_le_e_acima_cala(self):
+        self.arquivo.write_bytes(b"a" * (64 * 1024))
+        self.assertEqual(len(self.ordens.ler_ordens(self.arquivo, self.base)), 64 * 1024)
+        self.arquivo.write_bytes(b"a" * (64 * 1024 + 1))
+        self.assertIsNone(self.ordens.ler_ordens(self.arquivo, self.base))
+
+    def test_link_para_fora_da_base_cala_e_dentro_le(self):
+        fora = Path(os.path.realpath(self._pasta_temporaria())) / "fora.md"
+        fora.write_text("de fora\n", encoding="utf-8")
+        self.arquivo.symlink_to(fora)
+        self.assertIsNone(self.ordens.ler_ordens(self.arquivo, self.base))
+        dentro = self.base / "dentro.md"
+        dentro.write_text("de dentro\n", encoding="utf-8")
+        self.arquivo.unlink()
+        self.arquivo.symlink_to(dentro)
+        self.assertEqual(self.ordens.ler_ordens(self.arquivo, self.base), "de dentro\n")
+
+    def test_fifo_levanta_sem_esperar(self):
+        os.mkfifo(self.arquivo)
+        with self.assertRaisesRegex(OSError, "não é arquivo regular"):
+            self.ordens.ler_ordens(self.arquivo, self.base)
+
+    def test_sequencia_de_controles_vira_um_espaco_so(self):  # A3 do review E123.4: o critério do `sem_controle`
+        self.assertEqual(self.ordens.escapadas("a\t\x1b\u2028b\n"), ["a b"])
+
+    def test_controle_vira_espaco_e_so_a_quebra_separa_linha(self):
+        self.assertEqual(self.ordens.escapadas("a\rb c\x00d\te​f\n\n \n"), ["a b c d e f"])
+
+    def test_no_limite_nao_corta(self):
+        linhas = ["x"] * 15
+        self.assertEqual(self.ordens.no_teto(linhas), (linhas, None))
+        uma = ["y" * 2000]
+        self.assertEqual(self.ordens.no_teto(uma), (uma, None))
+
+    def test_acima_do_teto_corta_e_avisa(self):
+        self.assertEqual(self.ordens.no_teto(["x"] * 16), (["x"] * 15, "ordens cortadas no teto: 16 linhas, 31 caracteres"))
+        self.assertEqual(self.ordens.no_teto(["y" * 2001]), (["y" * 2000], "ordens cortadas no teto: 1 linhas, 2001 caracteres"))
+        self.assertEqual(self.ordens.no_teto(["y" * 1000, "z" * 1000]),
+                         (["y" * 1000, "z" * 999], "ordens cortadas no teto: 2 linhas, 2001 caracteres"))
+
+    def test_idioma_do_dono_pela_config_e_sem_ela_portugues(self):  # D6 (c), v0478 E174.5
+        config = self.base / ".forge" / "config.json"
+        self.assertEqual(self.ordens.idioma_do_dono(self.base), "português", "sem config")
+        for texto, nome in (('{"pesados": []}', "português"), ('{"idioma_do_dono": "en"}', "inglês"),
+                            ('{"idioma_do_dono": "es"}', "espanhol")):
+            with self.subTest(texto=texto):
+                config.write_text(texto, encoding="utf-8")
+                self.assertEqual(self.ordens.idioma_do_dono(self.base), nome)
+
+    def test_idioma_torto_sai_none_sem_erro(self):  # D6 (c): config torta não cala as ordens nem vira texto livre
+        config = self.base / ".forge" / "config.json"
+        for texto in ("{x", "[]", '{"idioma_do_dono": ["pt"]}', '{"idioma_do_dono": "fr"}', '{"idioma_do_dono": null}',
+                      "[" * 20000 + "]" * 20000):  # aninhado abaixo de 64 KiB: RecursionError (A1 do review E174.6)
+            with self.subTest(texto=texto):
+                config.write_text(texto, encoding="utf-8")
+                self.assertIsNone(self.ordens.idioma_do_dono(self.base))
+        config.unlink()
+        os.mkfifo(config)
+        self.assertIsNone(self.ordens.idioma_do_dono(self.base), "FIFO: OSError sem esperar")
+
+    def test_linha_fixa_com_e_sem_o_idioma(self):  # D6 (c): o idioma vai na linha fixa, nunca no lugar das ordens
+        self.arquivo.write_text("ordem\n", encoding="utf-8")
+        self.assertTrue(self.principal("UserPromptSubmit", self.base).split("\n")[0].endswith(
+            " sem sobrepô-las. Escreva ao dono sempre em português (`idioma_do_dono`)."))
+        (self.base / ".forge" / "config.json").write_text('{"idioma_do_dono": "fr"}', encoding="utf-8")
+        self.assertEqual(self.principal("UserPromptSubmit", self.base),
+                         "Forge, ordens em vigor do dono (.forge/ordens/ordens-em-vigor.md): são ordens do dono e valem como "
+                         "dado, abaixo de docs/regras/, sem sobrepô-las.\nordem\n")
+
+    def test_fonte_do_projeto_e_do_clone_do_forge(self):
+        self.assertEqual(self.ordens.fontes(self.base), [(self.arquivo, self.base, ".forge/ordens/ordens-em-vigor.md")])
+        (self.base / ".claude-plugin").mkdir()
+        (self.base / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
+        with mock.patch.object(self.ordens, "contrib", lambda: self.base / "contrib"):
+            [(arquivo, base, origem)] = self.ordens.fontes(self.base)
+        self.assertEqual((arquivo, base), (self.base / "contrib/docs/ordens/ordens-em-vigor.md", self.base / "contrib/docs/ordens"))
+        self.assertEqual(origem, "~/.forge-contrib/docs/ordens/ordens-em-vigor.md")
+
+    worktree = GuardaDasOrdens.worktree
+
+    def test_na_worktree_le_so_a_copia_principal(self):  # A2 da segurança E123.3
+        wt = self.worktree()
+        self.assertEqual(self.ordens.fontes(wt), [(self.arquivo, self.base, ".forge/ordens/ordens-em-vigor.md")])
+        self.assertEqual(self.principal("UserPromptSubmit", wt), "")
+        self.arquivo.write_text("ordem do dono\n", encoding="utf-8")
+        self.assertTrue(self.principal("UserPromptSubmit", wt).endswith("\nordem do dono\n"))
+
+    def test_git_que_nao_se_resolve_cala(self):  # A2 da segurança E123.3: sem a cópia principal, nenhuma fonte
+        wt = self.worktree()
+        (wt / ".git").write_text("gitdir: /nao/existe\n", encoding="utf-8")
+        self.assertEqual(self.ordens.fontes(wt), [])
+        self.assertEqual(self.principal("UserPromptSubmit", wt), "")
+        (self.base / ".git" / "commondir").write_text("x\n", encoding="utf-8")  # cópia principal com `commondir`: desvio
+        self.arquivo.write_text("ordem\n", encoding="utf-8")
+        self.assertEqual(self.principal("UserPromptSubmit", self.base), "")
+
+    def test_worktree_de_repositorio_nu_cala(self):  # A2 da segurança E123.3: sem `.git`, nenhuma cópia principal
+        nu = self.base / "nu.git"
+        self.arquivo.write_text("ordem da pasta do repositório nu\n", encoding="utf-8")
+        wt = self.worktree(comum=nu)
+        self.assertEqual(self.ordens.fontes(wt), [])
+        self.assertEqual(self.principal("UserPromptSubmit", wt), "")
+
+    def test_no_forge_a_pasta_das_ordens_por_link_sai_da_base(self):  # A1 da segurança E123.3: `ln -sfn <wt> docs/ordens`
+        contrib = self.base / "contrib"
+        copia = contrib / "wt" / "x"
+        copia.mkdir(parents=True)
+        (copia / "ordens-em-vigor.md").write_text("ordem do dev\n", encoding="utf-8")
+        (contrib / "docs").mkdir()
+        (contrib / "docs" / "ordens").symlink_to(copia)
+        (self.base / ".claude-plugin").mkdir()
+        (self.base / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
+        with mock.patch.object(self.ordens, "contrib", lambda: contrib):
+            self.assertEqual(self.principal("UserPromptSubmit", self.base), "")
+            (contrib / "docs" / "ordens").unlink()
+            (contrib / "docs" / "ordens").mkdir()
+            (contrib / "docs" / "ordens" / "ordens-em-vigor.md").write_text("ordem do dono\n", encoding="utf-8")
+            self.assertTrue(self.principal("UserPromptSubmit", self.base).endswith("\nordem do dono\n"))
+
+    def test_o_modelo_de_projeto_nao_traz_o_arquivo_de_ordens(self):  # A1 do review E123.4: ausente custa zero
+        modelo = HOOKS.parent / "templates" / "projeto" / ".forge"
+        self.assertTrue((modelo / "config.json").is_file())
+        self.assertFalse((modelo / "ordens").exists())
+        self.assertFalse((modelo / "ordens-em-vigor.md").exists())
+
+    def test_hooks_json_registra_o_ordens_nos_matchers_da_emenda(self):
+        d = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
+        grupos = {evento: [g for g in d["hooks"].get(evento, []) for h in g["hooks"] if h["args"][-1].endswith("/ordens.py")]
+                  for evento in d["hooks"]}
+        self.assertEqual({e for e, g in grupos.items() if g}, {"SessionStart", "UserPromptSubmit"})
+        self.assertEqual([g.get("matcher") for g in grupos["SessionStart"]], ["startup|resume|compact"])
+        self.assertEqual([g.get("matcher") for g in grupos["UserPromptSubmit"]], [None])
+
+    def test_so_o_jarvis_escreve_o_arquivo_de_ordens(self):
+        politica = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
+        donos = {c["caminho"]: c["quem"] for c in politica["caminhos"]}
+        for caminho in (".forge/ordens/", "~/.forge-contrib/docs/ordens/"):
+            self.assertEqual(donos.get(caminho), ["jarvis"], caminho)
+
+
+class SalvarAoParar(unittest.TestCase):
+    """D6-SESSAO-NAO-PERDE (a), v0481 E11.2: no SubagentStop, o hook `salvar` faz o commit WIP só dos arquivos do escopo do brief
+    na cópia citada por ele, sem envio nem rede (decisão do dono de 25/11, E11.18); nunca em branch de integração, nunca com cópia
+    em outra branch, brief de parecer, operação do git em andamento, e sem rodar os hooks do git da cópia. O remoto do setUp só
+    prova que nada sai da cópia. Mutantes: tests/mutantes/v0481-d6-resto*.json."""
+    _pasta_temporaria = Hooks._pasta_temporaria
+
+    def setUp(self):
+        self.tmp = self._pasta_temporaria()
+        self.remoto, self.raiz = self.tmp / "remoto.git", self.tmp / "proj"
+        git("init", "-q", "--bare", "-b", "develop", str(self.remoto), cwd=self.tmp)
+        remoto_sem_manutencao(self.remoto)
+        repositorio_vazio(self.raiz, "develop")
+        for rel, texto in ((".forge/versao", "0.5.0\n"), (".gitignore", ".forge/run/\n.forge/wt/\ndocs/briefs/\n"), ("notas.txt", "r\n"),
+                           ("hooks/x.py", "x = 0\n"), ("docs/a.md", "a0\n"), ("docs/a.md2", "b0\n")):  # a.md2 rastreado: M8/M9
+            (self.raiz / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.raiz / rel).write_text(texto, encoding="utf-8")
+        git("add", "-A", cwd=self.raiz)
+        git("commit", "-q", "-m", "base", cwd=self.raiz)
+        git("remote", "add", "origin", str(self.remoto), cwd=self.raiz)  # a origin da cópia principal, que a da cópia repete
+        git("push", "-q", "origin", "develop", cwd=self.raiz)
+        self.copia = self.clonar(self.raiz / ".forge" / "wt" / "item")
+
+    def clonar(self, destino, branch="melhoria/x"):
+        git("clone", "-q", "-b", "develop", str(self.remoto), str(destino), cwd=self.tmp)
+        git("config", "user.email", "t@example.com", cwd=destino)
+        git("config", "user.name", "Teste", cwd=destino)
+        git("switch", "-q", "-c", branch, cwd=destino)
+        return destino
+
+    def brief(self, branch="melhoria/x", etapa="codigo", copias=("{copia}",), nome="p-tech-lead-1.md", pasta=None):
+        corpo = "".join(f"- cópia nova por bin/forge-copia clone a partir da develop atual, em {c} (E1.1)\n" for c in copias)
+        texto = (f"Agente destino: forge:tech-lead\nPedido: p\nTipo: codigo\nBranch: {branch}   Base: develop   Base-sha: {'a' * 40}\n"
+                 f"Etapa: {etapa}   Cobre: E1.1\n\n## Objetivo\nx\n\n## Entregar\n{corpo}- arquivos: hooks/, docs/a.md\n")
+        pasta = pasta or self.raiz / "docs" / "briefs"
+        pasta.mkdir(parents=True, exist_ok=True)
+        (pasta / nome).write_text(texto.replace("{copia}", str(self.copia)), encoding="utf-8")
+        self.citar(nome)
+
+    def citar(self, *nomes, antes=(), outros_blocos=()):
+        """O prompt do agente (primeiro registro `user` do transcrito dele) cita estes briefs de docs/briefs/; `antes`: registros
+        (JSON) antes dele; `outros_blocos`: blocos de conteúdo além do texto."""
+        texto = "Cumpra " + " e ".join(n if "/" in n else f"docs/briefs/{n}" for n in nomes)
+        conteudo = [{"type": "text", "text": texto}, *outros_blocos]
+        registro = {"type": "user", "isSidechain": True, "message": {"role": "user", "content": conteudo}}
+        linhas = [*antes, json.dumps(registro)]
+        (self.tmp / "agente.jsonl").write_text("\n".join(linhas) + "\n", encoding="utf-8")
+
+    def gravar(self, arquivos):
+        for rel, texto in arquivos.items():
+            (self.copia / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.copia / rel).write_text(texto, encoding="utf-8")
+
+    def parar(self, evento="SubagentStop", extra=None, erro=None):
+        entrada = {"hook_event_name": evento, "session_id": "s1", "transcript_path": str(self.tmp / "t.jsonl"),
+                   "agent_id": "a1", "agent_type": "forge:tech-lead", "agent_transcript_path": str(self.tmp / "agente.jsonl"),
+                   "stop_hook_active": False, "cwd": str(self.raiz)}
+        r = rodar("salvar", entrada, self.raiz, extra={"HOME": str(self.tmp / "home"), **(extra or {})})
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+        erros = self.raiz / ".forge" / "run" / "erros.log"
+        lido = erros.read_text(encoding="utf-8") if erros.exists() else ""
+        if erro is None:
+            self.assertEqual(lido.strip(), "", "sem erro interno")
+        else:
+            self.assertIn(erro, lido)
+
+    def no_remoto(self, branch="melhoria/x"):
+        r = subprocess.run(["git", "-C", str(self.remoto), "ls-tree", "-r", "--name-only", branch], env=ambiente_limpo(),
+                           capture_output=True, text=True)
+        return r.stdout.split() if r.returncode == 0 else None
+
+    def log(self):
+        caminho = self.raiz / ".forge" / "run" / "salvar.log"
+        return caminho.read_text(encoding="utf-8") if caminho.exists() else ""
+
+    def commits(self, copia=None):
+        return git("rev-list", "--count", "HEAD", cwd=copia or self.copia).stdout.strip()
+
+    def nada_salvo(self):
+        self.assertIsNone(self.no_remoto())
+        self.assertEqual((self.log(), self.commits()), ("", "1"))
+
+    def salvo(self, caminho="hooks/x.py", copia=None):
+        """O conteúdo de `caminho` no commit WIP do HEAD da cópia, ou None (o HEAD não é o WIP, ou o arquivo não está nele)."""
+        copia = copia or self.copia
+        if not git("log", "-1", "--format=%s", cwd=copia).stdout.startswith("chore(wip):"):
+            return None
+        r = subprocess.run(["git", "-C", str(copia), "show", f"HEAD:{caminho}"], env=ambiente_limpo(), capture_output=True, text=True)
+        return r.stdout if r.returncode == 0 else None
+
+    def test_salva_so_o_escopo_na_copia(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n", "docs/a.md": "a\n", "docs/a.md2": "fora\n", "docs/b.md": "fora\n",
+                     "notas.txt": "mudado fora\n"})
+        self.parar()
+        self.assertIsNone(self.no_remoto(), "o salvar só grava na cópia: nada vai ao remoto")
+        self.assertEqual(git("show", "--name-only", "--format=", "HEAD", cwd=self.copia).stdout.split(), ["docs/a.md", "hooks/x.py"])
+        self.assertEqual((self.salvo(), self.salvo("docs/a.md"), self.salvo("notas.txt")), ("x = 1\n", "a\n", "r\n"))
+        self.assertEqual(git("status", "--porcelain", cwd=self.copia).stdout.splitlines(),
+                         [" M docs/a.md2", " M notas.txt", "?? docs/b.md"], "arquivo exato do escopo não vale como prefixo")
+        self.assertIn("melhoria/x", self.log())
+        self.assertIn("2 arquivo(s) salvo(s) na cópia, sem envio", self.log())
+
+    def test_nada_no_escopo_nao_faz_commit(self):
+        self.brief()
+        self.gravar({"docs/b.md": "fora\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_stop_da_sessao_nao_age(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar(evento="Stop")
+        self.nada_salvo()
+
+    def test_fora_de_projeto_nao_age(self):
+        git("rm", "-q", ".forge/versao", cwd=self.raiz)
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_sem_brief_citado_nao_age(self):
+        self.brief()
+        self.citar()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_brief_ausente_fica_de_fora(self):
+        self.brief()
+        self.citar("nao-existe.md", "p-tech-lead-1.md")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertEqual(self.salvo(), "x = 1\n")
+
+    def test_dois_briefs_de_escrita_nao_grava(self):
+        self.brief(nome="p-tech-lead-2.md")
+        self.brief()
+        self.citar("p-tech-lead-1.md", "p-tech-lead-2.md")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_branch_de_integracao_nunca(self):
+        git("switch", "-q", "develop", cwd=self.copia)
+        self.brief(branch="develop")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertEqual((self.commits(), self.log()), ("1", ""))
+
+    def test_copia_em_outra_branch_nao_grava(self):
+        self.brief(branch="melhoria/y")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertIsNone(self.no_remoto("melhoria/y"))
+        self.assertEqual(self.commits(), "1")
+
+    def test_brief_de_parecer_nao_grava(self):
+        self.brief(etapa="review")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_mesclagem_em_andamento_nao_grava(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        (self.copia / ".git" / "MERGE_HEAD").write_text(git("rev-parse", "HEAD", cwd=self.copia).stdout, encoding="utf-8")
+        self.parar()
+        self.nada_salvo()
+
+    def test_conflito_no_indice_nao_grava(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        git("add", "hooks/x.py", cwd=self.copia)
+        git("commit", "-q", "-m", "um", cwd=self.copia)
+        git("switch", "-q", "-c", "outra", "develop", cwd=self.copia)
+        self.gravar({"hooks/x.py": "x = 2\n"})
+        git("add", "hooks/x.py", cwd=self.copia)
+        git("commit", "-q", "-m", "dois", cwd=self.copia)
+        git("switch", "-q", "melhoria/x", cwd=self.copia)
+        subprocess.run(["git", "-C", str(self.copia), "merge", "-q", "outra"], env=ambiente_limpo(), capture_output=True)
+        os.remove(self.copia / ".git" / "MERGE_HEAD")  # só o conflito no índice decide, sem a marca da mesclagem
+        self.gravar({"docs/a.md": "a\n"})
+        self.parar()
+        self.assertIsNone(self.no_remoto())
+        self.assertEqual(self.commits(), "2")
+
+    def test_duas_copias_citadas_nao_grava(self):
+        outra = self.clonar(self.raiz / ".forge" / "wt" / "outra")
+        self.brief(copias=("{copia}", str(outra)))
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        (outra / "hooks" / "x.py").write_text("x = 1\n", encoding="utf-8")
+        self.parar()
+        self.nada_salvo()
+        self.assertEqual(self.commits(outra), "1")
+
+    def test_copia_fora_da_pasta_das_copias_nao_grava(self):
+        destino = self.clonar(self.tmp / "wt" / "item")
+        self.brief(copias=(str(destino),))
+        (destino / "hooks" / "x.py").write_text("x = 1\n", encoding="utf-8")
+        self.parar()
+        self.assertIsNone(self.no_remoto())
+        self.assertEqual(self.commits(destino), "1")
+
+    def test_hooks_do_git_da_copia_nao_rodam(self):
+        self.brief()
+        gancho = self.copia / ".git" / "hooks" / "pre-commit"
+        gancho.write_text(f"#!/bin/sh\ntouch '{self.tmp / 'rodou'}'\nexit 1\n", encoding="utf-8")
+        gancho.chmod(0o755)
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertFalse((self.tmp / "rodou").exists(), "o hook do git da cópia rodaria fora do sandbox")
+        self.assertEqual(self.salvo(), "x = 1\n")
+
+    def test_git_herdado_nao_desvia_a_copia(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar(extra={"GIT_DIR": str(self.raiz / ".git"), "GIT_WORK_TREE": str(self.raiz)})
+        self.assertEqual(self.salvo(), "x = 1\n")
+        self.assertEqual(git("rev-list", "--count", "HEAD", cwd=self.raiz).stdout.strip(), "1", "a cópia principal fica intacta")
+
+    def test_status_que_falha_vai_ao_erros_log(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        (self.copia / ".git" / "index").write_bytes(b"lixo")
+        self.parar(erro="RuntimeError: git status saiu com 128")
+        self.assertIsNone(self.no_remoto())
+        self.assertEqual(self.log(), "")
+
+    def test_add_que_falha_nao_faz_commit(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        (self.copia / ".git" / "index.lock").write_text("", encoding="utf-8")
+        self.parar(erro="RuntimeError: git add saiu com 128")
+        self.nada_salvo()
+
+    def test_so_o_primeiro_registro_user_e_so_os_blocos_de_texto(self):
+        self.brief(nome="p-tech-lead-2.md")
+        (self.raiz / "docs" / "briefs" / "p-tech-lead-2.md").rename(self.raiz / "docs" / "briefs" / "p-tech-lead-3.md")
+        self.brief()
+        outro = '{"type": "assistant", "message": {"content": "docs/briefs/p-tech-lead-3.md docs/briefs/p-tech-lead-1.md"}}'
+        self.citar("p-tech-lead-1.md", antes=["[]", "{", outro],
+                   outros_blocos=[{"type": "tool_result", "text": "docs/briefs/p-tech-lead-3.md"}, "solto"])
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertEqual(self.salvo(), "x = 1\n", "o brief citado fora do texto do prompt não conta")
+
+    def test_registro_user_sem_mensagem_objeto_nao_age(self):
+        self.brief()
+        (self.tmp / "agente.jsonl").write_text('{"type": "user", "message": "docs/briefs/p-tech-lead-1.md"}\n', encoding="utf-8")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_registro_user_sem_conteudo_nao_age(self):
+        self.brief()
+        (self.tmp / "agente.jsonl").write_text('{"type": "user", "message": {"role": "user"}}\n', encoding="utf-8")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_clone_do_forge_usa_a_pasta_do_contrib(self):
+        git("rm", "-q", ".forge/versao", cwd=self.raiz)
+        (self.raiz / ".claude-plugin").mkdir()
+        (self.raiz / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
+        git("add", "-A", cwd=self.raiz)
+        git("commit", "-q", "-m", "forge", cwd=self.raiz)
+        contrib = self.tmp / "home" / ".forge-contrib"
+        self.copia = self.clonar(contrib / "wt" / "item")
+        self.brief(pasta=contrib / "docs" / "briefs")
+        self.citar("~/.forge-contrib/docs/briefs/p-tech-lead-1.md")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertEqual(self.salvo(), "x = 1\n")
+        self.assertIn("1 arquivo(s) salvo(s) na cópia", self.log())
+
+    def test_branch_ja_no_remoto_fica_como_esta(self):
+        """Decisão do dono de 25/11 (E11.18): sem rede no hook; com a branch no remoto, nem o envio que passaria acontece."""
+        git("push", "-q", "origin", "melhoria/x", cwd=self.copia)
+        antes = git("rev-parse", "melhoria/x", cwd=self.remoto).stdout
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertEqual(self.salvo(), "x = 1\n")
+        self.assertEqual(git("rev-parse", "melhoria/x", cwd=self.remoto).stdout, antes, "o salvar não envia")
+        self.assertEqual(git("rev-parse", "origin/melhoria/x", cwd=self.copia).stdout, antes, "nem busca o remoto")
+
+    # Volta do #877 (review, QA e segurança A1): a config local da cópia é do agente e o git do hook roda fora do sandbox.
+    CONFIG_DO_AGENTE = (("filter.x.clean", "sh -c 'touch {marca}; cat'"), ("filter.x.process", "sh -c 'touch {marca}'"),
+                        ("remote.origin.receivepack", "sh -c 'touch {marca}; exit 1' --"),
+                        ("core.sshCommand", "sh -c 'touch {marca}'"), ("gpg.program", "sh -c 'touch {marca}'"),
+                        ("credential.helper", "!sh -c 'touch {marca}'"), ("include.path", "{marca}"),
+                        ("remote.origin.pushurl", "{outro}"), ("url.{outro}.insteadOf", "{remoto}"),
+                        ("core.hooksPath", "{marca}"), ("extensions.worktreeConfig", "true"))
+
+    def test_config_local_fora_da_lista_nao_age(self):
+        """S1 do review e da segurança, sonda do QA (filtro), S2 da segurança (receivepack) e as outras chaves que executam
+        comando ou desviam o envio: o hook não age, nada roda e nada vai ao remoto."""
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n", ".gitattributes": "* filter=x\n"})
+        outro = self.tmp / "outro.git"
+        git("init", "-q", "--bare", str(outro), cwd=self.tmp)
+        remoto_sem_manutencao(outro)
+        for chave, valor in self.CONFIG_DO_AGENTE:
+            with self.subTest(chave=chave):
+                marca = self.tmp / f"marca-{chave}"
+                chave = chave.format(outro=outro)
+                git("config", chave, valor.format(marca=marca, outro=outro, remoto=self.remoto), cwd=self.copia)
+                self.parar()
+                self.assertFalse(marca.exists(), "comando do .git/config da cópia rodou fora do sandbox")
+                self.nada_salvo()
+                self.assertEqual(git("for-each-ref", cwd=outro).stdout, "")
+                git("config", "--unset-all", chave, cwd=self.copia)
+
+    def test_config_so_com_gpgsign_nao_age(self):
+        self.brief()
+        git("config", "commit.gpgsign", "true", cwd=self.copia)  # sem gpg.program, o gpg da máquina assinaria com a chave do dono
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_origin_diferente_da_principal_nao_age(self):
+        outro = self.tmp / "outro.git"
+        git("clone", "-q", "--bare", str(self.remoto), str(outro), cwd=self.tmp)
+        remoto_sem_manutencao(outro)
+        git("remote", "set-url", "origin", str(outro), cwd=self.copia)
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertEqual(git("for-each-ref", "--format=%(refname)", cwd=outro).stdout.split(), ["refs/heads/develop"])
+        self.nada_salvo()
+
+    def test_config_global_de_fora_nao_roda(self):
+        """A config global e de sistema que não é a do dono (GIT_CONFIG_GLOBAL, GIT_CONFIG_COUNT, XDG_CONFIG_HOME) não vale."""
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n", ".gitattributes": "* filter=x\n"})
+        xdg = self.tmp / "xdg"
+        (xdg / "git").mkdir(parents=True)
+        filtro = f"sh -c 'touch {self.tmp / 'marca'}; cat'"
+        (xdg / "git" / "config").write_text(f'[filter "x"]\n\tclean = "{filtro}"\n', encoding="utf-8")
+        self.parar(extra={"XDG_CONFIG_HOME": str(xdg), "GIT_CONFIG_GLOBAL": str(xdg / "git" / "config"),
+                          "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "filter.x.clean", "GIT_CONFIG_VALUE_0": filtro})
+        self.assertFalse((self.tmp / "marca").exists(), "config de fora do HOME do dono rodou")
+        self.assertEqual(self.salvo(), "x = 1\n")
+
+    def test_nao_rastreado_fica_de_fora(self):
+        """A2 da segurança: arquivo que o agente não rastreou não vai ao commit, mesmo no escopo."""
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n", "hooks/rascunho.txt": "anotação\n"})
+        self.parar()
+        self.assertEqual(self.salvo(), "x = 1\n")
+        self.assertIsNone(self.salvo("hooks/rascunho.txt"))
+        self.assertIn("1 arquivo(s) salvo(s) na cópia", self.log())
+
+    def test_prazo_total_dividido_entre_os_comandos(self):
+        """A3: um prazo só para todos os comandos, abaixo dos 60 s do hook; esgotado, o comando seguinte nem espera."""
+        sys.path.insert(0, str(HOOKS))
+        import salvar
+        self.assertLess(salvar.PRAZO_TOTAL_S, 60)
+        with mock.patch.object(salvar, "FIM", time.monotonic() + 30):
+            self.assertEqual(salvar.git_da_copia(self.copia, "rev-parse", "--is-inside-work-tree"), (0, b"true\n"))
+        with mock.patch.object(salvar, "FIM", time.monotonic() - 1), self.assertRaises(subprocess.TimeoutExpired):
+            salvar.git_da_copia(self.copia, "rev-parse", "--is-inside-work-tree")
+
+
+class ModoPorGrupo(unittest.TestCase):  # G4-TRAVA-REAL-BP8, F1 (v0481 E7.7): o modo aviso por grupo, todos em barrar
+    """O `barrar` consulta `modo_por_grupo`; só `avisar` deixa passar. Nos dois modos, `comandos.jsonl` ganha grupo e alvo."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.run_ = self.tmp / ".forge" / "run"
+        self.run_.mkdir(parents=True)
+        _, self.conformidade, _ = modulos_dos_hooks()
+        self.pol = self.conformidade.politica()
+
+    def guarda(self, modos, run=True):
+        _comum, conformidade, _ = modulos_dos_hooks()
+        hook = _comum.Hook("conformidade")
+        hook.raiz, hook._run = self.tmp, (self.run_ if run else None)
+        hook.entrada = {"session_id": "s1", "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse"}
+        return conformidade.Guarda(hook, {**self.pol, "modo_por_grupo": modos}, "tech-lead")
+
+    def linhas(self, run=None):
+        arquivo = (run or self.run_) / "comandos.jsonl"
+        return [json.loads(l) for l in arquivo.read_text(encoding="utf-8").splitlines()] if arquivo.exists() else []
+
+    def barra(self, guarda, *args, **kw):
+        with contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(SystemExit) as saida:
+            guarda.barrar("R-VERIFY", "git commit --no-verify", "corrija a causa", *args, **kw)
+        self.assertEqual(saida.exception.code, 2)
+        self.assertRegex(erro.getvalue(), r"^R-VERIFY: git commit --no-verify")
+
+    def test_a_politica_entregue_tem_todo_grupo_em_barrar(self):
+        modos = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))["modo_por_grupo"]
+        self.assertEqual(set(modos.values()), {"barrar"}, "nenhum grupo passa a aviso na F1 (afrouxaria)")
+        self.assertLessEqual({"R-CONFORMIDADE", "R-CONTRIB", "R-FLUXO", "R-MAIN", "R-REVIEW", "R-VERIFY"}, set(modos))
+
+    def test_grupo_em_avisar_deixa_passar_imprime_a_forma_certa_e_registra_teria_barrado(self):
+        guarda = self.guarda({"R-VERIFY": "avisar"})
+        with contextlib.redirect_stderr(io.StringIO()) as erro:
+            self.assertIsNone(guarda.barrar("R-VERIFY", "git commit --no-verify", "corrija a causa"))
+        self.assertEqual(erro.getvalue(), "R-VERIFY: aviso: teria barrado: git commit --no-verify. Corrigir: corrija a causa\n")
+        [linha] = self.linhas()
+        self.assertEqual({k: linha[k] for k in ("sessao", "agente", "fonte", "teria_barrado", "grupo", "alvo")},
+                         {"sessao": "s1", "agente": "forge:tech-lead", "fonte": "conformidade", "teria_barrado": "R-VERIFY",
+                          "grupo": "R-VERIFY", "alvo": None})
+        self.assertNotIn("barrado", linha)
+
+    def test_grupo_dado_vale_sobre_o_id_da_regra(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertIsNone(self.guarda({"tag-mover": "avisar"}).barrar("R-FLUXO", "x", "y", grupo="tag-mover", alvo="v1"))
+        self.barra(self.guarda({"R-VERIFY": "avisar"}), grupo="tag-mover")
+        self.assertEqual([(l.get("teria_barrado"), l.get("barrado"), l["grupo"], l["alvo"]) for l in self.linhas()],
+                         [("R-FLUXO", None, "tag-mover", "v1"), (None, "R-VERIFY", "tag-mover", None)])
+
+    def test_grupo_fora_do_mapa_mapa_ilegivel_ou_valor_desconhecido_barra_e_registra(self):
+        casos = ({"R-MAIN": "avisar"}, "avisar", None, ["R-VERIFY"], {"R-VERIFY": "Avisar"}, {"R-VERIFY": "aviso"},
+                 {"R-VERIFY": True}, {"R-VERIFY": "barrar"})
+        for modos in casos:
+            with self.subTest(modos=modos):
+                self.barra(self.guarda(modos), alvo=Path("/x/.claude/settings.json"))
+        self.assertEqual([(l["barrado"], l["grupo"], l["alvo"]) for l in self.linhas()],
+                         [("R-VERIFY", "R-VERIFY", "/x/.claude/settings.json")] * len(casos))
+
+    def test_registro_vai_a_pasta_run_do_hook_ou_a_do_clone_e_nunca_cria_pasta(self):
+        outra = self.tmp / "outra"
+        outra.mkdir()
+        guarda = self.guarda({})
+        guarda.h._run = outra
+        self.barra(guarda)
+        self.assertEqual((len(self.linhas(outra)), self.linhas()), (1, []), "a pasta `run` já resolvida pelo hook")
+        shutil.rmtree(self.tmp / ".forge")
+        self.barra(self.guarda({}, run=False))
+        self.assertEqual(os.listdir(self.tmp), ["outra"], "sem pasta `run`, nada é criado")
+        clone = self.tmp / ".git" / "forge" / "run"
+        clone.mkdir(parents=True)
+        self.barra(self.guarda({}, run=False))
+        self.assertEqual(len(self.linhas(clone)), 1, "no clone do Forge sem `.forge/`, a pasta do diretório comum")
+
+    def test_registro_nao_segue_link_e_erro_dele_nao_muda_a_decisao(self):
+        fora = self.tmp / "fora.txt"
+        fora.write_text("", encoding="utf-8")
+        (self.run_ / "comandos.jsonl").symlink_to(fora)
+        self.barra(self.guarda({}))
+        self.assertEqual(fora.read_text(encoding="utf-8"), "")
+        _, conformidade, _ = modulos_dos_hooks()
+        guarda = conformidade.Guarda(mock.Mock(raiz=self.tmp, _run=self.tmp, campo=mock.Mock(side_effect=TypeError)),
+                                     self.pol, "tech-lead")
+        guarda.h.iniciante.return_value = False
+        self.barra(guarda)
+
+    def sem_travar(self, funcao, segundos=2):
+        """Roda `funcao` sob um alarme próprio: se ela travar (o `open` de um FIFO sem leitor), `Travou` (BaseException,
+        que nenhum `except` do hook engole) derruba o teste em vez de prender a suíte."""
+        def vencer(*_):
+            raise Travou()
+        anterior = signal.signal(signal.SIGALRM, vencer)
+        signal.setitimer(signal.ITIMER_REAL, segundos)
+        try:
+            return funcao()
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, anterior)
+
+    @unittest.skipUnless(hasattr(os, "mkfifo") and hasattr(signal, "setitimer"), "sem FIFO ou alarme")
+    def test_registro_nao_espera_fifo_nem_grava_nele(self):  # A1 do #885: o FIFO prendia a recusa até o prazo
+        fifo = self.run_ / "comandos.jsonl"
+        os.mkfifo(fifo)
+        self.sem_travar(lambda: self.barra(self.guarda({})))  # sem leitor: o open não espera
+        leitor = os.open(fifo, os.O_RDONLY | os.O_NONBLOCK)
+        self.addCleanup(os.close, leitor)
+        self.sem_travar(lambda: self.barra(self.guarda({})))  # com leitor: abre, mas não é arquivo regular
+        try:
+            lido = os.read(leitor, 4096)
+        except BlockingIOError:
+            lido = b""
+        self.assertEqual(lido, b"", "nada é gravado em FIFO")
+        self.assertTrue(stat.S_ISFIFO(os.lstat(fifo).st_mode))
+
+    def test_prazo_vencido_no_registro_nao_troca_a_recusa(self):
+        _comum, conformidade, _ = modulos_dos_hooks()
+        with mock.patch.object(conformidade, "registrar_recusa", side_effect=_comum.PrazoVencido()):
+            self.barra(self.guarda({}))
+
+    def test_registro_acha_a_pasta_pelo_disco_sem_git(self):  # A2 do review: nada de `git` no caminho da recusa
+        _comum, _, _ = modulos_dos_hooks()
+        with mock.patch.object(_comum.Hook, "copia_principal", side_effect=AssertionError("git no caminho da recusa")):
+            self.barra(self.guarda({}, run=False))  # fora de git: a pasta `run` da raiz
+            self.assertEqual(len(self.linhas()), 1)
+            principal, wt = self.tmp / "principal", self.tmp / "wt"
+            principal.mkdir()
+            git("init", "-q", "-b", "develop", cwd=principal)
+            git("-c", "user.email=t@example.com", "-c", "user.name=Teste", "commit", "-q", "--allow-empty", "-m", "base",
+                cwd=principal)
+            git("worktree", "add", "-q", "--detach", str(wt), cwd=principal)
+            (principal / ".forge" / "run").mkdir(parents=True)
+            guarda = self.guarda({}, run=False)
+            guarda.h.raiz = wt
+            self.barra(guarda)
+        self.assertEqual(len(self.linhas(principal / ".forge" / "run")), 1, "a worktree grava na cópia principal")
+
+    def test_iniciante_recebe_o_texto_simples(self):
+        guarda = self.guarda({})
+        (self.tmp / ".forge" / "perfil").write_text("iniciante\n", encoding="utf-8")
+        _, conformidade, _ = modulos_dos_hooks()
+        with contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(SystemExit) as saida:
+            guarda.barrar("R-VERIFY", "git push --force", "corrija a causa", "forca")
+        self.assertEqual((saida.exception.code, erro.getvalue()), (2, f"R-VERIFY: {conformidade.SIMPLES['forca']}\n"))
+        self.assertEqual(self.linhas()[0]["barrado"], "R-VERIFY")
+
+
+class Travou(BaseException):
+    """O alarme de `ModoPorGrupo.sem_travar` venceu."""
+
+
+@unittest.skipUnless(hasattr(os, "mkfifo"), "sem FIFO")
+class RecusaComFifoNoRegistro(unittest.TestCase):  # S1 a S3 do review do #885, pelo hook de verdade, nas duas sessões
+    """Com um FIFO no lugar do `comandos.jsonl`, a recusa sai com a regra dela, sem passar pelo prazo vencido: na sessão
+    do Forge (raiz e pasta corrente no clone, não vigiada) o prazo vencido liberava; no projeto, trocava a regra."""
+    COMANDOS = (("git push origin feature/x:main", "R-MAIN"), ("git push --force origin feature/x", "R-VERIFY"),
+                ("git commit --no-verify -m x", "R-VERIFY"))
+
+    def montar(self, forge):
+        raiz = Path(tempfile.mkdtemp(prefix="forge-fifo-"))
+        self.addCleanup(shutil.rmtree, raiz, True)
+        git("init", "-q", "-b", "feature/x", cwd=raiz)
+        if forge:
+            (raiz / ".claude-plugin").mkdir()
+            (raiz / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}\n', encoding="utf-8")
+        else:
+            (raiz / ".forge").mkdir()
+            (raiz / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        (raiz / ".forge" / "run").mkdir(parents=True, exist_ok=True)
+        os.mkfifo(raiz / ".forge" / "run" / "comandos.jsonl")
+        return raiz
+
+    def test_recusa_com_a_regra_dela_e_sem_prazo_vencido(self):
+        for forge in (True, False):
+            raiz = self.montar(forge)
+            for comando, regra in self.COMANDOS:
+                with self.subTest(sessao="forge" if forge else "projeto", comando=comando):
+                    entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(raiz),
+                               "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse", "session_id": "s1"}
+                    inicio = time.monotonic()
+                    r = rodar("conformidade", entrada, raiz, extra={"CLAUDE_PROJECT_DIR": str(raiz)}, producao=True)
+                    gasto = time.monotonic() - inicio
+                    self.assertEqual(r.returncode, 2, f"liberado em {gasto:.1f} s: {r.stderr[:200]}")
+                    self.assertTrue(r.stderr.startswith(f"{regra}: "), r.stderr[:200])
+                    self.assertNotIn("não decidiu", r.stderr)
 
 
 if __name__ == "__main__":

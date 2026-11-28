@@ -1,0 +1,77 @@
+{
+  "pedido": "v0478-pv-b1-registros",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "R9",
+      "guarda": "--registros só combina com --base",
+      "arquivo": "bin/forge-testes",
+      "de": "if args.registros and (",
+      "para": "if False and (",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_registros_so_combina_com_base"
+      ]
+    },
+    {
+      "id": "R10",
+      "guarda": "--registros chega à conferência",
+      "arquivo": "bin/forge-testes",
+      "de": "if args.registros:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_em_dia_sai_0_sem_gravar_nada_e_sem_o_ambiente_herdado"
+      ]
+    },
+    {
+      "id": "R11",
+      "guarda": "grupo do CI vermelho reprova a conferência",
+      "arquivo": "bin/forge-testes",
+      "de": "falhas = [(nome, r) for nome, r in feitos if r.returncode]",
+      "para": "falhas = [(nome, r) for nome, r in feitos if r.returncode > 1]",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_grupo_do_ci_vermelho_sai_1_com_o_nome_do_registro",
+        "tests.test_testes_tocados.Registros.test_changelog_reprovado_sai_1"
+      ]
+    },
+    {
+      "id": "R12",
+      "guarda": "ramo de --base fora do formato é recusado antes do git fetch (segurança A1)",
+      "arquivo": "bin/forge-testes",
+      "de": "if not RAMO_BUSCAVEL.fullmatch(ramo) or ramo.startswith(\"-\") or \"..\" in ramo:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_ramo_que_seria_opcao_ou_refspec_e_recusado_sem_buscar"
+      ]
+    },
+    {
+      "id": "R13",
+      "guarda": "ramo com caractere fora de [A-Za-z0-9._/-] (refspec) é recusado",
+      "arquivo": "bin/forge-testes",
+      "de": "if not RAMO_BUSCAVEL.fullmatch(ramo) or ramo.startswith(\"-\") or \"..\" in ramo:",
+      "para": "if ramo.startswith(\"-\") or \"..\" in ramo:",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_ramo_que_seria_opcao_ou_refspec_e_recusado_sem_buscar"
+      ]
+    },
+    {
+      "id": "R14",
+      "guarda": "ramo que começa com - (opção do git fetch) é recusado",
+      "arquivo": "bin/forge-testes",
+      "de": "if not RAMO_BUSCAVEL.fullmatch(ramo) or ramo.startswith(\"-\") or \"..\" in ramo:",
+      "para": "if not RAMO_BUSCAVEL.fullmatch(ramo) or \"..\" in ramo:",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_ramo_que_seria_opcao_ou_refspec_e_recusado_sem_buscar"
+      ]
+    },
+    {
+      "id": "R15",
+      "guarda": "ramo com .. é recusado",
+      "arquivo": "bin/forge-testes",
+      "de": "if not RAMO_BUSCAVEL.fullmatch(ramo) or ramo.startswith(\"-\") or \"..\" in ramo:",
+      "para": "if not RAMO_BUSCAVEL.fullmatch(ramo) or ramo.startswith(\"-\"):",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_ramo_que_seria_opcao_ou_refspec_e_recusado_sem_buscar"
+      ]
+    }
+  ]
+}

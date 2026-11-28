@@ -1,0 +1,76 @@
+{
+  "pedido": "v0481-d2-resto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M19",
+      "guarda": "forge_pronto: o gh em erro sem corpo deixa o corpo não verificável",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "falhas = None if corpo is None and sem_corpo else",
+      "para": "falhas = None if corpo is None and False else",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_gh_em_erro_sem_corpo_sai_2_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "forge_pronto: com o corpo dado, o motivo do gh não pula o teto",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "falhas = None if corpo is None and sem_corpo else",
+      "para": "falhas = None if corpo is None or sem_corpo else",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_motivo_com_corpo_dado_confere_o_corpo"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "forge_pronto: só o corpo ausente fica não verificável",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "falhas = None if corpo is None and sem_corpo else",
+      "para": "falhas = None if corpo is not None and sem_corpo else",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_gh_em_erro_sem_corpo_sai_2_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "cmd_pronto: o motivo do gh chega ao portão",
+      "arquivo": "bin/forge-check",
+      "de": "corpo, sem_corpo=motivo)",
+      "para": "corpo, sem_corpo=None)",
+      "testes": [
+        "tests.test_forge_pronto.CmdPronto.test_gh_em_erro_deixa_o_corpo_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "forge_pronto: o passo que sai 2 diz não verificável",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "\"não verificável (saída 2)\" if rc == 2 else",
+      "para": "\"não verificável (saída 2)\" if rc == 3 else",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_passo_que_sai_2_fica_nao_verificavel_e_sai_2"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "forge_pronto: corpo não verificável não roda o teto",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "    if falhas is None:",
+      "para": "    if falhas is not None:",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_tudo_passa_sai_0"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "forge_pronto: a linha final diz o que ficou não verificável",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "nada passou por isso\" if nao_verificaveis",
+      "para": "nada passou por isso\" if False",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_passo_que_sai_2_fica_nao_verificavel_e_sai_2"
+      ]
+    }
+  ]
+}

@@ -135,6 +135,31 @@ class TesteDoQaNaoDerrubaOReview(Repositorio):
         self.assertIn("tests/catraca.py", "".join(self.review()))
 
 
+class PrLeARefNaoOHead(Repositorio):
+    """GUARDAS-SEM-MUTANTE-0.47.12 (v0478 E62.11): com `ref` (o sha do head do PR, como na catraca do CI), o `forge-check pr` lê os testes do QA e o domínio
+    do review na ref, não no HEAD da cópia; aqui o HEAD fica no commit revisado (destacado) e a branch segue adiante."""
+
+    def setUp(self):
+        super().setUp()
+        self.r = self.commitar(BASE, "entrega")
+        self.commitar({"docs/reviews/p1.md": REVIEW.format(c=self.r, extra="")}, "review")
+
+    qa = TesteDoQaNaoDerrubaOReview.qa
+
+    def na_ref(self):  # como a catraca do CI: a ref é o sha do head do PR e a branch vem à parte
+        ponta = self.head()
+        git("checkout", "-q", "--detach", self.r, cwd=self.repo)
+        return [l for l in fc.cmd_pr(self.repo, "p1", ponta, branch="melhoria/x") if l.startswith("docs/reviews")]
+
+    def test_teste_do_qa_na_ref_dispensa_com_o_head_atras(self):
+        self.qa({"tests/test_app.py": "# teste do QA\n"})
+        self.assertEqual(self.na_ref(), [])
+
+    def test_codigo_mudado_na_ref_derruba_com_o_head_no_commit_revisado(self):
+        self.commitar({"src/app.py": "a = 2\n"}, "código depois do review")
+        self.assertIn("docs/reviews/p1.md: commit: desatualizado: src/app.py mudou depois do parecer", "".join(self.na_ref()))
+
+
 class ParecerDelta(Repositorio):
     def setUp(self):
         super().setUp()

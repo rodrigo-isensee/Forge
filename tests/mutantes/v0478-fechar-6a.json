@@ -1,0 +1,46 @@
+{
+  "pedido": "v0478-fechar-6a",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F6A-M1",
+      "guarda": "base local velha no 6a: busca a base em vez de parar (FECHAR-6A-DEVELOP-ANDOU)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"$local_base\" != \"$srv\" ]; then  # FECHAR-6A-DEVELOP-ANDOU",
+      "para": "  if false; then  # FECHAR-6A-DEVELOP-ANDOU",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_6a_base_local_velha_busca_a_base_e_segue_sem_conflito"
+      ]
+    },
+    {
+      "id": "F6A-M2",
+      "guarda": "a busca da base no 6a que falha para, sem mesclar (FECHAR-6A-DEVELOP-ANDOU)",
+      "arquivo": "bin/forge-fechar",
+      "de": "      || die \"parou no passo 6a: a $alvo andou durante os checks ($base_2b -> $srv) e a busca dela falhou",
+      "para": "      || true \"parou no passo 6a: a $alvo andou durante os checks ($base_2b -> $srv) e a busca dela falhou",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_6a_busca_da_base_que_falha_para_e_pede_o_fetch"
+      ]
+    },
+    {
+      "id": "F6A-M3",
+      "guarda": "depois da busca, o 6a relê a base local antes de comparar com o servidor (FECHAR-6A-DEVELOP-ANDOU)",
+      "arquivo": "bin/forge-fechar",
+      "de": "e rode de novo\"\n    local_base=",
+      "para": "e rode de novo\"\n    : local_base=",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_6a_base_local_velha_busca_a_base_e_segue_sem_conflito"
+      ]
+    },
+    {
+      "id": "F6A-M4",
+      "guarda": "depois da busca, a base local tem de ser a lida no servidor; a que andou de novo para (FECHAR-6A-DEVELOP-ANDOU, E75.6)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"$local_base\" != \"$srv\" ] || ! git merge-base --is-ancestor \"$base_2b\" \"$srv\" 2>/dev/null; then",
+      "para": "  if ! git merge-base --is-ancestor \"$base_2b\" \"$srv\" 2>/dev/null; then",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_6a_busca_que_traz_outra_base_alem_da_lida_para"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "W1",
+      "guarda": "o trecho que casa o * substitui o caminho da política (E63.5, A9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                c = caminho_com_curinga_no_texto(c, texto) or c  # sem o trecho, o `*` literal não casa abaixo\n",
+      "para": "                c = caminho_com_curinga_no_texto(c, texto) and c  # sem o trecho, o `*` literal não casa abaixo\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    }
+  ]
+}

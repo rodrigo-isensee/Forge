@@ -1,0 +1,16 @@
+diff --git a/templates/projeto/.claude/settings.json b/templates/projeto/.claude/settings.json
+index 8328d79..09a0f99 100644
+--- a/templates/projeto/.claude/settings.json
++++ b/templates/projeto/.claude/settings.json
+@@ -33,6 +33,11 @@
+         "~/.config/gh",
+         "~/.claude/gh",
+         "~/.git-credentials"
++      ],
++      "denyWrite": [
++        ".vscode/tasks.json",
++        ".vscode/settings.json",
++        ".devcontainer/devcontainer.json"
+       ]
+     },
+     "network": {

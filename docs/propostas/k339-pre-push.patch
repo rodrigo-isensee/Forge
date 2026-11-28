@@ -1,0 +1,301 @@
+diff --git a/templates/projeto/.githooks/pre-push b/templates/projeto/.githooks/pre-push
+index 788a6d5..95dbe97 100755
+--- a/templates/projeto/.githooks/pre-push
++++ b/templates/projeto/.githooks/pre-push
+@@ -8,18 +8,21 @@ while read -r _ local_sha remote_ref remote_sha; do
+   # R-VERIFY: reescrever histórico de ref remota existente (não fast-forward) é decisão do usuário.
+   # Recusar quando o objeto remoto não existe localmente é intencional: sem ele não há como provar que
+   # é fast-forward; um `git fetch` resolve. Apagar ref (local_sha zerado) não passa por esta checagem.
++  # K339: o histórico é lido sem enxertos (--no-replace-objects contra o `git replace --graft`, GIT_GRAFT_FILE=/dev/null
++  # contra o antigo .git/info/grafts), e tag que já existe no remoto não se move, nem para um descendente (tag nova pode).
+   case "$local_sha" in *[!0]*)
+     case "$remote_sha" in *[!0]*)
+       ref_nome="${remote_ref#refs/heads/}"; ref_nome="${ref_nome#refs/tags/}"
++      case "$remote_ref" in refs/tags/*)
++        echo "pre-push: R-VERIFY: a tag ${ref_nome} já existe no remoto e não se move (nem para um descendente); mover tag é decisão do usuário." >&2
++        exit 1 ;;
++      esac
+       if ! git cat-file -e "$remote_sha" 2>/dev/null; then
+         echo "pre-push: o commit atual de ${ref_nome} no remoto não existe aqui, então não dá para saber se o envio é fast-forward; rode 'git fetch' e tente de novo." >&2
+         exit 1
+       fi
+-      if ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+-        case "$remote_ref" in
+-          refs/tags/*) echo "pre-push: R-VERIFY: mover a tag ${ref_nome} para outro commit (histórico reescrito) bloqueado; reescrever histórico é decisão do usuário." >&2 ;;
+-          *) echo "pre-push: R-VERIFY: envio não fast-forward para ${ref_nome} (histórico reescrito) bloqueado; faça rebase sobre a remota e envie normalmente, reescrever histórico é decisão do usuário." >&2 ;;
+-        esac
++      if ! GIT_GRAFT_FILE=/dev/null git --no-replace-objects merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
++        echo "pre-push: R-VERIFY: envio não fast-forward para ${ref_nome} (histórico reescrito) bloqueado; faça rebase sobre a remota e envie normalmente, reescrever histórico é decisão do usuário." >&2
+         exit 1
+       fi ;;
+     esac ;;
+@@ -30,6 +33,13 @@ while read -r _ local_sha remote_ref remote_sha; do
+   fi
+   # PREPUSH-REFS (v0457, D2 de docs/security/ameacas/v0457-hook-shell-pipe.md): a política vale para as refs reais do
+   # envio, qualquer que seja a sintaxe (--branches, -c remote.*.mirror, refspec com curinga, --prune, pipe para o shell).
++  # K339: tag com o nome de um remoto (origin, ou o deste envio, que o git passa em $1), sozinho ou como pasta, sombreia a
++  # remota (`origin` e `origin/develop` passam a ler a tag); criar ou mover é bloqueado, apagar (limpeza) pode.
++  case "$local_sha:$remote_ref" in
++    *[!0]*:refs/tags/origin|*[!0]*:refs/tags/origin/*|*[!0]*:"refs/tags/${1:-origin}"|*[!0]*:"refs/tags/${1:-origin}"/*)
++       echo "pre-push: R-FLUXO: a tag '${remote_ref#refs/tags/}' imita um remoto (origin ou ${1:-origin}, sozinho ou com /...); envio bloqueado, escolha outro nome." >&2
++       exit 1 ;;
++  esac
+   case "$remote_ref" in
+     refs/heads/?*|refs/tags/?*) ;;
+     *) echo "pre-push: R-FLUXO: a ref remota '${remote_ref}' não é branch (refs/heads/) nem tag (refs/tags/); envio bloqueado (o envio espelho leva refs/remotes/, refs/notes/ e afins)." >&2
+diff --git a/tests/mutantes/k339-pre-push-2.json b/tests/mutantes/k339-pre-push-2.json
+new file mode 100644
+index 0000000..ba7837d
+--- /dev/null
++++ b/tests/mutantes/k339-pre-push-2.json
+@@ -0,0 +1,36 @@
++{
++  "pedido": "k339-pre-push",
++  "executor": "unittest",
++  "mutantes": [
++    {
++      "id": "M9",
++      "guarda": "tag na pasta do remoto do envio ($1/...) entra no ramo de recusa",
++      "arquivo": "templates/projeto/.githooks/pre-push",
++      "de": "*[!0]*:\"refs/tags/${1:-origin}\"/*)",
++      "para": "*[!0]*:\"refs/tags/__k339__\"/*)",
++      "testes": [
++        "tests.test_prepush_k339.K339Modelo.test_tag_na_pasta_do_remoto_recusa"
++      ]
++    },
++    {
++      "id": "M10",
++      "guarda": "a ancestralidade é lida sem o arquivo antigo de enxertos (.git/info/grafts)",
++      "arquivo": "templates/projeto/.githooks/pre-push",
++      "de": "if ! GIT_GRAFT_FILE=/dev/null git",
++      "para": "if ! git",
++      "testes": [
++        "tests.test_prepush_k339.K339Modelo.test_arquivo_de_grafts_nao_forja_fast_forward"
++      ]
++    },
++    {
++      "id": "M11",
++      "guarda": "apagar tag com o nome do remoto do envio (limpeza) segue livre",
++      "arquivo": "templates/projeto/.githooks/pre-push",
++      "de": "*[!0]*:\"refs/tags/${1:-origin}\"|",
++      "para": "*:\"refs/tags/${1:-origin}\"|",
++      "testes": [
++        "tests.test_prepush_k339.K339Modelo.test_apagar_tag_do_remoto_passa"
++      ]
++    }
++  ]
++}
+diff --git a/tests/mutantes/k339-pre-push.json b/tests/mutantes/k339-pre-push.json
+new file mode 100644
+index 0000000..4ff863b
+--- /dev/null
++++ b/tests/mutantes/k339-pre-push.json
+@@ -0,0 +1,86 @@
++{
++  "pedido": "k339-pre-push",
++  "executor": "unittest",
++  "mutantes": [
++    {
++      "id": "M1",
++      "guarda": "tag que já existe no remoto entra no ramo de recusa",
++      "arquivo": "templates/projeto/.githooks/pre-push",
++      "de": "      case \"$remote_ref\" in refs/tags/*)\n        echo \"pre-push: R-VERIFY: a tag",
++      "para": "      case \"$remote_ref\" in refs/tags/__k339__*)\n        echo \"pre-push: R-VERIFY: a tag",
++      "testes": [
++        "tests.test_prepush_k339.K339Modelo.test_tag_existente_movida_para_descendente_recusa"
++      ]
++    },
++    {
++      "id": "M2",
++      "guarda": "tag que já existe no remoto barra o envio",
++      "arquivo": "templates/projeto/.githooks/pre-push",
++      "de": "mover tag é decisão do usuário.\" >&2\n        exit 1 ;;",
++      "para": "mover tag é decisão do usuário.\" >&2\n        true ;;",
++      "testes": [
++        "tests.test_prepush_k339.K339Modelo.test_tag_existente_movida_para_descendente_recusa"
++      ]
++    },
++    {
++      "id": "M3",
++      "guarda": "a ancestralidade é lida sem os objetos de git replace",
++      "arquivo": "templates/projeto/.githooks/pre-push",
++      "de": "git --no-replace-objects merge-base --is-ancestor",
++      "para": "git merge-base --is-ancestor",
++      "testes": [
++        "tests.test_prepush_k339.K339Modelo.test_graft_nao_forja_fast_forward"
++      ]
++    },
++    {
++      "id": "M4",
++      "guarda": "tag refs/tags/origin/* criada ou movida entra no ramo de recusa",
++      "arquivo": "templates/projeto/.githooks/pre-push",
++      "de": "*[!0]*:refs/tags/origin/*|",
++      "para": "*[!0]*:refs/tags/__k339__/*|",
++      "testes": [
++        "tests.test_prepush_k339.K339Modelo.test_tag_origin_nova_recusa"
++      ]
++    },
++    {
++      "id": "M5",
++      "guarda": "tag refs/tags/origin/* barra o envio",
++      "arquivo": "templates/projeto/.githooks/pre-push",
++      "de": "escolha outro nome.\" >&2\n       exit 1 ;;",
++      "para": "escolha outro nome.\" >&2\n       true ;;",
++      "testes": [
++        "tests.test_prepush_k339.K339Modelo.test_tag_origin_nova_recusa"
++      ]
++    },
++    {
++      "id": "M6",
++      "guarda": "apagar tag refs/tags/origin/* (limpeza) segue livre",
++      "arquivo": "templates/projeto/.githooks/pre-push",
++      "de": "*[!0]*:refs/tags/origin/*|",
++      "para": "*:refs/tags/origin/*|",
++      "testes": [
++        "tests.test_prepush_k339.K339Modelo.test_apagar_tag_origin_passa"
++      ]
++    },
++    {
++      "id": "M7",
++      "guarda": "tag refs/tags/origin (sem barra) criada ou movida entra no ramo de recusa",
++      "arquivo": "templates/projeto/.githooks/pre-push",
++      "de": "*[!0]*:refs/tags/origin|",
++      "para": "*[!0]*:refs/tags/__k339__|",
++      "testes": [
++        "tests.test_prepush_k339.K339Modelo.test_tag_origin_sem_barra_recusa"
++      ]
++    },
++    {
++      "id": "M8",
++      "guarda": "tag com o nome do remoto do envio ($1) entra no ramo de recusa",
++      "arquivo": "templates/projeto/.githooks/pre-push",
++      "de": "*[!0]*:\"refs/tags/${1:-origin}\"|",
++      "para": "*[!0]*:\"refs/tags/__k339__\"|",
++      "testes": [
++        "tests.test_prepush_k339.K339Modelo.test_tag_com_o_nome_do_remoto_recusa"
++      ]
++    }
++  ]
++}
+diff --git a/tests/test_prepush_k339.py b/tests/test_prepush_k339.py
+new file mode 100644
+index 0000000..065c368
+--- /dev/null
++++ b/tests/test_prepush_k339.py
+@@ -0,0 +1,94 @@
++"""K339 (v0478 E72.1 e E72.3): no laço de refs do pre-push do modelo de projeto, a ancestralidade é lida sem enxertos
++(`git replace --graft` e o antigo `.git/info/grafts` não forjam o fast-forward), tag que já existe no remoto não se move
++(nem para um descendente; tag nova pode) e tag com o nome de um remoto (`origin` ou o deste envio, sozinho ou como pasta)
++não é criada nem movida (apagar pode). Entra com o patch de docs/propostas/k339-pre-push.md, que o dono aplica (a pasta
++.githooks/ do modelo é travada para os agentes).
++"""
++import subprocess
++import sys
++import unittest
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++import test_prepush_refs as refs  # noqa: E402
++
++ZERO = refs.ZERO
++NAO_FF, TAG_EXISTE, TAG_REMOTO = "envio não fast-forward", "já existe no remoto e não se move", "imita um remoto"
++
++
++class K339Modelo(refs.Base, unittest.TestCase):
++    HOOK = refs.HOOKS["modelo"]
++
++    def setUp(self):
++        super().setUp()
++        self.git("commit", "-q", "--allow-empty", "-m", "b")
++        self.filho = self.git("rev-parse", "HEAD")
++        self.git("checkout", "-q", "--orphan", "outra")
++        self.git("commit", "-q", "--allow-empty", "-m", "x")
++        self.orfao = self.git("rev-parse", "HEAD")
++
++    def roda_no_remoto(self, nome, linhas):
++        """Como `roda`, com outro nome de remoto em $1 (o git passa o nome do remoto do envio)."""
++        r = subprocess.run([str(self.HOOK), nome, str(self.remoto)], cwd=self.repo, env=self.env,
++                           input="".join(f"{ln}\n" for ln in linhas), capture_output=True, text=True, timeout=120,
++                           start_new_session=True)
++        return r.returncode, r.stdout + r.stderr
++
++    def assertPassa(self, resultado):
++        codigo, saida = resultado
++        self.assertEqual([t for t in (NAO_FF, TAG_EXISTE, TAG_REMOTO) if t in saida], [], saida)
++        self.assertEqual(codigo, 0, saida)
++
++    def test_graft_nao_forja_fast_forward(self):
++        self.git("replace", "--graft", self.orfao, self.sha)
++        linha = f"refs/heads/outra {self.orfao} refs/heads/melhoria/a {self.sha}"
++        self.assertRecusa(self.roda([linha]), NAO_FF)
++
++    def test_arquivo_de_grafts_nao_forja_fast_forward(self):
++        (self.repo / ".git" / "info").mkdir(exist_ok=True)
++        (self.repo / ".git" / "info" / "grafts").write_text(f"{self.orfao} {self.sha}\n", encoding="utf-8")
++        linha = f"refs/heads/outra {self.orfao} refs/heads/melhoria/a {self.sha}"
++        self.assertRecusa(self.roda([linha]), NAO_FF)
++
++    def test_fast_forward_real_passa(self):
++        self.assertPassa(self.roda([f"refs/heads/melhoria/a {self.filho} refs/heads/melhoria/a {self.sha}"]))
++
++    def test_tag_existente_movida_para_descendente_recusa(self):
++        self.assertRecusa(self.roda([f"refs/tags/v1 {self.filho} refs/tags/v1 {self.sha}"]), TAG_EXISTE)
++
++    def test_tag_nova_passa(self):
++        self.assertPassa(self.roda([f"refs/tags/v2 {self.filho} refs/tags/v2 {ZERO}"]))
++
++    def test_tag_origin_nova_recusa(self):
++        # $1 é outro remoto: só o padrão fixo `origin/*` pode recusar.
++        for ref in ("refs/tags/origin/develop", "refs/tags/origin/main"):
++            with self.subTest(ref):
++                self.assertRecusa(self.roda_no_remoto("upstream", [f"{ref} {self.filho} {ref} {ZERO}"]), TAG_REMOTO)
++
++    def test_tag_origin_sem_barra_recusa(self):
++        ref = "refs/tags/origin"
++        self.assertRecusa(self.roda_no_remoto("upstream", [f"{ref} {self.filho} {ref} {ZERO}"]), TAG_REMOTO)
++
++    def test_tag_com_o_nome_do_remoto_recusa(self):
++        ref = "refs/tags/fork"
++        self.assertRecusa(self.roda_no_remoto("fork", [f"{ref} {self.filho} {ref} {ZERO}"]), TAG_REMOTO)
++
++    def test_tag_na_pasta_do_remoto_recusa(self):
++        ref = "refs/tags/fork/develop"
++        self.assertRecusa(self.roda_no_remoto("fork", [f"{ref} {self.filho} {ref} {ZERO}"]), TAG_REMOTO)
++
++    def test_tag_com_prefixo_do_remoto_passa(self):
++        # Só o nome exato do remoto, ou ele como pasta, recusa: `forkado` e `originais` seguem livres.
++        for ref in ("refs/tags/forkado", "refs/tags/originais"):
++            with self.subTest(ref):
++                self.assertPassa(self.roda_no_remoto("fork", [f"{ref} {self.filho} {ref} {ZERO}"]))
++
++    def test_apagar_tag_origin_passa(self):
++        self.assertPassa(self.roda([f"(delete) {ZERO} refs/tags/origin/develop {self.sha}"]))
++
++    def test_apagar_tag_do_remoto_passa(self):
++        self.assertPassa(self.roda_no_remoto("fork", [f"(delete) {ZERO} refs/tags/fork {self.sha}"]))
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tests/test_prepush_so_docs.py b/tests/test_prepush_so_docs.py
+index 8f4efaf..804c179 100644
+--- a/tests/test_prepush_so_docs.py
++++ b/tests/test_prepush_so_docs.py
+@@ -189,7 +189,7 @@ class PrePushSoDocs(Repo):
+     def test_tag_roda(self):
+         self.escreve("docs/a.md")
+         novo = self.commit("docs")
+-        self.assertTrue(self.envia([self.ref(novo, self.base, "refs/tags/v1")])[1])
++        self.assertTrue(self.envia([self.ref(novo, ZERO, "refs/tags/v1")])[1])  # K339: tag que já existe no remoto não se move
+ 
+     def test_diff_sem_arquivo_roda(self):
+         self.assertTrue(self.envia([self.ref(self.base, self.base)])[1])
+@@ -757,7 +757,7 @@ class ListaDosArquivos(EnvioDeCodigo):
+         self.escreve("src/a.ts")
+         novo = self.commit("codigo")
+         self.assertEqual(self.envia_e_le([self.ref(novo, ZERO)]), ["TUDO"])
+-        self.assertEqual(self.envia_e_le([self.ref(novo, self.base, "refs/tags/v1")]), ["TUDO"])
++        self.assertEqual(self.envia_e_le([self.ref(novo, ZERO, "refs/tags/v1")]), ["TUDO"])  # K339: só tag nova chega aqui
+ 
+ 
+ class CaminhosExtra(Repo):

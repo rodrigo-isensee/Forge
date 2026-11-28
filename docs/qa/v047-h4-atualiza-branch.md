@@ -1,11 +1,11 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v047
+pedido: v0474
 branch: melhoria/v047-h4-atualiza-branch
-commit: 80679f197f587ac0eabbef9991c66d391f802678
+commit: ecc079920274ff207f217372c8708bef6e990899
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -42,3 +42,9 @@ O pedido não tem especificação de UX; as obrigações vêm do item H4: em `me
 - Mutantes próprios da instância anterior: Q2 e Q3 morreram; Q1 (linha 768, `arvore_mt` limpo) é equivalente (a primeira linha da saída já é a árvore); Q4 (`--trazida` no recomeço, linha 798) sobreviveu: A1 recomendado, sem bloqueio (o ciclo exigiria a base andar de novo no intervalo de um envio, e a falha continua fechada nos demais passos).
 - Bordas lidas no diff: árvore do merge-tree fora de 40/64 hex para (`die` no 2b); `git push` sem forçar nem pular o pre-push; cadeia recomeçada herda os argumentos originais (`args_originais`).
 - Suíte inteira: não rerrodada; vai ao check `bateria` do CI do PR (sem PR, brief). Permissões e acessibilidade: n/a (ferramenta de linha de comando).
+
+## Revalidação por delta (E1.48, head ecc07992)
+- `forge-check parecer delta`: intervalo 80679f19..ecc07992, domínio com `bin/forge-fechar` (linha 789: `[ -d ]` trocado por `test -d`, forma equivalente, mesma guarda) e `tests/mutantes/v047-h4-atualiza-branch.json` (`de` do M6 alinhado à nova linha). Sem mudança de teste.
+- Testes do arquivo tocado: `python3 -I -m unittest discover -s tests -p test_fechar_base_andou.py`: 37 testes OK (225 s).
+- Mutação do delta: `bin/forge-mutante tests/mutantes/v047-h4-atualiza-branch.json tests/mutantes/v047-h4-atualiza-branch-2.json --processos 4 --base 80679f197f587ac0eabbef9991c66d391f802678`: `base=80679f19… rev=ecc07992…`, M1 a M12 `morreu` (M6 em bin/forge-fechar:789 morre com o `de` novo), rc=0. M11 e M12 (linha 798) mortos: o A1 anterior está coberto.
+- Parecer permanece aprovado; sem bugs novos.

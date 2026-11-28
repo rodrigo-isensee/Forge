@@ -1,0 +1,36 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP105",
+      "guarda": "AE7.1 plugin_fora_da_lista: fora da lista é None (F4)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "objeto_na_lista(texto, CHAVES_PLUGIN) is None",
+      "para": "objeto_na_lista(texto, CHAVES_PLUGIN) is False",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f4_chave_fora_da_lista_no_plugin_json"
+      ]
+    },
+    {
+      "id": "CMP106",
+      "guarda": "AE7.1 cabecalho_simples: linha em branco não é conteúdo (F6)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "for linha in cabecalho(texto).split(\"\\n\") if linha.strip()]",
+      "para": "for linha in cabecalho(texto).split(\"\\n\") if True]",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f6_cabecalho_fora_da_forma_simples"
+      ]
+    },
+    {
+      "id": "CMP107",
+      "guarda": "AE7.1 extrair: o fim da lista do ls-tree não é entrada",
+      "arquivo": "bin/forge_comparar.py",
+      "de": ".groups() for e in lista.split(b\"\\0\") if e]",
+      "para": ".groups() for e in lista.split(b\"\\0\") if True]",
+      "testes": [
+        "tests.test_comparar.Medida.test_mesma_arvore_mede_zero"
+      ]
+    }
+  ]
+}

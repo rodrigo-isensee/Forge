@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-corpus-custo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "regressão de custo: o driver roda cada caso do corpus duas vezes (as execuções passam das declaradas)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "r = rodar(f.hook, entrada, raiz, proc, extra, como_o_claude_code=bool(f.dados.get(\"prazo_de_producao\")))",
+      "para": "rodar(f.hook, entrada, raiz, proc, extra)\n        r = rodar(f.hook, entrada, raiz, proc, extra, como_o_claude_code=bool(f.dados.get(\"prazo_de_producao\")))",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_corpus_nos_dois_hooks"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "regressão de custo: o hook dorme a cada decisão (o sono do hook passa de zero)",
+      "arquivo": "hooks/_comum.py",
+      "de": "    hook = Hook(nome)\n",
+      "para": "    hook = Hook(nome)\n    time.sleep(0.001)\n",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_corpus_nos_dois_hooks"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "execuções diferentes das declaradas pelo corpus reprovam (mutante: a condição nunca vale)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if trabalho[\"execucoes\"] != execucoes:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_execucoes_a_mais_ou_a_menos_reprovam"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "subprocessos ou passos do interpretador acima da medida mais o ruído reprovam (mutante: a condição nunca vale)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if trabalho[nome] > teto:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_um_acima_do_teto_reprova"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "sono pedido pelo hook reprova (mutante: a condição nunca vale)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if trabalho[\"sono\"] > 0:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_sono_do_hook_reprova"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o corpus roda o hook com o contador ligado (mutante: nunca liga, nada se conta)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if self.contador_de_trabalho else {}",
+      "para": "if False else {}",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_corpus_nos_dois_hooks"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o contador anota cada subprocesso aberto pelo hook (mutante: o evento do Popen não casa)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if evento in (\"subprocess.Popen\",",
+      "para": "if evento in (\"subprocess.Popen-nao\",",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_contador_anota_execucao_subprocesso_e_sono_de_cada_filho"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o contador anota o sono pedido pelo código do hook (mutante: nunca anota)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if not sys._getframe(1).f_code.co_filename.startswith(_biblioteca):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_contador_anota_execucao_subprocesso_e_sono_de_cada_filho"
+      ]
+    }
+  ]
+}

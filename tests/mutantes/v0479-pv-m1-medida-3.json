@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-pv-m1-medida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "--exigidos vazio é uso errado",
+      "arquivo": "bin/forge-placar",
+      "de": "if not exigidos:",
+      "para": "if False:",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_exigidos_vazio_e_uso_errado"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "--pr-lista ilegível também sai lacuna",
+      "arquivo": "bin/forge-placar",
+      "de": "if runs is None or prs is None:",
+      "para": "if runs is None:",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_resposta_ilegivel_sai_lacuna_nunca_verde"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "PR do dependabot fica fora",
+      "arquivo": "bin/forge-placar",
+      "de": "if str(autor) in AUTORES_DEPENDABOT or not dentro(dia, janela):",
+      "para": "if not dentro(dia, janela):",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_dependabot_e_pr_fora_da_janela_ficam_fora"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "PR fora da janela fica fora",
+      "arquivo": "bin/forge-placar",
+      "de": "or not dentro(dia, janela):",
+      "para": "or False:",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_dependabot_e_pr_fora_da_janela_ficam_fora"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "o vermelho por workflow é só o vermelho",
+      "arquivo": "bin/forge-placar",
+      "de": "if e == \"vermelho\")",
+      "para": "if e != \"verde\")",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_vermelho_ganha_da_cancelada_e_da_pendente"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "run vermelho sem jobs não derruba a medida",
+      "arquivo": "bin/forge-placar",
+      "de": "primeiras[w].get(\"jobs\") or []",
+      "para": "primeiras[w].get(\"jobs\")",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_vermelho_ganha_da_cancelada_e_da_pendente"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "o estado do PR é o que aparece nas execuções",
+      "arquivo": "bin/forge-placar",
+      "de": "if estado in estados.values():",
+      "para": "if estado not in estados.values():",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_verde_nos_dois_exigidos"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "nome vazio em --exigidos não conta",
+      "arquivo": "bin/forge-placar",
+      "de": "if w.strip())",
+      "para": "if True)",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_exigidos_vazio_e_uso_errado"
+      ]
+    }
+  ]
+}

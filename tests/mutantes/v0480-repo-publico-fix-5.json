@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-repo-publico-fix",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "RP33",
+      "guarda": "A4: a vírgula é separador (visibility,:PUBLIC)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "GRAPHQL_VISIBILIDADE.findall(consulta.replace(\",\", \" \"))",
+      "para": "GRAPHQL_VISIBILIDADE.findall(consulta)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP34",
+      "guarda": "A4: o campo <var>[visibility] decide",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"[visibility]\" in k.lower()",
+      "para": "\"[visibilidade]\" in k.lower()",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP35",
+      "guarda": "A4: as variables do --input decidem",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if k == \"variables\" for x",
+      "para": "if k == \"variaveis\" for x",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP36",
+      "guarda": "A4: só objeto JSON tem visibility",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not isinstance(valor, tuple):\n            return []",
+      "para": "if True:\n            return []",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP37",
+      "guarda": "A4: a chave visibility do JSON",
+      "arquivo": "hooks/conformidade.py",
+      "de": "([v] if k == \"visibility\" else [])",
+      "para": "([v] if k == \"visibilidade\" else [])",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP38",
+      "guarda": "A4: visibility em qualquer nível das variables",
+      "arquivo": "hooks/conformidade.py",
+      "de": "else []) + Guarda.visibilidades_json(v)]",
+      "para": "else [])]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP39",
+      "guarda": "A4: corpo ilegível no GraphQL falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if corpo is CORPO_ILEGIVEL or any(",
+      "para": "if False or any(",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP40",
+      "guarda": "A2 do review: -F colado com F maiúsculo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "CAMPO_COLADO = re.compile(r\"(?:-[fF]=?",
+      "para": "CAMPO_COLADO = re.compile(r\"(?:-[f]=?",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M24",
+      "guarda": "anterior sem Branch: é recusado (segurança S7)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not do_item:\n        return (\"não tem `Branch:`",
+      "para": "    if False:\n        return (\"não tem `Branch:`",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_s7_anterior_sem_branch_nao_gera_outra_volta_um"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "anterior de outra Branch: é recusado (segurança S8)",
+      "arquivo": "bin/forge-check",
+      "de": "    if do_item != branch:\n        return (f\"é de",
+      "para": "    if False:\n        return (f\"é de",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_s8_anterior_de_outro_item_nao_gera_outra_volta_um"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "o gerar recusa o anterior sem Branch: ou de outra (S7, S8)",
+      "arquivo": "bin/forge-check",
+      "de": "    if motivo := branch_do_anterior_diferente(do_item, branch):",
+      "para": "    if None and branch_do_anterior_diferente(do_item, branch):",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_s7_anterior_sem_branch_nao_gera_outra_volta_um",
+        "tests.test_volta_por_delta.BriefDeVolta.test_s8_anterior_de_outro_item_nao_gera_outra_volta_um"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "a conferência recusa o anterior sem Branch: ou de outra (S7, S8)",
+      "arquivo": "bin/forge-check",
+      "de": "    if motivo := branch_do_anterior_diferente(do_item, grupo(",
+      "para": "    if None and branch_do_anterior_diferente(do_item, grupo(",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_s7_anterior_sem_branch_nao_gera_outra_volta_um",
+        "tests.test_volta_por_delta.BriefDeVolta.test_s8_anterior_de_outro_item_nao_gera_outra_volta_um"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "a recusa nomeia a volta sem Branch: como <branch>",
+      "arquivo": "bin/forge-check",
+      "de": "sem_controle(branch or '<branch>'))}; \"",
+      "para": "sem_controle(branch or ''))}; \"",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_conferencia_recusa_a_volta_sem_branch_no_brief_novo"
+      ]
+    }
+  ]
+}

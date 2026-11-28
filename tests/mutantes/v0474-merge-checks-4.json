@@ -39,7 +39,7 @@
       "de": "previo_dos_checks = previo or sem_checks",
       "para": "previo_dos_checks = previo",
       "testes": [
-        "tests.test_fechar_forge_check_real.FecharComChecksPendentes.test_armar_com_checks_pendentes_passa_do_passo_1_e_arma"
+        "tests.test_fechar_forge_check_real.FecharComChecksPendentes.test_checks_pendentes_passam_do_passo_1_e_param_no_4_sem_merge"
       ]
     },
     {

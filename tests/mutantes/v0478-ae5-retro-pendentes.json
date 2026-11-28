@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "--pendentes despacha para cmd_retro_pendentes",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"retro\" and a.pendentes:",
+      "para": "    if a.cmd == \"retro\" and not a.pendentes:",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_sem_retro_lista_so_as_tags_vxyz_da_main_com_mais_de_24h"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "--raiz-pedidos dá a pasta das retros",
+      "arquivo": "bin/forge-check",
+      "de": "        return cmd_retro_pendentes(raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz",
+      "para": "        return cmd_retro_pendentes(raiz, Path(a.raiz_pedidos).resolve() if not a.raiz_pedidos else raiz",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_retros_vem_do_raiz_pedidos_quando_dado"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "só linha que começa com ## abre seção",
+      "arquivo": "bin/forge-check",
+      "de": "        if linha.startswith(\"## \"):\n            secao = re.sub",
+      "para": "        if linha.startswith(\"### \"):\n            secao = re.sub",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_retro_completa_cobre_varias_versoes"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "item vazio do Cobre: não vira versão",
+      "arquivo": "bin/forge-check",
+      "de": "for v in m.group(1).split(\",\") if v.strip()]",
+      "para": "for v in m.group(1).split(\",\") if not v.strip()]",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_retro_completa_cobre_varias_versoes"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "retro que é link não é seguida (O_NOFOLLOW no descritor)",
+      "arquivo": "bin/forge-check",
+      "de": "descritor = os.open(arq, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)",
+      "para": "descritor = os.open(arq, os.O_RDONLY | os.O_NONBLOCK)",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_link_e_arquivo_grande_nao_cobrem"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "retro acima do teto não cobre (lida até TETO+1)",
+      "arquivo": "bin/forge-check",
+      "de": "if len(dados) <= TETO_DA_RETRO else None",
+      "para": "if len(dados) <= TETO_DA_RETRO + 1 else None",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_link_e_arquivo_grande_nao_cobrem"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "Cobre: só vale antes da primeira seção",
+      "arquivo": "bin/forge-check",
+      "de": "        elif secao is None and (m := re.match(COBRE_DA_RETRO",
+      "para": "        elif (m := re.match(COBRE_DA_RETRO",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_cobre_depois_da_primeira_secao_nao_vale"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "comentário HTML não é corpo de seção",
+      "arquivo": "bin/forge-check",
+      "de": " and linha.strip() and not linha.strip().startswith(\"<!--\"):",
+      "para": " and linha.strip():",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_retro_so_com_o_cabecalho_do_modelo_nao_cobre"
+      ]
+    }
+  ]
+}

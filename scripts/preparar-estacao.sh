@@ -5,7 +5,7 @@
 #                ~/Forge, a área ~/.forge-contrib, o login do gh, core.hooksPath, a cópia vigente e o dev-marketplace);
 #                o .devcontainer/devcontainer.json o roda a cada início (E2.54), sem o dono, com FORGE_PREPARO_ESSENCIAL=1
 #                (só gh, link, login, clone da área e hooksPath; sem a cópia vigente nem o dev-marketplace, que executam
-#                código do work tree; o comando é um clone raso novo da main, nunca ref local). Saída: linhas "fez:", "falta:" e "conflito:".
+#                código do work tree; o comando baixa a main pelo GitHub sem o gh, nunca a cópia de trabalho). Saída: linhas "fez:", "falta:" e "conflito:".
 #   --ferramentas  só instala as ferramentas dos portões (PORTAO-DEVOPS-FERRAMENTAS, abaixo), pelo dono; o preparo completo
 #                da estação também as instala, o --container não (o postStart não baixa binário sem o dono).
 #   --verificar  só confere (nada é alterado) gh, login, link ~/.forge-contrib e core.hooksPath; imprime "ambiente: ok"
@@ -183,6 +183,39 @@ container_pacotes() {
   else
     falta "instalar ${faltam[*]} (o apt falhou; rode de novo com rede)"
   fi
+}
+
+# E119.1 (AMBIENTE-SOBREVIVE-RECRIACAO): o Claude Code atual. O home some com o container e o binário claude do PATH da imagem pode ser
+# antigo; o instalador oficial (nativo, de claude.ai, sem custo) põe o binário em ~/.local/bin/claude, que se atualiza sozinho.
+# Só instala se esse binário faltar (rodar duas vezes não muda nada) e garante ~/.local/bin na frente do PATH do bash. Falha
+# (sem rede) vira "falta:", nunca barra o container.
+claude_ok() { [ -x "$HOME/.local/bin/claude" ]; }
+garantir_path_local() {
+  [ "$simular" = 0 ] || return 0
+  command grep -qE '^[[:space:]]*export PATH=.*\.local/bin' "$HOME/.bashrc" 2>/dev/null && return 0
+  # shellcheck disable=SC2016 # $HOME e $PATH devem ir literais para o .bashrc
+  printf '\n# claude e atalhos pessoais\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.bashrc"
+  fez "$HOME/.local/bin entrou na frente do PATH do bash"
+}
+container_claude() {
+  local tmp
+  if claude_ok; then
+    fez "Claude Code já instalado em $HOME/.local/bin/claude"
+  elif ! tem curl; then
+    falta "instalar o Claude Code (sem curl aqui): baixe com curl -fsSL -o instalar-claude.sh https://claude.ai/install.sh e depois rode bash instalar-claude.sh"
+  elif [ "$simular" = 1 ]; then
+    printf '[simular] baixar https://claude.ai/install.sh e rodar com bash\n'
+  else
+    tmp="$(mktemp -d)"
+    if curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 120 -o "$tmp/instalar.sh" https://claude.ai/install.sh \
+       && { if tem timeout; then timeout 300 bash "$tmp/instalar.sh"; else bash "$tmp/instalar.sh"; fi; } </dev/null >/dev/null 2>&1 && claude_ok; then
+      fez "instalou o Claude Code atual em $HOME/.local/bin/claude"
+    else
+      falta "instalar o Claude Code (o download ou a instalação falhou; rode de novo com rede): baixe com curl -fsSL -o instalar-claude.sh https://claude.ai/install.sh e depois rode bash instalar-claude.sh"
+    fi
+    rm -rf "$tmp"
+  fi
+  garantir_path_local
 }
 
 # Garante que $1 (no home) seja link para $2 (persistente). $3 = nome; $4 = 1 cria $2 vazio (0700) se faltar.
@@ -403,8 +436,9 @@ preparar_container() {
   origem="${FORGE_ORIGEM:-$persistente/Forge}"
   FORGE_CONTRIB_REPO="${FORGE_CONTRIB_REPO:-rodrigo-isensee/forge-contrib}"
   dados="${XDG_DATA_HOME:-$HOME/.local/share}"
+  persistir "$HOME/.config/gh" "$HOME/.claude/gh" "configuração do gh" 1 || true  # primeiro: sem ela o sandbox do Bash não abre
   container_pacotes
-  persistir "$HOME/.config/gh" "$HOME/.claude/gh" "configuração do gh" 1 || true
+  container_claude
   container_forge
   container_login
   container_area
@@ -420,7 +454,22 @@ preparar_container() {
   for l in "${faltas[@]}"; do printf 'falta: %s\n' "$l"; done
   for l in "${conflitos[@]}"; do printf 'conflito: %s\n' "$l" >&2; done
   [ "$simular" = 1 ] && echo "(simulação: nada foi alterado)"
-  [ ${#conflitos[@]} -eq 0 ]
+  [ "$simular" = 1 ] || container_essenciais
+  [ ${#conflitos[@]} -eq 0 ] && [ ${#ausentes[@]} -eq 0 ]
+}
+
+# DEVCONTAINER-SEM-GH: o que o container recriado precisa para o time trabalhar (gh, tmux, ~/.config/gh e o link
+# ~/.forge-contrib). Faltou, sai com rc 1 e uma linha "erro:" na saída de erro: o postStartCommand não engole mais a falha.
+ausentes=()
+container_essenciais() {
+  local l real="$persistente/.forge-contrib"
+  tem gh || ausentes+=("gh não instalado")
+  tem tmux || ausentes+=("tmux não instalado")
+  [ -d "$HOME/.config/gh" ] || ausentes+=("$HOME/.config/gh ausente (o sandbox do Bash não abre sem ele)")
+  if [ -d "$real" ] && [ "$(readlink -f "$HOME/.forge-contrib")" != "$(readlink -f "$real")" ]; then
+    ausentes+=("link $HOME/.forge-contrib -> $real ausente")
+  fi
+  for l in "${ausentes[@]}"; do printf 'erro: %s; rode bash %s/scripts/preparar-estacao.sh --container\n' "$l" "$origem" >&2; done
 }
 
 # E2.54: só confere; cada falta traz o comando exato. Sai com 1 se faltar algo.
@@ -433,6 +482,7 @@ verificar_container() {
   if tem gh && ! gh auth status >/dev/null 2>&1; then
     f+=("gh sem login (o login mora em ~/.claude/gh e sobrevive à recriação; falta fazê-lo uma vez): gh auth login -s repo,workflow --web e depois $preparo")
   fi
+  claude_ok || f+=("Claude Code atual ausente em $HOME/.local/bin/claude (o do PATH pode ser antigo): rode $preparo")
   if [ ! -d "$real" ] || [ "$(readlink -f "$HOME/.forge-contrib")" != "$(readlink -f "$real")" ]; then
     f+=("link $HOME/.forge-contrib -> $real ausente ou sem destino: rode $preparo")
   fi

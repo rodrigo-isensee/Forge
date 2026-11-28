@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: autores que não é lista vale vazio, nunca derruba o disparo",
       "arquivo": "hooks/agentes.py",
-      "de": "(lista if isinstance(lista, list) else [])\n            if isinstance(a, dict) and isinstance(a.get(\"id\"), str)",
-      "para": "(lista if True else [])\n            if isinstance(a, dict) and isinstance(a.get(\"id\"), str)",
+      "de": "for a in (lista if isinstance(lista, list) else []):\n        if not (isinstance(a, dict)",
+      "para": "for a in (lista if True else []):\n        if not (isinstance(a, dict)",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
       ]
@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: autor com id fora da forma de agente não entra no aviso",
       "arquivo": "hooks/agentes.py",
-      "de": "            if isinstance(a, dict) and isinstance(a.get(\"id\"), str) and ID_DE_AGENTE.fullmatch(a[\"id\"])\n",
-      "para": "            if isinstance(a, dict) and isinstance(a.get(\"id\"), str)\n",
+      "de": "isinstance(a.get(\"id\"), str) and ID_DE_AGENTE.fullmatch(a[\"id\"])\n                and isinstance(a.get(\"desde\"), (int, float))):",
+      "para": "isinstance(a.get(\"id\"), str)\n                and isinstance(a.get(\"desde\"), (int, float))):",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
       ]
@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: autor que passou de expiracao_horas não avisa",
       "arquivo": "hooks/agentes.py",
-      "de": "and agora - a[\"desde\"] < expira_s]",
-      "para": "]",
+      "de": "return [a for a in validos if agora - a[\"desde\"] < expira_s]",
+      "para": "return [a for a in validos]",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
       ]

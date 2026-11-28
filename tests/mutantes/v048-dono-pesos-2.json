@@ -1,0 +1,91 @@
+{
+  "pedido": "v048",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M10",
+      "guarda": "execucao de PR marca a perna como de PR",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "de_pr = campo(execucao, \"event\", str) == \"pull_request\"",
+      "para": "de_pr = False",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_mesclado_na_develop_entra",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_perna_de_push_nao_vale_em_execucao_de_pr_e_a_de_pr_nao_vale_em_push"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "--conferir nao gera nada",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if a.conferir:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_conferir_sai_1_com_pesos_velhos_e_0_com_pesos_em_dia"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "pesos que nao sao objeto sao peso velho",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if isinstance(atuais, dict) else [\"arquivo",
+      "para": "if True else [\"arquivo",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_conferir_com_pesos_que_nao_sao_objeto_sai_1"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "--conferir sai 1 com peso velho",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "return 1 if motivos else 0",
+      "para": "return 1 if False else 0",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_conferir_sai_1_com_pesos_velhos_e_0_com_pesos_em_dia"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "execucao so conta com exatamente um PR valido no sha",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "execucao_de_pr_valida(execucao, repo, pr)) == 1",
+      "para": "execucao_de_pr_valida(execucao, repo, pr)) >= 1",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_dois_prs_validos_no_mesmo_sha_descartam_a_execucao_e_o_de_fork_no_sha_nao_conta",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_o_pr_e_achado_pelo_sha_mesmo_com_pull_requests_vazio_na_execucao"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "PR de fork nao vale",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "and campo(pr, \"head.repo.full_name\", str) == repo and",
+      "para": "and True and",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_guardas_de_fork_e_de_sha_do_pr_valem_cada_uma_sozinha",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_dois_prs_validos_no_mesmo_sha_descartam_a_execucao_e_o_de_fork_no_sha_nao_conta"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "head.sha do PR igual ao da execucao",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "and campo(pr, \"head.sha\", str) == campo(execucao, \"head_sha\", str))",
+      "para": "and True)",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_guardas_de_fork_e_de_sha_do_pr_valem_cada_uma_sozinha"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "execucao de PR so entra com o PR unico valido",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if pr_unico_valido(execucao, repo, ler):",
+      "para": "if True:",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_execucao_de_pr_malformada_nao_quebra_nem_entra"
+      ]
+    }
+  ]
+}

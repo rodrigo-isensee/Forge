@@ -4,11 +4,13 @@
 // executa o script do work tree (o agente o edita) nem lê ref local (gravável pelo agente): faz um clone raso novo da main
 // num diretório temporário, com a URL do .git/config (protegido), e roda o script de lá. Antes do primeiro merge do script
 // na main, rode uma vez `bash .devcontainer/preparar-ambiente.sh`. Nenhum segredo, e o GH_TOKEN da máquina do dono não entra
-// no container (login do dono: gh auth login -s repo,workflow --web). Ajuste a imagem à stack do projeto.
+// no container (login do dono: gh auth login -s repo,workflow --web). shutdownAction none: fechar o VS Code não para o container,
+// então o tmux com o Jarvis segue vivo (em Codespaces a chave é ignorada). Ajuste a imagem à stack do projeto.
 {
   "name": "{{PROJETO}}",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "remoteUser": "root",
+  "shutdownAction": "none",
   "mounts": [
     "source=forge-claude,target=/root/.claude,type=volume"
   ],

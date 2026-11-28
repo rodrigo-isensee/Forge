@@ -1,0 +1,87 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE72-9",
+      "guarda": "AE7.2 medir_entrega: só rc 0 é aceite",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "niveis[i] = ACEITE if r.returncode == 0 else RECUSA",
+      "para": "niveis[i] = ACEITE if r.returncode != 1 else RECUSA",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_mesmo_veredito_ou_head_que_aperta_mede_zero"
+      ]
+    },
+    {
+      "id": "AE72-10",
+      "guarda": "AE7.2 medir_entrega: prazo ou erro é recusa",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "            except (subprocess.TimeoutExpired, OSError, shutil.Error):\n                niveis[i] = RECUSA",
+      "para": "            except (subprocess.TimeoutExpired, OSError, shutil.Error):\n                niveis[i] = ACEITE",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_head_que_passa_do_prazo_e_recusa"
+      ]
+    },
+    {
+      "id": "AE72-11",
+      "guarda": "AE7.2 executar_entrega: sem fixture é nao-verificavel",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if not casos or any(cod != 0",
+      "para": "if any(cod != 0",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_sem_fixture_ou_fixture_que_nao_e_repositorio_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-12",
+      "guarda": "AE7.2 executar_entrega: fixture que não é repositório é nao-verificavel",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if not casos or any(cod != 0 for cod, _ in heads.values()):",
+      "para": "if not casos:",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_sem_fixture_ou_fixture_que_nao_e_repositorio_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-13",
+      "guarda": "AE7.2 executar_entrega: base que não se extrai não roda o head",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "lado_head = None if lado_base is None else medir_entrega(",
+      "para": "lado_head = None if lado_base is not None else medir_entrega(",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_head_que_aceita_o_que_a_base_recusava_e_aceite_novo",
+        "tests.test_comparar.AlvoEntrega.test_extracao_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-14",
+      "guarda": "AE7.2 executar_entrega: head que não se extrai é nao-verificavel",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if lado_head is None:\n        print(\"so-aperta: nao-verificavel (extração da árvore falhou)\")\n        return 2\n    novos = [f\"aceite-novo",
+      "para": "    if False:\n        print(\"so-aperta: nao-verificavel (extração da árvore falhou)\")\n        return 2\n    novos = [f\"aceite-novo",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_extracao_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-15",
+      "guarda": "AE7.2 executar_entrega: só nível maior no head é aceite novo",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if lado_head[i] > lado_base[i]]",
+      "para": "if lado_head[i] >= lado_base[i]]",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_mesmo_veredito_ou_head_que_aperta_mede_zero"
+      ]
+    },
+    {
+      "id": "AE72-16",
+      "guarda": "AE7.2 executar: alvo desconhecido é nao-verificavel",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if alvo != \"hooks\":",
+      "para": "if alvo == \"nenhum\":",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_alvo_desconhecido_e_nao_verificavel"
+      ]
+    }
+  ]
+}

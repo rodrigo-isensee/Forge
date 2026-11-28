@@ -38,7 +38,7 @@
       "id": "A4",
       "guarda": "sem a pasta de estado, silêncio sem queda",
       "arquivo": "hooks/doutor.py",
-      "de": "        st = os.lstat(pasta)\n    except OSError:\n        return []",
+      "de": "        st = os.lstat(pasta)\n    except OSError:\n        return None",
       "para": "        st = os.lstat(pasta)\n    except OSError:\n        pass",
       "testes": [
         "tests.test_doutor.SempreAtualNoStop.test_sem_a_pasta_fica_em_silencio_e_nao_a_cria"
@@ -48,8 +48,8 @@
       "id": "A5",
       "guarda": "pasta de estado que é link, de outro dono ou não é pasta não é lida",
       "arquivo": "hooks/doutor.py",
-      "de": "    if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid():\n        return []",
-      "para": "    if False:\n        return []",
+      "de": "    if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid():\n        return None",
+      "para": "    if False:\n        return None",
       "testes": [
         "tests.test_doutor.SempreAtualNoStop.test_pasta_que_e_link_simbolico_nao_e_lida"
       ]

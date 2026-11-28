@@ -1,0 +1,24 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (A2, forma 12): gh api orgs/<org>/repos pela URL completa, sem campo de visibilidade.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api https://api.github.com/orgs/org/repos -f name=novo"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: tornar o repositório público"
+  }
+}

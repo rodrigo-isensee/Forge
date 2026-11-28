@@ -102,6 +102,16 @@ class ParecerNovo(Base):
                     self.assertEqual(violacoes, [])
                     self.assertEqual((campos["commit"], campos["parecer"], campos["tipo"]), (codigo, parecer, contrato))
 
+    def test_grava_no_slug_da_branch_e_nao_no_pedido(self):  # META85-FC-RESTOS: o caminho que o brief pede
+        codigo = self.codigo_e_pareceres()
+        rc, saida = self.novo("review", pedido="v9999")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"parecer novo: grave em docs/reviews/x.md; commit: {codigo[:12]}", saida)
+        self.assertEqual(fc.arquivo_do_parecer_novo("qa", "p1", "melhoria/a-b.c"), "docs/qa/a-b.c.md")
+        for branch in ("feature/y", "feature-y", "melhoria/a/b", "melhoria/", "melhoria/-x"):  # fora da convenção ou slug sem forma segura
+            with self.subTest(branch=branch):
+                self.assertEqual(fc.arquivo_do_parecer_novo("review", "p1", branch), "docs/reviews/p1.md")
+
     def test_o_revisar_sha_do_brief_selado_vence(self):
         self.codigo_e_pareceres()
         arq = self.brief()

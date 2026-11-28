@@ -1,0 +1,25 @@
+{
+  "descricao": "E7.23: sessão do Forge, mkfifo fora do .git (pasta de trabalho) segue livre.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "mkfifo -m 600 src/q.fifo"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{raiz}",
+    "agent_type": "forge:dev"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""Forge: linha do contador da versão e visão do backlog para o aviso de marco. Só leitura, sem rede; erro sai com 2.
+N: fragmentos changelog.d/*.md da REF sem o README; sem changelog.d/, PRs mesclados (merge ou squash #n) desde a última
+marca vX.Y.Z, ou "sem contagem" se não der para saber. Próxima versão: patch + 1 até 9; depois de X.Y.9, X.(Y+1).0.
+Teto: teto_versao no config.json do .forge (padrão 20)."""
+import argparse, json, math, re, subprocess, sys
+import datetime as dt
+from pathlib import Path
+
+TETO_PADRAO = 20
+FECHADAS = {"Pronto", "Fechado sem entrega"}
+VERSAO = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
+PR = re.compile(r"^Merge pull request #\d+|\(#\d+\)$")
+
+
+class Erro(Exception):
+    pass
+
+
+def git(raiz, *args):
+    r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=True, errors="replace")
+    if r.returncode != 0:
+        raise Erro(f"git {' '.join(args)}: {r.stderr.strip()}")
+    return r.stdout
+
+
+def ref_padrao(raiz):
+    for ref in ("origin/develop", "develop"):
+        if subprocess.run(["git", "-C", str(raiz), "rev-parse", "-q", "--verify", ref + "^{commit}"],
+                          capture_output=True).returncode == 0:
+            return ref
+    raise Erro("nem origin/develop nem develop existem; passe --ref")
+
+
+def ultima_marca(raiz, ref):
+    return next(iter(git(raiz, "tag", "--merged", ref, "--sort=-v:refname", "--list", "v[0-9]*").split()), None)
+
+
+def versao_seguinte(raiz, ref):
+    try:
+        texto = json.loads(git(raiz, "show", f"{ref}:.claude-plugin/plugin.json")).get("version", "")
+    except Erro:
+        texto = ultima_marca(raiz, ref) or "0.0.0"
+    except (ValueError, AttributeError) as e:
+        raise Erro(f"versão ilegível: plugin.json da {ref} ({e})") from e
+    m = VERSAO.match(str(texto).strip())
+    if not m:
+        raise Erro(f"versão ilegível: {texto!r}")
+    if int(m[3]) >= 9:  # VERSAO-PATCH-ATE-9: depois de X.Y.9 (ou de um patch antigo acima dele) vem X.(Y+1).0
+        return f"{m[1]}.{int(m[2]) + 1}.0"
+    return f"{m[1]}.{m[2]}.{int(m[3]) + 1}"
+
+
+def entregues(raiz, ref):
+    nomes = git(raiz, "ls-tree", "-z", "--name-only", ref, "changelog.d/").split("\0")
+    if any(nomes):
+        return sum(1 for n in nomes if n.endswith(".md") and Path(n).name.lower() != "readme.md")
+    marca = ultima_marca(raiz, ref)
+    assuntos = git(raiz, "log", "--first-parent", "--format=%s", f"{marca}..{ref}" if marca else ref).splitlines()
+    prs = sum(1 for a in assuntos if PR.search(a))
+    return "sem contagem" if assuntos and not prs else prs
+
+
+def teto(raiz):
+    caminho = Path(raiz) / ".forge" / "config.json"
+    if not caminho.is_file():
+        return TETO_PADRAO
+    try:
+        valor = json.loads(caminho.read_text(encoding="utf-8")).get("teto_versao", TETO_PADRAO)
+    except (ValueError, AttributeError) as e:
+        raise Erro(f"{caminho}: {e}") from e
+    if type(valor) is not int or valor < 1:
+        raise Erro(f"{caminho}: teto_versao deve ser inteiro positivo, veio {valor!r}")
+    return valor
+
+
+def abertos_por_coluna(texto):
+    colunas, atual = {}, None
+    for linha in texto.splitlines():
+        if linha.startswith("## "):
+            atual = linha[3:].split(" (")[0].strip()
+            if atual not in FECHADAS:
+                colunas.setdefault(atual, 0)
+            continue
+        celulas = [c.strip() for c in linha.strip().strip("|").split("|")]
+        if atual and atual not in FECHADAS and linha.startswith("|") and celulas[0] not in ("ID", "") \
+                and not set(celulas[0]) <= set("-:"):
+            colunas[atual] = colunas.get(atual, 0) + 1
+    return colunas
+
+
+def movimentos(texto, colunas_abertas):
+    """{data: [entradas, saídas]} pelas linhas '| ts | cartão | de | para | obs |' do histórico."""
+    dias = {}
+    for linha in texto.splitlines():
+        c = [x.strip() for x in linha.strip().strip("|").split("|")]
+        if len(c) < 4:
+            continue
+        de_aberta = c[2] in colunas_abertas
+        par = dias.setdefault(c[0][:10], [0, 0])
+        if c[3] in colunas_abertas and not de_aberta:
+            par[0] += 1
+        elif de_aberta and c[3] in FECHADAS:
+            par[1] += 1
+    return dias
+
+
+def previsao(abertos, dias, hoje):
+    ultimos = [dias.get((hoje - dt.timedelta(days=i)).isoformat(), [0, 0]) for i in range(3)]
+    liquida = (sum(s for _, s in ultimos) - sum(e for e, _ in ultimos)) / 3
+    if liquida <= 0:
+        return "sem data enquanto crescer"
+    fim = hoje + dt.timedelta(days=math.ceil(abertos / liquida))
+    return f"{fim.isoformat()} pela vazão líquida de {liquida:.1f}/dia nos últimos 3 dias"
+
+
+def ler(caminho):
+    try:
+        return Path(caminho).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        raise Erro(f"{caminho}: {getattr(e, 'strerror', None) or 'não é UTF-8'}") from e
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog="forge-contador", description=__doc__.splitlines()[0])
+    for opcao, padrao in (("--raiz", "."), ("--ref", None), ("--quadro", None), ("--historico", None)):
+        p.add_argument(opcao, default=padrao)
+    p.add_argument("--data", type=dt.date.fromisoformat, default=dt.date.today())
+    a = p.parse_args(argv)
+    if a.historico and not a.quadro:
+        p.error("--historico pede --quadro")
+    try:
+        ref = a.ref or ref_padrao(a.raiz)
+        limite = teto(a.raiz)
+        linhas = [f"{versao_seguinte(a.raiz, ref)}: {entregues(a.raiz, ref)} de {limite}"]
+        if a.quadro:
+            colunas = abertos_por_coluna(ler(a.quadro))
+            total = sum(colunas.values())
+            partes = " · ".join(f"{k} {v}" for k, v in colunas.items() if v > 0) or "nenhum"
+            linhas.append(f"backlog: {total} abertos ({partes}) · versões que faltam: {math.ceil(total / limite)}")
+            if a.historico:
+                dias = movimentos(ler(a.historico), set(colunas))
+                ent, sai = dias.get(a.data.isoformat(), [0, 0])
+                linhas[-1] += f" · hoje +{ent} -{sai}" + (" (crescendo)" if ent > sai else "")
+                linhas.append(f"previsão: {previsao(total, dias, a.data)}")
+    except (Erro, OverflowError) as e:  # OverflowError: previsão além do ano 9999
+        print(f"forge-contador: {e}", file=sys.stderr)
+        return 2
+    print("\n".join(linhas))
+    return 0
+
+
+sys.exit(main())  # executável, não módulo: nenhum teste o importa

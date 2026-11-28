@@ -1,0 +1,66 @@
+{
+  "pedido": "v0481-hook-raiz-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "RF1",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1): na sessão do Forge, a recusa do que roda fora do sandbox na raiz vale pelo alvo resolvido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self.na_raiz_em_vigor(alvo):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RF2",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1): só no clone do Forge (raiz da sessão fora do Forge: o hook não age)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not self.no_clone or not isinstance(alvo, Path):\n            return False",
+      "para": "        if not isinstance(alvo, Path):\n            return False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RF3",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1): apagar a pasta que contém a entrada (rm -rf .devcontainer) recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(casa(r, c) or c.startswith(r + \"/\"))",
+      "para": "(casa(r, c))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RF4",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1): a cópia principal conta, com a raiz da sessão numa worktree",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        rels = [relativo_ao_pai(posix, Path(os.path.realpath(self.h.raiz))), *self.relativos_a_copia_principal(posix)]",
+      "para": "        rels = [relativo_ao_pai(posix, Path(os.path.realpath(self.h.raiz)))]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RF7",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A3 do QA): o alvo fora da raiz e da cópia principal não casa (rel None)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "any(r is not None and (casa(r, c)",
+      "para": "any((casa(r, c)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RF8",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A3 e A5): a recusa própria só quando a política não recusa (a mensagem dela fala primeiro)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if achado is None and self.na_raiz_em_vigor(caminho):",
+      "para": "        if self.na_raiz_em_vigor(caminho):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    }
+  ]
+}

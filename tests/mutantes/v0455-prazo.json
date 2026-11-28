@@ -6,7 +6,7 @@
       "id": "P1",
       "guarda": "o prazo do merge é maior que o comum",
       "arquivo": "hooks/_comum.py",
-      "de": "PRAZO_DO_MERGE_S = 8.0",
+      "de": "PRAZO_DO_MERGE_S = 7.5",
       "para": "PRAZO_DO_MERGE_S = 3.0",
       "testes": [
         "tests.test_hooks.Hooks.test_prazo_do_merge",
@@ -113,10 +113,10 @@
     },
     {
       "id": "P11",
-      "guarda": "o vigia arma com a regra e o marcador",
+      "guarda": "o vigia arma com a regra do prazo (com ou sem o marcador, VIGIA-AGENTES-PESADO)",
       "arquivo": "hooks/_comum.py",
-      "de": "        hook.prazo_s = PRAZO_DA_DECISAO_S if regra_do_prazo and critico is not None else None",
-      "para": "        hook.prazo_s = PRAZO_DA_DECISAO_S if not (regra_do_prazo and critico is not None) else None",
+      "de": "        hook.prazo_s = max(prazo_do_hook or 0, PRAZO_DA_DECISAO_S) if regra_do_prazo else None",
+      "para": "        hook.prazo_s = max(prazo_do_hook or 0, PRAZO_DA_DECISAO_S) if not regra_do_prazo else None",
       "testes": [
         "tests.test_hooks.Hooks.test_prazo_do_merge",
         "tests.test_hooks.Hooks.test_prazo_do_merge_abaixo_do_timeout_do_hooks_json"

@@ -11,6 +11,7 @@ import os
 import ssl
 import subprocess
 import sys
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -219,15 +220,24 @@ class DesvioDoRelogio(ap.Base):
         self.assertFalse(conexao.called)
 
     def test_conexao_que_nunca_responde_estoura_no_prazo_total(self):
+        """E43.1: o prazo total corta a conexão que nunca responde. A resposta fica presa num `Event` que só o teste solta, depois
+        da volta de `desvio_do_relogio`; se a função esperasse o fio em vez de cortar no prazo, ele sairia pelo teto do `wait`
+        (`sozinha`) e o teste cairia. Nenhuma duração é medida: a carga atrasa o prazo de 0,3 s, não o leva a 20 s."""
+        solta, sozinha = threading.Event(), []
+
         def pendurar(*_):
-            time.sleep(3)
-            raise OSError("cortada depois do prazo do teste")  # a thread do pedido termina limpa, sem ruído no fim da suíte
+            if not solta.wait(20):
+                sozinha.append(1)
+            raise OSError("cortada depois da volta do teste")  # a thread do pedido termina limpa, sem ruído no fim da suíte
         with mock.patch.object(self.v.http.client, "HTTPSConnection") as conexao:
             conexao.return_value.getresponse.side_effect = pendurar
-            inicio = time.monotonic()
-            desvio = self.v.desvio_do_relogio("https://github.com/exemplo/Forge", 0.3)
+            try:
+                desvio = self.v.desvio_do_relogio("https://github.com/exemplo/Forge", 0.3)
+                voltou_com_o_fio_preso = not solta.is_set() and not sozinha
+            finally:
+                solta.set()
         self.assertIsNone(desvio)
-        self.assertLess(time.monotonic() - inicio, 2)
+        self.assertTrue(voltou_com_o_fio_preso, "a função esperou o fio da conexão em vez de cortar no prazo total")
 
     def test_erro_de_rede_da_none(self):
         with mock.patch.object(self.v.http.client, "HTTPSConnection", side_effect=OSError("sem rede")):

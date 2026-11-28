@@ -1,0 +1,36 @@
+{
+  "descricao": "CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1; R-CONFORMIDADE): sessão do Forge, o tech-lead edita docs/pedidos/ da pasta de controle por python em heredoc com o caminho em argumento (o caso que a rverify-fp-heredoc-pedido-contrib-libera liberava).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "a.txt": "v\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 - \"$HOME/.forge-contrib/docs/pedidos/v1.md\" <<'EOF'\nimport sys, pathlib\np = pathlib.Path(sys.argv[1])\nt = p.read_text()\nt = t.replace('git push origin x', 'git push origin x  # * feito')\np.write_text(t)\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  },
+  "repos": {
+    "home/.forge-contrib": {
+      "arquivos": {
+        "docs/pedidos/v1.md": "# v1\n",
+        "docs/briefs/b1.md": "b\n",
+        "x/docs/pedidos/v2.md": "# v2\n"
+      }
+    }
+  }
+}

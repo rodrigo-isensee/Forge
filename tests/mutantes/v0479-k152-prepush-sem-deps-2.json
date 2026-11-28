@@ -1,0 +1,26 @@
+{
+  "pedido": "v0479-k152-prepush-sem-deps",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "pre-push.local (patch): o `||` do pronto rápido separa trechos; o programa depois dele é checado",
+      "arquivo": "docs/propostas/k152-pre-push.md",
+      "de": "trechos=\"${trechos//||/;}\"; ",
+      "para": "",
+      "testes": [
+        "tests.test_prepush_k152.PrePushLocalSemDependencias.test_programa_depois_de_ou_logico_tambem_e_checado"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "pre-push.local (patch): o `|` do pronto rápido separa trechos; o programa depois dele é checado",
+      "arquivo": "docs/propostas/k152-pre-push.md",
+      "de": "; trechos=\"${trechos//|/;}\"",
+      "para": "",
+      "testes": [
+        "tests.test_prepush_k152.PrePushLocalSemDependencias.test_programa_depois_de_pipe_tambem_e_checado"
+      ]
+    }
+  ]
+}

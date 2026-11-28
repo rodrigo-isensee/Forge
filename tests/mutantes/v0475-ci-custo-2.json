@@ -26,8 +26,8 @@
    "id": "M19",
    "guarda": "forge-init roda o teste do modelo",
    "arquivo": "bin/forge-testes",
-   "de": "\"test_stack_python\", \"test_modelo_ci\")),",
-   "para": "\"test_stack_python\")),",
+   "de": "\"test_stack_python\", \"test_modelo_ci\", \"test_sandbox_controle\", \"test_varredura_divida\")),",
+   "para": "\"test_stack_python\", \"test_sandbox_controle\", \"test_varredura_divida\")),",
    "testes": [
     "tests.test_testes_tocados.MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo"
    ]

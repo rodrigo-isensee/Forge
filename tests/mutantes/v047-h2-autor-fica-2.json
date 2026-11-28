@@ -49,8 +49,8 @@
       "id": "M13",
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: o SubagentStop grava só o agente que parou",
       "arquivo": "hooks/agentes.py",
-      "de": "[a for a in agentes if aid and a.get(\"id\") == aid], agora)",
-      "para": "[a for a in agentes if aid and a.get(\"id\") != aid], agora)",
+      "de": "parados = [a for a in agentes if aid and e_do_agente(a, aid, uso)]",
+      "para": "parados = [a for a in agentes if aid and not e_do_agente(a, aid, uso)]",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
       ]

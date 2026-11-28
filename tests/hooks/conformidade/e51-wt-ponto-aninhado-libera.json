@@ -1,0 +1,25 @@
+{
+  "descricao": "E51.18 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge em wt/*: o ponto como argumento no texto reavaliado (`find .`) não é o ponto que relê, e passa (A1 da segurança E51.16).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "bash -c 'find . -name \"*.md\" | head -1'"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:dev"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

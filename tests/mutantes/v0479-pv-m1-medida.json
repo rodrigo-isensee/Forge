@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-pv-m1-medida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "resposta aninhada acima do teto sai lacuna (o 3.14 aceita o fundo)",
+      "arquivo": "bin/forge-placar",
+      "de": "if texto is None or fundo_demais(texto):",
+      "para": "if texto is None:",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_resposta_ilegivel_sai_lacuna_nunca_verde"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "JSON quebrado sai lacuna, sem traceback",
+      "arquivo": "bin/forge-placar",
+      "de": "    except (json.JSONDecodeError, RecursionError):\n        return None",
+      "para": "    except (RecursionError,):\n        return None",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_resposta_ilegivel_sai_lacuna_nunca_verde"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "run sem um dos campos pedidos sai lacuna",
+      "arquivo": "bin/forge-placar",
+      "de": "isinstance(d, dict) and all(c in d for c in campos)",
+      "para": "isinstance(d, dict)",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_resposta_ilegivel_sai_lacuna_nunca_verde"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "createdAt impossível sai lacuna, não erro de uso",
+      "arquivo": "bin/forge-placar",
+      "de": "    except SystemExit:\n        return None",
+      "para": "    except ValueError:\n        return None",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_resposta_ilegivel_sai_lacuna_nunca_verde"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "run ainda rodando fica pendente, não vermelho",
+      "arquivo": "bin/forge-placar",
+      "de": "if r[\"status\"] != \"completed\":",
+      "para": "if False:",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_vermelho_ganha_da_cancelada_e_da_pendente"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "rerun (attempt acima de 1) não conta como verde",
+      "arquivo": "bin/forge-placar",
+      "de": "if r[\"attempt\"] != 1:",
+      "para": "if False:",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_rerun_verde_nao_conta_como_verde"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "cancelada não conta como verde",
+      "arquivo": "bin/forge-placar",
+      "de": "{\"success\": \"verde\", \"cancelled\": \"cancelado\"}",
+      "para": "{\"success\": \"verde\", \"cancelled\": \"verde\"}",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_cancelada_nao_conta_como_verde_nem_vermelha"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "só o evento pull_request é do PR",
+      "arquivo": "bin/forge-placar",
+      "de": "r[\"event\"] == \"pull_request\" and ",
+      "para": "",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_run_de_push_e_de_outra_branch_nao_e_do_pr"
+      ]
+    }
+  ]
+}

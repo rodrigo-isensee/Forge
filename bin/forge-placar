@@ -5,6 +5,7 @@ Uso: forge-placar [--raiz DIR] [--raiz-pedidos DIR] [--erros ARQ] [--git DIR --r
      forge-placar comparar --antes AAAA-MM-DD --depois AAAA-MM-DD [--metrica NOME] [--tolerancia F] [--folga F] [--minimo N] [...]
      forge-placar propostas [ARQUIVO] [--hoje AAAA-MM-DD] [--max-abertas N] [--json]
      forge-placar fases [--git DIR] [--ref REF] [--dia AAAA-MM-DD] [--desde/--ate AAAA-MM-DDTHH:MM] [--raiz DIR] [--ci ARQ] [--json]
+     forge-placar ci-primeira --runs ARQ.json --pr-lista ARQ.json [--exigidos CI,Catraca] [--dias N] [--ate AAAA-MM-DD] [--json]
 
 Fontes (na `--raiz`, padrão a pasta atual; no Forge, a área do Jarvis): `docs/kanban/conferencias.md` (vereditos do
 conferente), `docs/kanban/escapes.md` (defeitos achados depois do parecer final), `docs/pedidos/*.md` (linhas do
@@ -31,6 +32,10 @@ Métrica | Critério de reversão | Início | Revisão | Resultado |`): cada lin
 `código:` ou `texto:`, Início e Revisão são datas com a Revisão de 1 a 30 dias depois, a revisão vencida tem Resultado
 `manter (...)` ou `reverter (...)` com a leitura do `comparar`, e há no máximo `--max-abertas` (padrão 1) abertas: uma causa
 por vez, para o placar atribuir o efeito. rc 1 com uma linha `falta:` por problema.
+Ganho prometido (MEDIR-DE-NOVO-O-PROMETIDO): a Métrica pode trazer `prometido: <N>%` (ex.: `taxa_forma prometido: -20%`, a
+variação anunciada; negativa é queda). Cada proposta assim ganha a linha `prometido: <ID> <métrica> · prometido -20% · real
+-35%`, com o real medido como no `comparar` (janela de `--dias` antes do Início contra a de `--dias` a partir dele) e `real sem
+medida` enquanto a janela de depois não fechou até `--hoje` ou falta fonte ou base; no `--json`, a chave `prometidos`.
 
 Por papel (0.43.3, E23 "erros por papel"): o placar mostra, para cada papel, a taxa de vereditos negativos que o registro atribui
 a ele (coluna `autor`; `destino` vira o papel do brief, `<pedido>-<papel>-<n>`) sobre os vereditos em que ele responde (jarvis:
@@ -65,6 +70,18 @@ do `forge-fechar` (assunto que termina em `(#N)`), medido pelos commits do PR em
 (sem rede: `git fetch origin 'refs/pull/*/head:refs/pull/*/head'` fora); sem eles, o squash conta à parte na linha
 `itens sem fases (squash): N` (no `--json`, `sem_fases`), fora da média.
 
+CI verde na 1.ª execução (PR-VERDE M1, definição D7 aceita pelo dono em 20/11): `ci-primeira` conta, por dia, por semana ISO e no
+total da janela (`--dias` até `--ate`, pelo dia UTC da abertura do PR), os PRs cujo 1.º head (o do 1.º run `pull_request` da
+branch depois da abertura do PR, o que vale para PR reaberto e branch reescrita) teve a 1.ª execução de cada workflow exigido
+(`--exigidos`, padrão `CI,Catraca`) em `success`. Cancelada não conta como verde nem como vermelha (fica em `cancelados`, fora da
+taxa) quando o envio novo a cancelou; cancelada por rótulo ou edição dá lugar à execução seguinte do mesmo head. Ainda
+rodando, `pendentes`; rerun (`attempt` acima de 1) e qualquer outra conclusão, vermelho; workflow fora da lista, ignorado;
+workflow exigido sem execução no 1.º head, `lacunas`; PR do dependabot (login exato), fora. Os vermelhos saem por workflow (e por job, quando
+o run traz `jobs`), para separar a catraca do resto. Fontes geradas fora, sem rede: `--runs` (`gh run list --event
+pull_request --json workflowName,headBranch,headSha,event,status,conclusion,createdAt,attempt`) e `--pr-lista` (`gh pr list --state
+all --json number,headRefName,createdAt,author`). Fonte ausente ou ilegível (não JSON, não lista, campo faltando, data inválida,
+`jobs` que não é lista): a medida sai `lacuna`, rc 2, nunca verde.
+
 Saída: 0 ok; 1 reprovado (comparar ou propostas); 2 uso errado ou fonte ilegível; 3 inconclusivo."""
 import argparse
 import ast
@@ -91,6 +108,7 @@ ERRO_REGISTRO = re.compile(r"^## \d+\. .*\((\d{4}-\d{2}-\d{2})[ T]\d{2}:\d", re.
 TIPOS_DE_MUDANCA = ("código:", "codigo:", "texto:")
 RESULTADO = re.compile(r"^(manter|reverter)\b.*\S", re.I)
 PRAZO_MAXIMO = 30  # dias entre o início e a revisão
+PROMETIDO = re.compile(r"\bprometido:[ \t]*([+-]?\d{1,6}(?:[.,]\d+)?)[ \t]*%")  # teto de dígitos: o float nunca vira inf
 SEM_TESTE = re.compile(r"^##[ \t]+Sem teste[ \t]*$", re.M | re.I)
 TETO_ANINHAMENTO = 64  # níveis de [ e { aceitos na entrada JSON; a do `gh pr list` usa 2
 PASTAS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/security/", "docs/devops/")  # as do PASTA_E_REGRA do forge-check
@@ -194,8 +212,11 @@ def reversoes(pasta, ref):
 def ci_vermelha(arq):
     if not arq:
         return None
+    texto = ler(arq) or "[]"
+    if fundo_demais(texto):  # JSON-PROFUNDO-PY314: o 3.14 não recusa o aninhamento fundo que o 3.12 recusava
+        raise SystemExit(f"forge-placar: JSON de --ci {arq} aninhado acima de {TETO_ANINHAMENTO} níveis")
     try:
-        execucoes = json.loads(ler(arq) or "[]")
+        execucoes = json.loads(texto)
     except json.JSONDecodeError:
         raise SystemExit(f"forge-placar: --ci {arq} não é JSON")
     return [datetime.date.fromisoformat(e["createdAt"][:10]) for e in execucoes
@@ -530,6 +551,8 @@ def conferir_proposta(p, hoje):
     metrica = p.get("métrica", "").strip("` ")
     if not any(m == metrica or metrica.startswith(m + " ") for m in METRICAS):
         faltas.append(f"{ident}: Métrica tem de começar por uma métrica do placar ({', '.join(METRICAS)})")
+    if "prometido:" in metrica and not PROMETIDO.search(metrica):
+        faltas.append(f"{ident}: prometido tem de ser um número em %, de até 6 dígitos inteiros (ex.: `prometido: -20%`)")
     if not p.get("mudança", "").lower().startswith(TIPOS_DE_MUDANCA):
         faltas.append(f"{ident}: Mudança tem de começar por `código:` ou `texto:` (texto só para julgamento)")
     if not p.get("critério de reversão", "").strip(" —-"):
@@ -551,6 +574,32 @@ def conferir_proposta(p, hoje):
     return faltas, not fechada
 
 
+def ganho_real(p, fontes, hoje, dias):
+    """A variação medida da métrica da proposta, em % arredondado, ou None (janela de depois aberta, sem fonte ou base zero)."""
+    inicio, nome = p.get("início", ""), p.get("métrica", "").strip("` ").split(" ")[0]
+    if not DATA.fullmatch(inicio) or nome not in METRICAS:
+        return None
+    inicio, passo = datetime.date.fromisoformat(inicio), datetime.timedelta(days=dias)
+    if inicio + passo > hoje:
+        return None
+    a, d = medir(fontes, (inicio - passo, inicio))[nome], medir(fontes, (inicio, inicio + passo))[nome]
+    if a is None or d is None or a == 0:
+        return None
+    return round((d - a) / a * 100)
+
+
+def prometidos(linhas, args, hoje):
+    """O prometido ao lado do real de cada proposta que anuncia ganho; as fontes só são lidas se alguma anuncia."""
+    com = [(p, m) for p in linhas if (m := PROMETIDO.search(p.get("métrica", "")))]
+    fontes = carregar(args) if com else None
+    return [{"id": p.get("id") or "?", "metrica": p.get("métrica", "").strip("` ").split(" ")[0],
+             "prometido": float(m.group(1).replace(",", ".")), "real": ganho_real(p, fontes, hoje, args.dias)} for p, m in com]
+
+
+def pct(v):
+    return f"{v:+g}%"
+
+
 def cmd_propostas(args):
     arq = Path(args.arquivo or Path(args.raiz) / "docs" / "kanban" / "melhorias.md")
     texto = ler(arq)
@@ -568,9 +617,13 @@ def cmd_propostas(args):
         abertas += [p.get("id") or "?"] if aberta else []
     if len(abertas) > args.max_abertas:
         faltas.append(f"abertas: {len(abertas)} ({', '.join(abertas)}), máximo {args.max_abertas}: uma causa por vez")
+    ganhos = prometidos(linhas, args, hoje)
     if args.json:
-        print(json.dumps({"propostas": len(linhas), "abertas": abertas, "faltas": faltas}, ensure_ascii=False))
+        print(json.dumps({"propostas": len(linhas), "abertas": abertas, "faltas": faltas, "prometidos": ganhos}, ensure_ascii=False))
     else:
+        for g in ganhos:
+            real = "sem medida" if g["real"] is None else pct(g["real"])
+            print(f"prometido: {g['id']} {g['metrica']} · prometido {pct(g['prometido'])} · real {real}")
         for f in faltas:
             print(f"falta: {f}")
         print(f"propostas: {len(linhas)} · abertas: {len(abertas)} · resultado: {'reprovado' if faltas else 'ok'}")
@@ -771,6 +824,107 @@ def cmd_fases(args):
     return 0
 
 
+EXIGIDOS = "CI,Catraca"  # D7 do PR-VERDE: os workflows exigidos do Forge; o projeto passa os dele em --exigidos
+META_PRIMEIRA = 0.85  # PR-VERDE-DE-PRIMEIRA: de ~57% para 85%
+AUTORES_DEPENDABOT = frozenset({"app/dependabot", "dependabot[bot]"})  # login exato: substring tiraria qualquer login com a palavra
+CAMPOS_DO_RUN = "workflowName,headBranch,headSha,event,status,conclusion,createdAt,attempt"
+
+
+def lista_do_gh(arq, campos):
+    """Lista de objetos com os `campos` (JSON gerado fora pelo gh), ou None: a resposta ilegível vira lacuna, nunca verde."""
+    texto = ler(arq)
+    if texto is None or fundo_demais(texto):
+        return None
+    try:
+        dados = json.loads(texto)
+    except (json.JSONDecodeError, RecursionError):
+        return None
+    if not isinstance(dados, list) or not all(isinstance(d, dict) and all(c in d for c in campos) for d in dados):
+        return None
+    if any(not isinstance(d.get("jobs", []), list) for d in dados):
+        return None  # `jobs` que não é lista: fonte ilegível, lacuna (rc 2), nunca TypeError
+    try:
+        for d in dados:
+            d["quando"] = momento(str(d["createdAt"]).replace("Z", "+00:00"), "createdAt")
+    except SystemExit:
+        return None
+    return dados
+
+
+def estado_da_execucao(r):
+    """D7: a 1.ª tentativa; o rerun (attempt > 1) só sai depois de falha (R-CUSTO) e não conta como verde."""
+    if r["status"] != "completed":
+        return "pendente"
+    if r["attempt"] != 1:
+        return "vermelho"
+    return {"success": "verde", "cancelled": "cancelado"}.get(r["conclusion"], "vermelho")
+
+
+def primeira_execucao(pr, runs, exigidos):
+    """(estado, falhas) do PR: no 1.º head (o do 1.º run do PR depois de aberto), a 1.ª execução de cada workflow exigido."""
+    do_pr = sorted((r for r in runs if r["event"] == "pull_request" and r["headBranch"] == pr["headRefName"]
+                    and r["workflowName"] in exigidos and r["quando"] >= pr["quando"]), key=lambda r: r["quando"])
+    primeiras = {}
+    for r in do_pr:
+        if r["headSha"] == do_pr[0]["headSha"]:
+            anterior = primeiras.get(r["workflowName"])
+            if anterior is None or estado_da_execucao(anterior) == "cancelado":
+                primeiras[r["workflowName"]] = r  # D7: cancelada sem envio novo (rótulo, edição) dá lugar à seguinte do mesmo head
+    if set(primeiras) != set(exigidos):
+        return "lacuna", []  # workflow exigido sem execução no 1.º head
+    estados = {w: estado_da_execucao(r) for w, r in primeiras.items()}
+    falhas = sorted(w for w, e in estados.items() if e == "vermelho")
+    falhas += sorted(f"{w}/{j.get('name')}" for w in falhas for j in primeiras[w].get("jobs") or []
+                     if isinstance(j, dict) and j.get("conclusion") not in ("success", "skipped", None))
+    for estado in ("vermelho", "pendente", "cancelado"):
+        if estado in estados.values():
+            return estado, falhas
+    return "verde", []
+
+
+def cmd_primeira(args):
+    exigidos = tuple(w.strip() for w in args.exigidos.split(",") if w.strip())
+    if not exigidos:
+        raise SystemExit("forge-placar: --exigidos sem workflow")
+    ate = data(args.ate, "--ate")
+    janela = (ate - datetime.timedelta(days=args.dias), ate)
+    runs = lista_do_gh(args.runs, CAMPOS_DO_RUN.split(","))
+    prs = lista_do_gh(args.pr_lista, ("number", "headRefName", "createdAt", "author"))
+    if runs is None or prs is None:
+        motivo = f"{'--runs' if runs is None else '--pr-lista'} ausente ou ilegível"
+        print(json.dumps({"lacuna": motivo}, ensure_ascii=False) if args.json else f"ci-primeira: lacuna ({motivo})")
+        return 2
+    grupos, itens = {}, []
+    for pr in prs:
+        dia = datetime.datetime.fromtimestamp(pr["quando"], datetime.timezone.utc).date()
+        autor = pr["author"].get("login") if isinstance(pr["author"], dict) else pr["author"]
+        if str(autor) in AUTORES_DEPENDABOT or not dentro(dia, janela):  # str: login lista ou objeto não quebra o conjunto
+            continue
+        estado, falhas = primeira_execucao(pr, runs, exigidos)
+        itens.append({"pr": pr["number"], "dia": dia.isoformat(), "estado": estado, "falhas": falhas})
+        ano, semana, _ = dia.isocalendar()
+        for chave in (f"dia {dia}", f"semana {ano}-W{semana:02d}", "total"):
+            g = grupos.setdefault(chave, {"verde": 0, "vermelho": 0, "cancelado": 0, "pendente": 0, "lacuna": 0, "falhas": {}})
+            g[estado] += 1
+            for f in falhas:
+                g["falhas"][f] = g["falhas"].get(f, 0) + 1
+    for g in grupos.values():
+        g["taxa"] = razao(g["verde"], g["verde"] + g["vermelho"])
+    if args.json:
+        print(json.dumps({"janela": [str(d) for d in janela], "exigidos": exigidos, "meta": META_PRIMEIRA, "grupos": grupos,
+                          "prs": itens}, ensure_ascii=False, sort_keys=True))
+        return 0
+    print(f"ci-primeira [{janela[0]}, {janela[1]}) (D7: 1.º head do PR, 1.ª execução de {', '.join(exigidos)}; meta {META_PRIMEIRA:.0%}):")
+    for chave in sorted(grupos, key=lambda c: (c == "total", c)):
+        g = grupos[chave]
+        falhas = ", ".join(f"{f} {n}" for f, n in sorted(g["falhas"].items())) or "-"
+        print(f"{chave}: verde na 1.ª {fmt(g['taxa'])} ({g['verde']}/{g['verde'] + g['vermelho']}) · vermelhos por workflow: {falhas}"
+              f" · cancelados {g['cancelado']} · pendentes {g['pendente']} · lacunas {g['lacuna']}")
+    if not grupos:
+        print("total: nenhum PR aberto na janela")
+    return 0
+
+
 def analisar(argv):
     comum = argparse.ArgumentParser(add_help=False)
     comum.add_argument("--raiz", default=".")
@@ -804,6 +958,13 @@ def analisar(argv):
         p.add_argument("--desde", help="AAAA-MM-DDTHH:MM[±HH:MM]: corte por hora do merge (sem fuso, a hora local)")
         p.add_argument("--ate", help="AAAA-MM-DDTHH:MM[±HH:MM], exclusivo")
         return cmd_fases, p.parse_args(argv[1:])
+    if argv[:1] == ["ci-primeira"]:
+        p = argparse.ArgumentParser(prog="forge-placar ci-primeira", parents=[comum])
+        p.add_argument("--runs", required=True, metavar="ARQ.json", help="gh run list --event pull_request --limit 1000 --json " + CAMPOS_DO_RUN)
+        p.add_argument("--pr-lista", required=True, metavar="ARQ.json", help="gh pr list --state all --limit 1000 --json number,headRefName,createdAt,author")
+        p.add_argument("--exigidos", default=EXIGIDOS, help="workflows exigidos, separados por vírgula")
+        p.add_argument("--ate", default=datetime.date.today().isoformat(), help="AAAA-MM-DD, exclusivo (padrão hoje)")
+        return cmd_primeira, p.parse_args(argv[1:])
     p = argparse.ArgumentParser(prog="forge-placar", parents=[comum])
     p.add_argument("--ate")
     return cmd_placar, p.parse_args(argv)

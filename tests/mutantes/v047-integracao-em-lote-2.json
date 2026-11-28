@@ -16,8 +16,8 @@
       "id": "IL-M10",
       "guarda": "--promover recusa opção de item",
       "arquivo": "bin/forge-fechar",
-      "de": "[ -n \"$ref$titulo$origem$muda$medir\" ] || [ \"$limpar$sem_limpar$armar$esperar$item_de_lote\" != 00000 ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--promover recebe",
-      "para": "[ -n \"$titulo$origem$muda$medir\" ] || [ \"$limpar$sem_limpar$armar$esperar$item_de_lote\" != 00000 ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--promover recebe",
+      "de": "[ -n \"$ref$titulo$origem$muda$medir\" ] || [ \"$limpar$sem_limpar$esperar$item_de_lote\" != 0000 ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--promover recebe",
+      "para": "[ -n \"$titulo$origem$muda$medir\" ] || [ \"$limpar$sem_limpar$esperar$item_de_lote\" != 0000 ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--promover recebe",
       "testes": [
         "tests.test_fechar_lote.Promover.test_promover_recusa_opcao_de_item"
       ]

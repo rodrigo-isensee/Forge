@@ -1,0 +1,87 @@
+{
+  "pedido": "v0479-copias-pasta-propria",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: fora de git, sem projeto: vale a pasta do home",
+      "arquivo": "bin/forge-copia",
+      "de": "    if rc:\n        return None\n    topo =",
+      "para": "    if False:\n        return None\n    topo =",
+      "testes": [
+        "tests.test_forge_copia.Projeto.test_fora_de_git_vale_a_pasta_do_home"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: de dentro de uma cópia, a raiz é a do projeto de fora",
+      "arquivo": "bin/forge-copia",
+      "de": ".split(MARCA, 1)[0]",
+      "para": ".split(\"\\0\", 1)[0]",
+      "testes": [
+        "tests.test_forge_copia.Projeto.test_de_dentro_de_uma_copia_vale_a_pasta_do_projeto"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: sem .forge/config.json não é projeto",
+      "arquivo": "bin/forge-copia",
+      "de": "    if os.path.isfile(os.path.join(topo, \".forge\", \"config.json\")) and not",
+      "para": "    if True and not",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_clone_dentro_cria_branch_a_partir_da_base_sem_rastreio"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: o Forge (.claude-plugin/) segue na pasta do home",
+      "arquivo": "bin/forge-copia",
+      "de": "and not os.path.exists(os.path.join(topo, \".claude-plugin\")):",
+      "para": "and True:",
+      "testes": [
+        "tests.test_forge_copia.Projeto.test_o_forge_segue_com_a_pasta_do_home"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: no projeto, a pasta é <projeto>/.forge/wt",
+      "arquivo": "bin/forge-copia",
+      "de": "    if projeto:\n        return os.path.join(projeto",
+      "para": "    if False:\n        return os.path.join(projeto",
+      "testes": [
+        "tests.test_forge_copia.Projeto.test_clone_fica_em_forge_wt_e_fora_do_git_do_projeto",
+        "tests.test_forge_copia.Projeto.test_projeto_recusa_a_pasta_do_forge"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: no Forge, nada de .gitignore na pasta das cópias",
+      "arquivo": "bin/forge-copia",
+      "de": "    if not raiz_do_projeto():\n        return None\n",
+      "para": "    if False:\n        return None\n",
+      "testes": [
+        "tests.test_forge_copia.Projeto.test_o_forge_segue_com_a_pasta_do_home"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: o .gitignore que já existe não é tocado",
+      "arquivo": "bin/forge-copia",
+      "de": "os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW",
+      "para": "os.O_CREAT | os.O_TRUNC",
+      "testes": [
+        "tests.test_forge_copia.Projeto.test_gitignore_que_ja_existe_nao_e_tocado"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: .gitignore versionado como link é recusado (S2)",
+      "arquivo": "bin/forge-copia",
+      "de": "    if os.path.islink(arq):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Projeto.test_s2_gitignore_link_solto_e_recusado_sem_gravar_fora"
+      ]
+    }
+  ]
+}

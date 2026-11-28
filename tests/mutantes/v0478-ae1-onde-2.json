@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "AE1.1 presenca: base ausente sai sem-branch",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        if ref is None:\n            linhas.append(f\"onde: {base} sem-branch (sem origin/{base} no clone)\")\n            continue\n        achadas += 1",
+      "para": "        if False:\n            linhas.append(f\"onde: {base} sem-branch (sem origin/{base} no clone)\")\n            continue\n        achadas += 1",
+      "testes": [
+        "tests.test_forge_onde.VersaoECommit.test_uma_base_ausente_nao_derruba_o_rc"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "AE1.1 presenca: merge-base que falha dá rc 2",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        if estado == \"nao-verificavel\":",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_onde.VersaoECommit.test_merge_base_que_falha_e_nao_verificavel_nunca_sim"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "AE1.1 presenca: nenhuma base no clone dá rc 2",
+      "arquivo": "bin/forge_onde.py",
+      "de": "return linhas, (rc if achadas else NAO_VERIFICAVEL)",
+      "para": "return linhas, (rc if True else NAO_VERIFICAVEL)",
+      "testes": [
+        "tests.test_forge_onde.VersaoECommit.test_sem_nenhuma_base_no_clone_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "AE1.1 onde_do_pr: resposta de outro PR não vale",
+      "arquivo": "bin/forge_onde.py",
+      "de": "if not isinstance(dados, dict) or str(dados.get(\"number\")) != numero:",
+      "para": "if not isinstance(dados, dict):",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_resposta_de_outro_pr_nao_vale"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "AE1.1 onde_do_pr: gh que falha é nao-verificavel",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if not isinstance(dados, dict) or str",
+      "para": "    if dados is not None and not isinstance(dados, dict) or str",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_gh_lento_e_nao_verificavel_nunca_sim"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "AE1.1 onde_do_pr: PR não mesclado não lê as bases",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if dados.get(\"state\") != \"MERGED\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_pr_aberto_nao_le_as_bases"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "AE1.1 onde_do_pr: oid que não é sha não vira ref",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    sha = sha_de(ctx, raiz, oid) if SHA.fullmatch(oid) else None",
+      "para": "    sha = sha_de(ctx, raiz, oid) if True else None",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_commit_do_merge_que_nao_e_sha_nao_vira_ref"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "AE1.1 onde_do_pr: commit do merge fora do clone é nao-verificavel",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if sha is None:\n        return linhas + [f\"onde: commit",
+      "para": "    if False:\n        return linhas + [f\"onde: commit",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_commit_do_merge_fora_do_clone_e_nao_verificavel"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "pedido": "v0479-bp3-s3-registro",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "S3: só a sessão provadamente morta vira interrompido",
+      "arquivo": "hooks/agentes.py",
+      "de": "dentro_do_prazo(a, agora, expira_s) and sessao_morta(a) and caminhos_dos_briefs(a)",
+      "para": "dentro_do_prazo(a, agora, expira_s) and caminhos_dos_briefs(a)",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_sessao_viva_outro_namespace_e_pid_ausente_ficam_nos_agentes"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "S3: sem briefs válidos o registro sai como sempre",
+      "arquivo": "hooks/agentes.py",
+      "de": "and sessao_morta(a) and caminhos_dos_briefs(a)",
+      "para": "and sessao_morta(a)",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_sem_briefs_o_registro_sai_como_sempre"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "S3: o registro fora do prazo não vira interrompido",
+      "arquivo": "hooks/agentes.py",
+      "de": "if dentro_do_prazo(a, agora, expira_s) and sessao_morta(a)",
+      "para": "if sessao_morta(a)",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_registro_fora_do_prazo_nao_vira_interrompido"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "S3: caminho de brief sem `..` na gravação",
+      "arquivo": "hooks/agentes.py",
+      "de": "if achado and \"..\" not in achado.group(0):",
+      "para": "if achado:",
+      "testes": [
+        "tests.test_agentes_interrompidos.Reserva.test_so_o_caminho_seguro_de_docs_briefs_e_gravado"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "S3: a reserva guarda os briefs selados lidos",
+      "arquivo": "hooks/agentes.py",
+      "de": "\"briefs\": briefs_da_reserva(lidos), **da_sessao(hook)",
+      "para": "\"briefs\": [], **da_sessao(hook)",
+      "testes": [
+        "tests.test_agentes_interrompidos.Reserva.test_a_reserva_guarda_o_caminho_e_o_hash_do_brief"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "S3: o relançamento só fecha o mesmo tipo",
+      "arquivo": "hooks/agentes.py",
+      "de": "i.get(\"tipo\") == reserva.get(\"tipo\") and caminhos &",
+      "para": "caminhos &",
+      "testes": [
+        "tests.test_agentes_interrompidos.Fechamento.test_outro_tipo_ou_outro_caminho_nao_fecha"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "S3: o relançamento só fecha o brief de mesmo caminho",
+      "arquivo": "hooks/agentes.py",
+      "de": "i.get(\"tipo\") == reserva.get(\"tipo\") and caminhos & set(caminhos_dos_briefs(i))",
+      "para": "i.get(\"tipo\") == reserva.get(\"tipo\")",
+      "testes": [
+        "tests.test_agentes_interrompidos.Fechamento.test_outro_tipo_ou_outro_caminho_nao_fecha"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "S3: a retomada sem id não fecha item de id nulo",
+      "arquivo": "hooks/agentes.py",
+      "de": "isinstance(alvo, str) and alvo and i.get(\"id\") == alvo",
+      "para": "i.get(\"id\") == alvo",
+      "testes": [
+        "tests.test_agentes_interrompidos.Fechamento.test_send_message_sem_id_ou_para_outro_nao_fecha"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "S3: a retomada por SendMessage fecha o item",
+      "arquivo": "hooks/agentes.py",
+      "de": "interrompidos = fechar_por_retomada(interrompidos, entrada.get(\"to\") if isinstance(entrada, dict) else None)",
+      "para": "pass",
+      "testes": [
+        "tests.test_agentes_interrompidos.Fechamento.test_retomada_por_send_message_do_mesmo_id_fecha"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "S3: o lançamento recusado não fecha; o permitido fecha",
+      "arquivo": "hooks/agentes.py",
+      "de": "interrompidos = fechar_por_relancamento(interrompidos, agentes[-1])",
+      "para": "pass",
+      "testes": [
+        "tests.test_agentes_interrompidos.Fechamento.test_relancamento_do_mesmo_tipo_e_caminho_fecha_mesmo_com_hash_novo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "S3: o item dentro do prazo fica",
+      "arquivo": "hooks/agentes.py",
+      "de": "if agora - i[\"caiu_em\"] < expira_s], [",
+      "para": "if False], [",
+      "testes": [
+        "tests.test_agentes_interrompidos.Fechamento.test_prazo_vencido_fecha_e_deixa_linha_no_log"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "S3: teto de interrompidos",
+      "arquivo": "hooks/agentes.py",
+      "de": "caidos_da_sessao(estado.get(\"agentes\", []), agora, hook.expira_s()))[-INTERROMPIDOS_MAX:]",
+      "para": "caidos_da_sessao(estado.get(\"agentes\", []), agora, hook.expira_s()))",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_teto_de_interrompidos"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "S3: `interrompidos` que não é lista deixa o estado ilegível",
+      "arquivo": "hooks/agentes.py",
+      "de": "if not isinstance(estado.get(\"interrompidos\", []), list):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_interrompidos_que_nao_e_lista_deixa_o_estado_ilegivel"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "S3: o id do log só tem a forma de agente",
+      "arquivo": "hooks/agentes.py",
+      "de": "isinstance(ident, str) and ID_DE_AGENTE.fullmatch(ident)",
+      "para": "True",
+      "testes": [
+        "tests.test_agentes_interrompidos.Fechamento.test_vencido_com_id_fora_da_forma_vira_traco_no_log"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "S3: item sem `caiu_em` numérico some",
+      "arquivo": "hooks/agentes.py",
+      "de": "if not isinstance(i, dict) or not isinstance(i.get(\"caiu_em\"), (int, float)):",
+      "para": "if not isinstance(i, dict):",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_item_sem_caiu_em_numerico_some"
+      ]
+    }
+  ]
+}

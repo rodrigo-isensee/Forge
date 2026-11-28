@@ -1,0 +1,56 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M16",
+      "guarda": "só conta a volta da mesma Branch:",
+      "arquivo": "bin/forge-check",
+      "de": "voltas += grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho_do_brief(texto)) == branch",
+      "para": "voltas += True",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_de_outro_item_nao_conta"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "só o brief com Volta-de: entra na conta",
+      "arquivo": "bin/forge-check",
+      "de": "        if m:\n            voltas += ",
+      "para": "        if True:\n            voltas += ",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_de_outro_item_nao_conta"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "a conferência não conta o próprio brief",
+      "arquivo": "bin/forge-check",
+      "de": "if arq.is_file() and arq.resolve() != proprio else",
+      "para": "if arq.is_file() else",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_conferencia_recusa_a_numeracao_contornada"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "o brief com (volta N) sem Volta-de: é recusado",
+      "arquivo": "bin/forge-check",
+      "de": "    elif numero_da_volta(blocos_literais(texto)):",
+      "para": "    elif False:",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_sem_volta_de_e_recusada"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "só o brief que aponta para o anterior é sucessor dele",
+      "arquivo": "bin/forge-check",
+      "de": "sucessores += Path(pasta, Path(m.group(1)).name).resolve() == Path(anterior).resolve()",
+      "para": "sucessores += Path(pasta, Path(m.group(1)).name).resolve() != Path(anterior).resolve()",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_de_outro_item_nao_conta"
+      ]
+    }
+  ]
+}

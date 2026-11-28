@@ -21,6 +21,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "marca de sessão dos hooks (.git/forge/)"
+    "stderr": "o .git da raiz"
   }
 }

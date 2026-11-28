@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-corpus-custo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M21",
+      "guarda": "a entrada que vai até o prazo de produção roda sem os passos do interpretador (mutante: com eles)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if f.dados.get(\"prazo_de_producao\") and self.contador_de_trabalho:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_decisao_que_vai_ate_o_prazo_de_producao_conta_sem_o_interpretador"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "o ambiente sem o interpretador tira a variável do código (mutante: sempre a põe)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if interpretador else ambiente",
+      "para": "if True else ambiente",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_decisao_que_vai_ate_o_prazo_de_producao_conta_sem_o_interpretador"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "regressão de CPU no Python do hook (A1, sonda S1 do review): sum(range(20000000)) em cada decisão",
+      "arquivo": "hooks/_comum.py",
+      "de": "    hook = Hook(nome)\n",
+      "para": "    hook = Hook(nome)\n    sum(range(20000000))\n",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_corpus_nos_dois_hooks"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "regressão de custo (A2, sonda S2 do review): um git a mais em cada decisão",
+      "arquivo": "hooks/_comum.py",
+      "de": "    hook = Hook(nome)\n",
+      "para": "    hook = Hook(nome)\n    __import__(\"subprocess\").run([\"git\", \"--version\"], capture_output=True)\n",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_corpus_nos_dois_hooks"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "regressão de CPU no Python do hook, pequena: um laço de 1000 voltas em cada decisão",
+      "arquivo": "hooks/_comum.py",
+      "de": "    hook = Hook(nome)\n",
+      "para": "    hook = Hook(nome)\n    for _ in range(1000):\n        pass\n",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_corpus_nos_dois_hooks"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "o Python da medida dado pelo chamador vale, e só sem ele vale o que roda (mutante: o dado se perde)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "python = python or \"{}.{}\".format(*sys.version_info[:2])",
+      "para": "python = python and \"{}.{}\".format(*sys.version_info[:2])",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_passos_do_interpretador_valem_so_no_python_da_medida"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "sem a profundidade dada, vale a do tmp de quem roda (mutante: nunca a lê)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "profundidade = profundidade_do_tmp() if profundidade is None else profundidade",
+      "para": "profundidade = profundidade_do_tmp() if False else profundidade",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_medida_do_interpretador_acerta_pela_profundidade_do_tmp"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "a medida dos passos do interpretador acerta pela profundidade do tmp (mutante: não acerta)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if nome == \"interpretador\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_medida_do_interpretador_acerta_pela_profundidade_do_tmp"
+      ]
+    }
+  ]
+}

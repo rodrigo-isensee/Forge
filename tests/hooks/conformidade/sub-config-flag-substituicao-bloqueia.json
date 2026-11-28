@@ -1,0 +1,27 @@
+{
+  "descricao": "CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.1, alvo opaco por lista positiva do E51.6; R-VERIFY, R-FLUXO): no projeto, o dev envia com `-c` antes do envio e a flag vinda de `$(…)`.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git -c color.ui=never push $(echo --force) origin feature/x"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "envio do git"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "pedido": "v0480-d5-filtro-decisao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D5M15",
+      "guarda": "D5: só a pergunta passa pelo filtro do tipo e das opções",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo == \"pergunta\":\n        recusa = dono.recusa_da_pergunta",
+      "para": "if False:\n        recusa = dono.recusa_da_pergunta",
+      "testes": [
+        "tests.test_forge_dono.FiltroDaPergunta.test_sem_tipo_ou_tipo_fora_da_lista_e_recusada"
+      ]
+    },
+    {
+      "id": "D5M16",
+      "guarda": "D5: sem contexto, a linha é tipo=<t> seguida do literal",
+      "arquivo": "bin/forge-check",
+      "de": "(f\" · {contexto}\" if contexto else \"\")",
+      "para": "(f\" · {contexto}\" if True else \"\")",
+      "testes": [
+        "tests.test_anotar.Anotar.test_pergunta_e_ordem_tem_frase_propria"
+      ]
+    },
+    {
+      "id": "D5M17",
+      "guarda": "D5: a questão precisa de duas opções ou mais",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if len(opcoes) < 2]",
+      "para": "if len(opcoes) < 1]",
+      "testes": [
+        "tests.test_forge_dono.FiltroDaPergunta.test_questao_com_uma_opcao_so_e_recusada"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.9, A4 da segurança do #854): sessão do Forge, `gh -X $M api …/labels`: o subcomando incerto (expansão antes dele) pode aplicar o rótulo; outra conta recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "bin/gh": "#!/bin/sh\necho outra-pessoa\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "executaveis": [
+    "bin/gh"
+  ],
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "PATH": "{tmp}/proj/bin:/usr/bin:/bin"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh -X $M repos/rodrigo-isensee/Forge/issues/70/labels -f 'labels[]=afrouxa-regra'"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "só o dono do Forge aplica ou delega o rótulo afrouxa-regra"
+  }
+}

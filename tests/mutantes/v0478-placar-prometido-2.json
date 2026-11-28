@@ -1,0 +1,26 @@
+{
+  "pedido": "v0478-placar-prometido",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "o real ausente imprime sem medida",
+      "arquivo": "bin/forge-placar",
+      "de": "real = \"sem medida\" if g[\"real\"] is None else pct(g[\"real\"])",
+      "para": "real = \"sem medida\" if g[\"real\"] is not None else pct(g[\"real\"])",
+      "testes": [
+        "tests.test_placar_prometido.Prometido.test_real_medido_ao_lado_do_prometido"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "prometido com dígitos demais vira falta, nunca inf no --json",
+      "arquivo": "bin/forge-placar",
+      "de": "([+-]?\\d{1,6}(?:[.,]\\d+)?)",
+      "para": "([+-]?\\d+(?:[.,]\\d+)?)",
+      "testes": [
+        "tests.test_placar_prometido.Prometido.test_prometido_com_digitos_demais_e_falta_e_o_json_segue_estrito"
+      ]
+    }
+  ]
+}

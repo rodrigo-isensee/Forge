@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Preparo do container do projeto (E2.54). Idempotente, nunca apaga dados. Uso: preparar-ambiente.sh [--verificar]
-#   (sem opção)  faz o que falta: gh (apt oficial), link ~/.forge-contrib para
+#   (sem opção)  faz o que falta: gh (apt oficial), tmux (apt do sistema), Claude Code atual (instalador oficial, em ~/.local/bin), link ~/.forge-contrib para
 #                /workspaces/.forge-contrib, core.hooksPath=.githooks. Linhas "fez:" e "falta:".
 #   --verificar  só confere (nada é alterado); "ambiente: ok" ou uma linha "falta:" por item com o comando exato; sai 1 se faltar.
 # Variáveis: FORGE_PROJETO (pasta do projeto; padrão a pasta acima deste script) e FORGE_PERSISTENTE (padrão /workspaces).
@@ -33,6 +33,10 @@ chave_confere() {
 }
 como_root() { if [ "$(id -u)" = 0 ]; then "$@"; else sudo "$@"; fi; }
 
+# Claude Code atual: o home some com o container e o binário claude do PATH da imagem pode ser antigo. O instalador oficial (nativo, de
+# claude.ai, sem custo) põe o binário em ~/.local/bin/claude, que se atualiza sozinho; só roda se esse binário faltar.
+claude_ok() { [ -x "$HOME/.local/bin/claude" ]; }
+
 feitos=(); faltas=()
 link_ok() { [ -d "$real" ] && [ "$(readlink -f "$link")" = "$(readlink -f "$real")" ]; }
 hooks_ok() { [ "$(git -C "$projeto" config --get core.hooksPath 2>/dev/null || true)" = ".githooks" ]; }
@@ -42,6 +46,8 @@ if [ "$verificar" = 1 ]; then
   if tem gh && ! gh auth status >/dev/null 2>&1; then
     faltas+=("gh sem login (o login mora em ~/.claude/gh e sobrevive à recriação; falta fazê-lo uma vez): gh auth login -s repo,workflow --web e depois $preparo")
   fi
+  tem tmux || faltas+=("tmux não instalado (a sessão do Jarvis não sobrevive a uma queda do terminal sem ele): rode $preparo")
+  claude_ok || faltas+=("Claude Code atual ausente em $HOME/.local/bin/claude (o do PATH pode ser antigo): rode $preparo")
   link_ok || faltas+=("link $link -> $real ausente ou sem destino: rode $preparo")
   if [ -e "$projeto/.git" ]; then hooks_ok || faltas+=("core.hooksPath de $projeto não é .githooks: rode $preparo"); fi
   if [ ${#faltas[@]} -eq 0 ]; then echo "ambiente: ok"; exit 0; fi
@@ -74,6 +80,34 @@ if tem gh && gh auth status >/dev/null 2>&1; then
   feitos+=("gh com login")
 else
   faltas+=("login do gh: gh auth login -s repo,workflow --web e depois $preparo")
+fi
+
+if tem tmux; then
+  feitos+=("tmux já instalado")
+elif tem apt-get && como_root apt-get update -qq && como_root apt-get install -y -qq tmux; then
+  feitos+=("instalou tmux")
+else
+  faltas+=("instalar tmux (o apt falhou ou não existe aqui; rode de novo com rede)")
+fi
+
+if claude_ok; then
+  feitos+=("Claude Code já instalado em $HOME/.local/bin/claude")
+elif tem curl; then
+  tmp="$(mktemp -d)"
+  if curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 120 -o "$tmp/instalar.sh" https://claude.ai/install.sh \
+     && { if tem timeout; then timeout 300 bash "$tmp/instalar.sh"; else bash "$tmp/instalar.sh"; fi; } </dev/null >/dev/null 2>&1 && claude_ok; then
+    feitos+=("instalou o Claude Code atual em $HOME/.local/bin/claude")
+  else
+    faltas+=("instalar o Claude Code (o download ou a instalação falhou; rode de novo com rede): baixe com curl -fsSL -o instalar-claude.sh https://claude.ai/install.sh e depois rode bash instalar-claude.sh")
+  fi
+  rm -rf "$tmp"
+else
+  faltas+=("instalar o Claude Code (sem curl aqui): baixe com curl -fsSL -o instalar-claude.sh https://claude.ai/install.sh e depois rode bash instalar-claude.sh")
+fi
+if ! grep -qE '^[[:space:]]*export PATH=.*\.local/bin' "$HOME/.bashrc" 2>/dev/null; then
+  # shellcheck disable=SC2016 # $HOME e $PATH devem ir literais para o .bashrc
+  printf '\n# claude e atalhos pessoais\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.bashrc"
+  feitos+=("$HOME/.local/bin entrou na frente do PATH do bash")
 fi
 
 if link_ok; then

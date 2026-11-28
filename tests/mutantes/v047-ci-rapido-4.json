@@ -26,8 +26,8 @@
       "id": "M37",
       "guarda": "execucao com id inteiro",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "return (campo(execucao, \"id\", int) is not None",
-      "para": "return (True",
+      "de": "return (campo(execucao, \"id\", int) is not None\n            and all(",
+      "para": "return (True\n            and all(",
       "testes": [
         "tests.test_ci_rapido_guardas.CampoEExecucao.test_execucao_valida_exige_id_inteiro_e_cada_campo"
       ]
@@ -46,8 +46,8 @@
       "id": "M39",
       "guarda": "perna que casa o nome",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "if not achado or campo(job, \"conclusion\", str)",
-      "para": "if campo(job, \"conclusion\", str)",
+      "de": "if not achado or bool(achado.group(1)) == de_pr",
+      "para": "if bool(achado.group(1)) == de_pr",
       "testes": [
         "tests.test_ci_rapido_guardas.CampoEExecucao.test_perna_valida_cada_exigencia"
       ]

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-pv-b2-regerar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G9",
+      "guarda": "o derivado da lista fechada não conta como escrita de fora",
+      "arquivo": "bin/forge-testes",
+      "de": "if Path(c) not in DERIVADOS)",
+      "para": "if True)",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_bin_tocado_regera_so_o_indice"
+      ]
+    },
+    {
+      "id": "G10",
+      "guarda": "escrita fora da lista fechada sai 2",
+      "arquivo": "bin/forge-testes",
+      "de": "    if fora:\n        print(f\"forge-testes: regerar escreveu",
+      "para": "    if False:\n        print(f\"forge-testes: regerar escreveu",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_escrita_fora_da_lista_fechada_sai_2"
+      ]
+    },
+    {
+      "id": "G11",
+      "guarda": "gerador vermelho sai 1",
+      "arquivo": "bin/forge-testes",
+      "de": "codigo = 1 if vermelhos else 0",
+      "para": "codigo = 1 if [] else 0",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_gerador_vermelho_sai_1"
+      ]
+    },
+    {
+      "id": "G12",
+      "guarda": "--regerar só combina com --base",
+      "arquivo": "bin/forge-testes",
+      "de": "if args.regerar and (args.registros",
+      "para": "if False and (args.registros",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_regerar_so_combina_com_base"
+      ]
+    },
+    {
+      "id": "G13",
+      "guarda": "o link achado entra na lista dos links",
+      "arquivo": "bin/forge-testes",
+      "de": "(link := link_no_caminho(destino))",
+      "para": "(link := None)",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_link_no_derivado_ou_na_pasta_recusa_sem_rodar_o_gerador"
+      ]
+    },
+    {
+      "id": "G14",
+      "guarda": "sem tarefa, o resumo diz nada a regerar",
+      "arquivo": "bin/forge-testes",
+      "de": "for nome, _, _ in tarefas) or \"nada a regerar\"",
+      "para": "for nome, _, _ in tarefas) and \"nada a regerar\"",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_nada_tocado_nada_a_regerar"
+      ]
+    },
+    {
+      "id": "G15",
+      "guarda": "--regerar vai ao regerador, não ao plano dirigido",
+      "arquivo": "bin/forge-testes",
+      "de": "    if args.regerar:\n        return regerar(args.base)",
+      "para": "    if False:\n        return regerar(args.base)",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_bin_tocado_regera_so_o_indice"
+      ]
+    },
+    {
+      "id": "G16",
+      "guarda": "caminho apagado entra na fotografia sem ser lido",
+      "arquivo": "bin/forge-testes",
+      "de": "Path(n[3:]).read_bytes() if Path(n[3:]).is_file() else None",
+      "para": "Path(n[3:]).read_bytes() if True else None",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_nada_tocado_nada_a_regerar"
+      ]
+    }
+  ]
+}

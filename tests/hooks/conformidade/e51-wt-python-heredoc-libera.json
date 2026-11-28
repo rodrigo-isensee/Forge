@@ -1,0 +1,25 @@
+{
+  "descricao": "E51.10 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge em wt/*: o corpo do heredoc que o Python interpreta não é comando: o texto que cita `gh pr merge` com `$PWD` na linha passa, como na base (A2 do QA E51.9).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 - \"$PWD/bin/forge-fechar\" <<'EOF'\nfrom pathlib import Path\nimport sys\np = Path(sys.argv[1])\np.write_text(p.read_text().replace('gh pr merge \"$n\"', 'gh pr merge \"$n\" --squash'))\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "descricao": "H2-RETOMADO-CONFLITO (R-TETO): com uma reserva de escrita viva (ainda sem id) na branch do retomado tardio, as duas ficam: o retomado mantém a branch no registro, o conflito vai ao erros.log e o disparo seguinte na branch é recusado.",
+  "arquivos": {
+    "docs/briefs/x.md": "Agente destino: forge:tech-lead\nPedido: p1\nBranch: melhoria/a   Base: develop\n\n## Objetivo\nFazer.\n"
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": null,
+          "tipo": "forge:qa-engineer",
+          "descricao": "viva",
+          "desde": "{agora-60}",
+          "tool_use_id": "toolu_1",
+          "branches": [
+            "melhoria/a"
+          ],
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ],
+      "autores": [
+        {
+          "id": "a0123456789abcdef",
+          "desde": "{agora-400}",
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ]
+    }
+  },
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SubagentStart",
+        "agent_id": "a0123456789abcdef",
+        "agent_type": "forge:software-engineer"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_2",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Corrigir o CI",
+      "prompt": "Execute docs/briefs/x.md"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: melhoria/a ocupada por forge:qa-engineer",
+    "erros_log": "H2-RETOMADO-CONFLITO R-TETO: retomado a0123456789abcdef segue com melhoria/a (outra reserva de escrita viva)",
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "forge:software-engineer"
+        ]
+      }
+    }
+  }
+}

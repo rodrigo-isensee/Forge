@@ -5,6 +5,7 @@ import importlib.util
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -301,9 +302,12 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         (bateria,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
                       if j["id"] == "bateria"]
         (longas,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
-                     if j["id"] == "verificacoes"]  # A18: Provas, shellcheck e e2e moram no job que espera os passos baratos
-        comandos = "\n".join(p["run"] for p in bateria["passos"] + longas["passos"])
-        nomes_dos_passos = "\n".join(p["nome"] for p in bateria["passos"] + longas["passos"])
+                     if j["id"] == "verificacoes"]  # A18: Provas e shellcheck moram no job que espera os passos baratos
+        (instalacao,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+                         if j["id"] == "instalacao-quatorze"]  # F6: o e2e roda uma vez, aqui (era também nas verificações)
+        passos = bateria["passos"] + longas["passos"] + instalacao["passos"]
+        comandos = "\n".join(p["run"] for p in passos)
+        nomes_dos_passos = "\n".join(p["nome"] for p in passos)
         for trecho in ("shellcheck", "actionlint", "zizmor", "claude plugin validate", "e2e-instalacao",
                        "scripts/conferir-release.py", "Nada pula degrau", "verificar-contribuicao"):
             self.assertIn(trecho, comandos + nomes_dos_passos)
@@ -314,7 +318,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         jobs = {j["id"]: j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))}
         # SUITE-NO-CI e CI-RAPIDO: no PR e na develop a suíte roda em 5 partes por versão (scripts/suite-partes.py, o mecanismo do
         # suite-paralela); o agregador da develop não roda a suíte.
-        for nome in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
+        for nome in ("partes-doze", "rapida-partes-doze"):  # F6: a suíte inteira só no 3.12
             with self.subTest(job=nome):
                 (passo,) = [p for p in jobs[nome]["passos"] if p["nome"] == "Testes do Forge (parte)"]
                 self.assertIn('python3 scripts/suite-partes.py --parte "$PARTE/5"', passo["run"])
@@ -344,7 +348,8 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         # A4 (segurança): o modo pareceres roda em exatamente um job, que tem só contents: read e teto de 5 min (J3, J5, J9)
         self.assertEqual(sum("--modo pareceres" in p["run"] for j in jobs.values() for p in j["passos"]), 1)
         bloco = re.search(r"(?ms)^  pareceres:\n(.*?)(?=^  \S+:\n)", texto).group(1)
-        self.assertEqual(permissoes_e_env_do_job(bloco), ({"contents": "read"}, set()))  # CI-GUARDA-PERMISSOES-ENV: sem env: no job
+        # CI-GUARDA-PERMISSOES-ENV: sem env: no job; E47.1: checks: read só para ler o último `bateria` do head na espera
+        self.assertEqual(permissoes_e_env_do_job(bloco), ({"contents": "read", "checks": "read"}, set()))
         self.assertEqual(token_sem_permissao(texto), [])
         self.assertIn("\n    timeout-minutes: 5\n", bloco)
 
@@ -354,11 +359,11 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         bloco = re.search(r"(?ms)^  pareceres:\n(.*?)(?=^  \S+:\n)", texto).group(1)
         com_env = bloco.replace("    steps:", "    env:\n      GH_TOKEN: ${{ github.token }}\n    steps:", 1)
         antiga = re.findall(r"(?m)^      (\S+): (\S+)$", com_env.split("    steps:")[0])
-        self.assertEqual(antiga, [("contents", "read")], "a guarda antiga deixava passar o env do job")
-        self.assertEqual(permissoes_e_env_do_job(com_env), ({"contents": "read"}, {"GH_TOKEN"}))
-        sem_permissao = com_env.replace("    permissions:\n      contents: read\n", "")
+        self.assertEqual(antiga, [("contents", "read"), ("checks", "read")], "a guarda antiga deixava passar o env do job")
+        self.assertEqual(permissoes_e_env_do_job(com_env), ({"contents": "read", "checks": "read"}, {"GH_TOKEN"}))
+        sem_permissao = com_env.replace("    permissions:\n      contents: read\n      checks: read\n", "")
         self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + sem_permissao), ["pareceres"])
-        no_passo = bloco.replace("    permissions:\n      contents: read\n", "").replace(
+        no_passo = bloco.replace("    permissions:\n      contents: read\n      checks: read\n", "").replace(
             "          HEAD_SHA:", "          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          HEAD_SHA:", 1)
         self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + no_passo), ["pareceres"])
         self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + com_env), [])  # permissions declarada: não acusa
@@ -395,7 +400,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         """CI-ATALHO-COMMIT-SO-PARECER (A2 da E1.4): sem defeito, o gate segue no agregador `bateria`; o motivo fica no ci.yml."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         jobs = {j["id"]: j for j in ci.ler_jobs(texto)}
-        self.assertEqual(jobs["agregador"]["nome"], "bateria")
+        self.assertEqual(ci.pernas(jobs["agregador"])[0][0]["nome"], "bateria")  # E47.6: o sufixo da espera some no check local
         (gate,) = [p for p in jobs["bateria"]["passos"] if p["id"] == "gate"]
         self.assertIn('select(.name == "bateria" and .app.slug == "github-actions")', gate["run"])
         self.assertIn("CI-ATALHO-COMMIT-SO-PARECER", texto)
@@ -431,7 +436,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertIn("npm install", passo)
         self.assertNotIn("continue-on-error", texto)
         self.assertNotIn("skip ci", texto)
-        for job in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
+        for job in ("partes-doze", "rapida-partes-doze"):
             testes = [p for j in ci.ler_jobs(texto) if j["id"] == job for p in j["passos"] if p["nome"] == "Testes do Forge (parte)"]
             self.assertEqual(len(testes), 1, f"o job {job} não tem um passo 'Testes do Forge (parte)'")
             (teste,) = testes
@@ -578,7 +583,8 @@ class InstalacaoDoCliTest(unittest.TestCase):
     def test_toda_instalacao_global_do_cli_roda_o_instalador_do_binario_em_seguida(self):
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         linhas = [l.strip() for l in texto.splitlines() if "npm install -g" in l and "@anthropic-ai/claude-code@" in l]
-        self.assertEqual(len(linhas), 3, "as três instalações do CLI (e2e, validação do plugin, portão das provas)")
+        # F6: o e2e roda uma vez (instalacao-quatorze); a outra instalação é a da validação do plugin
+        self.assertEqual(len(linhas), 2, "as duas instalações do CLI (e2e no 3.14, validação do plugin)")
         for linha in linhas:
             instalar, _, resto = linha.partition("npm install -g")
             self.assertIn("&& node \"$(npm root -g)/@anthropic-ai/claude-code/install.cjs\"", resto, linha)
@@ -976,19 +982,21 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
 
     def test_leitor_entende_matriz_e_needs_do_ci_real(self):
         jobs = {j["id"]: j for j in self.jobs_reais()}
-        for job in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
+        for job in ("partes-doze", "rapida-partes-doze"):
             self.assertEqual(jobs[job]["matriz"], {"parte": ["1", "2", "3", "4", "5"]})
-        self.assertEqual(jobs["rapida"]["needs"], ["rapida-partes-doze", "rapida-pulados-doze"])
-        self.assertEqual(jobs["rapida-quatorze"]["needs"], ["rapida-partes-quatorze", "rapida-pulados-quatorze"])
+        self.assertEqual(jobs["rapida"]["needs"], ["arvore-envio", "rapida-partes-doze", "rapida-pulados-doze"])
+        self.assertNotIn("rapida-quatorze", jobs)  # F6
+        self.assertNotIn("partes-quatorze", jobs)
         self.assertEqual(jobs["agregador"]["needs"], ["bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"])
         self.assertEqual(jobs["verificacoes"]["needs"], ["bateria"])  # A18: Provas, shellcheck e e2e esperam os passos baratos
         self.assertEqual(jobs["bateria-python-tres-quatorze"]["needs"],
-                         ["partes-quatorze", "pulados-quatorze", "instalacao-quatorze"])
+                         ["instalacao-quatorze"])
         (upload,) = [p for p in jobs["partes-doze"]["passos"] if p["uses"].startswith("actions/upload-artifact@")]
         self.assertEqual(upload["com"]["name"], "pulados-doze-${{ matrix.parte }}")
         (download,) = [p for p in jobs["pulados-doze"]["passos"] if p["uses"].startswith("actions/download-artifact@")]
         self.assertEqual(download["com"]["pattern"], "pulados-doze-*")
-        self.assertEqual((jobs["agregador"]["nome"], jobs["bateria-python-tres-quatorze"]["nome"]), ("bateria", "bateria (python 3.14)"))
+        self.assertEqual((ci.pernas(jobs["agregador"])[0][0]["nome"], jobs["bateria-python-tres-quatorze"]["nome"]),
+                         ("bateria", "bateria (python 3.14)"))  # E47.1: sufixo só na espera, que some no check local
 
     def test_artefato_da_perna_vai_ao_job_que_baixa_mesmo_reaproveitada(self):  # T3
         passos_parte = ("    strategy:\n      matrix:\n        parte: [1, 2]\n    steps:\n"
@@ -1019,8 +1027,7 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         partes = [c for c in chamados if c[1]]
         self.assertEqual(partes, [(f"suíte (python 3.12, parte {k}/5)", str(k)) for k in (1, 2, 3, 4, 5)])
         por_nome = {r["nome"]: r for r in resultados}
-        for k in (1, 2, 3, 4, 5):
-            self.assertIn("reaproveitado", por_nome[f"suíte (python 3.14, parte {k}/5)"]["motivo"])
+        self.assertFalse([n for n in por_nome if "python 3.14, parte" in n])  # F6: no 3.14 só a instalação e a fumaça
         self.assertEqual(ci.status(resultados)[0], "success")
         self.assertIn("resumo de bateria: success, pareceres: success, verificacoes: success, partes-doze: success", por_nome["bateria"]["motivo"])
         self.assertEqual(por_nome["bateria (python 3.14)"]["estado"], ci.OK)
@@ -1029,23 +1036,25 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
     def test_agregador_reprova_com_uma_perna_vermelha(self):
         resultados, _ = self.rodar_com(self.jobs_reais(), falha="suíte (python 3.12, parte 2/5)")
         por_nome = {r["nome"]: r for r in resultados}
-        self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
+        # F6: a perna vermelha é do 3.12 e reprova só o agregador dele; o "bateria (python 3.14)" junta a instalação e a fumaça
+        self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.OK))
         self.assertEqual(por_nome["bateria (passos)"]["estado"], ci.OK)
         self.assertEqual(ci.status(resultados)[0], "failure")
 
     def test_passo_barato_vermelho_pula_a_suite_e_reprova_os_agregadores(self):
         """A18: as partes esperam o job de passos (lint, degrau, validação, changelog, neutralidade); vermelho nele, nenhuma
-        parte roda e os dois agregadores reprovam sem esperar a suíte."""
+        parte roda e o agregador `bateria` reprova sem esperar a suíte."""
         resultados, chamados = self.rodar_com(self.jobs_reais(), falha="bateria (passos)")
         self.assertEqual([c for c in chamados if c[1]], [])
         por_nome = {r["nome"]: r for r in resultados}
-        for versao in ("3.12", "3.14"):
+        for versao in ("3.12",):
             for k in (1, 2, 3, 4, 5):
                 nome = f"suíte (python {versao}, parte {k}/5)"
                 self.assertIn(nome, por_nome)
                 self.assertEqual(por_nome[nome]["estado"], ci.PULADO)
         self.assertEqual(por_nome["bateria (verificações longas)"]["estado"], ci.PULADO)  # A1: o vermelho barato pula o job longo
-        self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
+        # F6: o agregador do 3.14 só junta a instalação e a fumaça, que não esperam os passos baratos
+        self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.OK))
         self.assertEqual(ci.status(resultados)[0], "failure")
 
     def test_need_sem_job_reprova_e_job_sem_always_e_pulado(self):
@@ -1111,6 +1120,101 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
                                capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(r.stdout.strip(), "BASE=" + nova)
+
+
+class EsperaAmarelaNosWorkflows(unittest.TestCase):
+    """F1-ESPERA-NAO-E-VERMELHO (v0481 E47.1): rc 3 do script grava o sufixo que renomeia o check exigido (pendente); rc 1,
+    API fora do ar ou o check exigido já verde no head ficam vermelhos; o agregador da catraca só passa com a conferência verde."""
+
+    CASOS = {"ci.yml": ("pareceres", "bateria", " (espera parecer)"), "catraca.yml": ("conferencia", "catraca", " (espera rótulo)")}
+
+    def jobs(self, arquivo):
+        return {j["id"]: j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / arquivo).read_text(encoding="utf-8"))}
+
+    def job(self, arquivo, nome):
+        """O job pelo id, com asserção explícita (A4 do QA): na base sem ele o teste reprova por asserção, não por KeyError."""
+        jobs = self.jobs(arquivo)
+        self.assertIn(nome, jobs, f"{arquivo}: sem o job {nome}")
+        return jobs[nome]
+
+    def agregador(self, arquivo):
+        job, check, _ = self.CASOS[arquivo]
+        self.job(arquivo, job)
+        agregadores = [j for j in self.jobs(arquivo).values() if job in j["needs"] and j["nome"].startswith(check + "$")]
+        self.assertEqual(len(agregadores), 1, f"{arquivo}: agregador {check} com o sufixo de {job}")
+        return agregadores[0]
+
+    def fim_do_passo(self, arquivo):
+        job, _, _ = self.CASOS[arquivo]
+        passos = [p for p in self.job(arquivo, job)["passos"] if "rc=0\n" in p["run"]]
+        self.assertEqual(len(passos), 1, f"{arquivo}: um passo com o rc do script")
+        return "rc=0\n" + passos[0]["run"].split("rc=0\n", 1)[1]
+
+    def roda(self, arquivo, rc, gh):
+        """O fim do passo com python3 e gh falsos (subprocesso com ambiente limpo): (rc, saída GITHUB_OUTPUT, args do gh)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pasta = Path(tmp)
+            (pasta / "python3").write_text(f"#!/bin/sh\nexit {rc}\n")
+            (pasta / "gh").write_text(f"#!/bin/sh\necho \"$@\" > {pasta}/gh.args\n{gh}\n")
+            for nome in ("python3", "gh"):
+                (pasta / nome).chmod(0o755)
+            saida = pasta / "saida"
+            saida.write_text("")
+            env = {"PATH": f"{pasta}:/usr/bin:/bin", "GITHUB_OUTPUT": str(saida), "HEAD_SHA": "a" * 40}
+            p = subprocess.run(["bash", "--noprofile", "--norc", "-e", "-c", self.fim_do_passo(arquivo)],
+                               env=env, capture_output=True, text=True, timeout=30)
+            args = (pasta / "gh.args").read_text() if (pasta / "gh.args").exists() else ""
+            return p.returncode, saida.read_text(), args
+
+    def test_espera_grava_o_sufixo_e_defeito_ou_verde_velho_fica_vermelho(self):
+        for arquivo, (_, check, sufixo) in self.CASOS.items():
+            with self.subTest(arquivo):
+                self.assertEqual(self.roda(arquivo, 0, "exit 9")[:2], (0, ""))
+                self.assertEqual(self.roda(arquivo, 1, "exit 9")[:2], (1, ""))
+                for estado in ("nenhum", "failure"):  # A3 do QA: rc 1 com a API respondendo um estado de espera segue vermelho
+                    with self.subTest(arquivo=arquivo, rc=1, estado=estado):
+                        self.assertEqual(self.roda(arquivo, 1, f"echo {estado}")[:2], (1, ""))
+                rc, saida, args = self.roda(arquivo, 3, "echo nenhum")
+                self.assertEqual((rc, saida), (0, f"espera={sufixo}\n"))
+                self.assertIn(f"check_name={check}&", args)
+                # E47.6 (A4 da segurança): só uma lista fechada de estados do último check do head vale como espera
+                for estado in ("failure", "cancelled", "timed_out", "action_required", "stale"):
+                    with self.subTest(arquivo=arquivo, estado=estado):
+                        self.assertEqual(self.roda(arquivo, 3, f"echo {estado}")[:2], (0, f"espera={sufixo}\n"))
+                for estado in ("success", "null", "skipped", "neutral", "", "in_progress"):
+                    with self.subTest(arquivo=arquivo, estado=estado):
+                        self.assertEqual(self.roda(arquivo, 3, f"echo {estado}")[:2], (1, ""))
+                self.assertEqual(self.roda(arquivo, 3, "exit 1")[:2], (1, ""))
+
+    def test_check_exigido_tem_o_sufixo_da_saida_e_o_da_catraca_exige_a_conferencia(self):
+        for arquivo, (job, check, _) in self.CASOS.items():
+            with self.subTest(arquivo):
+                agregador = self.agregador(arquivo)
+                self.assertTrue(agregador["nome"].endswith(f"&& needs.{job}.outputs.espera || '' }}}}"), agregador["nome"])
+                self.assertEqual(ci.pernas(agregador)[0][0]["nome"], check)
+                self.assertIn("always()", agregador["se"])
+        passos = self.job("catraca.yml", "catraca")["passos"]
+        self.assertEqual(len(passos), 1)
+        passo = passos[0]
+        for resultado, esperado in (("success", 0), ("failure", 1), ("cancelled", 1), ("skipped", 1), ("", 1)):
+            with self.subTest(resultado=resultado):
+                p = subprocess.run(["bash", "--noprofile", "--norc", "-e", "-c", passo["run"]],
+                                   env={"PATH": "/usr/bin:/bin", "CONFERENCIA": resultado}, capture_output=True, text=True, timeout=30)
+                self.assertEqual(bool(p.returncode), bool(esperado))
+
+    def test_sufixo_so_com_todos_os_needs_verdes(self):
+        """E47.6 (A1 da segurança): com um `needs` do agregador fora de success, o nome é o exato (o defeito fica vermelho nele);
+        a condição do sufixo é avaliada pelo avaliador do ci-local, com cada `needs` reprovado de cada vez."""
+        for arquivo, (job, check, _) in self.CASOS.items():
+            agregador = self.agregador(arquivo)
+            m = re.fullmatch(rf"{check}\$\{{\{{ \((.+)\) && needs\.{job}\.outputs\.espera \|\| '' \}}\}}", agregador["nome"])
+            self.assertIsNotNone(m, agregador["nome"])
+            verdes = {f"needs.{n}.result": "success" for n in agregador["needs"]}
+            self.assertTrue(ci.avaliar_se(m.group(1), verdes))
+            for n in agregador["needs"]:
+                for resultado in ("failure", "cancelled", "skipped"):
+                    with self.subTest(arquivo=arquivo, need=n, resultado=resultado):
+                        self.assertFalse(ci.avaliar_se(m.group(1), {**verdes, f"needs.{n}.result": resultado}))
 
 
 if __name__ == "__main__":

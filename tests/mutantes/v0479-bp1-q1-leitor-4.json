@@ -1,0 +1,66 @@
+{
+  "pedido": "v0479-bp1-q1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q18",
+      "guarda": "carregar não segue link simbólico",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "os.O_RDONLY | os.O_NOFOLLOW)",
+      "para": "os.O_RDONLY)",
+      "testes": [
+        "tests.test_forge_quarentena.Carregar.test_link_simbolico_nao_e_seguido"
+      ]
+    },
+    {
+      "id": "Q19",
+      "guarda": "arquivo acima do teto não é lido",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "if len(bruto) > TETO_BYTES:",
+      "para": "if len(bruto) > TETO_BYTES + 1:",
+      "testes": [
+        "tests.test_forge_quarentena.Carregar.test_arquivo_acima_do_teto_nao_e_lido"
+      ]
+    },
+    {
+      "id": "Q20",
+      "guarda": "chave repetida no JSON é erro",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "if len(objeto) != len(pares):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_quarentena.Carregar.test_chave_repetida_em_qualquer_nivel_nao_deixa_entrada"
+      ]
+    },
+    {
+      "id": "Q21",
+      "guarda": "teste é o id de um teste só",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "and not (isinstance(e[\"teste\"], str) and ID_DE_TESTE.fullmatch(e[\"teste\"])):",
+      "para": "and not isinstance(e[\"teste\"], str):",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_teste_e_o_id_de_um_teste_so"
+      ]
+    },
+    {
+      "id": "Q22",
+      "guarda": "desde no futuro é erro",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "if desde and hoje < desde:",
+      "para": "if desde and hoje < desde - datetime.timedelta(days=1):",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_desde_no_futuro_e_erro"
+      ]
+    },
+    {
+      "id": "Q23",
+      "guarda": "teste repetido é erro",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "if t and t in ids[:i]]",
+      "para": "if False]",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_teste_repetido_e_erro"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+diff --git a/.githooks/pre-push b/.githooks/pre-push
+index f944360..f54dabe 100755
+--- a/.githooks/pre-push
++++ b/.githooks/pre-push
+@@ -389,6 +389,44 @@ checagens_baratas() {
+       break
+     done
+   fi
++  # PRVERDE-B3 (PR-VERDE B3, v0478 E57.39): os registros que o CI reprova e o envio esquecia (teto dos agentes, índice, specs de
++  # mutante, mapa de testes, pesos, changelog), por `bin/forge-testes --registros --base origin/develop`: só leitura, em segundos, e já
++  # busca a `origin/develop` (sem rede ele avisa e confere contra a base local; o CI confere). Mesma regra do changelog: só quando o HEAD
++  # é a ponta de uma branch enviada. Ferramenta ausente: aviso e segue. Ferramenta presente: saída 0 segue, 1 recusa o envio (registro
++  # desatualizado) e qualquer outra saída (2 = sem veredito, 124 = estourou o tempo, erro do intérprete) também recusa: falha fechada,
++  # nunca verde por defeito da conferência. Roda depois das checagens de cima, sem substituir nenhuma, e soma falhas.
++  if [ -n "$base_dev" ] && [ "${#envios[@]}" -gt 0 ]; then
++    if [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] && [ ! -L bin/forge_apoio_testes.py ]; then
++      prazo="${FORGE_REGISTROS_PRAZO:-180}"
++      envios_reg=("${envios[@]}")
++      case "$prazo" in ''|*[!0-9]*) echo "pre-push: FORGE_REGISTROS_PRAZO deve ser um número de segundos inteiro (veio '${prazo}'); recusado, a conferência dos registros não rodou." >&2; falhas=1; envios_reg=() ;; esac
++      for envio in "${envios_reg[@]}"; do
++        read -r ponta _ ref <<< "$envio"
++        case "$ref" in refs/heads/?*) ;; *) continue ;; esac
++        [ "$ponta" = "$(git rev-parse HEAD 2>/dev/null)" ] || continue
++        rc=0
++        if command -v timeout >/dev/null 2>&1; then
++          saida="$(env -u BASH_ENV -u ENV timeout -- "$prazo" python3 -I bin/forge-testes --registros --base origin/develop 2>&1 </dev/null)" || rc=$?
++        else
++          saida="$(env -u BASH_ENV -u ENV python3 -I bin/forge-testes --registros --base origin/develop 2>&1 </dev/null)" || rc=$?
++        fi
++        if [ "$rc" -ne 0 ]; then
++          printf '%s\n' "$saida" | LC_ALL=C tr -d '\000-\011\013-\037\177' | tail -n 40 >&2
++          if [ "$rc" -eq 1 ]; then
++            echo "pre-push: registro desatualizado (o CI reprova igual); corrija o que a conferência apontou e envie de novo. Nunca --no-verify." >&2
++          else
++            echo "pre-push: bin/forge-testes --registros não deu veredito (saída ${rc}); recusado, o CI reprovaria sem a conferência. Rode-a à mão para ver o motivo." >&2
++          fi
++          falhas=1
++        else
++          printf '%s\n' "$saida" | LC_ALL=C tr -d '\000-\011\013-\037\177' | grep -E '^forge-testes: (aviso|registros rc=)' >&2 || true
++        fi
++        break
++      done
++    else
++      echo "pre-push: aviso: bin/forge-testes ausente ou link; os registros não foram conferidos (o CI confere)." >&2
++    fi
++  fi
+   return "$falhas"
+ }
+ n_baratas=0

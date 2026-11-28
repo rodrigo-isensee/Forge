@@ -1,0 +1,58 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "pasta docs/ que é link fica fora",
+      "arquivo": "bin/forge-check",
+      "de": "fora = pasta.parent.is_symlink() or ",
+      "para": "fora = ",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_pasta_docs_que_e_link_fica_fora"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "FIFO ou pasta não é lida (S_ISREG pelo descritor)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not stat.S_ISREG(os.fstat(descritor).st_mode):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_fifo_e_pasta_nao_cobrem_nem_travam"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "retro que não abre (link) não vira texto vazio sem aviso",
+      "arquivo": "bin/forge-check",
+      "de": "os.O_NONBLOCK)\n    except OSError:\n        return None",
+      "para": "os.O_NONBLOCK)\n    except OSError:\n        return \"\"",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_link_e_arquivo_grande_nao_cobrem"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "retro ilegível avisa e não cobre",
+      "arquivo": "bin/forge-check",
+      "de": "if (texto := _texto_da_retro(arq)) is None:",
+      "para": "if (texto := _texto_da_retro(arq)) is None and False:",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_link_e_arquivo_grande_nao_cobrem",
+        "tests.test_retro_pendentes.RetroPendentes.test_fifo_e_pasta_nao_cobrem_nem_travam"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "pasta fora não é percorrida",
+      "arquivo": "bin/forge-check",
+      "de": "for arq in [] if fora else",
+      "para": "for arq in [] if False else",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_pasta_de_retros_que_e_link_fica_fora",
+        "tests.test_retro_pendentes.RetroPendentes.test_pasta_docs_que_e_link_fica_fora"
+      ]
+    }
+  ]
+}

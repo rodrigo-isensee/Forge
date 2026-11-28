@@ -1,0 +1,87 @@
+{
+  "pedido": "v0479-forge-check-ci-verde",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "ci_verde: sem branch ou sem head não é verde",
+      "arquivo": "bin/forge-check",
+      "de": "    if not branch or not head:\n        return False\n    pr, _ = gh_json(",
+      "para": "    if False:\n        return False\n    pr, _ = gh_json(",
+      "testes": [
+        "tests.test_forge_check_pr.CiVerdeNoHead.test_pendente_vermelho_ausente_outro_head_ou_sem_rede_nao_e_verde"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "ci_verde: o PR em outro head não conta",
+      "arquivo": "bin/forge-check",
+      "de": "if not isinstance(pr, dict) or pr.get(\"headRefOid\") != head:",
+      "para": "if not isinstance(pr, dict):",
+      "testes": [
+        "tests.test_forge_check_pr.CiVerdeNoHead.test_pendente_vermelho_ausente_outro_head_ou_sem_rede_nao_e_verde"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "ci_verde: nenhum check lido não é CI verde",
+      "arquivo": "bin/forge-check",
+      "de": "    return bool(lidos) and not ruins\n",
+      "para": "    return not ruins\n",
+      "testes": [
+        "tests.test_forge_check_pr.CiVerdeNoHead.test_pendente_vermelho_ausente_outro_head_ou_sem_rede_nao_e_verde"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "modulos_tocados: sem base, nada se lê (a ref `None` não vale)",
+      "arquivo": "bin/forge-check",
+      "de": "tres_pontos=True, estrito=True) if base else None",
+      "para": "tres_pontos=True, estrito=True) if True else None",
+      "testes": [
+        "tests.test_forge_check_pr.ProvaDaSuite.test_base_ou_git_ilegivel_falha_fechado"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "modulos_tocados: base ou git ilegível falha fechado",
+      "arquivo": "bin/forge-check",
+      "de": "    if nomes is None:\n        return None\n    return {m.group(1)",
+      "para": "    if nomes is not None:\n        return None\n    return {m.group(1)",
+      "testes": [
+        "tests.test_forge_check_pr.ProvaDaSuite.test_prova_que_cobre_os_modulos_do_diff_vale",
+        "tests.test_forge_check_pr.ProvaDaSuite.test_base_ou_git_ilegivel_falha_fechado"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "modulos_tocados: o módulo de teste apagado não entra",
+      "arquivo": "bin/forge-check",
+      "de": "and (Path(raiz) / n).is_file()}",
+      "para": "and True}",
+      "testes": [
+        "tests.test_forge_check_pr.ProvaDaSuite.test_prova_que_cobre_os_modulos_do_diff_vale"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "falta_na_prova: a prova de outro sha não vale",
+      "arquivo": "bin/forge-check",
+      "de": "if COMMIT.match(commit) and m.group(1).startswith(commit)]",
+      "para": "if COMMIT.match(commit)]",
+      "testes": [
+        "tests.test_forge_check_pr.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "falta_na_prova: o `commit:` que não é sha não casa prova",
+      "arquivo": "bin/forge-check",
+      "de": "if COMMIT.match(commit) and m.group(1).startswith(commit)]",
+      "para": "if m.group(1).startswith(commit)]",
+      "testes": [
+        "tests.test_forge_check_pr.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
+      ]
+    }
+  ]
+}

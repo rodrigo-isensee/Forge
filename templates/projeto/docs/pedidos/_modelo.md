@@ -33,9 +33,12 @@ Uma linha por ocorrência, em `## Registro de clareza` no fim do pedido, no mesm
 
 ## Etapas
 O que pertence a outro papel ou momento (review, QA, push pelo dono). Um item por linha, `E1.1 (papel): ...`, onde o papel é o agente ou `dono`. Etapa de outro papel não é corte de escopo: no brief do agente destino aparece em "Fora do escopo" sem a marca.
+Uma etapa numerada por delegação: cada brief cobre a sua (`Cobre: E1.1`), e a delegação seguinte do mesmo item (volta, segunda instância, outro papel) ganha linha e número novos, sem reusar a etapa já entregue.
+Pedido que toca dois repositórios: uma etapa e uma branch por repositório, um brief por etapa; o sha do outro repositório vai citado com a marca `(outro repositório)` logo depois dele.
 - E1.1 (<agente>): <etapa>
 - E1.2 (dono): <etapa>
 - E1.3 (security-engineer): <review de segurança>: pedido que toca um gatilho da `R-SEGURANCA` já nasce com esta etapa, no Forge, inclusive quando prevê invariante novo ou alterado em `tests/config.json`; sem gatilho, apague a linha e escreva "sem gatilho de segurança" no plano
+- E1.4 (agile-coach): retrospectiva do pedido; o pedido só fecha com ela gravada
 
 ## Fora do escopo
 O que o usuário não pediu, ou o que saiu do escopo depois. Item que estava no escopo e foi cortado leva a marca literal "Retira do escopo original", o trecho do escopo citado, a justificativa, a consequência e a decisão que o autoriza (`R-DECISAO`):

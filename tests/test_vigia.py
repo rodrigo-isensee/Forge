@@ -65,5 +65,54 @@ class FormaDoComando(unittest.TestCase):
         self.assertEqual(vigia.papel_do_agente(POLITICA, "outro:tipo"), POLITICA["papel_padrao"])
 
 
+class FalaDoDono(unittest.TestCase):
+    """FALA-DO-DONO-RESUMO-COMPACTADO: só o registro com a forma do que o dono digita conta. As formas abaixo são as dos
+    registros das transcrições do cliente (só os campos; o texto é inventado)."""
+    TEXTO = "Anota:\n- a\n- b\n- c\n"
+    DIGITADO = {"parentUuid": "p0", "isSidechain": False, "userType": "external", "entrypoint": "cli", "type": "user",
+                "uuid": "m1", "message": {"role": "user", "content": TEXTO}, "origin": {"kind": "human"},
+                "promptSource": "typed", "turnOrigin": "human"}
+
+    def com(self, **campos):
+        return {**self.DIGITADO, **campos}
+
+    def test_digitado_conta_com_origem_humana_sem_origem_e_em_blocos_de_texto(self):
+        sem_origem = {k: v for k, v in self.DIGITADO.items() if k not in ("origin", "promptSource", "turnOrigin")}
+        em_blocos = self.com(message={"role": "user", "content": [{"type": "text", "text": self.TEXTO}]})
+        for registro in (self.DIGITADO, sem_origem, em_blocos):
+            with self.subTest(registro=registro):
+                self.assertEqual(vigia.texto_do_dono(registro), self.TEXTO)
+
+    def test_resumo_de_compactacao_nao_conta(self):
+        resumo = {k: v for k, v in self.DIGITADO.items() if k not in ("origin", "promptSource", "turnOrigin")}
+        resumo.update(isCompactSummary=True, isVisibleInTranscriptOnly=True)
+        self.assertIsNone(vigia.texto_do_dono(resumo))
+        self.assertIsNone(vigia.texto_do_dono(self.com(isVisibleInTranscriptOnly=True)))
+        self.assertIsNone(vigia.texto_do_dono(self.com(isMeta=True)))
+        self.assertIsNone(vigia.texto_do_dono(self.com(isSidechain=True)))
+
+    def test_campo_que_comeca_com_is_sem_maiuscula_nao_e_marca(self):
+        self.assertEqual(vigia.texto_do_dono(self.com(issueRef="x", isolado=True)), self.TEXTO)
+
+    def test_forma_da_ide_sem_origem_com_prompt_id_conta(self):
+        ide = {k: v for k, v in self.DIGITADO.items() if k not in ("origin", "promptSource", "turnOrigin")}
+        ide.update(entrypoint="claude-vscode", promptId="p1")
+        self.assertEqual(vigia.texto_do_dono(ide), self.TEXTO)
+
+    def test_resultado_de_ferramenta_nao_conta(self):
+        for campo in ("toolUseResult", "sourceToolUseID", "sourceToolAssistantUUID"):
+            with self.subTest(campo=campo):
+                self.assertIsNone(vigia.texto_do_dono(self.com(**{campo: "x"})))
+
+    def test_origem_que_nao_e_humana_nao_conta(self):
+        for origem in ({"kind": "task-notification"}, {"body": "x", "from": "outro"}, None, "human"):
+            with self.subTest(origem=origem):
+                self.assertIsNone(vigia.texto_do_dono(self.com(origin=origem)))
+
+    def test_outro_tipo_nao_conta(self):
+        self.assertIsNone(vigia.texto_do_dono(self.com(type="assistant")))
+        self.assertIsNone(vigia.texto_do_dono([self.DIGITADO]))
+
+
 if __name__ == "__main__":
     unittest.main()

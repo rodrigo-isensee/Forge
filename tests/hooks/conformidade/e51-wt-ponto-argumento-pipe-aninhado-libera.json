@@ -1,0 +1,25 @@
+{
+  "descricao": "E51.22 (A2 da segurança E51.20): sessão do Forge em wt/*: no texto reavaliado com ação crítica (recusa opaca na guarda base), o ponto como argumento (`find .`) depois de um pipe não é programa e passa. A ação crítica vem de `docs/regras`, fora das pastas de parecer (E51.34: a barreira de papel do E50 recusaria por outro motivo).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "bash -c 'echo x | find . -path \"*docs/regras*\"'"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:dev"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

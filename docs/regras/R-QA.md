@@ -14,4 +14,4 @@ Medida: 27 de 52 bloqueantes dos pareceres eram defeito provado; 4 escapes (estu
 - Documentação não passa por QA, só o código que a verifica.
 - Guarda mudada em código de controle (classe C) pede mutante em `tests/mutantes/` no próprio diff (catraca do CI).
 - Bug bloqueante, crítico ou alto bloqueia a entrega e nunca segue aberto (ou vai ao usuário como decisão). Médio e baixo viram cartão no quadro, sem aceite do usuário caso a caso (BUR-B4).
-- No máximo 3 voltas por bug; na 3.ª reprovação, o Jarvis leva a decisão ao usuário.
+- Voltas sem teto; da 3ª só o apontado, sem afrouxar teste; da 4ª tech-lead e revisor juntos

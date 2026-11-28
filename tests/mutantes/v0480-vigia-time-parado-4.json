@@ -1,0 +1,16 @@
+{
+  "pedido": "v0480-vigia-time-parado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M23",
+      "guarda": "VIGIA-TIME-PARADO: só o agent_type do papel jarvis é a sessão do Jarvis",
+      "arquivo": "hooks/vigia.py",
+      "de": "return hook.campo(\"agent_type\") in papeis.get(\"jarvis\", [])",
+      "para": "return True",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_so_a_sessao_do_jarvis_bloqueia"
+      ]
+    }
+  ]
+}

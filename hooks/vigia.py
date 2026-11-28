@@ -21,20 +21,34 @@ subcomando (`git push`, `gh pr merge`, `npm install`) com as flags críticas (`-
 comando inteiro; `barrado` é a regra do hook que recusou a chamada, ou null. O papel vem de `conformidade.json` pelo
 `agent_type` (a transcrição principal fora do `Stop` é da sessão sem `agent_type`).
 Cada violação nova vai para `.forge/run/violacoes.jsonl`; havendo alguma, a saída é só
-`{"systemMessage": "Forge: <n> violação(ões) - ..."}` com código 0 (nunca `additionalContext`: ADR 0003).
+`{"systemMessage": "Forge: <n> violação(ões) - ..."}` com código 0 (nunca `additionalContext`: ADR 0003; a única
+exceção é o `reason` fixo do time parado, abaixo).
 Sem violação não escreve nada. Erro interno: sai 0 e registra em `erros.log`. Só biblioteca padrão.
+Age no projeto e também na sessão do Forge (clone sem `.forge/versao`, `wt/*`), com o estado no `.forge/run/` da cópia
+principal do clone (`Hook.run`), como os outros hooks (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE).
+VIGIA-TIME-PARADO (v0478 E105.1, ordem do dono 22/11; emenda da ADR 0003, item 7): só no `Stop` da sessão do Jarvis
+(`agent_type` do papel `jarvis` em `conformidade.json`; a sessão que não se identifica cala), com zero agentes vigentes no
+registro do R-TETO (`agentes.json`, lido como o `agentes.py` o lê) e cartão na coluna `Pronto para fazer` do quadro
+(`KANBAN.md` da raiz; no clone do Forge, o de `~/.forge-contrib`) sem marca de dependência na Obs. e sem Responsável
+`usuário`, a saída leva também `{"decision": "block", "reason": "time parado: ..."}`, texto fixo de uma linha: o Jarvis
+retoma sem encerrar a vez. Uma vez por vez: com `stop_hook_active` (o Stop que segue o bloqueio) deixa encerrar. Registro
+ou quadro ilegível (link, FIFO, não regular) cala e vai ao erros.log (dúvida não bloqueia).
+F4 (v0481 E34.6): com agente rodando ou não, conta também os PRs sem agente da lista em disco `prs-abertos.json` (o
+`forge-check` a grava; sem rede no hook) e os agentes presos há mais de 10 min; teto de 280 no `reason` (ADR 0003, item 7).
+O aviso de agente terminado chega ao Jarvis como turno, que acaba neste mesmo `Stop`; o `SubagentStop` não bloqueia (prenderia o agente).
 """
 import hashlib
 import json
 import os
 import re
 import shlex
+import stat
 import sys
 import time
 from pathlib import Path
 
-from _comum import (LIMITE_LOG, PLUGIN, copia_de_trabalho, executar, git, gravar_json, ler_json, marcar_projeto,
-                    motivo_da_falha, raiz_declarada, versao_sumiu)
+from _comum import (LIMITE_LOG, PLUGIN, contrib, copia_de_trabalho, e_clone_do_forge, executar, git, gravar_json,
+                    ler_json, marcar_projeto, motivo_da_falha, raiz_declarada, versao_sumiu)
 
 LIMITE_ARQUIVO = 2 * 1024 * 1024
 LIMITE_ARQUIVOS = 3000
@@ -48,6 +62,10 @@ REGRAS_DE_CONTORNO = {"R-CONFORMIDADE", "R-MAIN"}  # só nelas o próprio alvo �
 SUBCOMANDOS_DE_ESCRITA = {"push", "merge", "rebase", "cherry-pick", "reset", "commit", "create"}
 _ESCRITA = re.compile(r"(?<![\w.-])(?:tee|cp|mv|install|ln|rm|touch|dd|truncate|sed\s+-\S*i|perl|python3?|ruby|node|"
                       r"sh|bash|zsh|eval|source)(?![\w.-])|>|<<")
+# Redireção de descritor para /dev/null (`2>/dev/null`, `> /dev/null`, `&>>/dev/null`) entre separadores do shell: descarta a
+# saída, não grava arquivo; sai do comando antes do alvo e dos verbos (HOOK-PARADA-CONTA-REDIRECAO). Colada a outra grafia
+# (`>/dev/null'x'`, `>/dev/null.x`) fica, e segue contando como escrita.
+_DESCARTE = re.compile(r"(?<![^\s;&|(])(?:\d*|&)>>?[ \t]*/dev/null(?=[\s;&|)]|$)")
 PODADOS = {".git", "node_modules"}  # nunca se desce neles
 # Gravidade: só o contorno acusa (violação); arquivo em vigor mudado pode ser o usuário ou o `forge-upgrade` (mudança).
 GRAVIDADE = {"contorno": (0, "violação(ões)"), "versao-sumiu": (0, "violação(ões)"), "erro-hook": (1, "aviso(s)"), "em-vigor": (2, "mudança(s)"), "git": (2, "mudança(s)"),
@@ -148,6 +166,7 @@ def perfil_da_chamada(nome, entrada, raiz):
     comando = entrada.get("command")
     if nome != "Bash" or not isinstance(comando, str):
         return vazio
+    comando = _DESCARTE.sub(" ", comando)
     try:
         palavras = shlex.split(comando, comments=False)
     except ValueError:
@@ -296,12 +315,28 @@ def papel_do_agente(politica, agente):
     return next((p for p, tipos in politica.get("papeis", {}).items() if agente in tipos), politica.get("papel_padrao", ""))
 
 
-def texto_do_dono(registro):
-    """Texto digitado pelo dono, ou None. Na dúvida (resultado de ferramenta, meta, subagente, lembrete de sistema,
-    saída de comando) a entrada não conta."""
+def digitado_pelo_dono(registro):
+    """Classificador positivo (FALA-DO-DONO-RESUMO-COMPACTADO): o registro `user` só conta se tem a forma do que o dono
+    digita. Fica fora: qualquer marca `is*` verdadeira (isMeta, isSidechain, isCompactSummary,
+    isVisibleInTranscriptOnly e as que vierem), resultado de ferramenta e `origin` que não seja `{"kind": "human"}`
+    (aviso de tarefa, mensagem de outro agente). Sem `origin` valem as outras condições: é a forma antiga do cliente e
+    também a atual da extensão de IDE (grava sem `origin`, com `promptId`), então o padrão não é legado a remover.
+    Marca é `is` seguido de maiúscula; um campo como `issueRef` não é marca."""
     if not isinstance(registro, dict) or registro.get("type") != "user":
-        return None
-    if registro.get("isMeta") or registro.get("isSidechain") or registro.get("toolUseResult") or registro.get("sourceToolUseID"):
+        return False
+    marca = re.compile(r"is[A-Z]")
+    if any(marca.match(chave) and valor for chave, valor in registro.items()):
+        return False
+    if registro.get("toolUseResult") or registro.get("sourceToolUseID") or registro.get("sourceToolAssistantUUID"):
+        return False
+    origem = registro.get("origin", {"kind": "human"})
+    return isinstance(origem, dict) and origem.get("kind") == "human"
+
+
+def texto_do_dono(registro):
+    """Texto digitado pelo dono, ou None. Na dúvida (resumo de compactação, resultado de ferramenta, meta, subagente,
+    lembrete de sistema, saída de comando) a entrada não conta."""
+    if not digitado_pelo_dono(registro):
         return None
     mensagem = registro.get("message")
     conteudo = mensagem.get("content") if isinstance(mensagem, dict) else None
@@ -500,11 +535,203 @@ def avisar_versao_sumiu(hook):
     return [("versao-sumiu", detalhe)]
 
 
+# VIGIA-TIME-PARADO --------------------------------------------------------------------------------
+COLUNA_LIVRE = "pronto para fazer"
+# Comparadas com a Obs. em minúsculas e com o espaço repetido reduzido a um (`_normal`).
+MARCAS_DE_DEPENDENCIA = ("depende de", "espera", "aguardando o dono", "depois do", "decisão do dono", "bloqueado",
+                         "pergunta ao dono")
+RESPONSAVEL_DONO = "usuário"  # skills/kanban-scrum: Responsável "usuário" quando o cartão depende do dono
+LIMITE_QUADRO = 4 * 1024 * 1024  # o quadro do Forge tem ~0,5 MB; acima disso, cala
+_ID_DO_CARTAO = re.compile(r"[A-Za-z0-9.-]{1,16}")  # o ID vai ao modelo: lista positiva (emenda da ADR 0003, item 7)
+
+
+def _normal(texto):
+    return " ".join(texto.lower().split())
+
+
+def sessao_do_jarvis(hook):
+    """Só a sessão que se identifica como o Jarvis (`agent_type` do papel `jarvis`); sem `agent_type`, não se sabe: cala."""
+    papeis = ler_json(PLUGIN / "hooks" / "conformidade.json", {}).get("papeis", {})
+    return hook.campo("agent_type") in papeis.get("jarvis", [])
+
+
+def quadro_do(raiz):
+    """O `KANBAN.md` que vale para a sessão: no clone do Forge, o de `~/.forge-contrib`; no projeto, o da raiz."""
+    return contrib() / "KANBAN.md" if e_clone_do_forge(raiz) else Path(raiz) / "KANBAN.md"
+
+
+def ler_quadro(caminho):
+    """Texto do quadro, ou None se não há quadro ou se passa de LIMITE_QUADRO. Abre como `agentes.ler_estado`, sem seguir
+    link nem esperar FIFO; o que não é arquivo regular levanta (o chamador cala e registra o erro)."""
+    try:
+        fd = os.open(caminho, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return None
+    with os.fdopen(fd, "rb") as f:
+        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+            raise OSError(f"{caminho}: não é arquivo regular")
+        dados = f.read(LIMITE_QUADRO + 1)
+    if len(dados) > LIMITE_QUADRO:
+        return None
+    return dados.decode("utf-8", errors="replace")
+
+
+def cartoes_livres(texto):
+    """IDs dos cartões da coluna `Pronto para fazer` que não dependem do dono (`depende_do_dono`), na ordem do quadro."""
+    livres, na_coluna, responsavel = [], False, None
+    for linha in texto.splitlines():
+        if linha.startswith("## "):
+            na_coluna = linha[3:].strip().lower().startswith(COLUNA_LIVRE)
+            continue
+        if not na_coluna or not linha.lstrip().startswith("|"):
+            continue
+        celulas = [c.strip() for c in linha.replace("\\|", "").strip().strip("|").split("|")]
+        if celulas[0] == "ID":  # cabeçalho: a posição do Responsável nesta tabela
+            nomes = [_normal(c) for c in celulas]
+            responsavel = nomes.index("responsável") if "responsável" in nomes else None
+            continue
+        if len(celulas) < 2 or celulas[0] == "" or set(celulas[0]) <= set("-: "):
+            continue
+        if depende_do_dono(celulas, responsavel):
+            continue
+        livres.append(celulas[0])
+    return livres
+
+
+def depende_do_dono(celulas, responsavel):
+    """Marca de dependência na Obs. (última coluna) ou Responsável `usuário` (posição achada no cabeçalho)."""
+    if any(marca in _normal(celulas[-1]) for marca in MARCAS_DE_DEPENDENCIA):
+        return True
+    dono = celulas[responsavel] if responsavel is not None and responsavel < len(celulas) else ""
+    return _normal(dono) == RESPONSAVEL_DONO
+
+
+def agentes_rodando(hook, raiz):
+    """Registros vigentes do R-TETO (reserva ou agente iniciado), pela mesma leitura do `agentes.py`; ilegível levanta.
+    AGENTE-PRESO-SEM-BAIXA (v048 E12.2): sem o agente que a notificação terminal prova parado (`agentes.Liberacao`), que
+    não conta como rodando nem como preso; a baixa no arquivo fica com o próximo evento do `agentes.py`."""
+    import agentes  # só no Stop: o módulo é grande
+    arquivo = agentes.arquivo_de_estado(raiz)
+    estado = agentes.ler_estado(arquivo)  # sem diretório comum (None), o TypeError é a dúvida
+    leitor = agentes.Hook("agentes")  # a trava `pesado` da Liberacao é a da pasta do agentes.json, não a do vigia
+    leitor.entrada, leitor._run, agora = hook.entrada, arquivo.parent, time.time()
+    return agentes.vigentes(estado["agentes"], agora, hook.expira_s(), agentes.Liberacao(leitor, agora))
+
+
+# F4 (v0481 E34.1 e E34.6): PR aberto sem agente e instância presa, sem rede ----------------------------
+PRESO_S = 600  # sem escrita no transcript do agente há mais de 10 minutos
+NOME_DA_LISTA = "prs-abertos.json"  # gravada por `forge-check status` e `proximo` (bin/forge_estado.py); nenhum hook a escreve
+PRAZO_DA_LISTA_S = 900  # 15 min a partir do `gravado_em`; vencida, a parte dos PRs cala
+LIMITE_DA_LISTA = 64 * 1024
+TETO_DO_AVISO = 280  # emenda da ADR 0003, item 7 (E34.6)
+_HEAD = re.compile(r"[A-Za-z0-9._/-]{1,100}")
+PAPEIS = {"autor", "integração", "review", "QA", "segurança", "review/QA", "review/segurança", "QA/segurança",
+          "review/QA/segurança"}  # o papel vai ao modelo: lista positiva, os valores do `papel_do_pr` de bin/forge_estado.py
+_TIPO = re.compile(r"[a-z][a-z0-9:-]{0,39}")  # o tipo do agente vai ao modelo: lista positiva, como o ID do cartão
+
+
+def lista_de_prs(raiz):
+    """O `prs-abertos.json` ao lado do `agentes.json` da raiz (item 5 da ADR 0003), ou None sem diretório de estado."""
+    import agentes
+    estado = agentes.arquivo_de_estado(raiz)
+    return None if estado is None else estado.parent / NOME_DA_LISTA
+
+
+def ler_prs_abertos(raiz, agora):
+    """[(número, head, papel)] da lista em disco, em ordem de número; ausente, vencida, no futuro (mais de 60 s) ou fora da
+    forma: []. Cada item passa pela lista positiva; o que não é arquivo regular levanta, pela guarda do `ler_quadro`."""
+    caminho = lista_de_prs(raiz)
+    texto = None if caminho is None else ler_quadro(caminho)
+    dados = json.loads(texto) if texto and len(texto) <= LIMITE_DA_LISTA else {}
+    gravado = dados.get("gravado_em") if isinstance(dados, dict) else None
+    if type(gravado) is not int or not -60 <= agora - gravado <= PRAZO_DA_LISTA_S:
+        return []
+    prs = dados.get("prs") if isinstance(dados.get("prs"), list) else []
+    return sorted((p["number"], p["head"], p["papel"]) for p in prs[:100] if isinstance(p, dict)
+                  and type(p.get("number")) is int and 1 <= p["number"] <= 9999999
+                  and isinstance(p.get("head"), str) and _HEAD.fullmatch(p["head"]) and p.get("papel") in PAPEIS)
+
+
+def prs_parados(hook, raiz, vivos, agora):
+    """`#<n> <papel>` de cada PR da lista sem registro vigente na branch dele, com vaga livre no teto do R-TETO."""
+    import agentes
+    prs = ler_prs_abertos(raiz, agora)
+    if not prs or len(vivos) >= agentes.calcular_teto(agentes.ler_config(hook), ritmo=agentes.ritmo_do_projeto(raiz))[0]:
+        return []
+    ocupadas = {b for a in vivos for b in agentes.textos(a.get("branches")) + agentes.textos(a.get("escrita"))}
+    return [f"#{n} {papel}" for n, head, papel in prs if head not in ocupadas]
+
+
+def ate(nome, itens, quantos):
+    """`<nome>: <até `quantos` itens>[ e mais <M>]`, ou nada sem itens."""
+    resto = f" e mais {len(itens) - quantos}" if len(itens) > quantos else ""
+    return [f"{nome}: {', '.join(itens[:quantos])}{resto}"] if itens else []
+
+
+def instancias_presas(hook, vivos, agora):
+    """`<tipo> <id> há <n> min` de cada agente da sessão cujo transcript não muda há mais de PRESO_S."""
+    import agentes
+    real = agentes.transcript_da_sessao(hook)
+    if real is None:
+        return []
+    presos = []
+    for a in vivos:
+        aid = a.get("id")
+        if not (isinstance(aid, str) and agentes.ID_DE_AGENTE.fullmatch(aid)):
+            continue
+        try:
+            parado = agora - os.lstat(real.with_suffix("") / "subagents" / f"agent-{aid}.jsonl").st_mtime
+        except OSError:
+            continue
+        if parado > PRESO_S:
+            tipo = a["tipo"][:24] if isinstance(a.get("tipo"), str) and _TIPO.fullmatch(a["tipo"]) else "agente"
+            presos.append(f"{tipo} {aid} há {int(parado // 60)} min")
+    return presos
+
+
+def calado(hook, funcao, *args):
+    """A parte do aviso que falha cala sozinha e vai ao erros.log; as outras seguem."""
+    try:
+        return funcao(*args)
+    except Exception as erro:  # noqa: BLE001 - dúvida não bloqueia
+        hook.registrar_erro(erro)
+        return []
+
+
+def aviso_time_parado(hook, raiz):
+    """O aviso do time parado para o `Stop`, ou None. Nunca levanta: o erro vai ao erros.log e cala."""
+    if hook.campo("hook_event_name") != "Stop":
+        return None
+    if hook.campo("stop_hook_active") is True:
+        return None
+    try:
+        if not sessao_do_jarvis(hook):
+            return None
+        vivos = agentes_rodando(hook, raiz)  # só objetos: `agentes.dentro_do_prazo` exige dict
+        livres = [] if vivos else cartoes_livres(ler_quadro(quadro_do(raiz)) or "")
+    except Exception as erro:  # noqa: BLE001 - nunca falha a sessão; dúvida não bloqueia o encerramento
+        hook.registrar_erro(erro)
+        return None
+    partes = []
+    if livres:
+        primeiro = f", primeiro {livres[0]}" if _ID_DO_CARTAO.fullmatch(livres[0]) else ""
+        partes.append(f"{len(livres)} cartões disponíveis{primeiro}")
+    agora = time.time()
+    partes += ate("PR sem agente", calado(hook, prs_parados, hook, raiz, vivos, agora), 3)
+    partes += ate("preso há mais de 10 min", calado(hook, instancias_presas, hook, vivos, agora), 1)
+    while len(partes) > 1 and len(f"time parado: {'; '.join(partes)}; retome sem esperar o dono") > TETO_DO_AVISO:
+        partes.pop()  # o teto corta a última parte inteira; o sufixo fixo fica
+    if not partes:
+        return None
+    return f"time parado: {'; '.join(partes)}; retome sem esperar o dono"
+
+
 def principal(hook):
     evento = hook.campo("hook_event_name")
     if evento == "SessionStart" and raiz_declarada() is not None:
         marcar_projeto(raiz_declarada())
-    raiz = hook.projeto(hook.cwd())
+    raiz = hook.projeto(hook.cwd(), clone_do_forge=True)  # a sessão do Forge também (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE)
+    parado = None
     if versao_sumiu() and evento in ("Stop", "SubagentStop"):
         novas = avisar_versao_sumiu(hook)
     elif raiz is None or evento not in ("SessionStart", "Stop", "SubagentStop"):
@@ -513,6 +740,8 @@ def principal(hook):
         return iniciar(hook, raiz)
     else:
         novas = verificar(hook, raiz)
+        parado = aviso_time_parado(hook, raiz)
+    saida = {}
     if novas:
         novas = sorted(novas, key=lambda n: GRAVIDADE[n[0]][0])  # o resumo é do mais grave (a ordenação é estável)
         contagem = {}
@@ -520,7 +749,11 @@ def principal(hook):
             contagem[GRAVIDADE[tipo]] = contagem.get(GRAVIDADE[tipo], 0) + 1
         partes = ", ".join(f"{n} {nome}" for (_, nome), n in sorted(contagem.items()))
         resumo = " ".join(f"{novas[0][0]}: {TEXTOS_FIXOS.get(novas[0][0], novas[0][1])}".split())[:120]
-        print(json.dumps({"systemMessage": f"Forge: {partes} — {resumo} (.forge/run/violacoes.jsonl)"}, ensure_ascii=False))
+        saida["systemMessage"] = f"Forge: {partes} — {resumo} (.forge/run/violacoes.jsonl)"
+    if parado:
+        saida.update({"decision": "block", "reason": parado})
+    if saida:
+        print(json.dumps(saida, ensure_ascii=False))
 
 
 if __name__ == "__main__":

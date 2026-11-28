@@ -1,0 +1,24 @@
+---
+tipo: revisao-seguranca
+contrato: 1
+pedido: release-0.47.12
+branch: melhoria/v0479-release-04712
+commit: ccae7261ac82e17d12ee021f26256b9a45d3b40d
+parecer: aprovado
+revisor: forge:security-engineer
+data: 2026-11-20
+---
+# Review de segurança: release 0.47.12 (versão inteira, marca refeita)
+
+Revalidação por delta da marca refeita com o #732 e o #733 (E59.9). A rodada anterior (head `61cda6b8`, aprovado, sem achados) fica no git: junção dos 21 itens até `09491a3b`, revisado × mesclado, marca e segredo conferidos ali.
+
+Gatilhos: hooks, execução de comando (`bin/`, `scripts/`), sandbox do modelo de projeto, regra afrouxada (`R-FLUXO`, A3), release usada por todos os projetos.
+
+## Detalhe dos achados
+Sem achados. Delta lido (`forge-check parecer delta`, `61cda6b8..ccae7261`): nenhum arquivo do domínio mudou além do que veio da `develop`; fora do domínio, só `CHANGELOG.md`.
+- O que veio da `develop` (`46d8978f`): `ed5bfa02` (#732, só `docs/propostas/v0479-melhorias-anti-erro.md`, review `aprovado` em `9032b50d`; sem gatilho de segurança) e `20bbbd8d` (#733, `scripts/suite-paralela.py` +1 linha de texto no resumo do CI, `tests/test_forge.py`, `tests/test_suite_paralela.py`, `skills/trabalho-em-paralelo/ritmo-e-corte.md`; segurança `docs/security/v0479-pv-c1-pesos.md` `aprovado` em `a94644bc`). Revisado × mesclado, fora de `docs/{qa,reviews,security,devops}`, `CHANGELOG.md` e `changelog.d/`: `git patch-id --stable` igual nos dois (`99aab38e…` e `90d2abf8…`). Nenhum toca `hooks/`, `bin/`, `.github/` nem `.githooks/`.
+- Marca `ccae7261`: só `CHANGELOG.md` (+2 linhas no `[0.47.12]`, em português) e a remoção dos dois fragmentos; `changelog.d/` só com o `README.md`; `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json` em 0.47.12, iguais ao `[0.47.12] - 2026-11-20`; `[Não publicado]` vazio.
+- Segredo: nas linhas acrescidas de `61cda6b8..ccae7261`, os únicos casamentos de padrão de credencial são a lista de padrões do próprio parecer anterior; nenhum token nem chave.
+
+## Riscos aceitos e ferramentas
+Nenhum risco aceito nem pendente de aceite. A suíte inteira é do CI do PR; a promoção exige o CI verde. Lacuna: gitleaks, osv-scanner, semgrep, zizmor e actionlint não estão no PATH; o delta não toca workflow nem dependência.

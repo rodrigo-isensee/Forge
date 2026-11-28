@@ -1,0 +1,24 @@
+{
+  "descricao": "M4.2 da F1 (C1b): comentar no PR do próprio projeto pela API, com URL completa, barra (antes liberava pela diretriz 36; o R-CONTRIB segue sem barrar o próprio projeto: contrib-api-pull-do-projeto-libera).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X POST https://api.github.com/repos/acme/proj/issues/5/comments -f body=oi"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: gh api que grava status ou comentário no PR pelo terminal (M4.2)"
+  }
+}

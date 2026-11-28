@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-conformidade-sessao-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "E51.10: a recusa do git que não diz se o subcomando é alias é trava na sessão do Forge",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"git {sub}: o hook não conseguiu ler se é alias da configuração\",\n                        \"rode o subcomando do git por extenso\", trava=TRAVA_OPACA)",
+      "para": "\"git {sub}: o hook não conseguiu ler se é alias da configuração\",\n                        \"rode o subcomando do git por extenso\")",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "E51.10: a recusa do alias de shell da configuração é trava na sessão do Forge",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"rode o comando direto, sem alias\", trava=TRAVA_OPACA)",
+      "para": "\"rode o comando direto, sem alias\")",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "E51.10: a recusa do alias encadeado demais é trava na sessão do Forge",
+      "arquivo": "hooks/conformidade.py",
+      "de": "alias encadeado demais\",\n                        \"rode o subcomando do git por extenso\", trava=TRAVA_OPACA)",
+      "para": "alias encadeado demais\",\n                        \"rode o subcomando do git por extenso\")",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "E51.10: a recusa do alias da configuração que o hook não lê é trava na sessão do Forge",
+      "arquivo": "hooks/conformidade.py",
+      "de": "alias da configuração que o hook não lê\",\n                        \"rode o subcomando do git por extenso\", trava=TRAVA_OPACA)",
+      "para": "alias da configuração que o hook não lê\",\n                        \"rode o subcomando do git por extenso\")",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "E51.10: a recusa do alias da linha (`git -c alias.*`) é trava na sessão do Forge (A1 do review E51.7)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"rode o subcomando do git direto, sem alias\", trava=TRAVA_OPACA)",
+      "para": "\"rode o subcomando do git direto, sem alias\")",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "E51.10: o corpo do heredoc que um shell roda é lido como comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not corpo_so_lido(dono, interprete) and toca_uma_trava(corpo, nivel):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "E51.10: o corpo do heredoc que o dono só lê ou interpreta não é comando (A2 do QA E51.9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not corpo_so_lido(dono, interprete) and toca_uma_trava(corpo, nivel):",
+      "para": "        if toca_uma_trava(corpo, nivel):",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "E51.10/E51.18: o here-string de um shell, do source ou do ponto é texto reavaliado (A1 do QA E51.9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if le_o_here_string and not nivel and any(toca_uma_trava(texto_reavaliado(a), 1) for a in aqui):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    }
+  ]
+}

@@ -48,9 +48,18 @@ def esperando(pasta):
     return vivas
 
 
+def ler_trava(caminho):
+    """A trava, ou None sem ela. PESADO-CORRIDA-TRAVA-SOME: o hook solta a trava entre o `exists` e a leitura do
+    `_comum.ler_trava`; o arquivo que some aí é trava livre. O que existe e não se lê (JSON quebrado, permissão) levanta."""
+    try:
+        return _comum.ler_trava(caminho)
+    except FileNotFoundError:
+        return None
+
+
 def estado(run, validade):
     """(a trava em vigor ou None, quantos esperam na fila)."""
-    trava = _comum.ler_json(run / "pesado.json", None)
+    trava = ler_trava(run / "pesado.json")
     desde = trava.get("desde") if isinstance(trava, dict) else None
     if not isinstance(desde, (int, float)) or time.time() - desde >= validade:
         trava = None

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-conformidade-sessao-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "E51.6: no teto, só a linha com o git ou o gh como palavra é trava",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return isinstance(linha, str) and bool(GIT_NO_TEXTO.search(linha))",
+      "para": "        return True",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "E51.6: o programa opaco (`$G push`) pode ser o git",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if palavras and OPACA_NA_PALAVRA.search(palavras[0]):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "E51.6: o git com alvo opaco é trava só com subcomando fora da lista dos que não chegam a uma trava",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if nome == \"git\" and resto and subcomando_do_git(resto) not in GIT_FORA_DAS_TRAVAS:",
+      "para": "            if nome == \"git\" and resto:",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "E51.6: o gh com alvo opaco e as duas primeiras palavras fora da lista de leitura é trava",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if nome == \"gh\" and \" \".join(resto[:2]) not in GH_FORA_DAS_TRAVAS:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "E51.6: o texto que o eval ou o sh -c reavalia é lido um nível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if (nome == \"eval\" or nome in SHELLS) and not nivel and any(toca_uma_trava(t, 1) for t in relidos):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "E51.6: a palavra que o bash expande, também a substituição que o leitor troca por _, é opaca pelo texto cru",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        palavras = [\"$\" if OPACA_NA_PALAVRA.search(p.cru) else p.valor for p in originais]",
+      "para": "        palavras = [\"$\" if False else p.valor for p in originais]",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "E51.6: a atribuição antes do programa não é o programa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        while k < len(comando.palavras) and (comando.palavras[k].cru in ANTES_DO_PROGRAMA",
+      "para": "        while False and (comando.palavras[k].cru in ANTES_DO_PROGRAMA",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "E51.6: o gh que só lê (pr view, run list...) com alvo opaco segue livre",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if nome == \"gh\" and \" \".join(resto[:2]) not in GH_FORA_DAS_TRAVAS:",
+      "para": "            if nome == \"gh\":",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "pedido": "v0479-h2-retomado-conflito",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "H2-RETOMADO-CONFLITO: as branches ocupadas são as de escrita de toda reserva viva",
+      "arquivo": "hooks/agentes.py",
+      "de": "        ocupadas = {b for a in agentes for b in escritas_do_registro(a)}",
+      "para": "        ocupadas = set()",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "H2-RETOMADO-CONFLITO: a branch do retomado que outra reserva escreve é tomada",
+      "arquivo": "hooks/agentes.py",
+      "de": "        tomadas = [b for b in escrita if b in ocupadas]",
+      "para": "        tomadas = [b for b in escrita if b not in ocupadas]",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "H2-RETOMADO-CONFLITO: o conflito vai ao erros.log",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if tomadas:  # H2-RETOMADO-CONFLITO",
+      "para": "        if False:  # H2-RETOMADO-CONFLITO",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "H2-RETOMADO-CONFLITO: o retomado mantém no registro a branch tomada; quando a reserva viva cai, ele a segura",
+      "arquivo": "hooks/agentes.py",
+      "de": "\"branches\": escrita, \"escrita\": escrita, **dono})",
+      "para": "\"branches\": [b for b in escrita if b not in tomadas], \"escrita\": [b for b in escrita if b not in tomadas], **dono})",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "H2-RETOMADO-CONFLITO: com uma branch tomada e outra livre, o erros.log cita só a tomada",
+      "arquivo": "hooks/agentes.py",
+      "de": "        tomadas = [b for b in escrita if b in ocupadas]",
+      "para": "        tomadas = list(escrita) if set(escrita) & ocupadas else []",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    }
+  ]
+}

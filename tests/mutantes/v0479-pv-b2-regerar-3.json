@@ -1,0 +1,26 @@
+{
+  "pedido": "v0479-pv-b2-regerar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G17",
+      "guarda": "a fotografia vê o caminho ignorado arquivo a arquivo (A1 da segurança)",
+      "arquivo": "bin/forge-testes",
+      "de": "\"--no-renames\", \"--ignored=traditional\",",
+      "para": "\"--no-renames\", \"--ignored=no\",",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_escrita_em_caminho_ignorado_sai_2_e_o_bytecode_nao"
+      ]
+    },
+    {
+      "id": "G18",
+      "guarda": "o __pycache__ fica fora da fotografia",
+      "arquivo": "bin/forge-testes",
+      "de": "SEM_BYTECODE = \":(exclude,glob)**/__pycache__/**\"",
+      "para": "SEM_BYTECODE = \".\"",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_escrita_em_caminho_ignorado_sai_2_e_o_bytecode_nao"
+      ]
+    }
+  ]
+}

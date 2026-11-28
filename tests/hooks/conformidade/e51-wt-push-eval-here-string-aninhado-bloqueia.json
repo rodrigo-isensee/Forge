@@ -1,0 +1,26 @@
+{
+  "descricao": "S2 do parecer de segurança E51.12: o `bash <<<` dentro do `eval` recusa; o 2.º nível fecha na dúvida (E51.14).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "eval 'bash <<< \"git push origin main\"'"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:dev"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`heredoc` com ação crítica"
+  }
+}

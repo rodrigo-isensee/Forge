@@ -1,0 +1,28 @@
+{
+  "descricao": "C1b-2, S2 da segurança (b2e8765): com o uploadpack lento e o vigia de produção, o parecer ainda dormente passa (rc 0)",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "prazo_de_producao": true,
+  "git": [
+    {
+      "config": {
+        "remote.origin.url": ".",
+        "remote.origin.uploadpack": "sleep 4; git-upload-pack"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/docs/security/v1.md",
+      "content": "parecer\n"
+    },
+    "agent_type": "forge:security-engineer",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "pedido": "v0479-forge-check-ci-verde",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "suite_do_parecer: sem prova e sem CI verde reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    return sem_ci + ([] if ci[\"verde\"] else [linha])\n",
+      "para": "    return sem_ci + ([] if True else [linha])\n",
+      "testes": [
+        "tests.test_forge_check_pr.SuiteNoCmdPr.test_sem_prova_e_sem_ci_verde_reprova",
+        "tests.test_forge_check_pr.SuitePeloPrDaCli.test_o_pr_reprova"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "cmd_pr: a guarda só com o `suite` do pr_da_cli (a catraca é o CI)",
+      "arquivo": "bin/forge-check",
+      "de": "if suite is not None and tipo in (\"review\", \"qa\") and campo is None and de_trabalho:",
+      "para": "if tipo in (\"review\", \"qa\") and campo is None and de_trabalho:",
+      "testes": [
+        "tests.test_forge_check_pr.SuiteNoCmdPr.test_sem_suite_a_catraca_nada_muda"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "pr_da_cli: sem conferir, a guarda não liga",
+      "arquivo": "bin/forge-check",
+      "de": "    suite = (previo_dos_checks or adiar_suite) if conferir else None",
+      "para": "    suite = (previo_dos_checks or adiar_suite) if True else None",
+      "testes": [
+        "tests.test_forge_check_pr.SuitePeloPrDaCli.test_sem_conferir_nao_liga"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "pr_da_cli: o previo e o passo 1 do fechar adiam",
+      "arquivo": "bin/forge-check",
+      "de": "    suite = (previo_dos_checks or adiar_suite) if conferir else None",
+      "para": "    suite = False if conferir else None",
+      "testes": [
+        "tests.test_forge_check_pr.SuitePeloPrDaCli.test_previo_so_avisa",
+        "tests.test_forge_check_pr.SuitePeloPrDaCli.test_passo_1_do_fechar_so_avisa"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "checks_do_head: checks não lidos reprovam (a leitura mudou para checks_ruins)",
+      "arquivo": "bin/forge-check",
+      "de": "    if lidos is None:\n        return [f\"pr: checks do PR #",
+      "para": "    if lidos is not None:\n        return [f\"pr: checks do PR #",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_checks_nao_lidos_reprova",
+        "tests.test_forge_check_pr.ChecksDoHead.test_sem_checks_no_projeto_aprova"
+      ]
+    }
+  ]
+}

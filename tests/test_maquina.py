@@ -305,6 +305,8 @@ class FilaPesada(Maquina):
         self.pedir(alfa, "a")
         self.pedir(alfa, "a", "PostToolUse", uso="toolu_outro")
         self.assertEqual(len([c for c in self.ler_vezes() if c.startswith(str(alfa))]), 1, "o Post de outro uso não solta")
+        trava = json.loads((alfa / ".forge" / "run" / "pesado.json").read_text(encoding="utf-8"))
+        self.assertIsNotNone(trava, "o Post de outro uso não grava null na trava do projeto")  # P10: a soltura grava null, não apaga
         self.assertNotIn("/morto", self.ler_vezes(), "a vez de dono morto sai na gravação")
         (alfa / ".forge" / "run" / "pesado.json").unlink()  # a trava do projeto apagada à mão: a da máquina solta mesmo assim
         self.pedir(alfa, "a", "PostToolUse")

@@ -134,9 +134,9 @@
   },
   "21": {
    "onde": "fabrica",
-   "resumo": "versão marcada a cada dia, sem esperar o pedido inteiro",
+   "resumo": "a versão é só a marca, sem esperar o pedido inteiro (fecha com 20 itens: ordem do dono de 26/11)",
    "trechos": [
-    "uma vez por dia o `tech-lead` marca na `develop` o que entrou"
+    "Com 20 itens integrados na `develop`, o `tech-lead` marca"
    ]
   },
   "22": {
@@ -174,9 +174,11 @@
    "cartao": "RELEASE-EM-1H"
   },
   "28": {
-   "onde": "pendente",
+   "onde": "fabrica",
    "resumo": "sessão sempre no modo automático e com o sandbox conferido",
-   "cartao": "SESSAO-AUTOMATICA"
+   "trechos": [
+    "Sandbox \\(diretriz 28\\): confira-o no primeiro comando; se falhar, pare e dê ao dono o comando para reabrir"
+   ]
   },
   "29": {
    "onde": "fabrica",
@@ -214,11 +216,11 @@
   },
   "34": {
    "onde": "fabrica",
-   "resumo": "Jarvis não trava e versão quando ficar pronta",
+   "resumo": "Jarvis não trava e versão com 20 itens integrados (ordem do dono de 26/11)",
    "trechos": [
     "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez e o time segue com o que não depende dela",
     "bloqueio de ambiente vira na hora o comando exato para o dono",
-    "a versão sai quando ficar pronta \\(diretriz 34\\), até 2 por dia"
+    "a versão fecha com 20 itens integrados \\(diretriz 34\\)"
    ]
   }
  }

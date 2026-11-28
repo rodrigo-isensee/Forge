@@ -1,0 +1,22 @@
+{
+  "pedido": "v0479-modelo-pedido-brief",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "o passo de desenvolvimento do fluxo do pedido confere a branch e o status logo depois de criar a worktree",
+      "arquivo": "skills/fluxo-do-pedido/SKILL.md",
+      "de": " e confira `git status -sb` nela.",
+      "para": ".",
+      "testes": ["tests.test_modelos_projeto.ModeloPedidoEBrief"]
+    },
+    {
+      "id": "M10",
+      "guarda": "a checagem do brief diz como criar a cópia nova",
+      "arquivo": "skills/checagem-do-brief/por-tema.md",
+      "de": " ou `git worktree add --no-track -b <b> <destino> origin/<base>`",
+      "para": "",
+      "testes": ["tests.test_modelos_projeto.ModeloPedidoEBrief"]
+    }
+  ]
+}

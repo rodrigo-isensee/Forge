@@ -1,0 +1,35 @@
+{
+  "descricao": "PARECER-PELO-PAPEL (v0478 E50.11, A5 da segurança; R-CONFORMIDADE): sessão do Forge, worktree em wt/*, dev grava docs/reviews/ numa linha que o hook não lê.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "printf x > docs/reviews/n.md; (true)#'"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:dev"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o hook não modela"
+  },
+  "repos": {
+    "home/.forge-contrib/wt/x": {
+      "arquivos": {
+        "a.txt": "v\n",
+        ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+      },
+      "branch": "melhoria/x"
+    }
+  }
+}

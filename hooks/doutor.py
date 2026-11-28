@@ -9,10 +9,13 @@ imprime só `{"systemMessage": "Forge doutor: ..."}` (uma linha, para o USUÁRIO
 como avisado. Também no Stop, uma vez por dia (consulta que falha não marca o dia), consulta as releases do Forge (`git ls-remote --tags`, 3 s, só https; cache em
 `.forge/run/versao-nova`) e acrescenta à mesma linha o aviso de versão nova e, também uma vez por dia, o do relógio (desvio de mais de 300 s contra o `Date` do GitHub, só se a consulta de versão deu certo).
 No Stop, também os avisos do FORGE-SEMPRE-ATUAL (ADR 0017), lidos do estado da ferramenta: o pendente (volta, fixação) uma vez, e o
-adiamento repetido uma vez por contagem. Tudo em ordem: silêncio. Só avisa: o conserto é do comando `forge doutor`, num terminal, com "s".
+adiamento repetido uma vez por contagem. E o aviso de versão parada (v0478 E69.3): 2 dias ou mais atrás da última versão vista,
+um por dia, com a causa e o comando que a pessoa roda; medida em `.forge/run/versao-parada.log`. Tudo em ordem: silêncio. Só avisa: o conserto é do comando `forge doutor`, num terminal, com "s".
 Erro interno: sai 0 e registra em `erros.log`. Só biblioteca padrão."""
+import datetime
 import json
 import os
+import re
 import shlex
 import stat
 import sys
@@ -35,6 +38,7 @@ LIMITE_REDE = 3  # segundos da consulta diária às releases do Forge (a única 
 ESTADO_SEMPRE_ATUAL = (".claude", "plugins", "data", "forge-forge", "forge", "sempre-atual")
 LIMITE_ESTADO = 1024 * 1024
 ADIADO_AVISA_A_PARTIR_DE = 2  # um adiamento só é a regra funcionando; o repetido não fica mudo (seção 3)
+PARADO_AVISA_A_PARTIR_DE = 2  # dias atrás da versão vista: um dia de sessão viva é normal; constante, o projeto não desliga (E69.3)
 NOME_DO_ESCOPO = {"user": "usuário", "project": "projeto", "local": "local"}
 
 
@@ -179,16 +183,98 @@ def frases_do_sempre_atual(estado):
     return frases, bool(frases)
 
 
+def pasta_do_sempre_atual():
+    """A pasta de estado da ferramenta (o HOME do ambiente, como ela), ou None se falta ou não é própria (link, outro dono)."""
+    pasta = Path.home().joinpath(*ESTADO_SEMPRE_ATUAL)
+    try:
+        st = os.lstat(pasta)
+    except OSError:
+        return None
+    if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid():
+        return None
+    return pasta
+
+
+def causa_da_parada(fv, raiz, carregada):
+    """(causa, extra), só por leitura: a sessão atrás da instalada; senão a última linha do registro da ferramenta que falhou;
+    senão o adiamento; senão a abertura sem o atalho (também quando nada é legível, R2 do desenho)."""
+    instalada = fv.versao_instalada(Path.home(), raiz)
+    if instalada and fv.versao_de(instalada) > fv.versao_de(carregada):
+        return "sessao-antiga", instalada
+    pasta = pasta_do_sempre_atual()
+    if pasta is None:
+        return "sem-atalho", ""
+    registro = (fv._ler_limitado(pasta / "registro.log", 4 * LIMITE_ESTADO) or "").strip().splitlines()
+    resultado = registro[-1].split("\t")[-1].split(":") if registro else [""]
+    if resultado[0] == "falhou":
+        etapa = resultado[1] if len(resultado) > 1 else ""
+        return "falhou", etapa if re.fullmatch(r"[a-z0-9-]{1,32}", etapa) else "?"
+    try:
+        estado = json.loads(fv._ler_limitado(pasta / "estado.json", LIMITE_ESTADO) or "{}")
+    except ValueError:
+        estado = {}
+    adiamentos = estado.get("adiamentos") if isinstance(estado, dict) else None
+    vezes = [r["n"] for r in adiamentos.values() if isinstance(r, dict) and type(r.get("n")) is int] if isinstance(adiamentos, dict) else []
+    return ("adiada", str(max(vezes))) if vezes and max(vezes) > 0 else ("sem-atalho", "")
+
+
+def medir(hook, estado, alcancada):
+    """Uma linha `versao · vista_em · avisada_em · causa · alcancada_em` em `.forge/run/versao-parada.log` (só mede, nada decide)."""
+    campos = [str(estado.get(c)) for c in ("versao", "vista_em", "avisada_em", "causa")] + [alcancada]
+    fd = os.open(hook.run() / "versao-parada.log", os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o644)
+    with os.fdopen(fd, "a", encoding="utf-8") as f:
+        f.write(" · ".join(campos) + "\n")
+
+
+def aviso_de_versao_parada(hook, raiz, superficie):
+    """A sessão atrás da última versão vista (`ultima` do cache `versao-nova`) há `PARADO_AVISA_A_PARTIR_DE` dias ou mais: uma frase
+    por dia, com a causa e o comando, e outra no mesmo dia se a causa mudar. Sem rede vale o `ultima` guardado, com a data dele.
+    Estado em `.forge/run/versao-parada` (`versao`, `vista_em`, `avisada_em`, `causa`); a sessão que alcança a versão fecha a medida."""
+    sys.path.insert(0, str(PLUGIN / "bin"))
+    import forge_versoes as fv
+    carregada = fv.versao_do_plugin()
+    agora = fv.versao_de(carregada)
+    texto = None
+    with hook.trava():
+        cache = ler_cache_versao(hook)
+        try:
+            estado = ler_json(hook.run() / "versao-parada", {})
+        except ValueError:
+            estado = {}
+        estado = estado if isinstance(estado, dict) else {}
+        novo, vista = dict(estado), fv.versao_de(str(estado.get("versao", "")))
+        if vista and agora and agora >= vista:
+            if estado.get("avisada_em"):
+                medir(hook, estado, hoje())
+            novo = {}
+        ultima = fv.versao_de(str(cache.get("ultima", "")))
+        if ultima and agora and ultima > agora:
+            main = ".".join(map(str, ultima))
+            if novo.get("versao") != main:
+                novo = {"versao": main, "vista_em": hoje()}
+            try:
+                dias = (datetime.date.fromisoformat(hoje()) - datetime.date.fromisoformat(str(novo.get("vista_em")))).days
+            except ValueError:
+                novo, dias = {"versao": main, "vista_em": hoje()}, 0
+            causa, extra = causa_da_parada(fv, raiz, carregada) if dias >= PARADO_AVISA_A_PARTIR_DE else ("", "")
+            if causa and (novo.get("avisada_em"), novo.get("causa")) != (hoje(), causa):
+                texto = fv.texto_de_versao_parada(causa, dias, carregada, main, extra, superficie)
+                data = str(cache.get("data", ""))
+                if data != hoje() and re.fullmatch(r"\d{4}-\d{2}-\d{2}", data):
+                    texto += f" (main vista em {data}, sem conferir hoje)"
+                novo.update(avisada_em=hoje(), causa=causa)
+                medir(hook, novo, "-")
+        if novo != estado:
+            gravar_json(hook.run() / "versao-parada", novo)
+    return texto
+
+
 def avisos_do_sempre_atual():
     """FORGE-SEMPRE-ATUAL (ADR 0017): lê o `estado.json` da ferramenta e marca o que disse, sob a trava dela (`.trava`, sem esperar).
     Com a ferramenta rodando, ou pasta que não é própria (link, outro dono), fica para o próximo Stop; nunca cria a pasta."""
     import fcntl
-    pasta = Path.home().joinpath(*ESTADO_SEMPRE_ATUAL)  # o HOME do ambiente, como a ferramenta
-    try:
-        st = os.lstat(pasta)
-    except OSError:
-        return []
-    if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid():
+    pasta = pasta_do_sempre_atual()
+    if pasta is None:
         return []
     nofollow = getattr(os, "O_NOFOLLOW", 0)
     fd = os.open(pasta / ".trava", os.O_RDWR | os.O_CREAT | nofollow, 0o600)
@@ -249,6 +335,15 @@ def linha(problemas):
     return texto[: LIMITE_LINHA - len(cauda) - 1] + "…" + cauda if len(texto) + len(cauda) > LIMITE_LINHA else texto + cauda
 
 
+def preparar_controle(hook):
+    """SANDBOX-TRAVA-CONTROLE (A2 da segurança): `agentes.json` e `pesado.json` negados ao Bash existem antes do primeiro comando
+    da sessão. Ausente, o runtime do sandbox o criaria vazio e 0444 no disco. Só cria o que falta, nunca regrava o que existe."""
+    run = hook.run()
+    for nome, conteudo in (("agentes.json", {"agentes": []}), ("pesado.json", None)):
+        if not os.path.lexists(run / nome):
+            gravar_json(run / nome, conteudo)
+
+
 def principal(hook):
     evento = hook.campo("hook_event_name")
     if evento not in ("SessionStart", "Stop"):
@@ -258,6 +353,10 @@ def principal(hook):
         return
     if evento == "SessionStart":  # inclusive resume e compact: reexamina sem reabrir o aviso de hoje
         caminhos_na_sessao(hook, raiz)
+        try:
+            preparar_controle(hook)
+        except OSError as erro:  # o aviso do doutor não cai por isso; o erro vai ao erros.log
+            hook.registrar_erro(erro)
         registrar(hook, diagnosticar(raiz), avisar=False)
         return
     with hook.trava():  # cache de hoje: decide e marca "avisado" na mesma trava
@@ -279,6 +378,13 @@ def principal(hook):
     nova = aviso_de_versao_nova(hook, superficie_de(raiz))
     if nova:
         partes.append(nova)
+    try:
+        parada = aviso_de_versao_parada(hook, raiz, superficie_de(raiz))
+    except OSError as erro:  # a falha ao ler ou medir não come o aviso de versão nem o do relógio
+        hook.registrar_erro(erro)
+        parada = None
+    if parada:
+        partes.append(parada)
     try:
         relogio = aviso_de_relogio(hook)
     except OSError:  # a falha ao gravar o relógio não pode comer o aviso de versão, que já está marcado como dito

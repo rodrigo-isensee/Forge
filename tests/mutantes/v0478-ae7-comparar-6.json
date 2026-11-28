@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP40",
+      "guarda": "AE7.1 rodar_caso: allow vence o silêncio entre hooks",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "(n == ACEITE, n)",
+      "para": "(False, n)",
+      "testes": [
+        "tests.test_comparar.DecisaoInteira.test_hook_novo_que_aprova_e_reescreve_e_aceite_novo"
+      ]
+    },
+    {
+      "id": "CMP41",
+      "guarda": "AE7.1 rodar_caso: raiz do projeto normalizada na reescrita",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "r.replace(raiz_json, \"{raiz}\")",
+      "para": "r",
+      "testes": [
+        "tests.test_comparar.DecisaoInteira.test_reescrita_igual_nos_dois_lados_nao_conta"
+      ]
+    },
+    {
+      "id": "CMP42",
+      "guarda": "AE7.1 rodar_caso: HOME próprio do lado",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "HOME=str(home), TMPDIR=str(arvore.parent",
+      "para": "HOME=os.environ.get(\"HOME\", \"\"), TMPDIR=str(arvore.parent",
+      "testes": [
+        "tests.test_comparar.LadosSeparados.test_home_de_quem_chama_nao_chega_ao_hook"
+      ]
+    },
+    {
+      "id": "CMP43",
+      "guarda": "AE7.1 medir: lado apagado antes do outro",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:\n        arvore = Path(tmp) / \"plugin\"\n        if not extrair(ctx, raiz, sha, arvore):\n            return None\n        (Path(tmp) / \"home\").mkdir()",
+      "para": "tempfile.TemporaryDirectory(delete=False) as tmp:\n        arvore = Path(tmp) / \"plugin\"\n        if not extrair(ctx, raiz, sha, arvore):\n            return None\n        (Path(tmp) / \"home\").mkdir()",
+      "testes": [
+        "tests.test_comparar.LadosSeparados.test_hook_do_head_nao_alcanca_a_base"
+      ]
+    },
+    {
+      "id": "CMP44",
+      "guarda": "AE7.1 medir: extração que falha",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "        if not extrair(ctx, raiz, sha, arvore):\n            return None\n        (Path(tmp) / \"home\").mkdir()",
+      "para": "        if False:\n            return None\n        (Path(tmp) / \"home\").mkdir()",
+      "testes": [
+        "tests.test_comparar.Refs.test_archive_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP45",
+      "guarda": "AE7.1 executar: base que não extrai não roda o head",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "None if lado_base is None else medir(ctx, raiz, head, casos, sessao)",
+      "para": "None if False else medir(ctx, raiz, head, casos, sessao)",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_base_que_nao_se_extrai_nao_roda_o_head"
+      ]
+    },
+    {
+      "id": "CMP46",
+      "guarda": "AE7.1 executar: reescrita que muda é aceite novo",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "        if h > b or reescreve:",
+      "para": "        if h > b:",
+      "testes": [
+        "tests.test_comparar.DecisaoInteira.test_reescrita_que_muda_e_aceite_novo"
+      ]
+    },
+    {
+      "id": "CMP47",
+      "guarda": "AE7.1 executar: marca entrada-reescrita",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "(\" entrada-reescrita\" if reescreve else \"\")",
+      "para": "(\" entrada-reescrita\" if False else \"\")",
+      "testes": [
+        "tests.test_comparar.DecisaoInteira.test_hook_novo_que_aprova_e_reescreve_e_aceite_novo"
+      ]
+    }
+  ]
+}

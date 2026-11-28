@@ -1,0 +1,88 @@
+{
+  "pedido": "v0479-k152-prepush-sem-deps",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "forge-init: instalar.json ausente ou ilegível deixa o comando vazio em vez de derrubar o forge-init (set -e)",
+      "arquivo": "bin/forge-init",
+      "de": "\"$raiz_forge/stacks/$stack/instalar.json\" 2>/dev/null)\" || instalar=\"\"",
+      "para": "\"$raiz_forge/stacks/$stack/instalar.json\" 2>/dev/null)\"",
+      "testes": [
+        "tests.test_prepush_k152.ForgeInitGravaOComandoDeInstalar.test_stack_sem_instalar_json_fica_sem_comando_e_a_mensagem_diz_o_que_instalar"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "forge-init: comando com aspa simples fica vazio (o pre-push.local o guarda entre aspas simples)",
+      "arquivo": "bin/forge-init",
+      "de": "case \"$instalar\" in *\"'\"*) instalar=\"\" ;; esac",
+      "para": "case \"$instalar\" in *\"'\"*) ;; esac",
+      "testes": [
+        "tests.test_prepush_k152.ForgeInitGravaOComandoDeInstalar.test_comando_com_aspa_simples_fica_vazio"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "forge-init: o marcador {{INSTALAR}} é trocado pelo comando da stack",
+      "arquivo": "bin/forge-init",
+      "de": " -e \"s|{{INSTALAR}}|$i_esc|g\" \"$arq\"",
+      "para": " \"$arq\"",
+      "testes": [
+        "tests.test_prepush_k152.ForgeInitGravaOComandoDeInstalar.test_cada_stack_grava_o_comando_do_instalar_json"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "pre-push.local (patch): sem comando da stack, a mensagem diz o que instalar",
+      "arquivo": "docs/propostas/k152-pre-push.md",
+      "de": "+como_instalar=\"${instalar:-instale",
+      "para": "+como_instalar=\"${instalar:+instale",
+      "testes": [
+        "tests.test_prepush_k152.ForgeInitGravaOComandoDeInstalar.test_stack_sem_instalar_json_fica_sem_comando_e_a_mensagem_diz_o_que_instalar"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "pre-push.local (patch): cada programa entra uma vez só na lista do que falta",
+      "arquivo": "docs/propostas/k152-pre-push.md",
+      "de": "+  case \" $faltam \" in *\" $programa \"*) continue ;; esac",
+      "para": "+  case \" $faltam \" in *\" $programa \"*) ;; esac",
+      "testes": [
+        "tests.test_prepush_k152.PrePushLocalSemDependencias.test_sem_nenhuma_ferramenta_barra_com_o_comando_de_instalar_e_nao_roda_o_pronto"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "pre-push.local (patch): programa fora do PATH entra na lista do que falta",
+      "arquivo": "docs/propostas/k152-pre-push.md",
+      "de": "+  command -v -- \"$programa\" >/dev/null 2>&1 || faltam=",
+      "para": "+  true || faltam=",
+      "testes": [
+        "tests.test_prepush_k152.PrePushLocalSemDependencias.test_sem_nenhuma_ferramenta_barra_com_o_comando_de_instalar_e_nao_roda_o_pronto",
+        "tests.test_prepush_k152.PrePushLocalSemDependencias.test_falta_so_uma_barra_e_nomeia_so_ela"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "pre-push.local (patch): com algo faltando, para antes do pronto rápido com a mensagem",
+      "arquivo": "docs/propostas/k152-pre-push.md",
+      "de": "+if [ -n \"$faltam\" ]; then",
+      "para": "+if false; then",
+      "testes": [
+        "tests.test_prepush_k152.PrePushLocalSemDependencias.test_sem_nenhuma_ferramenta_barra_com_o_comando_de_instalar_e_nao_roda_o_pronto"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "pre-push.local (patch): o envio é barrado (saída 1) quando falta programa",
+      "arquivo": "docs/propostas/k152-pre-push.md",
+      "de": "+  exit 1\n+fi",
+      "para": "+  true\n+fi",
+      "testes": [
+        "tests.test_prepush_k152.PrePushLocalSemDependencias.test_sem_nenhuma_ferramenta_barra_com_o_comando_de_instalar_e_nao_roda_o_pronto",
+        "tests.test_prepush_k152.PrePushLocalSemDependencias.test_falta_so_uma_barra_e_nomeia_so_ela"
+      ]
+    }
+  ]
+}

@@ -7,7 +7,9 @@ flags proibidas (`--no-verify`, `--force`, `core.hooksPath`). Write/Edit decidem
 (garantido); o Bash é lido como texto (barrado em regra: um script ou ofuscação passa, e o sandbox é a garantia).
 PostToolUse registra a autoria dos pareceres em `.forge/run/autoria.jsonl`.
 Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambiente do processo abre a guarda.
-Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB).
+Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB). Na
+sessão do Forge, fora de projeto, valem as travas (R-MAIN, R-VERIFY, push para a integração, tag v*) para todo papel,
+e a escrita no que roda fora do sandbox na raiz (`EM_VIGOR_NA_RAIZ`).
 """
 import collections
 import contextlib
@@ -18,9 +20,11 @@ import json
 import os
 import re
 import signal
+import stat
 import tempfile
 import shlex
 import subprocess
+import sys
 import time
 import types
 import unicodedata
@@ -31,12 +35,13 @@ from pathlib import Path
 import parecer
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO,
                     GIT_GRAVA_ARQUIVO, LancadorDemais, OPACO, TextoAbertoComLeituras, TextoDivididoAberto,
-                    LIMITE_MENSAGEM, PLUGIN, PROFUNDIDADE, bloquear, comentarios,
+                    LIMITE_MENSAGEM, PLUGIN, PrazoVencido, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, expandir_home, fora_da_gramatica_com_heredoc,
                     expandir_heredoc, fora_da_gramatica_de_leitura, FORMA_DO_HEREDOC, heredocs, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, nome_do_caminho, raiz_declarada, raiz_do_projeto, reavaliacao,
-                    sem_atribuicoes, separar_lancadores, SHELLS, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
+                    ANTES_DO_PROGRAMA, palavras_do_texto, sem_atribuicoes, separar_lancadores, SHELLS, subcomando_do_git, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs,
+                    PrazoVencido)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
 # caracteres somados e o tempo, com folga para o timeout do hooks.json (10 s), que o Claude Code trata como liberado.
@@ -57,14 +62,18 @@ FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CITA_PORTAO = re.compile(r"brief selado\s+\S*docs/briefs/\S+\s+[0-9a-f]{64}|entrega conferida\s+[0-9a-f]{40}")
 ESCRITA_NA_LINHA = re.compile(r">|<<|\b(?:tee|sed|dd|cp|mv|install|python\w*|perl\w*|ruby\w*|node|awk|gawk|nawk|printf)\b")
 LINHA_DE_PORTAO = re.compile(r"(?m)^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: (?:brief selado docs/briefs/\S+ [0-9a-f]{64}|entrega conferida [0-9a-f]{40})")
+# TEMPO-FIXTURE-INSTAVEL (E164.1): o par "git/gh ... ação" parte do início da linha (`(?<![^\n])`) e o grupo atômico fixa
+# o 1.º programa dela, o que deixa mais linha para a ação: a decisão é a mesma, e a busca fica linear (sem isso, cada
+# `gh` repetido varria a linha até o fim; 8 KB de `gh repo ` custavam 0,14 s por busca).
 CRITICO = re.compile(
-    r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
+    r"(?<![^\n])(?>[^\n]*?\b(git|gh)\b)[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|"
+    r"\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
     r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/|commondir|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
     re.I)
 # Variáveis definidas antes na linha que os comandos seguintes herdam; as `GIT_*_PATHSPECS` são as opções `--*-pathspecs`.
 PATHSPECS_NO_AMBIENTE = {"GIT_GLOB_PATHSPECS": "--glob-pathspecs", "GIT_NOGLOB_PATHSPECS": "--noglob-pathspecs",
                          "GIT_LITERAL_PATHSPECS": "--literal-pathspecs", "GIT_ICASE_PATHSPECS": "--icase-pathspecs"}
-VARIAVEIS_DA_LINHA = {"GH_REPO", "GIT_DIR", "GH_CONFIG_DIR", "XDG_CONFIG_HOME", *PATHSPECS_NO_AMBIENTE}
+VARIAVEIS_DA_LINHA = {"GH_REPO", "GIT_DIR", "GH_CONFIG_DIR", "XDG_CONFIG_HOME", "PYTHONPATH", *PATHSPECS_NO_AMBIENTE}
 MANIFESTO = ".claude-plugin/"  # no projeto, só a sessão do Forge escreve (R-CONTRIB): a identidade não vem dele
 # Nome do interpretador, com versão ou plataforma depois do nome (`perl5.34.0`, `perl5.34-x86_64-linux-gnu`, `ruby3.2`,
 # `python3.12`): fonte única para as três conferências (`-e`, edição no lugar, heredoc).
@@ -121,8 +130,9 @@ SED_ESCREVE = re.compile(r"(?=[wW]\s*(\S+))")  # lookahead: acha também o `w` d
 ESCRITA_NO_TEXTO = re.compile(  # só escrita de arquivo: `.replace(` de texto e `list.append(` não contam
     r"\.write\w*\(|writeFile|appendFile|unlink|\bos\.(remove|rename|replace)|shutil\.|rmtree|truncate|symlink|"
     r"rmSync|rmdir|copyFile|renameSync|cpSync|chmod|WriteStream|\w*open\w*\([^)]*[\"'][wa][bt+]?[\"']|>|"
-    r"file_put_contents|\bf(write|puts)\b|File\.(delete|rename)|FileUtils|inplace|system\(", re.I)
+    r"file_put_contents|\bf(write|puts)\b|File\.(delete|rename)|FileUtils|inplace|system\(|mkfifo|mknod", re.I)
 TODOS_OS_ARGUMENTOS = {"rm", "mv", "tee", "truncate", "shred", "unlink", "rmdir", "touch"}
+ARQUIVO_ESPECIAL = {"mkfifo", "mknod"}  # E7.23: o FIFO ou o nó no .git prende o git e os hooks (`especial_no_git`)
 SO_DESTINO = {"cp", "ln", "install", "rsync"}
 LEITORES = {"cat", "head", "tail", "less", "more", "bat", "nl", "tac", "source", ".", "grep", "egrep", "rg", "xxd",
             "od", "strings", "base64"}
@@ -156,6 +166,62 @@ API_ADMIN = re.compile(r"/(git/refs|contents/|rulesets|branches/[^/]+/protection
                        r"|hooks|keys|transfer)")
 GRAPHQL_PERIGOSO = re.compile(r"mergePullRequest|enablePullRequestAutoMerge|updateRef|createRef|deleteRef|"
                               r"createCommitOnBranch", re.I)
+# M4.2 e M10.1 da F1 (ADR 0019): parecer de portão só pelo `publicar` do plugin; os tipos são os contextos dele
+# (`CONTEXTOS` de `bin/forge_pareceres.py`, conferido por teste); o marcador é a linha `tipo:` do frontmatter do texto.
+TIPOS_DE_PARECER = ("review", "qa", "revisao-seguranca", "revisao-devops")
+MARCADOR_DE_PARECER = re.compile(r"^tipo:[ \t]*[\"']?(%s)[\"']?[ \t]*\r?$" % "|".join(TIPOS_DE_PARECER), re.M)
+GRAVA_PARECER_POR_API = re.compile(r"(^|/)(statuses/[^/]+|issues/[^/]+/comments|issues/comments/[^/]+)$", re.I)
+GRAVA_PARECER_NO_GRAPHQL = re.compile(r"addComment|updateIssueComment|deleteIssueComment")
+COMENTARIO_DO_GH = re.compile(r"(?<![\w./-])gh\s.*?\b(pr|issue)\s+comment\b", re.S)  # na linha que o hook não modela
+CORRIGIR_PUBLICAR = "rode `forge-check parecer publicar <.forge/pareceres/<pedido>/<tipo>.md>`, o do plugin, pelo nome"
+# C1b-2 da F1 parte 2: o módulo do `publicar` (M10.1) e a lista fechada dos PRs da transição (M20.1, gravada no C5a), que
+# acorda a recusa do parecer de item nas pastas de parecer quando existe na `develop` do `origin`.
+MODULO_DE_PARECER = "forge_pareceres.py"
+LISTA_FECHADA = ".github/pareceres-lista-fechada.json"
+PASTAS_DE_ITEM = ("reviews", "qa", "security", "devops")
+
+
+def script_do_python(args):
+    """O arquivo que o python roda: a 1.ª palavra fora das opções (`-X` e `-W` levam valor); com `-c`, `-m` ou `-`, None."""
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "-" or not a.startswith("-"):
+            return None if a == "-" else a
+        for k, letra in enumerate(a[1:]):  # a longa com `c` ou `m` (`--check-hash-based-pycs`) para: na dúvida, sem script
+            if letra in "cm":
+                return None
+            if letra in "XW":
+                i += not a[k + 2:]
+                break
+        i += 1
+    return None
+
+
+def valores_da_opcao(args, longa, curta):
+    """Todos os valores de `longa` e da `curta` de uma letra, na ordem (`parecer.opcao` lê só o 1.º; o gh fica com o último)."""
+    saida, i = [], 0
+    while i < len(args):
+        a = args[i]
+        if a in (longa, curta) and i + 1 < len(args):
+            saida.append(args[i + 1])
+            i += 1
+        elif a.startswith(longa + "="):
+            saida.append(a.split("=", 1)[1])
+        elif a.startswith(curta) and len(a) > len(curta):
+            saida.append(a[len(curta):].removeprefix("="))
+        i += 1
+    return saida
+
+
+def cat_sem_heredoc(linha, achados):
+    """M4.2 (segurança A7): há `$(cat)` fora dos corpos dos heredocs, sem um heredoc nascido dentro dele; esse lê a
+    entrada (o pipe), e o heredoc de outro comando da linha não é o seu corpo."""
+    partes, inicio = [], 0
+    for h in sorted(achados, key=lambda h: h.corpo[0]):
+        partes.append(linha[inicio:h.corpo[0]])
+        inicio = max(inicio, h.fim)
+    return bool(re.search(r"\$\(\s*cat\s*\)", "".join(partes) + linha[inicio:]))
 # R-CONTRIB (diretriz 36): a sessão de outro projeto não mexe no Forge (nem o próprio PR), pela API REST e pelo GraphQL.
 # Na sessão de projeto, o `gh` no Forge só lê: todo subcomando fora desta lista mexe e é recusado (falha fechado).
 GH_SO_LE = {"view", "list", "status", "diff", "checks", "download", "watch", "browse"}
@@ -193,7 +259,7 @@ CITA_ROTULO = re.compile(rf"{ROTULO_PROTEGIDO}|{GRAPHQL_DE_ROTULO.pattern}", re.
 TIMEOUT_DA_CONTA = 5  # s; abaixo do timeout do hook em hooks.json (10 s), senão o Claude Code o mata e o comando segue
 # FURO-HOOK-A, A3: a configuração que troca a estratégia ou o resultado do merge (R-REVIEW): a chave vale em `git config` e em `-c`
 CONFIG_DO_MERGE = re.compile(r"^(branch\..+\.mergeoptions|pull\.(twohead|octopus)|merge\..+\.driver)(=|$)", re.I)
-CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.)|" + CONFIG_DO_MERGE.pattern[1:], re.I)
+CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.|help\.autocorrect)|" + CONFIG_DO_MERGE.pattern[1:], re.I)
 MERGE_OPCOES_QUE_MUDAM_O_RESULTADO = ("--strategy", "--strategy-option", "--squash", "--no-commit")  # e `-s`, `-X`
 CONFIG_LEITURA = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "-l", "--show-origin", "--show-scope",
                   "--show-names", "--name-only", "--help", "-h"}
@@ -231,6 +297,19 @@ switch symbolic-ref tag unpack-objects update-index update-ref upload-pack var v
 version whatchanged worktree write-tree""".split())
 ALIAS_QUE_MESCLA = {"merge", "pull"}
 PROFUNDIDADE_DO_ALIAS = 8
+# A3 da segurança (0ad43a8): o `cat-file` do objeto ausente no clone parcial busca do promisor pelo transporte, que roda a
+# configuração da cópia (`remote.origin.uploadpack`, `core.sshCommand`); a chave por protocolo vence a geral, então todas:
+# os embutidos (`file`, `git`, `ssh`) e todo helper que o git instala (`git-remote-ext`, `-fd`, `-ftp`, `-ftps`, `-http`,
+# `-https`; A4 da segurança, 29c1bea). Literal: o corpus conta os passos do interpretador de cada execução do hook
+# (CORPUS-CUSTO-CONTADOR).
+SEM_TRANSPORTE = ("-c", "protocol.allow=never", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never",
+                  "-c", "protocol.git.allow=never", "-c", "protocol.ssh.allow=never", "-c", "protocol.http.allow=never",
+                  "-c", "protocol.https.allow=never", "-c", "protocol.ftp.allow=never", "-c", "protocol.ftps.allow=never",
+                  "-c", "protocol.fd.allow=never")
+# A5 da segurança (0c74349): o nome do transporte é livre (`remote.<nome>.vcs`, `<nome>::`) e a chave
+# `protocol.<nome>.allow` da cópia vence a geral, então nenhuma lista de recusa fecha; a lista de permissão vazia do
+# ambiente vence toda chave `protocol.*` (S10). A `SEM_TRANSPORTE` fica como segunda camada.
+SEM_PROTOCOLO = {"GIT_ALLOW_PROTOCOL": "none"}
 CONFIG_NO_AMBIENTE = re.compile(r"^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+|PARAMETERS)$")
 REFSPEC_NA_CONFIG = re.compile(r"remote\..+\.(fetch|push)", re.I)
 # IMPL-FURO-HOOK-N, N5 (L22, C-22-1): na branch de integração a única entrada é o `git merge` com parecer; o que grava
@@ -325,7 +404,93 @@ REFS_DE_TROCA = {"fetch", "pull", "push", "send-pack", "update-ref", "symbolic-r
 REPO_APAGAR = re.compile(r"^/?repos/[^/]+/[^/]+/?$")
 GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
 VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvisibility[\"']?\s*[=:]\s*[\"']?public\b", re.I)
+# CONFORMIDADE-REPO-CREATE-PUBLICO (v0478 E141.2; A1 e A2 de docs/security/v0480-repo-publico-diag.md): criar repositório
+# só com a visibilidade privada explícita (o padrão da API é público; sem TTY o gh exige uma), pelo `gh repo create` e
+# pela API. Valor que o hook não lê (`$`, crase, arquivo ausente) no endpoint do repositório falha fechado. E141.7: a
+# decisão é pelo nome do campo (`-f`/`-F` separado, colado ou com `=`; chave do topo do `--input`), não pelo texto todo.
+REPO_CRIAR = {"create", "new"}  # `gh repo new` é alias de `gh repo create`
+CAMPO_COLADO = re.compile(r"(?:-[fF]=?|--(?:raw-)?field=)(.+)", re.S)  # `-Fk=v`, `-F=k=v`, `--field=k=v`
+CAMPOS_DA_API = {"-f", "-F", "--field", "--raw-field"}
+PRIVADO_REST = {"private": {"true"}, "visibility": {"private", "internal"}}  # o valor privado de cada nome
+CORPO_ILEGIVEL = [("", None)]  # o `--input` que o hook não lê (sentinela: comparado por identidade)
+API_SEGMENTO_ESTRANHO = re.compile(r"(^|/)\.{0,2}(/|$)")  # `user//repos`, `user/./repos`: o servidor pode normalizar
+CHAVES = parecer.CHAVES  # E168.9 (A5): a palavra que pode ter expansão de chaves (`expansao_por_palavra`); fonte única
+GRAPHQL_ILEGIVEL = ("R-CONFORMIDADE", "gh api graphql com consulta que o hook não lê (variável, expansão do shell, "
+                    "arquivo ou entrada padrão)", "escreva a consulta literal entre aspas simples "
+                    "(gh api graphql -f query='...') e cada valor em -F \"nome=$valor\", com aspas")
+
+
+def expansao_por_palavra(linha):
+    """GRAPHQL-CONSULTA-EM-VARIAVEL (E168.1): {palavra sem aspas, como o `shlex` a devolve: a maior expansão vista nela}.
+    0: `$` e crase literais (aspas simples, barra; entre aspas duplas, `\\$` fica como o `shlex` o lê); 1: expansão
+    entre aspas duplas (o valor fica numa palavra só); 2: fora de aspas (o bash divide o valor em palavras). A palavra
+    que esta leitura não reproduz fica fora, e quem consulta a toma por 2."""
+    saida, texto, nivel, aspas, letras = {}, [], 0, None, iter(linha)
+    chave, anterior = False, ""  # E168.9 (A5): `{` fora de aspas na palavra; a letra anterior fora de aspas
+
+    def juntar():  # a palavra vazia (`""`) entra e não pesa: só a palavra com `$` ou crase é consultada
+        palavra = "".join(texto)
+        saida[palavra] = max(saida.get(palavra, 0), nivel)
+
+    for c in letras:
+        fora = aspas is None
+        if aspas == "'":
+            if c == "'":
+                aspas = None
+            else:
+                texto.append(c)
+        elif c == "\\":  # o escapado é literal; entre aspas duplas o `shlex` só tira a barra antes de `"` e `\\`
+            seguinte = next(letras, "")
+            texto.append(("\\" if aspas and seguinte not in '"\\' else "") + seguinte)
+        elif c in "$`" or fora and (CURINGA.match(c) or chave and (c == "," or c == "." == anterior)):
+            # E168.5 (A3): o curinga fora de aspas o bash troca por nomes; E168.9 (A5): a chave com `,` ou `..` fora de
+            # aspas (`{'…mergePull','-Hx:'}'Request…'`), por várias palavras remontadas
+            nivel = max(nivel, 1 if aspas else 2)
+            texto.append(c)
+        elif c == aspas:
+            aspas = None
+        elif aspas or not (c in "'\";&|" or c.isspace()):
+            texto.append(c)
+        elif c in "'\"":
+            aspas = c
+        else:
+            juntar()
+            texto, nivel, chave = [], 0, False
+        chave, anterior = (chave or c == "{", c) if fora else (chave, "")
+    juntar()
+    return saida
+
+
+CRIAR_COM_VALOR = {"-d", "--description", "-h", "--homepage", "-t", "--team", "-g", "--gitignore", "-l", "--license", "-p",
+                   "--template", "-r", "--remote", "-s", "--source"}  # as opções de `gh repo create` que levam valor
+API_CRIA_REPO = re.compile(r"user/repos|orgs/[^/]+/repos|repos/[^/]+/[^/]+/generate", re.I)  # endpoint normalizado
+API_DO_REPO = re.compile(r"repos/[^/]+/[^/]+", re.I)
+GRAPHQL_DO_REPO = re.compile(r"\b(createRepository|cloneTemplateRepository|updateRepository)\b")
+GRAPHQL_CRIA_REPO = re.compile(r"\b(createRepository|cloneTemplateRepository)\b")
+# E141.11 (A1 do review, A7 da segurança): strings e comentários pela especificação; no bloco `"""` só `\"""` escapa, e
+# o comentário fecha no LF ou no CR. CR, BOM e outro controle na consulta falham fechado, sem modelar mais léxico.
+GRAPHQL_SEM_TEXTO = re.compile(r'"""(?:\\"""|\\(?!""")|[^"\\]|"(?!""))*"""|"(?:\\.|[^"\\\n])*(?P<fecha>"?)|#[^\r\n]*')
+GRAPHQL_CONTROLE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f\ufeff]")  # todo controle, fora o TAB e o LF; e o BOM
+GRAPHQL_VISIBILIDADE = re.compile(r"\bvisibility\s*:\s*(\$?\w*)")  # com a vírgula já trocada por espaço
+# REPO-PUBLICO-REDESENHO (v0478 E148.1; A1 do review e A9 da segurança de v0480-repo-publico-fix): as formas do gh que
+# decidem a visibilidade marcam só o prazo vencido e o erro interno (`MarcadorDaPolitica.marca`), não o `CRITICO` das
+# recusas de construção: a leitura do gh com `$`, crase ou `\` + quebra segue livre. Cada termo é uma busca própria na
+# linha (a continuação já vem juntada numa das formas), então o custo é linear no texto.
+GH_DA_VISIBILIDADE = [[re.compile(p, re.I) for p in termos] for termos in (
+    (r"\bgh\b", r"\brepo\b", r"\b(?:create|new)\b"),  # gh repo create, gh repo new
+    (r"\bgh\b", r"\bapi\b", r"graphql|\brepos\b"))]  # user/repos, orgs/<o>/repos, .../generate, repos/<o>/<r>, graphql
+
+
+def visibilidade_do_gh(texto):
+    """Alguma linha do texto tem todos os termos de uma das formas de `GH_DA_VISIBILIDADE`?"""
+    return any(all(t.search(linha) for t in termos) for linha in texto.split("\n") for termos in GH_DA_VISIBILIDADE)
+
+
 CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
+# CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1; S1-S4 de docs/security/v0479-pv-a1-adr.md): gravam no índice o caminho
+# nomeado, com conteúdo que nunca esteve na árvore (`-c filter.*.clean`, `--chmod`, `--cacheinfo`).
+INDICE_NO_GIT = {"add", "stage", "update-index", "reset"}  # E63.5: `stage` é o `add` (A2); o `reset` com caminho (A7)
+INDICE_PELA_ENTRADA = ("--pathspec-from-file", "--stdin", "--index-info")  # a lista de caminhos que o hook não lê
 PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
 # S8: a prova da suíte (`.verde`, `.dirigida`, o `.novo` do `mv`) só o pre-push grava, fora deste hook; todo papel e pasta. Limites
 # aceitos (o hook protege contra engano; o CI é o portão): nome inteiro numa variável, script em arquivo, `curl -o`, `tar -x`.
@@ -337,6 +502,25 @@ PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push e 
 # também fora de projeto (a `GuardaDaProva` a deixa passar), e não só quando ela aponta para o Forge.
 PROFUNDIDADE_EXCEDIDA = ("R-CONFORMIDADE", f"comando aninhado (bash -c, eval, $(, crase, heredoc) em mais de {PROFUNDIDADE} "
                          "níveis: o hook não o lê", f"rode o comando direto, com no máximo {PROFUNDIDADE} níveis aninhados")
+# CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE (v0478 E51.1): na sessão do Forge com a pasta corrente fora de projeto (o
+# clone, `wt/*`), as travas valem para todo papel na `GuardaDaProva`: R-MAIN, R-VERIFY, o push direto para a integração
+# e a tag v* (`trava_da_sessao_do_forge`). O resto da linha segue livre (ADR 0009, seção 6).
+# E51.6: a marca vai no `barrar` (`trava=`), não no texto da recusa. `TRAVA`: vale sempre (o push direto para a integração,
+# a tag v*; R-MAIN e R-VERIFY valem pelo ID). `TRAVA_OPACA`: o alvo opaco com ação crítica (variável, reavaliação, heredoc
+# fora da gramática), que pode esconder uma trava (`F=--force; git push $F`, `B=develop; git push origin $B`); vale quando
+# um comando da linha pode ser uma trava (`toca_uma_trava`); a que só cita um caminho crítico segue livre. `TRAVA_NO_TETO`:
+# a linha acima do teto, que o hook não lê, pelo texto (`GIT_NO_TEXTO`).
+TAG_E_VERSAO = "a tag v* é a versão que todos os projetos instalam"
+PUSH_DIRETO = "push direto para"
+TRAVA, TRAVA_OPACA, TRAVA_NO_TETO = "trava", "trava-opaca", "trava-no-teto"
+# Lista positiva do que não chega a uma trava (AR-15): o subcomando do git e as duas primeiras palavras do gh que só leem
+# ou mexem na árvore; o resto (alias, `send-pack`, `am`, `fetch` para uma branch, `release create`) é trava.
+GIT_FORA_DAS_TRAVAS = {"add", "blame", "cat-file", "describe", "diff", "grep", "log", "ls-files", "ls-remote", "ls-tree",
+                       "restore", "rev-list", "rev-parse", "shortlog", "show", "stash", "status", "worktree"}
+GH_FORA_DAS_TRAVAS = {"pr view", "pr list", "pr checks", "pr diff", "pr status", "pr edit", "run view", "run list",
+                      "issue view", "issue list", "repo view", "release view", "release list"}
+OPACA_NA_PALAVRA = re.compile(r"[$`]")  # a palavra que o bash expande: o hook não sabe o valor
+GIT_NO_TEXTO = re.compile(r"(?<![\w./-])(?:git|gh)(?=\s)")  # o git ou o gh como palavra, não `.git/` nem `x-git`
 COLCHETE_DE_DIGITO = re.compile(r"\[[0-9-]+\]")  # o bash e o glob do Python o leem igual: sem caixa, negação nem classe
 CURINGA = re.compile(r"[*?\[]")  # o bash expande no alvo antes de gravar (A1 e A2 da segurança g1 da 0.45)
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
@@ -1269,6 +1453,19 @@ def livres_do_forge_check(args):
     return livres
 
 
+def ultima_raiz(args):
+    """A `--raiz` que o argparse do `forge-check` usa: a última da linha, antes ou depois do subcomando (review A1 do E6.18)."""
+    raiz = None
+    for i, a in enumerate(args):
+        if a == "--":  # o argparse toma o resto como posicional, nunca como --raiz (A1 do E6.22)
+            break
+        if a == "--raiz" and i + 1 < len(args):
+            raiz = args[i + 1]
+        elif a.startswith("--raiz="):
+            raiz = a.split("=", 1)[1]
+    return raiz
+
+
 def entrega_pela_forma_nova(livres, args):
     """`entrega --pedido`: o argparse aceita abreviação, então `--p`/`--ped` contam como `--pedido` (na dúvida, é a forma nova)."""
     return next(iter(livres), "") == "entrega" and any(a.startswith("--p") and "--pedido".startswith(a.split("=", 1)[0]) for a in args)
@@ -1384,6 +1581,66 @@ def emenda(args):
     return any(len(a) >= 4 and "--amend".startswith(a) for a in args)
 
 
+def caminho_com_curinga_no_texto(caminho, texto):
+    """A9 da E63.3: o caminho da política com `*` (`~/.forge-contrib/*/docs/pedidos/`) como o texto o cita, com o `~/`
+    também pelo home real, ou None; o `*` casa um trecho sem barra, espaço nem aspas."""
+    home = str(Path.home())
+    for forma in ((caminho, caminho.replace("~", home, 1)) if caminho.startswith("~/") else (caminho,)):
+        achado = re.search(re.escape(forma).replace(r"\*", r"[^/\s'\"]+"), texto)
+        if achado:
+            return achado.group(0)
+    return None
+
+
+def registrar_recusa(hook, chave, rid, grupo, alvo):
+    """G4 F1: a recusa (`barrado`) ou o aviso (`teria_barrado`) numa linha do `comandos.jsonl`, com `fonte`, `grupo` e
+    `alvo` (None é a recusa só pelo texto da linha: a recusa falsa a medir). Só na pasta `run` que já existe (não cria
+    estado fora do projeto), achada só pelo disco (sem `git`: nada lento no caminho da recusa), sem seguir link nem
+    esperar FIFO (`O_NONBLOCK`, e só grava em arquivo regular, como `anexar_ao_log`); a falha de gravação não muda a
+    decisão."""
+    try:
+        run = hook._run
+        if run is None:
+            comum = diretorio_comum(hook.raiz)
+            run = (comum.parent if comum is not None and comum.name == ".git" else hook.raiz) / ".forge" / "run"
+            if not run.is_dir():
+                run = comum / "forge" / "run"
+        linha = {"hora": time.strftime("%Y-%m-%dT%H:%M:%S"), "sessao": hook.campo("session_id"),
+                 "agente": hook.campo("agent_type"), "fonte": "conformidade", chave: rid, "grupo": grupo,
+                 "alvo": None if alvo is None else str(alvo)[:300]}
+        fd = os.open(run / "comandos.jsonl",
+                     os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o666)
+        try:
+            if stat.S_ISREG(os.fstat(fd).st_mode):
+                os.write(fd, (json.dumps(linha, ensure_ascii=False) + "\n").encode("utf-8"))
+        finally:
+            os.close(fd)
+    except Exception:  # noqa: BLE001 - o registro é medida: sem pasta `run`, link ou erro, a decisão segue a mesma
+        return
+
+
+def perfil_iniciante(raiz):
+    """`Hook.iniciante` no caminho da recusa (A2 da segurança no #885): a cópia principal sai só do disco
+    (`diretorio_comum`, sem `git`) e o `.forge/perfil` abre sem esperar FIFO nem seguir link (`O_NONBLOCK`,
+    `O_NOFOLLOW`); só arquivo regular vale, até 64 bytes. Ausente, especial ou ilegível: a próxima cópia, e no fim
+    experiente. Só escolhe o texto: a recusa já está decidida."""
+    comum = diretorio_comum(raiz)
+    principal = comum.parent if comum is not None and comum.name == ".git" else Path(raiz)
+    for base in dict.fromkeys((Path(raiz), principal)):
+        try:
+            fd = os.open(base / ".forge" / "perfil", os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW)
+        except OSError:
+            continue
+        try:
+            if stat.S_ISREG(os.fstat(fd).st_mode):
+                return os.read(fd, 64).decode("utf-8").strip().lower() == "iniciante"
+        except (OSError, ValueError):
+            pass
+        finally:
+            os.close(fd)
+    return False
+
+
 class Guarda:
     def __init__(self, hook, politica, papel):
         self.h, self.pol, self.papel = hook, politica, papel
@@ -1396,6 +1653,7 @@ class Guarda:
         self.em_curso = set()  # textos em conferência num nível de dentro (PROFUNDIDADE-BASH-C)
         self.releituras = 0    # palavras com crase relidas na pilha: somam ao `nivel`, não à profundidade do shell
         self._repos = {}     # (raiz git, remoto) -> é o Forge
+        self._listas = {}    # raiz git -> a lista fechada da transição está na develop (C1b-2)
         self._regras = None  # `regras_do_forge`, lido uma vez por decisão (a raiz e o `externo` não mudam nela)
         self._raiz_home = None  # (realpath da raiz, realpath do home), uma vez por decisão
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
@@ -1420,11 +1678,30 @@ class Guarda:
     def pode(self, acao):
         return self.papel in self.pol["acoes"].get(acao, [])
 
-    def barrar(self, rid, o_que, corrigir, simples=None):
-        """Recusa (saída 2). No perfil iniciante, `simples` (SIMPLES) troca o texto técnico pela consequência."""
-        if simples and self.h.iniciante():
-            bloquear(rid, SIMPLES[simples])
-        bloquear(rid, com_trecho(rid, o_que, corrigir, self.trecho))
+    def barrar(self, rid, o_que, corrigir, simples=None, trava=None, alvo=None, grupo=None):
+        """Recusa (saída 2). No perfil iniciante, `simples` (SIMPLES) troca o texto técnico pela consequência. `trava`
+        (`TRAVA`, `TRAVA_OPACA`) só pesa na `GuardaDaProva` (`trava_da_sessao_do_forge`). G4 F1: o `grupo` (o ID da regra,
+        se não vier) dá o modo em `modo_por_grupo`; só `avisar` deixa passar, com a forma certa no stderr. Nos dois modos,
+        o `comandos.jsonl` ganha o grupo e o `alvo` (caminho, ref protegida ou destino opaco; None: só o texto da linha)."""
+        grupo = grupo or rid
+        modos = self.pol.get("modo_por_grupo")
+        avisar = isinstance(modos, dict) and modos.get(grupo) == "avisar"
+        if avisar:
+            registrar_recusa(self.h, "teria_barrado", rid, grupo, alvo)
+            print(mensagem(rid, f"aviso: teria barrado: {o_que}. Corrigir: {corrigir}"), file=sys.stderr)
+            return
+        texto = None
+        try:  # a recusa já está decidida: o prazo vencido na escolha do texto cai no texto técnico, nunca no `prazo_vencido`
+            if simples and perfil_iniciante(self.h.raiz):
+                texto = SIMPLES[simples]
+        except PrazoVencido:
+            pass
+        texto = texto or com_trecho(rid, o_que, corrigir, self.trecho)
+        try:  # a recusa já está decidida: o registro grava depois dela, e o prazo vencido nele não a troca
+            registrar_recusa(self.h, "barrado", rid, grupo, alvo)
+        except PrazoVencido:
+            pass
+        bloquear(rid, texto)
 
     def perguntar(self, texto):
         """Só no perfil iniciante: o ato é legítimo mas arriscado; a pessoa confirma na janela de permissão, com a
@@ -1548,6 +1825,8 @@ class Guarda:
         """(rid, o quê, como corrigir) se o `caminho` (já resolvido) é protegido para o papel; senão None."""
         if MARCA_DA_SUITE.fullmatch(caminho.name):  # S8 (C-1, C-2): antes de política, papel e sessão; nome resolvido
             return PROVA_DA_SUITE
+        if achado := self.parecer_de_item(caminho):  # C1b-2: trava de todo papel, antes da política
+            return achado
         if self._raiz_home is None:
             self._raiz_home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
         raiz, home = self._raiz_home
@@ -1572,7 +1851,9 @@ class Guarda:
                 continue
             else:
                 achou = any(casa(r, c) for r in do_proj) or (
-                    not e["quem"] and not no_claude_do_home and em_qualquer_lugar(posix, c))
+                    not e["quem"] and not no_claude_do_home and em_qualquer_lugar(posix, c)) or (
+                    c in PELA_COPIA_PRINCIPAL and em_qualquer_lugar(posix, c)  # sem a pasta no texto, sem ler o disco
+                    and any(casa(r, c) for r in self.relativos_a_copia_principal(posix)))
             if not achou:
                 continue
             if self.papel in e["quem"]:
@@ -1596,6 +1877,16 @@ class Guarda:
             return ("R-CONTRIB", f"manifesto de plugin no projeto ({MANIFESTO}): só a sessão do Forge escreve",
                     "proponha a mudança ao usuário (R-DECISAO)")
         return None
+
+    def relativos_a_copia_principal(self, posix):
+        """[caminho relativo à cópia principal] do `posix` resolvido, ou []: a cópia principal é a pasta comum `.git`
+        da raiz lida do disco (`diretorio_comum`, o cálculo do `fontes` do hook ordens); nu ou `.git` que não se resolve,
+        nenhuma (A2 da segurança E123.8: o dev na worktree grava a cópia principal pelo caminho absoluto ou por `../`)."""
+        comum = diretorio_comum(self.h.raiz)
+        if comum is None or comum.name != ".git":
+            return []
+        rel = relativo_ao_pai(posix, comum.parent)
+        return [] if rel is None else [rel]
 
     def links_do_home(self, home):
         """(nome, realpath do alvo) de cada pasta do home citada nas regras `~/X/...` que é link para fora do home."""
@@ -1633,6 +1924,17 @@ class Guarda:
         p = Path(expandir_home(caminho))
         return Path(realpath_pela_pasta(str(p if p.is_absolute() else pasta / p)))
 
+    def especial_no_git(self, caminho, pasta):
+        """E7.23 (segurança no #885 e no #886): o FIFO ou o nó no `.git` ou sob ele (`commondir`, `gitdir`) prende o `git`
+        do hook e a leitura do disco até o prazo vencer. Trava nas duas sessões: o `mkfifo` ou `mknod` com alvo opaco, o
+        que cita o `.git` (palavra, componente, curinga) e o resolvido com `.git` no caminho. Na sessão do Forge seguem
+        livres (o prazo vencido é quem recusa a linha crítica): o FIFO por interpretador (`python3 -c`, `perl -e`), o
+        alvo por `xargs` de pipe ou here-string, e o FIFO criado fora e levado ao `.git` por `mv`, `ln` ou `cp -a`."""
+        if (ALVO_OPACO.search(caminho) or cita_o_dir_do_git(caminho)
+                or ".git" in (p.lower() for p in self.resolver(self.expandir(caminho, pasta), pasta).parts)):
+            self.barrar("R-CONFORMIDADE", f"FIFO ou nó (mkfifo, mknod) no .git ou sob ele, ou alvo opaco: {caminho}",
+                        "não crie arquivo especial no .git: ele prende o git e os hooks", trava=TRAVA)
+
     def checar_escrita(self, caminho, pasta, parecer_conta=True):
         """Na dúvida, recusa: o que vem depois de uma substituição (`$(git rev-parse --show-toplevel)/docs/reviews/x`) é
         conferido também a partir da raiz do projeto. Pelo Bash, o parecer recusa depois da regra do caminho (0.45.3);
@@ -1647,7 +1949,7 @@ class Guarda:
                 achado = (achado[0], f"valor de $(…), crase ou variável que o hook não sabe, lido como .git (use o caminho "
                                      f"literal se não for): {achado[1]}", *achado[2:])
             if achado:
-                self.barrar(*achado)
+                self.barrar(*achado, alvo=alvo)
         self.destino_opaco(caminho, pasta)  # A9: depois das regras do caminho, que falam primeiro
         for alvo in alvos:  # o Bash recusa no fim da linha (`parecer_pelo_bash`), depois das regras específicas dela
             if parecer_conta and e_parecer(alvo):
@@ -1708,7 +2010,7 @@ class Guarda:
         else:
             return self.valor_calculado(self.expandir(caminho, pasta))
         self.barrar("R-CONFORMIDADE", f"destino de $(…), crase ou variável sem nada depois: {motivo}",
-                    "escreva o caminho literal do destino")
+                    "escreva o caminho literal do destino", alvo=caminho)
 
     def resto_colado(self, caminho, pasta):
         """A2 (volta da E1.232): o resto colado sem barra (`"$(echo .g)it/config"`, `"${X:-.g}it"`) vale pelo U4; o U1
@@ -1925,7 +2227,7 @@ class Guarda:
                 if alvo != dentro and dentro in alvo.parents and alvo in Path(os.path.realpath(protegido)).parents:
                     self.barrar("R-CONFORMIDADE", f"{ato} {alvo.name}/ {'apaga' if ato == 'apagar' else 'alcança'} {c}: "
                                 f"{e['motivo']}",
-                                f"só o usuário altera; proponha o diff (R-DECISAO); {SUGESTAO}", "instalacao")
+                                f"só o usuário altera; proponha o diff (R-DECISAO); {SUGESTAO}", "instalacao", alvo=alvo)
 
     def checar_texto(self, texto):
         """Escrita em caminho protegido com o caminho em literal dentro de `python -c`, `node -e`, script."""
@@ -1936,6 +2238,10 @@ class Guarda:
         raiz = Path(os.path.realpath(self.h.raiz))
         for e in self.pol["caminhos"]:
             c = e["caminho"]
+            if "*" in c:  # A9 da E63.3: o `*` da política casa um trecho sem barra no texto
+                if c.rsplit("*", 1)[1] not in texto:  # o fim depois do `*` antes da busca: custo do corpus
+                    continue
+                c = caminho_com_curinga_no_texto(c, texto) or c  # sem o trecho, o `*` literal não casa abaixo
             literais = (c.replace("~", str(Path.home()), 1), c) if c.startswith("~/") else (c,)
             if any(lit in texto for lit in literais):
                 achado = self.caminho_barrado(self.resolver(c.replace("~", str(Path.home()), 1) if c.startswith("~/")
@@ -2004,12 +2310,12 @@ class Guarda:
     def recusar_o_teto(self, comando, original, nivel):
         """Bloco T da revalidação 10: com o marcador crítico no nível 0, a chamada acima do teto de caracteres (sem os
         corpos de heredoc) ou de palavras (`excede_o_teto`) é recusada antes de qualquer leitura cara."""
-        if nivel == 0 and not self.leitura and CRITICO.search(original):
+        if nivel == 0 and not self.leitura and self.critico(original):
             excesso = excede_o_teto(comando)
             if excesso:
                 self.sem_leitura = True
                 self.barrar("R-CONFORMIDADE", f"chamada com ação crítica e {excesso}: o hook não a decide dentro do "
-                                              "prazo", CONTORNO_DO_TETO)
+                                              "prazo", CONTORNO_DO_TETO, trava=TRAVA_NO_TETO)
 
     def conferir_linha(self, comando, pasta, nivel, so_substituicoes, corpo_de_heredoc=False):
         if nivel - self.releituras > PROFUNDIDADE:
@@ -2024,7 +2330,7 @@ class Guarda:
         self.h.corpos_pendentes += provisorios
         # ADR 0011, item 2: linha com marcador crítico e construção não modelada recusa; a recusa vem depois das
         # checagens da linha, para que a regra mais específica (R-MAIN, R-VERIFY...) fale primeiro.
-        achado = None if self.leitura or not CRITICO.search(comando) else construcao_nao_modelada(comando)
+        achado = None if self.leitura or not self.critico(comando) else construcao_nao_modelada(comando)
         original = comando
         if nivel == 0 and self.h.raiz and self.raiz_e_projeto() and CITA_A_MARCA.search(comando):
             self.barrar("R-CONFORMIDADE", "a linha cita a marca da sessão (.git/forge) ou a função que grava nela: só o usuário mexe nela",
@@ -2057,6 +2363,9 @@ class Guarda:
             # bash pode rodar, e o `return` pularia todas as checagens dela: fora do papel só de leitura, recusa sempre,
             # com ou sem marcador crítico. O papel só de leitura fica como estava (a gramática dele, no nível 0, já
             # recusa aspas sem par e `#`).
+            if COMENTARIO_DO_GH.search(original):  # M4.2 (S4 da segurança): na sessão do Forge só a trava recusa a linha
+                self.barrar_parecer("gh pr|issue comment: comentário cujo corpo o hook não lê, numa linha que ele não "
+                                    "modela (M4.2)", f"parecer: {CORRIGIR_PUBLICAR}; outro texto: `--body` literal ou `--body-file`")
             if not self.leitura and isinstance(corpo_de_heredoc, str):  # M2: só o programa do texto o roda
                 self.barrar("R-CONFORMIDADE", f"o texto roda `{corpo_de_heredoc}`, fora da lista dos que não rodam o "
                                               "arquivo gravado, e o corpo do heredoc tem aspa sem par",
@@ -2101,6 +2410,10 @@ class Guarda:
                 self.checar_texto(corpo)
             self.h.corpos_pendentes -= 1
         self.nao_modelada(achado)
+        if nivel == 0 and not self.leitura and envio_com_substituicao(comando):  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO
+            self.barrar("R-CONFORMIDADE", "envio do git com o programa, o subcomando, a flag ou o destino vindos de "
+                                          "substituição ($(…), crase, <(…)) ou da entrada (xargs, pipe para o shell): o hook não "
+                                          "sabe o valor", "escreva o envio literal: git push origin <branch>", trava=TRAVA)  # A6 da E63.3
         if gravado and not self.leitura and CRITICO.search(original):  # M3, depois das regras da linha e do corpo
             self.barrar("R-CONFORMIDADE", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`)",
                         "grave o arquivo pelo Write ou numa chamada do Bash e rode o programa noutra")
@@ -2112,14 +2425,14 @@ class Guarda:
         if nivel == 0 and not self.leitura and self.reavaliacao and CRITICO.search(original):
             self.barrar("R-CONFORMIDADE", f"`{self.reavaliacao}` na chamada com ação crítica: "
                                           f"{motivo_da_reavaliacao(self.reavaliacao)}",
-                        contorno_da_reavaliacao(self.reavaliacao))
+                        contorno_da_reavaliacao(self.reavaliacao), trava=TRAVA_OPACA)
         # ADR 0011, item 2 (opções D e A), por último: sobre o texto do nível 0, com o `<<` que o bash pode formar nele
         # ou num nível de cima (`tem_heredoc_no_texto`)
         if nivel == 0 and not self.leitura and CRITICO.search(original):
             sinal = fora_da_gramatica_com_heredoc(original)
             if sinal is not None:
                 self.barrar("R-CONFORMIDADE", f"`{sinal}` na chamada com heredoc e ação crítica: o hook não modela",
-                            CONTORNO_DA_GRAMATICA)
+                            CONTORNO_DA_GRAMATICA, trava=TRAVA_OPACA)
 
     def conferir_partes(self, partes, pasta, nivel, so_substituicoes):
         """As checagens de cada comando simples de uma leitura da linha (`leituras`); devolve a pasta depois dela e as
@@ -2147,10 +2460,13 @@ class Guarda:
             vistas.add(contextos[sub][0])
         return contextos[()][0], vistas
 
+    critico = CRITICO.search  # o marcador da ação crítica; a `GuardaDaProva` soma o controle (custo: uma chamada só)
+
     def nao_modelada(self, achado):
         """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
         if achado is not None:
-            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela", forma_aceita(achado))
+            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela", forma_aceita(achado),
+                        trava=TRAVA_OPACA)
 
     def gramatica_de_leitura(self, linha):
         """ADR 0011, item 1: antes de qualquer outra checagem, a linha do papel só de leitura precisa caber na gramática
@@ -2316,6 +2632,10 @@ class Guarda:
         argumentos_do_forge_check = args_do_forge_check(prog, args)
         if argumentos_do_forge_check is not None:
             self.forge_check_grava(argumentos_do_forge_check, pasta)
+            self.forge_check_publica(argumentos_do_forge_check, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
+            self.publicar_pela_copia(palavras[len(palavras) - len(argumentos_do_forge_check) - 1], argumentos_do_forge_check,
+                                     pasta, self.da_atribuicao(atribuicoes, "PATH"))
+        self.pareceres_pela_copia(palavras, prog, args, pasta, self.da_atribuicao(atribuicoes, "PYTHONPATH"))
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
@@ -2352,6 +2672,10 @@ class Guarda:
                     self.checar_escrita(a, pasta, parecer_conta=prog == "mv" or prog not in REMOCAO)
                     if prog in REMOCAO:
                         self.checar_remocao(a, pasta)
+        elif prog in ARQUIVO_ESPECIAL:  # toda palavra conta como alvo (a opção que cita o .git também recusa)
+            for a in args:
+                self.especial_no_git(a, pasta)
+                self.checar_escrita(a, pasta)
         elif prog in SO_DESTINO:
             if prog == "ln" or any(re.fullmatch(r"-[^-]*[ls]\w*|--(link|symbolic-link)", a) for a in args):  # S8 (C-3)
                 for a in args:  # o link aponta a prova: a origem também conta, pelo nome literal e pelo resolvido
@@ -2409,6 +2733,77 @@ class Guarda:
     def forge_check_grava_no_pedido(self, args):
         """True se a linha do `forge-check` grava no pedido pela forma nova (`grava_no_pedido`)."""
         return grava_no_pedido(livres_do_forge_check(args), args)
+
+    def forge_check_publica(self, args, pasta, repo_env):
+        """R-CONTRIB (diretriz 36; segurança A1 do v0481): o `parecer publicar` comenta e grava status pelo `gh` de dentro do
+        processo, que o hook não vê. Na sessão de outro projeto, com alvo no Forge (`GH_REPO` ou a pasta de `--raiz`, senão a
+        do comando), barra como o `gh pr comment`; a sessão do Forge não passa (`alvo_do_forge`)."""
+        if livres_do_forge_check(args)[:2] != ["parecer", "publicar"]:
+            return
+        raiz = ultima_raiz(args)
+        if self.alvo_do_forge(self.caminho(pasta, raiz) if raiz else pasta, repo_env):
+            self.barrar("R-CONTRIB", f"forge-check parecer publicar: {NO_FORGE}", SO_SUGERE)
+
+    def publicar_pela_copia(self, programa, args, pasta, path_na_linha):
+        """M10.1: o `parecer publicar` roda o `forge-check` do PATH (o do plugin) ou uma extração fora de cópia de trabalho;
+        pelo caminho de uma cópia (`bin/forge-check`, `python3 ./bin/forge-check`), o código da branch publicaria. O caminho
+        com expansão (`$X/bin/forge-check`) o hook não resolve: barra (na dúvida, recusa)."""
+        publica = livres_do_forge_check(args)[:2] == ["parecer", "publicar"]
+        if publica and path_na_linha is not None:  # `PATH=<cópia>/bin:$PATH forge-check`: o nome acha o `bin/` da linha
+            self.barrar_parecer("forge-check parecer publicar com o `PATH` trocado na linha (M10.1)")
+        if not publica or "/" not in programa:
+            return
+        real = Path(os.path.realpath(self.caminho(pasta, programa)))  # o link de arquivo fora da cópia roda o da cópia
+        if re.search(r"[$`]", programa) or self.raiz_git(real.parent) is not None:
+            self.barrar_parecer(f"forge-check parecer publicar pelo `bin/` de uma cópia ({programa}) roda o código da branch "
+                                "(M10.1)")
+
+    def pareceres_pela_copia(self, palavras, prog, args, pasta, pythonpath):
+        """M10.1 (C1b-2): o `forge_pareceres.py` de uma cópia publica pelo código da branch, rodado como programa ou script
+        do python, ou achado pelo python do `-c`, do `-m` ou da entrada na pasta corrente ou no `PYTHONPATH` da linha.
+        Decide o caminho resolvido; o caminho com expansão barra (na dúvida, recusa)."""
+        python = prog.startswith("python")
+        if not python and "/" not in palavras[0]:  # o programa pelo nome vem do PATH (o da linha: `publicar_pela_copia`)
+            return
+        alvos = [palavras[0]] if "/" in palavras[0] else []
+        if python:
+            script = script_do_python(args)
+            pastas = (pythonpath.split(":") if pythonpath else []) + ([] if script else ["."])  # o vazio é a corrente
+            alvos += [script] if script else []
+            alvos += [f"{p or '.'}/{MODULO_DE_PARECER}" for p in pastas]
+        for alvo in alvos:
+            real = Path(os.path.realpath(self.caminho(pasta, alvo)))  # o link de outro nome conta pelo arquivo
+            opaco = re.search(r"[$`]", os.path.expandvars(alvo)) and nome_do_caminho(alvo) == MODULO_DE_PARECER
+            if opaco or real.name == MODULO_DE_PARECER and real.is_file() and self.raiz_git(real.parent) is not None:
+                self.barrar_parecer(f"{MODULO_DE_PARECER} de uma cópia de trabalho roda o código da branch (M10.1)")
+
+    def parecer_de_item(self, caminho):
+        """C1b-2 (M20.1): o `.md` direto em `docs/<reviews|qa|security|devops>/` da raiz de uma cópia, fora o `_modelo.md`
+        (as subpastas, `ameacas/`, `aceites/` e `bugs/`, não são parecer de item), depois da virada: a tupla da recusa,
+        trava de todo papel; sem a lista fechada na `develop` do `origin`, dorme (None). O caminho curto (`/x.md`) não é item."""
+        if (caminho.suffix != ".md" or caminho.name == "_modelo.md" or len(caminho.parts) < 4
+                or caminho.parts[-3] != "docs" or caminho.parts[-2] not in PASTAS_DE_ITEM):
+            return None
+        topo = self.raiz_git(caminho.parent)
+        if topo != caminho.parents[2] or not self.lista_fechada(topo):
+            return None
+        return ("R-REVIEW", f"parecer de item em docs/{caminho.parts[-2]}/ depois da virada (lista fechada na develop)",
+                "grave em `.forge/pareceres/<pedido>/<tipo>.md` e rode `forge-check parecer publicar`", None, TRAVA)
+
+    def lista_fechada(self, topo):
+        """A lista existe na `origin/develop` local da cópia ou no `HEAD` (a branch aberta depois da virada a traz). Só refs
+        locais e sem transporte (`SEM_PROTOCOLO` e `SEM_TRANSPORTE`): sem rede no hook (ADR 0003 item 2) e sem rodar a configuração da cópia
+        (`remote.origin.uploadpack`), nem pela busca preguiçosa do clone parcial. O ref
+        recuado à mão esconde a lista: aceito, quem decide é o servidor (C5a)."""
+        if topo not in self._listas:
+            refs = ("refs/remotes/origin/develop", "HEAD")
+            self._listas[topo] = any(git(topo, *SEM_TRANSPORTE, "cat-file", "-e", f"{r}:{LISTA_FECHADA}",
+                                          ambiente=SEM_PROTOCOLO)[0] == 0 for r in refs)
+        return self._listas[topo]
+
+    def barrar_parecer(self, o_que, corrigir=CORRIGIR_PUBLICAR):
+        """M4.2 e M10.1: trava (`TRAVA`), então vale também na sessão do Forge, para todo papel."""
+        self.barrar("R-REVIEW", o_que, corrigir, trava=TRAVA)
 
     def forge_check_grava(self, args, pasta):
         """A4: o que o `forge-check` grava passa pela política de caminhos do papel, como o Write no mesmo destino (o `anotar`
@@ -2571,6 +2966,8 @@ class Guarda:
         self.git_integracao(sub, args, pasta_git, ramos)
         if sub in CAMINHOS_NO_GIT:
             self.git_caminhos(sub, args, [pasta, pasta_git], opcoes)
+        if sub in INDICE_NO_GIT:
+            self.git_indice(sub, args, [pasta, pasta_git], opcoes)
         self.git_no_forge(sub, args, pasta_git)
         if sub == "tag":
             self.git_tag(args, pasta_git)
@@ -2583,7 +2980,8 @@ class Guarda:
             atual = self.ramo_em(pasta_git, ramos)
             if atual in INTEGRACAO and not all(b == atual for b, _ in parte[2]):
                 if atual in ("main", "master"):
-                    self.barrar("R-MAIN", f"merge na {atual} é do usuário", "abra o PR e peça ao usuário que o mescle")
+                    self.barrar("R-MAIN", f"merge na {atual} é do usuário", "abra o PR e peça ao usuário que o mescle",
+                                alvo=atual)
                 achada = opcao_de_merge_que_muda_o_resultado(args)
                 if achada:  # A3: todo papel; a estratégia, o squash e o no-commit descartam ou mudam o que o review leu
                     self.barrar("R-REVIEW", f"git {sub} {achada} na {atual} muda o que o review leu",
@@ -2605,23 +3003,24 @@ class Guarda:
             return None
         if cod != 0:
             self.barrar("R-REVIEW", f"git {sub}: o hook não conseguiu ler se é alias da configuração",
-                        "rode o subcomando do git por extenso")
+                        "rode o subcomando do git por extenso", trava=TRAVA_OPACA)
         return saida
 
     def expansao_do_alias(self, sub, expansao, alias):
         """As palavras da expansão do alias `sub`; recusa o alias de shell, o que mescla, o encadeado demais e o ilegível."""
         if expansao.startswith("!"):
             self.barrar("R-REVIEW", f"git {sub}: alias de shell (`!`) da configuração roda o que o hook não lê",
-                        "rode o comando direto, sem alias")
+                        "rode o comando direto, sem alias", trava=TRAVA_OPACA)
         if alias >= PROFUNDIDADE_DO_ALIAS:
-            self.barrar("R-REVIEW", f"git {sub}: alias encadeado demais", "rode o subcomando do git por extenso")
+            self.barrar("R-REVIEW", f"git {sub}: alias encadeado demais",
+                        "rode o subcomando do git por extenso", trava=TRAVA_OPACA)
         try:
             palavras = shlex.split(expansao)
         except ValueError:
             palavras = None
         if not palavras:
             self.barrar("R-REVIEW", f"git {sub}: alias da configuração que o hook não lê",
-                        "rode o subcomando do git por extenso")
+                        "rode o subcomando do git por extenso", trava=TRAVA_OPACA)
             return []  # a GuardaDaProva não para no barrar: sem palavras não há o que ler (segurança A6)
         if palavras[0] in ALIAS_QUE_MESCLA:
             self.barrar("R-REVIEW", f"git {sub}: alias da configuração que mescla (`{palavras[0]}`); o parecer só lê o merge "
@@ -2648,6 +3047,28 @@ class Guarda:
                     for alvo in filter(self.pode_ser_protegido, self.tracked_do_pathspec(c, pasta, opcoes)):
                         self.checar_escrita(alvo, pasta, parecer_conta=False)
                         self.checar_remocao(alvo, pasta)
+
+    def git_indice(self, sub, args, pastas, opcoes=()):
+        """CONFORMIDADE-ESCRITA-NO-INDICE: `git add` (toda opção) e `git update-index` (também `--cacheinfo`, nas duas
+        formas) que nomeiam um caminho `quem: []` da política recusam, como a escrita na árvore. Toda palavra que não é
+        opção conta como caminho (o modo e o sha do `--cacheinfo` não casam regra), e o pathspec que não é varredura (pasta,
+        curinga ou magia) vale também pelo que alcança no índice e fora dele (`git ls-files -c -o`). A lista pela entrada (`--stdin`,
+        `--index-info`, `--pathspec-from-file`) recusa: o hook não a lê. Limite: o comando sem o caminho (`git add -A`,
+        `git add .`, `git commit -a`) segue fora."""
+        if any(abreviacao_de(a, INDICE_PELA_ENTRADA) for a in args):
+            self.barrar("R-CONFORMIDADE", f"git {sub} com a lista de caminhos pela entrada: o hook não a lê",
+                        "passe os caminhos na linha de comando; o que for protegido é do usuário (R-DECISAO)")
+        palavras, termos = [a for a in args if not a.startswith("-")], MARCADOR.termos()
+        caminhos = palavras + [a.split(",", 2)[2] for a in palavras if a.count(",") >= 2]
+        for pasta in dict.fromkeys(pastas):
+            for c in caminhos:
+                alvos = self.alvos_da_escrita(c, pasta)
+                if not self.varredura(c) and (GLOB_DE_PATHSPEC.search(c) or c.startswith(":") or alvos[0].is_dir()):
+                    alvos += filter(self.pode_ser_protegido, self.tracked_do_pathspec(c, pasta, opcoes, ("-c", "-o")))
+                for alvo in alvos:
+                    achado = self.caminho_barrado(Path(alvo)) if termos is False or termos.search(str(alvo)) else None
+                    if achado and achado[3:4] == ("instalacao",):
+                        self.barrar(achado[0], f"git {sub} grava no índice {achado[1]}", achado[2])
 
     def pode_ser_protegido(self, caminho):
         """Filtro barato para `git rm -r <pasta grande>`: só confere um por um o arquivo cujo caminho cita algum caminho
@@ -2690,13 +3111,14 @@ class Guarda:
                 positivas = caminhos
         return positivas + depois, com_origem
 
-    def tracked_do_pathspec(self, pathspec, pasta, opcoes):
-        """Os arquivos do índice que o git alcança com o pathspec (`git ls-files`, só leitura). Se o git não responde
-        (fora de repositório, limite de tempo), vale o pathspec literal: o `git rm` também não teria o que fazer."""
+    def tracked_do_pathspec(self, pathspec, pasta, opcoes, quais=()):
+        """Os arquivos do índice que o git alcança com o pathspec (`git ls-files`, só leitura; `quais` (`-c`, `-o`) soma
+        os de fora do índice). Se o git não responde (fora de repositório, limite de tempo), vale o pathspec literal:
+        o `git rm` também não teria o que fazer."""
         if not Path(pasta).is_dir():
             return []
         try:
-            cod, saida = forge_check().git(pasta, *opcoes, "ls-files", "-z", "--", pathspec, bruto=True)
+            cod, saida = forge_check().git(pasta, *opcoes, "ls-files", "-z", *quais, "--", pathspec, bruto=True)
         except (OSError, subprocess.SubprocessError):
             cod, saida = 1, b""
         if cod:
@@ -2725,9 +3147,10 @@ class Guarda:
         """`git -c <chave>=<valor>`: alias troca o subcomando que o hook leu; refspec de `remote.*.fetch|push` que
         escreve na integração vale como o da linha."""
         chave, _, refspec = valor.partition("=")
-        if chave.lower().startswith("alias."):
-            self.barrar("R-REVIEW", f"git -c {chave}: o alias da linha troca o subcomando que o hook leu",
-                        "rode o subcomando do git direto, sem alias")
+        if chave.lower().startswith(("alias.", "help.autocorrect")):  # A13 da segurança E63.7: `stge` vira `stage`
+            self.barrar("R-REVIEW", f"git -c {chave}: o alias da linha troca o subcomando que o hook leu (e o "
+                                    "help.autocorrect, a correção do nome)",
+                        "rode o subcomando do git direto, sem alias", trava=TRAVA_OPACA)
         if REFSPEC_NA_CONFIG.fullmatch(chave) and ":" in refspec and self.ref_local_da_integracao(refspec.split(":", 1)[1]):
             self.integracao_movida(f"git -c {chave}")
 
@@ -2868,8 +3291,9 @@ class Guarda:
         return None
 
     def git_config(self, args):
-        """`git config` que grava identidade, `core.*`, assinatura, `include*` ou alias: fora do papel de todos. Numa
-        worktree, sem `--worktree` ele grava no `.git/config` comum a todas as cópias (R-CONFORMIDADE)."""
+        """`git config` que grava identidade, `core.*`, assinatura, `include*`, alias ou `help.autocorrect` (A13): fora
+        do papel de todos. Numa worktree, sem `--worktree` ele grava no `.git/config` comum a todas as cópias
+        (R-CONFORMIDADE); o `help.autocorrect` e as chaves do merge, também com `--worktree`."""
         if any(a in CONFIG_LEITURA or a.startswith(("--get", "--show-")) for a in args):
             return
         chaves, pulo, subcomando = [], False, False
@@ -2891,7 +3315,7 @@ class Guarda:
                                     "ler outro parecer", "não troque objetos do repositório")
         if not (grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0])):
             return
-        do_merge = bool(CONFIG_DO_MERGE.match(chaves[0]))
+        do_merge = bool(CONFIG_DO_MERGE.match(chaves[0])) or chaves[0].lower().startswith("help.autocorrect")  # A13
         if "--worktree" in args and not do_merge:  # as chaves do merge valem em toda worktree
             return
         dica = "deixe ao usuário (R-DECISAO)" if do_merge else "use --worktree ou deixe ao usuário (R-DECISAO)"
@@ -2908,8 +3332,8 @@ class Guarda:
                                                     "--merged", "--no-merged"}
         so_opcoes_de_leitura = curtas <= TAG_SO_LEITURA_CURTAS and longas <= TAG_SO_LEITURA_LONGAS
         if args and not (leitura and so_opcoes_de_leitura):
-            self.barrar("R-FLUXO", "git tag no repositório do Forge: a tag v* é a versão que todos os projetos instalam",
-                        "só o release.yml cria a tag, sobre a main; para ler, use git tag -l")
+            self.barrar("R-FLUXO", f"git tag no repositório do Forge: {TAG_E_VERSAO}",
+                        "só o release.yml cria a tag, sobre a main; para ler, use git tag -l", trava=TRAVA)
 
     def git_tags_no_envio(self, args, globais, pasta, sub="push"):
         """No Forge, nenhum envio leva tag: `--tags`, `--follow-tags`, `tag <nome>`, refspec com `refs/tags/` ou `v<número>`
@@ -2923,8 +3347,8 @@ class Guarda:
                      or any(TAG_NO_ENVIO.match(parte) for r in refs for parte in r.split(":"))
                      or any(TAG_NA_CONFIG.search(g) for g in globais))
         if envia_tag:
-            self.barrar("R-FLUXO", f"git {sub} de tag para o Forge: a tag v* é a versão que todos os projetos instalam",
-                        "envie só a branch; a tag nasce do release.yml, sobre a main")
+            self.barrar("R-FLUXO", f"git {sub} de tag para o Forge: {TAG_E_VERSAO}",
+                        "envie só a branch; a tag nasce do release.yml, sobre a main", trava=TRAVA)
 
     def git_push(self, args, pasta, ramos, sub="push", troca=()):
         refs, repo = [], None
@@ -2961,10 +3385,10 @@ class Guarda:
             destinos.append(nome_da_branch(re.sub(r"^heads/", "refs/heads/", destino)))
         for d in destinos:
             if d in ("main", "master"):
-                self.barrar("R-MAIN", f"push direto para {d}", "abra um PR; a main é do usuário", "main")
+                self.barrar("R-MAIN", f"{PUSH_DIRETO} {d}", "abra um PR; a main é do usuário", "main", alvo=d)
             if d in INTEGRACAO:
-                self.barrar("R-CONFORMIDADE", f"push direto para {d}", "abra um PR a partir de uma branch de trabalho",
-                            "main")
+                self.barrar("R-CONFORMIDADE", f"{PUSH_DIRETO} {d}", "abra um PR a partir de uma branch de trabalho",
+                            "main", trava=TRAVA, alvo=d)
         # o remoto nomeado (a URL dele, resolvida no repositório da pasta), a URL dada ou, sem remoto, a pasta
         if self.alvo_do_forge(pasta, remoto=remoto) or (remoto and self.alvo_do_forge(pasta, remoto)) or (
                 remoto and self.caminho_do_forge(pasta, remoto)):
@@ -3041,8 +3465,14 @@ class Guarda:
             if a == "--input" or a.startswith("--input=") or re.search(r"=@", a) or (
                     a in ("-F", "--field") and i + 1 < len(args) and "=@" in args[i + 1]):
                 arq = valor if a.startswith("--input") else (args[i + 1] if a in ("-F", "--field") else a).split("=@", 1)[-1]
-                try:
-                    textos.append(Path(expandir_home(str(pasta / os.path.expandvars(arq)))).read_text(encoding="utf-8"))
+                caminho = expandir_home(str(pasta / os.path.expandvars(arq)))
+                try:  # E168.5 (A2): `/dev/stdin`, `/proc/self/fd/0` e FIFO não são o arquivo que o gh lê: ilegível
+                    if any(p(caminho).startswith(("/dev/", "/proc/")) for p in (os.path.abspath, os.path.realpath)):
+                        return textos, True
+                    with open(os.open(caminho, os.O_RDONLY | os.O_NONBLOCK), "rb") as f:
+                        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+                            return textos, True
+                        textos.append(f.read().decode("utf-8"))
                 except (OSError, ValueError):
                     return textos, True
             else:
@@ -3162,7 +3592,9 @@ class Guarda:
                             self.rotulo_na_sessao_do_forge(p, pasta, nivel + 1)
                     prog = Path(palavras[0].lstrip("`")).name if palavras else ""
                     if prog == "gh":
-                        self.gh_rotulo(palavras, pasta, atras_do_xargs(escritas, palavras))
+                        if parecer.gh_incerto(palavras):  # E168.9: o subcomando incerto pode aplicar o rótulo
+                            self.exigir_dono()
+                        self.gh_rotulo(parecer.ordem_do_gh(palavras), pasta, atras_do_xargs(escritas, palavras))
                         self.gh_pr_na_sessao_do_forge(palavras, pasta)
                     elif prog == "alias" and CITA_ROTULO.search(" ".join(palavras)):  # A5: o alias do shell guarda o rótulo
                         self.exigir_dono()
@@ -3289,6 +3721,11 @@ class Guarda:
         elif grupo == "repo" and sub == "edit":
             if (parecer.opcao(palavras[1:], "--visibility", "--visibility") or "").lower() == "public":
                 self.barrar(*publico)
+        elif grupo == "repo" and sub in REPO_CRIAR:
+            if parecer.bandeira(palavras[1:], CRIAR_COM_VALOR, {"--public"}):
+                self.barrar(*publico)
+            if not parecer.bandeira(palavras[1:], CRIAR_COM_VALOR, {"--private", "--internal"}):
+                self.barrar(*publico)
         elif grupo == "api" and parecer.metodo_mutante(palavras[2:]):
             args = palavras[2:]
             if (parecer.opcao(args, "--method", "-X") or "").upper() == "DELETE" and REPO_APAGAR.match(
@@ -3296,6 +3733,139 @@ class Guarda:
                 self.barrar(*apagar)
             if VISIBILIDADE_PUBLICA.search(" ".join(args)) or self.input_publica(args, pasta):
                 self.barrar(*publico)
+            if self.api_publica(args, pasta):
+                self.barrar(*publico)
+
+    def consulta_ilegivel(self, args):
+        """GRAPHQL-CONSULTA-EM-VARIAVEL (E168.1, decisão do dono de 24/11, opção a; C1 de v0480-repo-publico-v2): o `gh api`
+        do GraphQL (ou de endpoint com expansão) com palavra que o hook não lê, em todo papel: a expansão fora de aspas
+        (o bash a divide em palavras) e, entre aspas duplas, fora do valor de uma opção ou de um campo de nome literal que
+        não é `query`. O arquivo e a entrada padrão que o hook não lê já recusam antes (GH-MERGE-ADMIN, R-CONTRIB)."""
+        args = parecer.desagrupa_i(args)
+        endpoint = parecer.endpoint_da_api(args)
+        if not (e_graphql(endpoint) or parecer.expande(endpoint)):
+            return False
+        vistas, j = expansao_por_palavra(self.texto_da_linha), 0
+        while j < len(args):
+            a, j = args[j], j + 1
+            opcao = a if a in parecer.API_COM_VALOR else None
+            if opcao:
+                a, j = (args[j] if j < len(args) else ""), j + 1
+            nivel = vistas.get(a, 2) if parecer.expande(a) or CURINGA.search(a) or CHAVES.search(a) else 0
+            if nivel == 2:
+                return True
+            if nivel == 0 or opcao and opcao not in CAMPOS_DA_API:
+                continue  # literal, ou o valor entre aspas de -H, --jq, -X: uma palavra só, fora da consulta
+            colado = CAMPO_COLADO.fullmatch(a)
+            chave, igual, _ = (a if opcao else colado[1] if colado else "").partition("=")
+            if not igual or parecer.expande(chave) or chave.lower() == "query":
+                return True
+        return False
+
+    def api_publica(self, args, pasta):
+        """CONFORMIDADE-REPO-CREATE-PUBLICO (A2): `gh api` mutante que cria ou edita repositório sem a visibilidade privada
+        explícita, decidido pelo nome do campo (E141.7). REST: criar (`user/repos`, `orgs/<o>/repos`,
+        `repos/<o>/<r>/generate`) pede o campo `private=true` ou `visibility=private|internal` (com `--input`, no corpo);
+        criar e editar recusam o campo de visibilidade com outro valor e falham fechado no que o hook não lê e no
+        endpoint com segmento vazio ou de ponto. GraphQL: `graphql_publica`."""
+        args = parecer.desagrupa_i(args)
+        endpoint = endpoint_normalizado(parecer.endpoint_da_api(args))
+        campos, corpo = self.campos_da_api(args, pasta)
+        if e_graphql(endpoint):
+            texto = " ".join(args + self.textos_da_api(args, pasta)[0])
+            return bool(GRAPHQL_DO_REPO.search(texto)) and self.graphql_publica(campos, corpo, GRAPHQL_CRIA_REPO.search(texto))
+        if API_SEGMENTO_ESTRANHO.search(endpoint):
+            return True
+        cria = bool(API_CRIA_REPO.fullmatch(endpoint))
+        if not cria and not API_DO_REPO.fullmatch(endpoint):
+            return False
+        if not parecer.textos_do_gh_api(args, pasta)[1]:
+            return True
+        if not all(self.privado_rest(campos + (corpo or []))):
+            return True
+        return cria and not any(self.privado_rest(campos if corpo is None else corpo))
+
+    @staticmethod
+    def campos_da_api(args, pasta):
+        """(campos, corpo) que o `gh api` envia: os pares (chave, valor) de `-f`/`-F`/`--field`/`--raw-field`, separados,
+        colados (`-Fprivate=false`) ou com `=`, com o `@arq` lido (None se o hook não lê); e os do topo do JSON do
+        `--input` (None sem ele; [] se não é objeto). O valor de outra opção (`-H -Fx=y`) não é campo."""
+        campos, corpo, j = [], None, 0
+        while j < len(args):
+            a, j = args[j], j + 1
+            colado = CAMPO_COLADO.fullmatch(a)
+            if a in parecer.API_COM_VALOR:  # o valor vem separado: campo, corpo ou valor de outra opção
+                valor, j = (args[j] if j < len(args) else ""), j + 1
+                if a == "--input":
+                    corpo = Guarda.corpo_da_api(valor, pasta)
+                elif a in CAMPOS_DA_API:
+                    campos.append(Guarda.campo_da_api(valor, pasta))
+            elif a.startswith("--input="):
+                corpo = Guarda.corpo_da_api(a.split("=", 1)[1], pasta)
+            elif colado:
+                campos.append(Guarda.campo_da_api(colado[1], pasta))
+        return campos, corpo
+
+    @staticmethod
+    def campo_da_api(texto, pasta):
+        chave, _, valor = texto.partition("=")
+        if valor.startswith("@"):  # o gh lê o arquivo; a leitura é a de `textos_do_gh_api` (GH-API-LEITURA-UNICA)
+            lidos, legivel = parecer.textos_do_gh_api([texto], pasta)
+            valor = lidos[0] if legivel else None
+        return chave, valor
+
+    @staticmethod
+    def corpo_da_api(arq, pasta):
+        lidos, legivel = parecer.textos_do_gh_api(["--input", arq], pasta)
+        if not legivel:
+            return CORPO_ILEGIVEL
+        dados = json.loads(lidos[0], object_pairs_hook=tuple)  # objeto vira tupla de pares, com a chave repetida
+        return list(dados) if isinstance(dados, tuple) else []
+
+    @staticmethod
+    def privado_rest(pares):
+        """Para cada campo de visibilidade (`private`, `visibility`, também `private[x]` e com outra caixa), True só se
+        é o nome exato com o valor privado."""
+        saida = []
+        for chave, valor in pares:
+            nome = chave.split("[", 1)[0].lower()
+            if nome in PRIVADO_REST:
+                valor = "true" if valor is True else valor
+                saida.append(chave == nome and isinstance(valor, str) and valor.strip().lower() in PRIVADO_REST[nome])
+        return saida
+
+    @staticmethod
+    def graphql_publica(campos, corpo, cria):
+        """GraphQL: o `visibility` do input, literal na query (sem strings nem comentários, a vírgula como espaço) ou no
+        campo `<var>[visibility]` ou a chave `visibility` nas `variables` do `--input`, fora de PRIVATE e INTERNAL recusa,
+        e criar sem ele também. Falha fechado no valor ilegível, na expansão do shell num campo (vira outros argumentos),
+        em mais de um `query` e na string sem fechamento (A8)."""
+        if corpo is CORPO_ILEGIVEL or any(v is None for _, v in campos):
+            return True
+        if any(parecer.expande(f"{k}={v}") for k, v in campos if k != "query"):
+            return True
+        pares = campos + (corpo or [])
+        if any(GRAPHQL_CONTROLE.search(v) for k, v in pares if k == "query" and isinstance(v, str)):
+            return True
+        textos = [v for k, v in pares if isinstance(v, str) and k == "query"]
+        if len(textos) > 1:  # A8: o gh manda só o último `query`, e o hook não sabe qual vai ao servidor
+            return True
+        if any(m["fecha"] == "" for v in textos for m in GRAPHQL_SEM_TEXTO.finditer(v)):  # A8: string sem fechamento
+            return True
+        consulta = " ".join(GRAPHQL_SEM_TEXTO.sub(" ", v) for k, v in pares if k == "query" and isinstance(v, str))
+        valores = GRAPHQL_VISIBILIDADE.findall(consulta.replace(",", " "))
+        da_var = [(k.split("[")[0], v) for k, v in campos if "[visibility]" in k.lower()]
+        usados = [v for n, v in da_var if re.search(rf"\${re.escape(n)}\b", consulta)]  # A2: só a variável da consulta
+        valores += [x for k, v in corpo or [] if k == "variables" for x in Guarda.visibilidades_json(v)]
+        publica = any(v not in ("PRIVATE", "INTERNAL") for v in valores + [v for _, v in da_var])
+        return publica or bool(cria) and not valores + usados
+
+    @staticmethod
+    def visibilidades_json(valor):
+        """Os valores de toda chave `visibility` do objeto JSON lido em tuplas de pares, em qualquer nível."""
+        if not isinstance(valor, tuple):
+            return []
+        return [x for k, v in valor for x in ([v] if k == "visibility" else []) + Guarda.visibilidades_json(v)]
 
     @staticmethod
     def input_publica(args, pasta):
@@ -3363,6 +3933,57 @@ class Guarda:
         if parte and parte[0] == "prmerge" and parecer.usa_admin(palavras[1:]):
             self.barrar("R-MAIN", "gh pr merge com --admin desvia a proteção da branch", self.CORRIGIR_DO_MERGE)
 
+    def parecer_pela_api(self, args, pasta):
+        """M4.2: status e comentário de parecer só pelo `publicar`, que registra a publicação (M4.1). Barra o `gh api` que
+        muda algo em `statuses/<sha>`, `issues/<n>/comments` ou `issues/comments/<id>`, a mutação de comentário do GraphQL
+        e o endpoint que o hook não lê (vazio, pela entrada do `xargs`, ou com expansão). Roda depois das outras guardas do
+        `gh api`: o GraphQL ilegível já recusa antes, pelo GH-MERGE-ADMIN (R-MAIN, trava)."""
+        if not parecer.metodo_mutante(args):
+            return
+        bruto = parecer.endpoint_da_api(args)
+        endpoint = endpoint_normalizado(bruto)
+        if not endpoint or re.search(r"[$`]", bruto):  # `xargs gh api -X DELETE`: o endpoint vem da entrada
+            self.barrar_parecer("gh api que muda algo com endpoint que o hook não lê (M4.2)",
+                                f"parecer: {CORRIGIR_PUBLICAR}; outra chamada: o endpoint literal na linha")
+        if GRAVA_PARECER_POR_API.search(endpoint) or e_graphql(endpoint) and any(
+                GRAVA_PARECER_NO_GRAPHQL.search(t) for t in self.textos_da_api(args, pasta)[0]):
+            self.barrar_parecer("gh api que grava status ou comentário no PR pelo terminal (M4.2)",
+                                f"parecer: {CORRIGIR_PUBLICAR}; outro comentário: `gh pr comment`")
+
+    def parecer_pelo_terminal(self, palavras, pasta):
+        """M4.2: o `gh pr|issue comment` com o marcador de parecer no corpo ou com o corpo que o hook não lê."""
+        pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
+        if pos[:2] not in (["pr", "comment"], ["issue", "comment"]):
+            return
+        corpo, ilegivel = self.corpo_do_comentario(palavras[1:], pasta)
+        if ilegivel:
+            self.barrar_parecer(f"gh {pos[0]} comment: comentário cujo corpo o hook não lê (M4.2)",
+                                f"parecer: {CORRIGIR_PUBLICAR}; outro texto: `--body` literal ou `--body-file`")
+        if MARCADOR_DE_PARECER.search(corpo):
+            self.barrar_parecer(f"gh {pos[0]} comment: comentário com o marcador de parecer (`tipo:`) pelo terminal (M4.2)")
+
+    def corpo_do_comentario(self, args, pasta):
+        """(texto, ilegivel) de todo `--body` e `--body-file` (o gh usa o último; o hook lê todos). Marcam `ilegivel`: a
+        palavra com `$` ou crase que o parser não lê entre aspas simples (`expansao_por_palavra`), o `$(cat)` sem o seu
+        heredoc (`cat_sem_heredoc`), o heredoc com delimitador sem aspas e `$` ou crase no corpo, o `-` e o arquivo que
+        não é regular ou não se lê."""
+        textos, ilegivel, nivel = [], False, expansao_por_palavra(self.linha)
+        for texto in valores_da_opcao(args, "--body", "-b"):
+            if re.fullmatch(r"\$\(cat\s*\)", texto):  # o K3 chega sem o corpo (`tirar_heredocs`): os corpos da linha
+                achados = heredocs(self.linha)[0]
+                corpos = [(self.linha[h.corpo[0]:h.corpo[1]], h.literal) for h in achados]
+                textos += [corpo for corpo, _ in corpos]
+                ilegivel |= any(not literal and re.search(r"[$`]", corpo) for corpo, literal in corpos)
+                ilegivel |= cat_sem_heredoc(self.linha, achados)  # A7: o heredoc de outro comando não é o corpo
+            else:
+                textos.append(texto)
+                ilegivel |= bool(re.search(r"[$`]", texto)) and nivel.get(texto, 2) > 0
+        for arquivo in valores_da_opcao(args, "--body-file", "-F"):
+            lidos, falhou = ([], True) if arquivo == "-" or re.search(r"[$`]", arquivo) else self.textos_da_api(
+                ["--input", str(self.caminho(pasta, arquivo))], pasta)
+            textos, ilegivel = textos + lidos, ilegivel or falhou
+        return "\n".join(textos), ilegivel
+
     def gh_api_de_merge(self, args, pasta):
         """GH-MERGE-ADMIN (R-MAIN): o `gh api` mutante de merge (REST ou GraphQL, inline ou em arquivo) também desvia a
         proteção. O GraphQL que não dá para ler (`--input -`, arquivo ausente) falha fechado."""
@@ -3422,6 +4043,9 @@ class Guarda:
         return bool(expansoes) and nome not in COMANDOS_DO_GH
 
     def gh(self, palavras, parte, pasta, repo_env=None, por_xargs=False, config_env=None, alias=True):
+        if parecer.gh_incerto(palavras):  # E168.9: na dúvida sobre o subcomando, recusa, sem escolher leitura
+            self.barrar("R-CONFORMIDADE", *parecer.GH_INCERTO)
+        palavras = parecer.ordem_do_gh(palavras)  # E168.5: toda trava do gh lê o subcomando logo depois do `gh`
         if alias and self.gh_pelo_alias(palavras, pasta, repo_env, por_xargs, config_env):
             return
         self.gh_trava(palavras, pasta)
@@ -3430,6 +4054,7 @@ class Guarda:
             self.gh_rotulo(palavras, pasta, por_xargs)
         self.gh_admin(palavras, parte)  # antes de toda saída antecipada: não depende de branch, base nem raiz
         self.gh_alias(palavras)
+        self.parecer_pelo_terminal(palavras, pasta)
         if not parte:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):
@@ -3443,7 +4068,7 @@ class Guarda:
             base = parecer.base_do_pr(raiz, branch)
             if base in ("main", "master"):
                 self.barrar("R-MAIN", f"gh pr merge de `{branch}` (base {base}) é do usuário",
-                            "deixe o PR aberto e peça ao usuário")
+                            "deixe o PR aberto e peça ao usuário", alvo=base)
             if not self.pode("pr_merge_integracao"):
                 self.barrar("R-CONFORMIDADE", f"gh pr merge {self.so_de('pr_merge_integracao')} "
                                               f"(papel: {self.papel})", "peça ao tech-lead")
@@ -3457,6 +4082,11 @@ class Guarda:
                             "use gh pr/git pelo papel certo ou leve ao usuário (R-DECISAO)")
             if parecer.metodo_mutante(args):
                 self.gh_api_de_merge(args, pasta)
+            # por último: a regra do gh fala antes. E168.9 (A5): no GraphQL, também sem campo à vista (a chave fora de
+            # aspas esconde o `-f` que o bash remonta)
+            if (parecer.metodo_mutante(args) or e_graphql(parecer.endpoint_da_api(args))) and self.consulta_ilegivel(args):
+                self.barrar(*GRAPHQL_ILEGIVEL, trava=TRAVA)  # também na sessão do Forge: a consulta pode ser um merge
+            self.parecer_pela_api(args, pasta)
 
     # Pacotes ----------------------------------------------------------------------------------------
     @staticmethod
@@ -3514,12 +4144,16 @@ def com_trecho(rid, o_que, corrigir, palavras):
 
 
 def entrada_valida(e):
-    """Forma de uma entrada de `caminhos`: sem ela o hook cairia em KeyError/TypeError e liberaria (saída 0)."""
-    def texto(v):
-        return isinstance(v, str) and bool(v)
-    return (isinstance(e, dict) and texto(e.get("caminho")) and texto(e.get("motivo"))
-            and isinstance(e.get("quem"), list) and all(isinstance(q, str) for q in e["quem"])
-            and isinstance(e.get("so_forge", False), bool) and ("branch" not in e or texto(e["branch"])))
+    """Forma de uma entrada de `caminhos`: sem ela o hook cairia em KeyError/TypeError e liberaria (saída 0). Sem função
+    por campo: roda para cada entrada em toda chamada do hook (custo do corpus, CORPUS-CUSTO-CONTADOR)."""
+    if not isinstance(e, dict):
+        return False
+    caminho, motivo, quem = e.get("caminho"), e.get("motivo"), e.get("quem")
+    return (isinstance(caminho, str) and caminho != ""
+            and isinstance(motivo, str) and motivo != ""
+            and isinstance(quem, list) and all(isinstance(q, str) for q in quem)
+            and isinstance(e.get("so_forge", False), bool)
+            and ("branch" not in e or isinstance(e["branch"], str) and e["branch"] != ""))
 
 
 def lista_de_textos(v):
@@ -3622,19 +4256,25 @@ def e_parecer(p):
     return p.suffix == ".md" and any(par == ("docs", pasta) for par in zip(p.parts, p.parts[1:]) for pasta in PASTAS_DE_PARECER)
 
 
+# M9.2 do G2 (docs/security/ameacas/g2-parecer-status.md, T9): o parecer a publicar (`.forge/pareceres/<pedido>/<tipo>.md`,
+# ADR 0019, 1.2) também tem a autoria registrada; sem ela o `forge-check parecer publicar` recusa sempre (M9.1).
+PASTAS_DE_AUTORIA = (("docs", "reviews"), ("docs", "qa"), ("docs", "devops"), ("docs", "security"), (".forge", "pareceres"))
+PARECER_A_PUBLICAR = re.compile(r"\.forge/pareceres/[A-Za-z0-9][A-Za-z0-9._-]*/[a-z-]+\.md")
+
+
 def autoria(hook, guarda, alvos):
     """PostToolUse: grava quem escreveu cada parecer (caminho, hash do texto sem espaços nas pontas, agente, papel,
-    hora) em autoria.jsonl; o `forge-check pr` confere (ADR 0009, 6.4). Vale também para parecer gravado em outra
-    worktree do repositório: o caminho é relativo a ela e o registro vai para o `.forge/run/` comum."""
+    hora) em autoria.jsonl; o `forge-check pr` e o `parecer publicar` conferem (ADR 0009, 6.4; M9.2 do G2). Vale também
+    para parecer gravado em outra worktree do repositório: o caminho é relativo a ela e o registro vai para o `.forge/run/`
+    comum."""
     for alvo in alvos:
         p = guarda.resolver(alvo, hook.cwd())
-        if p.suffix != ".md" or not any(par == ("docs", pasta) for par in zip(p.parts, p.parts[1:])
-                                        for pasta in ("reviews", "qa", "devops", "security")) or not p.is_file():
+        if p.suffix != ".md" or not any(par in PASTAS_DE_AUTORIA for par in zip(p.parts, p.parts[1:])) or not p.is_file():
             continue  # só caminho de parecer dispara leitura
         sha = hashlib.sha256(p.read_text(encoding="utf-8").strip().encode()).hexdigest()  # antes de qualquer outra leitura
         raiz = raiz_do_parecer(hook, p)
         rel = p.relative_to(raiz).as_posix() if raiz else ""
-        if rel.startswith(("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/")):
+        if rel.startswith(("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/")) or PARECER_A_PUBLICAR.fullmatch(rel):
             registro = {"caminho": rel, "sha256": sha,
                         "agente": hook.entrada.get("agent_type") or "", "papel": guarda.papel,
                         "quando": time.strftime("%Y-%m-%dT%H:%M:%S")}
@@ -3674,8 +4314,9 @@ def identificar_sessao(hook):
       Forge escrito no projeto não muda nada): as regras dele e as de contribuição valem em qualquer pasta (o
       próprio projeto, o clone, `wt/*`, `~`, outra pasta), no Bash, no Write e no Edit; a raiz fica em
       `hook.raiz`, ou a do projeto onde a pasta está, se houver.
-    - Raiz no Forge (clone do próprio Forge, sem `.forge/versao`): regras da sessão do Forge; o hook só age dentro
-      de um projeto, pela pasta corrente, como sempre.
+    - Raiz no Forge (clone do próprio Forge, sem `.forge/versao`): regras da sessão do Forge; o hook age por inteiro
+      dentro de um projeto, pela pasta corrente; fora dele (o clone, `wt/*`) valem as travas para todo papel
+      (`GuardaDaProva` com `travas`, CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE).
     - Sem raiz (ou raiz fora do Forge): pela pasta corrente; em `~/.forge-contrib` falha fechado, como sessão de
       outro projeto de nome igual ao do clone (`wt/*` e a própria pasta: nome vazio).
     Devolve False se o hook não age; None se age pela raiz do repositório; o nome da sessão de outro projeto."""
@@ -3716,8 +4357,83 @@ class ForaDaProva(Exception):
 # CONFIG-TETO-SEM-GUARDA (v0478, parte do hook): o `.forge/config.json` da raiz da sessão, onde o hook `agentes` lê o teto.
 CONFIG_DA_RAIZ = ".forge/config.json"
 ESTADO_DOS_HOOKS = (".git/forge/", CONFIG_DA_RAIZ)
+# HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1): na sessão do Forge, o que roda fora do sandbox (o pre-push, o postStart
+# do container como root) recusa como num projeto quando o alvo está na raiz da sessão ou na cópia principal; a cópia de
+# `wt/` segue livre, e a mudança legítima vai por ela, por branch e PR. Volta 1 (A3 e A5 da segurança): a pasta do
+# manifesto, que decide se a sessão é do Forge (`tem_manifesto_do_forge`), e toda configuração que o editor oferece ao
+# abrir o container (`.devcontainer/` inteira e `.devcontainer.json`). Volta 6 (A16 da segurança, E37.26): o Bash da
+# raiz fica com o sandbox do SO, que nega a escrita nessas entradas por qualquer grafia (S21-S25); sai a leitura da
+# grafia do Bash (variável, colagem, texto de interpretador) e fica o caminho literal (Write, Edit, MultiEdit).
+EM_VIGOR_NA_RAIZ = (".githooks/", ".git/hooks/", ".devcontainer/", ".devcontainer.json", ".claude-plugin/")
+MOTIVO_EM_VIGOR = "roda fora do sandbox ou decide as travas na raiz do Forge"  # a recusa própria, sem entrada na política
+# O erro interno no Write e no Edit cujo caminho cita uma entrada de `EM_VIGOR_NA_RAIZ` (o padrão de `ESTADO_NO_TEXTO`).
+EM_VIGOR_NO_TEXTO = re.compile(r"\.githooks|\.git/hooks|devcontainer|\.claude-plugin", re.I)
+
+
 # `.git/forge` só como nome inteiro: `.git/forge-suite-verde` é a prova da suíte, com a recusa própria (R-VERIFY).
 ESTADO_NO_TEXTO = re.compile(r"\.git/forge(?![\w.-])|forge/run|agentes\.json|\.forge/config\.json")  # C10: linha que o hook não lê e cita o estado
+# PARECER-PELO-PAPEL (v0478 E50.7, A3 de docs/security/v0479-entrega-parecer-mesclado.md): no clone do Forge, as recusas
+# das pastas de parecer valem também na `GuardaDaProva`, para todo papel, e também pela forma relativa ao topo da cópia
+# do Forge que contém o alvo (o clone ou `wt/*` com a raiz da sessão em outra cópia). O papel dono segue livre na pasta.
+CAMINHOS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/aceites/", "docs/security/")
+# A5 e A6 da segurança: a pasta de parecer citada no texto da linha (a variável no alvo, `d=docs/qa; echo x > $d/n.md`);
+# `docs/security` cobre `docs/security/aceites`; a caixa não conta (`d=DOCS/QA; echo x > ${d,,}/n.md`).
+PARECER_NO_TEXTO = re.compile(r"(?<![\w.-])docs/(?:reviews|qa|devops|security)(?![\w.-])", re.I)  # `${d,,}` baixa a caixa
+# CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1): na sessão do Forge, o pedido e o brief da pasta de controle são só do
+# jarvis, como as pastas de parecer: as linhas `entrega conferida`, `parecer conferido` e `DECISÃO DO DONO` vivem neles.
+# A2 da segurança E123.8: entradas com dono que casam também relativas à cópia principal (o hook ordens a lê de lá).
+PELA_COPIA_PRINCIPAL = (".forge/ordens/",)  # A4 da segurança E123.12: a pasta, que o curinga no nome não escapa
+CAMINHOS_DO_CONTROLE = ("~/.forge-contrib/docs/pedidos/", "~/.forge-contrib/*/docs/pedidos/",
+                        "~/.forge-contrib/docs/briefs/", "~/.forge-contrib/*/docs/briefs/",
+                        "~/.forge-contrib/docs/ordens/")  # A1 da segurança E123.8: a pasta das ordens, como pasta
+CAMINHOS_DO_CONTROLE += ("~/.forge-contrib/.forge/run/",)  # C1b-3 (v0481 E45.13): o registro M4.1 de publicações
+# A1 da E63.3: a pasta mãe numa variável (`d=~/.forge-contrib; echo x > $d/docs/pedidos/v1.md`) separa os dois nomes;
+# basta a linha citar os dois, em qualquer ordem e posição. Com a pasta corrente no controle, basta `pedidos` ou `briefs`.
+CONTROLE_NO_TEXTO = re.compile(r"forge-contrib[\s\S]*(?:pedidos|briefs|ordens)|(?:pedidos|briefs|ordens)"
+                               r"[\s\S]*forge-contrib", re.I)
+CRITICO_COM_CONTROLE = re.compile(f"{CRITICO.pattern}|{CONTROLE_NO_TEXTO.pattern}", re.I)
+PEDIDO_OU_BRIEF = r"pedidos|briefs|ordens"  # compilado só na pasta do controle (`GuardaDaProva`): custo do corpus
+# A1 do review E63.6: a cópia de `wt/` pelo caminho literal (`cd ~/.forge-contrib/wt/x &&`, `f=~/.forge-contrib/wt/r.txt`)
+# não é a pasta mãe. Lista positiva em `sem_copia_de_wt`; textos, e não compilados no carregamento (custo do corpus).
+COPIA_DE_WT = (r"(?<![^\s;&|<>=])(~|\$HOME|/[^\s;&|<>'\"()=]*|)/\.forge-contrib/wt/(\w[\w.-]*(?:/\w[\w.-]*)*)/?"
+               r"(?=[\s;&|<>)'\"]|$)")  # só o caminho absoluto: `~`, `$HOME` ou `/`
+SUBIDA_NO_TEXTO = (r"\.\.|`|\\|[{}]|(?:^|[\s/=])\.[*?[]|~[-+\d]|\bcd\s+-|pushd|popd|OLDPWD|CDPATH|dirname|realpath|"
+                   r"readlink")
+# A16 e A17 da segurança E63.11: o que troca, na própria linha, o caminho que o hook resolveu antes de ela rodar: o nome
+# `HOME` fora do `$HOME` e do `${HOME}` (`HOME=`, `export`, `read`, `printf -v`, `env HOME=`, `unset`), o arquivo que o
+# shell lê e pode trocá-lo (`source`, o ponto, `BASH_ENV`, `ENV`) e a entrada criada ou movida (`ln`, `link`, `mv`,
+# `install`, `rename`, `cp -s|-l`): o `~`, o `$HOME` e o caminho real do hook deixam de ser os do bash.
+CAMINHO_TROCADO_NA_LINHA = (r"(?<![\w$])(?<!\$\{)(?:HOME|BASH_ENV|ENV)(?!\w)|(?<![\w.-])(?:source|ln|link|mv|install|rename)"
+                            r"(?![\w.-])|(?:^|[;&|(])\s*\.\s|\bcp\b[^;&|\n]*\s-(?:[a-zA-Z]*[sl][a-zA-Z]*|-(?:symbolic-)?link)"
+                            r"(?![\w-])")
+
+
+def sem_copia_de_wt(texto):
+    """A1 do review E63.6: o texto com cada caminho literal e absoluto de uma cópia de `wt/` (pelo caminho real, dentro
+    de `~/.forge-contrib/wt/`) trocado por um NUL (o bash não o recebe na linha), para que só a pasta mãe conte em
+    `CONTROLE_NO_TEXTO`. Volta o texto intacto se algo nele pode subir ou montar o caminho (`..`, também partido por
+    aspas, `$(`, crase, chave, escape, curinga no ponto, `~-`, `cd -`, `dirname`...), se troca o caminho que o bash usa
+    (`CAMINHO_TROCADO_NA_LINHA`: `HOME=`, `ln`, A16 e A17 da segurança E63.11) ou se um `$` do texto de antes da troca
+    não é TMPDIR, HOME ou um nome que a linha só atribui a uma cópia (`f=<cópia>`)."""
+    plano = texto.replace("'", "").replace('"', "")
+    if "forge-contrib/wt/" not in texto or re.search(SUBIDA_NO_TEXTO, plano):
+        return texto
+    if re.search(CAMINHO_TROCADO_NA_LINHA, plano):  # A16 e A17: o caminho que o bash usa não é o que o hook resolve
+        return texto
+    wt, casa = (contrib() / "wt").as_posix() + "/", str(Path.home())
+
+    def copia(m):
+        base = casa if m.group(1) in ("~", "$HOME") else m.group(1)
+        return "\0" if os.path.realpath(f"{base}/.forge-contrib/wt/{m.group(2)}").startswith(wt) else m.group(0)
+    novo = re.sub(COPIA_DE_WT, copia, texto)
+    for ref in re.finditer(r"\$([A-Za-z_]\w*)?", texto):  # A16: antes da troca, o `$` dentro da cópia também conta
+        nome = ref.group(1)
+        if not nome:
+            return texto  # `$(`, `$'`, `$1`, `$?`: fora da lista
+        usos = [u.start() for u in re.finditer(rf"(?<![\w$]){nome}\b", novo)]  # o nome fora do `$nome`
+        if (not usos) != (nome in ("TMPDIR", "HOME")) or any(not novo.startswith(f"{nome}=\0", u) for u in usos):
+            return texto
+    return novo
 
 
 class GuardaDaProva(Guarda):
@@ -3727,12 +4443,34 @@ class GuardaDaProva(Guarda):
     recusada pelo destino da escrita, resolvido pela Guarda, e não pelo texto. Só a linha que o hook não lê (teto,
     ilegível: `sem_leitura`) volta ao texto em `prova_fora_de_projeto`, falhando fechado.
     AGENTES-JSON-SEM-GUARDA: com a sessão no clone do Forge (`no_clone`), vale também a recusa que cita o motivo de uma
-    entrada de `ESTADO_DOS_HOOKS` (escrita, remoção do ancestral, link)."""
-    def __init__(self, hook, pol, papel, no_clone=False):
+    entrada de `ESTADO_DOS_HOOKS` (escrita, remoção do ancestral, link).
+    CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE: com `travas` (raiz da sessão no clone do Forge), valem também as travas
+    (`trava_da_sessao_do_forge`)."""
+    def __init__(self, hook, pol, papel, no_clone=False, travas=False):
         super().__init__(hook, pol, papel)
-        self.no_clone = no_clone
+        # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS: a linha que cita o pedido ou o brief da pasta de controle é crítica para o
+        # papel que não é o jarvis, e a construção que o hook não modela nela recusa (`controle`: o texto que conta).
+        self.controle, self.critico = ((None, CRITICO.search) if papel == "jarvis"
+                                       else (CONTROLE_NO_TEXTO, CRITICO_COM_CONTROLE.search))
+        if self.controle and self.na_pasta_do_controle():
+            self.controle = re.compile(PEDIDO_OU_BRIEF, re.I)
+            self.critico = re.compile(f"{CRITICO.pattern}|{PEDIDO_OU_BRIEF}", re.I).search
+        self.no_clone, self.travas = no_clone, travas
         self.motivos_do_estado = tuple(e["motivo"] for e in pol["caminhos"] if e["caminho"] in ESTADO_DOS_HOOKS)
         self.motivo_do_config = next((e["motivo"] for e in pol["caminhos"] if e["caminho"] == CONFIG_DA_RAIZ), None)
+
+    def bash(self, comando, pasta, nivel=0, so_substituicoes=False, corpo_de_heredoc=False):
+        """A16 e A17 da segurança E63.11: para o papel que não é o jarvis, a linha que troca o caminho que o hook resolve
+        (`CAMINHO_TROCADO_NA_LINHA`: `HOME=`, `ln`, `mv`...) é construção que ele não modela; recusa se cita o pedido ou o
+        brief da pasta de controle (`recusa_do_estado`), também pela cópia de `wt/` (`HOME=~/.forge-contrib/wt/g; …`). O
+        nome partido por continuação (`HO\\` + quebra) já recusa como construção que o hook não modela."""
+        if not nivel and self.controle is not None:
+            trocado = re.search(CAMINHO_TROCADO_NA_LINHA, comando.replace("'", "").replace('"', ""))
+            if trocado:
+                self.barrar("R-CONFORMIDADE", f"`{trocado.group().strip()}` na linha: o hook não modela o caminho que ela "
+                            "troca (o HOME, o link, o arquivo lido pelo shell)",
+                            "peça ao jarvis; texto que cita o pedido ou o brief vai num arquivo (git commit -F)")
+        super().bash(comando, pasta, nivel, so_substituicoes, corpo_de_heredoc)
 
     def caminho_barrado(self, caminho):
         """CONFIG-TETO-SEM-GUARDA: a recusa de `.forge/config.json` só vale para o da raiz da sessão; o modelo
@@ -3741,40 +4479,288 @@ class GuardaDaProva(Guarda):
         if achado and self.motivo_do_config and self.motivo_do_config in achado[1] and (
                 caminho != Path(os.path.realpath(self.h.raiz)) / CONFIG_DA_RAIZ):
             return None
+        achado = achado or self.parecer_no_topo(caminho)
+        if achado is None and self.na_raiz_em_vigor(caminho):  # A3 e A5: a entrada com dono ou fora da política
+            return ("R-CONFORMIDADE", f"{MOTIVO_EM_VIGOR}: {caminho.name}", "só o usuário altera na raiz",
+                    "instalacao")
         return achado
 
-    def barrar(self, rid, o_que, corrigir, simples=None):
+    def parecer_no_topo(self, caminho):
+        """PARECER-PELO-PAPEL: a recusa da pasta de parecer pela forma relativa ao topo da cópia do Forge que contém o alvo
+        (a forma da raiz da sessão já vem da `Guarda`); fora de uma cópia do Forge, None. Só vale no clone
+        (`recusa_do_estado`)."""
+        topo = self.raiz_git(caminho.parent)
+        rel = (relativo_ao_pai(caminho.as_posix(), topo) if e_clone_do_forge(topo) else None) or ""
+        for e in self.pol["caminhos"]:
+            if e["caminho"] in CAMINHOS_DE_PARECER and casa(rel, e["caminho"]):
+                return None if self.papel in e["quem"] else (
+                    "R-CONFORMIDADE", f"{e['motivo']}: {e['caminho']} (papel: {self.papel})",
+                    f"peça a {'/'.join(e['quem'])}")
+        return None
+
+    def barrar(self, rid, o_que, corrigir, simples=None, trava=None, alvo=None, grupo=None):
         if (rid, o_que, corrigir) == PROVA_DA_SUITE:
-            super().barrar(rid, o_que, corrigir)
+            super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
         if (rid, o_que, corrigir) == PROFUNDIDADE_EXCEDIDA:
-            super().barrar(rid, o_que, corrigir)
+            super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
         if self.recusa_do_estado(o_que):
-            super().barrar(rid, o_que, corrigir)
+            super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
+        if self.na_raiz_em_vigor(alvo):
+            super().barrar(rid, o_que, f"mude numa cópia de wt/ (forge-copia), por branch e PR; {corrigir}", alvo=alvo,
+                           grupo=grupo)
+        if self.travas and trava_da_sessao_do_forge(rid, trava, self.h.campo("tool_input").get("command")):
+            super().barrar(rid, o_que, corrigir, simples, alvo=alvo, grupo=grupo)
         if self.sem_leitura:
             raise ForaDaProva(rid)
+
+    def na_raiz_em_vigor(self, alvo):
+        """HOOK-NAO-PROTEGE-RAIZ-DO-FORGE: no clone, o alvo resolvido é (ou contém) uma entrada de `EM_VIGOR_NA_RAIZ`
+        relativa à raiz da sessão ou à cópia principal; a pasta corrente (`wt/` incluída) não conta."""
+        if not self.no_clone or not isinstance(alvo, Path):
+            return False
+        posix = os.path.realpath(alvo)
+        rels = [relativo_ao_pai(posix, Path(os.path.realpath(self.h.raiz))), *self.relativos_a_copia_principal(posix)]
+        return any(r is not None and (casa(r, c) or c.startswith(r + "/")) for r in rels for c in EM_VIGOR_NA_RAIZ)
 
     def recusa_do_estado(self, o_que):
         """No clone: a recusa cita o motivo de uma entrada do estado, ou é a da construção que o hook não modela (`$d`,
         J13) numa linha que cita o estado (`ESTADO_NO_TEXTO`)."""
         if not self.no_clone:
             return False
+        if any(f"{e['motivo']}: {e['caminho']}" in o_que
+               for e in self.pol["caminhos"] if e["caminho"] in CAMINHOS_DE_PARECER):
+            return True  # PARECER-PELO-PAPEL
+        if ".forge-contrib/" in o_que and any(f"{e['motivo']}: {e['caminho']}" in o_que
+                                              for e in self.pol["caminhos"] if e["caminho"] in CAMINHOS_DO_CONTROLE):
+            return True  # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS
         if any(m in o_que for m in self.motivos_do_estado):
             return True
         linha = self.h.campo("tool_input").get("command")
-        return "o hook não modela" in o_que and isinstance(linha, str) and bool(ESTADO_NO_TEXTO.search(linha))
+        if "o hook não modela" in o_que and isinstance(linha, str) and self.controle_no_texto(linha):
+            return True  # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS
+        return "o hook não modela" in o_que and isinstance(linha, str) and (
+            bool(ESTADO_NO_TEXTO.search(linha)) or self.parecer_no_texto(linha))
+
+    def controle_no_texto(self, linha):
+        """CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS: a linha que o hook não lê cita o pedido ou o brief da pasta de controle, e
+        o papel não é o jarvis (o dono grava pelo caminho literal ou pelo `forge-check`). A cópia de `wt/` pelo caminho
+        literal não conta como a pasta mãe (A1 do review E63.6, `sem_copia_de_wt`)."""
+        if self.controle is None:
+            return False
+        texto = juntar_continuacoes(linha) if "\\\n" in linha else linha
+        return bool(self.controle.search(sem_copia_de_wt(texto) if self.controle is CONTROLE_NO_TEXTO else texto))
+
+    def na_pasta_do_controle(self):
+        """A1 da E63.3: a pasta corrente fica em `~/.forge-contrib` (pelo caminho real) fora de uma cópia de `wt/`, e
+        `docs/pedidos` relativo alcança o controle (`d=docs/pedidos; echo x >> $d/v1.md`)."""
+        rel = relativo_ao_pai(os.path.realpath(self.h.cwd()), contrib())
+        return rel is not None and not rel.startswith("wt/")
+
+    @staticmethod
+    def parecer_no_texto(linha):
+        """A5 e A6 da segurança: a linha (com as continuações juntadas) cita uma das cinco pastas de parecer, dono incluído,
+        como no projeto: a variável que guarda a pasta do dono alcança a vizinha (`d=docs/reviews; echo x > $d/../qa/n.md`);
+        o dono grava a própria pasta pelo caminho literal."""
+        return bool(PARECER_NO_TEXTO.search(juntar_continuacoes(linha)))
 
     def perguntar(self, texto):
         """Fora de projeto não há confirmação a pedir."""
 
 
-def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
+def trava_da_sessao_do_forge(rid, trava, linha):
+    """A recusa é uma trava que vale na sessão do Forge para todo papel: R-MAIN, R-VERIFY, a marcada `TRAVA` (o push
+    direto para a develop ou homolog, a tag v*), a `TRAVA_OPACA` numa linha com um comando que pode ser uma trava
+    (`toca_uma_trava`) e a `TRAVA_NO_TETO` com o git ou o gh no texto (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE, E51.6)."""
+    if trava == TRAVA_NO_TETO:
+        return isinstance(linha, str) and bool(GIT_NO_TEXTO.search(linha))
+    if trava == TRAVA_OPACA:
+        return isinstance(linha, str) and toca_uma_trava(linha)
+    return rid in ("R-MAIN", "R-VERIFY") or trava == TRAVA
+
+
+# E51.18 (A1 da segurança E51.16): o `source` e o ponto executam o here-string (`source /dev/stdin <<< '…'`).
+FONTES = frozenset({"source", "."})
+PREFIXOS_DA_FONTE = frozenset({"builtin", "command"})  # E51.22: `builtin source`, `command -p .`
+
+
+def na_posicao_de_programa(palavras, j):
+    """E51.22 (A2 da segurança E51.20): a palavra `j` é o programa do comando simples: a primeira, ou depois só de
+    `builtin`/`command` e das opções deles (`command -p .`). O `.` argumento (`find .`) não é."""
+    return all(p in PREFIXOS_DA_FONTE or (k and p.startswith("-")) for k, p in enumerate(palavras[:j]))
+
+
+def toca_uma_trava(linha, nivel=0):
+    """E51.6: algum comando simples da linha pode ser uma trava com o alvo opaco: o programa opaco (`$G push`), o git
+    com subcomando fora de `GIT_FORA_DAS_TRAVAS` (opaco, alias, com `-c`), o gh com as duas primeiras palavras fora de
+    `GH_FORA_DAS_TRAVAS`, e o texto que o `eval` ou o `sh -c` reavalia (um nível; o `eval` com texto a reavaliar, o
+    shell (com texto ou lendo a entrada, `echo … | bash`) e o `source` ou o ponto como programa dentro dele são trava,
+    fecha na dúvida: A1 da segurança E51.12, E51.16 e A2 E51.20). O git ou o gh valem em qualquer posição do comando
+    (`env git push $F`). A palavra vem do leitor (`palavras_do_texto`, sem aspas nem escapes); a que o bash expande,
+    pelo texto cru, vira `$`: a substituição (`$(echo git) push`, `git $(echo push)`) também é opaca. O corpo de heredoc
+    é comando só quando o dono o roda (`bash <<'X'`; `corpo_so_lido`, como na conferência da linha), e o here-string de
+    um shell, do `source` ou do ponto (`bash <<< '…'`, `source /dev/stdin <<< '…'`) é texto reavaliado como o do
+    `sh -c` (`texto_reavaliado`); o heredoc em dúvida deixa a linha inteira como comando."""
+    try:
+        linha, corpos = tirar_heredocs(linha)
+    except ValueError:
+        corpos = []
+    for dono, corpo in corpos:
+        if not corpo_so_lido(dono, interprete) and toca_uma_trava(corpo, nivel):
+            return True
+    for comando in palavras_do_texto(linha).simples:
+        k = 0
+        while k < len(comando.palavras) and (comando.palavras[k].cru in ANTES_DO_PROGRAMA
+                                             or ATRIBUICAO.match(comando.palavras[k].cru)):
+            k += 1
+        originais = comando.palavras[k:]
+        palavras = ["$" if OPACA_NA_PALAVRA.search(p.cru) else p.valor for p in originais]
+        aqui = [r.alvo for r in comando.redirecoes if r.operador == "<<<" and r.alvo is not None]
+        if palavras and OPACA_NA_PALAVRA.search(palavras[0]):
+            return True
+        for j, palavra in enumerate(palavras):
+            nome, resto = nome_do_caminho(palavra), palavras[j + 1:]
+            if nome == "git" and resto and subcomando_do_git(resto) not in GIT_FORA_DAS_TRAVAS:
+                return True
+            if nome == "gh" and " ".join(resto[:2]) not in GH_FORA_DAS_TRAVAS:
+                return True
+            if nivel and nome in SHELLS:  # E51.18: o shell aninhado relê o argumento, o here-string ou a entrada (pipe)
+                return True
+            if nivel and nome == "eval" and originais[j + 1:]:  # o eval não lê a entrada
+                return True
+            if nivel and palavra in FONTES and (aqui or na_posicao_de_programa(palavras, j)):  # lê o pipe também
+                return True
+            relidos = map(texto_reavaliado, originais[j + 1:])
+            if (nome == "eval" or nome in SHELLS) and not nivel and any(toca_uma_trava(t, 1) for t in relidos):
+                return True
+            le_o_here_string = nome in SHELLS or palavra in FONTES
+            if le_o_here_string and not nivel and any(toca_uma_trava(texto_reavaliado(a), 1) for a in aqui):
+                return True
+    return False
+
+
+# CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.1): o envio do git com parte vinda de substituição de comando ou da
+# entrada, lido pelo texto cru como na `toca_uma_trava` (E51.6). Vale no projeto e, pela `TRAVA_OPACA`, na sessão do Forge.
+ENVIO_DO_GIT = frozenset({"push", "send-pack"})
+SUBSTITUICAO_NA_PALAVRA = re.compile(r"\$\(|`|<\(")
+CITA_O_ENVIO = re.compile(r"(?<![\w./-])(?:push|send-pack)(?![\w.-])")
+
+
+def envio_com_substituicao(linha):
+    """Algum comando simples da linha (já sem os corpos de heredoc: a mesma que `leituras` lê, e a leitura dela vem do
+    cache de `palavras_do_texto`) é um envio do git, ou pode ser, com parte que o hook não sabe: o programa por substituição seguido de `push` ou de outra substituição (`$(echo git) push`), o subcomando por
+    substituição (`git $(echo push)`), uma flag ou o destino do envio por substituição (`git push $(echo --force)`), o
+    envio atrás do `xargs` (os argumentos vêm do pipe), ou o shell que lê a entrada numa linha que cita o git e o envio
+    (`echo 'git push …' | bash`)."""
+    marcador = "$(" in linha or "`" in linha or "<(" in linha
+    envio = "push" in linha or "send-pack" in linha or "\\" in linha  # o escape pode esconder o nome (`pu\sh`)
+    xargs = "xargs" in linha and "git" in linha  # A5 da E63.3: o subcomando pode vir todo do pipe
+    if not (marcador and (envio or "git" in linha) or xargs or envio and ("sh" in linha.replace("push", "") or "stdin" in linha or "/fd/" in linha)):
+        return False  # custo do corpus (o `in` não é chamada): nenhum caso abaixo casa sem esses textos
+    cita_o_envio = bool(GIT_NO_TEXTO.search(linha) and CITA_O_ENVIO.search(linha))
+    for comando in palavras_do_texto(linha).simples:
+        originais = [p for p in comando.palavras if p.cru not in ANTES_DO_PROGRAMA and not ATRIBUICAO.match(p.cru)]
+        valores, nomes = [p.valor for p in originais], [nome_do_caminho(p.valor) for p in originais]
+        opacas = [bool(SUBSTITUICAO_NA_PALAVRA.search(p.cru)) for p in originais]
+        for j in range(len(valores)):
+            no_programa = j == 0 or nomes[j - 1] in ENVOLVEDORES
+            if opacas[j] and no_programa and (ENVIO_DO_GIT & set(valores[j + 1:]) or opacas[j + 1:j + 2] == [True]):
+                return True
+            if nomes[j] != "git":
+                continue
+            k = j + 1 + len(valores[j + 1:]) - len(resto_do_subcomando(valores[j + 1:]))
+            if k < len(valores) and opacas[k]:
+                return True
+            envio = k < len(valores) and valores[k] in ENVIO_DO_GIT or k >= len(valores) and ENVIO_DO_GIT & set(valores)
+            if envio and (any(opacas[j + 1:]) or "xargs" in nomes[:j]):
+                return True
+            if k >= len(valores) and "xargs" in nomes[:j]:  # A5 da E63.3: `echo push … | xargs git`
+                return True
+        programa = nomes and (nomes[0] in SHELLS or nomes[0] in ENVOLVEDORES or valores[0] in FONTES
+                              or valores[0] == "builtin")
+        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes, linha):
+            return True
+    return False
+
+
+# Conjuntos literais, sem chamada no carregamento do módulo (custo do corpus: cada chamada conta em toda execução).
+ENTRADA_DO_SHELL = {"-", "-s", "/dev/stdin", "/dev/fd/0", "/proc/self/fd/0"}
+SHELL_OPCAO_COM_VALOR = {"-o", "+o", "-O", "+O", "--rcfile", "--init-file"}
+NAO_E_ARQUIVO = {"dev", "proc", "fd", "..", "stdin"}  # segmento do alvo que pode nomear a própria entrada (A12)
+
+
+def literal_atribuido(nome, linha):
+    """O valor literal (sem `/` nem `.`) que a linha dá a `nome` em toda ocorrência dele fora do `$nome` (`B=x`); None se
+    a linha não o atribui, o atribui a outro texto ou o usa de outro jeito (`read B`)."""
+    usos = re.findall(rf"(?<![\w$]){nome}\b(=[\w+-]*(?=[\s;&|)]|$))?", linha)
+    return usos[0][1:] if usos and len(set(usos)) == 1 and usos[0] else None
+
+
+def entrada_de_arquivo(redirecoes, linha=""):
+    """A12 da segurança E63.7, por lista positiva: a última redireção da entrada padrão (sem número ou `0`, de qualquer
+    operador) é `<` com alvo sem crase, `<(`, curinga nem chave, e com `$` só num nome que a linha atribui a um valor
+    literal (`B=x; bash < "a $B"`, E51.10), que não pode nomear a própria entrada: nenhum segmento `dev`, `proc`, `fd`,
+    `..` ou `stdin` e o último não só de dígitos (`< /dev/stdin`, `0< /dev/fd/0`, `< /proc/self/fd/0`,
+    `cd /dev && bash < stdin`; a `bash 3< x 0< /dev/stdin` vale pela última)."""
+    ultima = None
+    for r in redirecoes:
+        if r.prefixo.strip("0") == "" and (r.prefixo or r.operador[0] == "<"):
+            ultima = r
+    alvo = ultima.alvo if ultima and ultima.operador == "<" else None  # `<<<`, `<&`, `<>` e `0>&` não são arquivo
+    if alvo is None or re.search(r"[`*?[{]|<\(", alvo.cru):
+        return False
+    nome = re.sub(r"\$([A-Za-z_]\w*)", lambda m: literal_atribuido(m.group(1), linha) or "/dev/", alvo.valor)
+    partes = nome.split("/")  # o último vazio (`0/`) não abre: o bash falha com ENOTDIR
+    return "$" not in nome and not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()
+
+
+def shell_que_le_a_entrada(nomes, valores, opacas, redirecoes=(), linha=""):
+    """A4 da E63.3: o comando simples roda um shell que lê a entrada (o pipe) ou um texto opaco: o shell como programa
+    ou atrás de um envolvedor (`env bash`, `sudo bash`, `timeout 5 bash`), e o `source` ou o ponto como programa, sem
+    script, com `-s`, `-` ou `/dev/stdin`, ou com o script vindo de substituição (`. <(…)`, `bash <(…)`). A entrada
+    tirada de um arquivo (`bash < x.sh`) não é o pipe: o shell lê o arquivo, como o `bash x.sh` (E51.10); a de `<(…)`
+    (`bash < <(…)`) é texto opaco."""
+    if redirecoes and entrada_de_arquivo(redirecoes, linha):
+        return False
+    for j, nome in enumerate(nomes):
+        shell = nome in SHELLS and (j == 0 or nomes[0] in ENVOLVEDORES)
+        if not (shell or valores[j] in FONTES and na_posicao_de_programa(valores, j)):
+            continue
+        i = j + 1
+        while i < len(valores) and valores[i][:1] in ("-", "+") and valores[i] not in ENTRADA_DO_SHELL:
+            i += 2 if valores[i] in SHELL_OPCAO_COM_VALOR else 1
+        if i >= len(valores) and shell or i < len(valores) and (valores[i] in ENTRADA_DO_SHELL or opacas[i]):
+            return True
+    return False
+
+
+# A opção global do git com o valor na palavra seguinte (`git --git-dir .git push`): o valor não é o subcomando.
+GIT_GLOBAIS_COM_VALOR = {"-C", "--git-dir", "--work-tree", "--namespace", "--attr-source", "--config-env"}  # literal: custo
+
+
+def resto_do_subcomando(argumentos):
+    """Os argumentos do git a partir do subcomando, como `subcomando_do_git` os pula (o `-c` para: o resto todo)."""
+    resto = list(argumentos)
+    while resto and resto[0].startswith("-") and resto[0] != "-c":
+        resto = resto[2:] if resto[0] in GIT_GLOBAIS_COM_VALOR else resto[1:]  # E63.5 (A3): `--git-dir .git push`
+    return resto if not resto or resto[0] != "-c" else []
+
+
+def texto_reavaliado(palavra):
+    """O texto que o `eval` ou o shell relê numa palavra: o valor dela (aspas e escapes tirados, a crase escapada vira
+    crase e a variável fica no texto, opaca na releitura), ou `$` (opaco) se o bash de fora substitui um comando nela
+    (`"$(echo git) push"`: o leitor a troca por `_` e devolve o corpo como outro comando simples)."""
+    return "$" if len(palavras_do_texto(palavra.cru).simples) > 1 else palavra.valor
+
+
+def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=False):
     """S8 (C-1, A2 da segurança g3): a prova da suíte é por uid, então vale também fora de projeto, em toda sessão e
     para todo papel. A outra recusa não vale e a leitura segue (`GuardaDaProva`); linha que o hook não lê ou erro
-    interno: falha fechado só se o alvo cita o nome da prova ou, no clone do Forge, o estado dos hooks (C10)."""
+    interno: falha fechado só se o alvo cita o nome da prova ou, no clone do Forge, o estado dos hooks (C10).
+    `travas`: na sessão do Forge valem também as travas (`trava_da_sessao_do_forge`)."""
     if hook.campo("hook_event_name") == "PostToolUse":
         return
     hook.raiz = raiz or Path(hook.cwd())
-    guarda = GuardaDaProva(hook, pol, papel, bool(raiz and e_clone_do_forge(raiz)))
+    guarda = GuardaDaProva(hook, pol, papel, bool(raiz and e_clone_do_forge(raiz)), travas)
     try:
         decidir(hook, guarda, ferramenta, entrada)
     except Exception as erro:  # noqa: BLE001 - ForaDaProva ou erro interno; a decisão vem do texto do alvo
@@ -3786,6 +4772,23 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
             hook.registrar_erro(erro)
             Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o estado dos "
                           "hooks (.git/forge/, forge/run, agentes.json, .forge/config.json)", f"só o usuário altera; {SUGESTAO}")
+        if guarda.no_clone and not entrada.get("command") and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(alvo):
+            hook.registrar_erro(erro)  # volta 6: só Write e Edit; o Bash fica com o sandbox do SO (A16)
+            Guarda.barrar(guarda, "R-CONFORMIDADE", "erro interno, e o caminho cita o que roda fora "
+                          "do sandbox na raiz (.githooks, .git/hooks, devcontainer, .claude-plugin)",
+                          f"só o usuário altera; {SUGESTAO}")
+        if guarda.no_clone and isinstance(alvo, str) and guarda.parecer_no_texto(alvo):  # A5 e A6 da segurança
+            erro_interno = not isinstance(erro, ForaDaProva)  # a linha sem leitura é a recusa; só o erro interno vai ao registro
+            if erro_interno:
+                hook.registrar_erro(erro)
+            Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita uma pasta de parecer "
+                          f"(papel: {papel})", "o dono grava a própria pasta pelo caminho literal; os outros papéis pedem ao dono")
+        if guarda.no_clone and isinstance(alvo, str) and guarda.controle_no_texto(alvo):
+            interno = not isinstance(erro, ForaDaProva)  # a linha sem leitura é a recusa; só o erro interno vai ao registro
+            if interno:
+                hook.registrar_erro(erro)
+            Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o pedido ou o "
+                          f"brief da pasta de controle (papel: {papel})", "peça ao jarvis")
         pasta = Path(hook.cwd())
         opaco = bool(palavras and VARIAVEL.search(alvo))  # S3: `$(…)` ou variável no alvo
         for t in filter(CURINGA.search, palavras):  # A1 da segurança g1: o curinga que o bash expande no alvo
@@ -3797,7 +4800,8 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
 # HOOK-ERRO-LIBERA (C2, C3): a linha que escreve, para o marcador da falha fechada. Lê a mais de propósito: só pesa em erro
 # interno ou prazo vencido, e aí a dúvida recusa. Os verbos do git que gravam arquivo vêm das listas da guarda normal (A1).
 ESCRITORES = (TODOS_OS_ARGUMENTOS | SO_DESTINO | REMOCAO | CAMINHOS_NO_GIT | GIT_GRAVA_ARQUIVO
-              | {"ln", "chmod", "truncate", "touch", "unlink", "shred", "rmdir", "find", "tar"} | MUDA_ATRIBUTO)
+              | {"ln", "chmod", "truncate", "touch", "unlink", "shred", "rmdir", "find", "tar"} | MUDA_ATRIBUTO
+              | ARQUIVO_ESPECIAL)
 ESCREVE_NA_LINHA = re.compile(ESCRITA_NA_LINHA.pattern + r"|\b(?:" + "|".join(sorted(map(re.escape, ESCRITORES))) + r")\b")
 ALVO_OPACO = re.compile(r"[$`]|<\(")  # C3: substituição, crase, variável ou `<(`: o hook não sabe o destino
 # A2: a troca da pasta de base (`cd`, `pushd`, `popd`, `-C`, `--chdir`, `--git-dir`, `--work-tree`, `GIT_DIR`,
@@ -3850,6 +4854,8 @@ class MarcadorDaPolitica:
             return True
         if hook.entrada.get("tool_name") in FERRAMENTAS_DE_ARQUIVO:
             return self.arquivo_marcado(hook, formas[0], termos)
+        if any(map(visibilidade_do_gh, formas)):  # E148.1: só no marcador, fora do `CRITICO`
+            return True
         return any(ESCREVE_NA_LINHA.search(t) and (termos.search(t) or ALVO_OPACO.search(t) or BASE_TROCADA.search(t))
                    for t in formas)
 
@@ -3894,7 +4900,7 @@ def principal(hook):
                 bloquear("R-CONTRIB", "erro interno ao conferir o rótulo afrouxa-regra; o hook não pôde decidir. "
                                       "Corrigir: veja .forge/run/erros.log e leve ao dono do Forge (R-DECISAO)")
         if not (com_lista and na_sessao_do_forge):
-            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz)
+            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, na_sessao_do_forge)
             return
         externo, hook.raiz = None, raiz
     try:

@@ -1,0 +1,86 @@
+{
+  "pedido": "v048-afetados-catraca-custo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M32",
+      "guarda": "a contagem só leva os métodos de classe",
+      "arquivo": "bin/forge-testes",
+      "de": "isinstance(classe, ast.ClassDef)",
+      "para": "isinstance(classe, (ast.ClassDef, ast.Module))",
+      "testes": [
+        "tests.test_afetados_catraca_custo.LimiteLocal.test_conta_so_os_metodos_test_das_classes"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "a catraca apagada no diff pede a catraca (falha fechada)",
+      "arquivo": "bin/forge-testes",
+      "de": "or (CATRACA in caminhos and not arquivo.is_file()):",
+      "para": "or False:",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_catraca_apagada_no_diff_pede_a_catraca"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "a catraca em link não é rodável",
+      "arquivo": "bin/forge-testes",
+      "de": "return arquivo.is_file() and not arquivo.is_symlink()",
+      "para": "return arquivo.is_file()",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_catraca_em_link_pede_a_catraca_e_nao_e_rodavel"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "a catraca não rodável é avisada",
+      "arquivo": "bin/forge-testes",
+      "de": "        if not catraca_rodavel():\n            print(",
+      "para": "        if False:\n            print(",
+      "testes": [
+        "tests.test_afetados_catraca_custo.PeloComando.test_catraca_em_link_reprova_sem_executar"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "a catraca não rodável reprova sem ser executada",
+      "arquivo": "bin/forge-testes",
+      "de": ".returncode if rodavel else 1",
+      "para": ".returncode if True else 1",
+      "testes": [
+        "tests.test_afetados_catraca_custo.PeloComando.test_catraca_em_link_reprova_sem_executar"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "scripts/ pede a catraca",
+      "arquivo": "bin/forge-testes",
+      "de": "PASTAS_DA_CATRACA = (\"hooks/\", \"bin/\", \"scripts/\")",
+      "para": "PASTAS_DA_CATRACA = (\"hooks/\", \"bin/\")",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_hooks_bin_e_protegidos_levam_a_catraca_e_o_custo"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "a linha da catraca vai ao stderr (o stdout do plano numa linha só)",
+      "arquivo": "bin/forge-testes",
+      "de": " arquivo protegido.\", file=sys.stderr)",
+      "para": " arquivo protegido.\")",
+      "testes": [
+        "tests.test_forge_mutante.ContratoDoListar.test_modulos_listados_de_bin_forge_mutante_no_forge"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "sem tests/catraca.py fora do diff, nada muda (o projeto sem catraca)",
+      "arquivo": "bin/forge-testes",
+      "de": "    if not arquivo.is_file():\n        return (), False\n    protegidos",
+      "para": "    if False:\n        return (), False\n    protegidos",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_sem_a_catraca_nada_muda"
+      ]
+    }
+  ]
+}

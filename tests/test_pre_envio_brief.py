@@ -6,6 +6,7 @@ import importlib.machinery
 import importlib.util
 import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -93,6 +94,16 @@ class Gerar(unittest.TestCase):
         for trecho in (CATRACA, TEXTO, AFETADOS):
             self.assertNotIn(trecho, saida)
 
+    def test_codigo_do_forge_prova_pelo_ci_sem_o_d2_e_fora_do_forge_nao(self):  # G3-ENTREGA-PELO-CI (v0481 E28.6)
+        saida = self.gerar("codigo", "E1.1")
+        self.assertIn(fc.PQ_DO_CI, saida)
+        self.assertIn("a prova do pronto é o CI do PR no head", saida)
+        for d2 in ("pronto --base origin/develop", "D2 (D2-NO-BRIEF)", "-d2"):
+            self.assertNotIn(d2, saida)
+        afetados = next(l for l in saida.splitlines() if AFETADOS in l)
+        self.assertIn("rode só os testes afetados para se guiar; a prova é o CI do PR no head", afetados)
+        self.assertNotIn(fc.PQ_DO_CI, self.gerar("codigo", "E1.1", forge=False))
+
     def test_parecer_nao_leva_o_pre_envio_do_autor(self):
         saida = self.gerar("review", "E1.4", destino="forge:revisor-exemplo")
         self.assertNotIn(TEXTO, saida)
@@ -102,13 +113,129 @@ class Gerar(unittest.TestCase):
         self.assertIn("`gh pr checks 7` · espera: rc=0 · aprova só com o CI do head todo verde, e2e incluso", saida)
 
     def test_parecer_sem_pr_diz_que_a_suite_fica_para_o_ci(self):
-        saida = self.gerar("qa", "E1.4", destino="forge:revisor-exemplo")
+        saida = self.gerar("seguranca", "E1.4", destino="forge:revisor-exemplo")  # a segurança fica fora do G3 (PARECER-LE-O-CI)
         self.assertIn("sem PR para a branch: a suíte inteira fica para o CI do PR", saida)
         self.assertNotIn("gh pr checks", saida)
 
     def test_parecer_sem_gh_mantem_a_regra(self):
         saida = self.gerar("seguranca", "E1.4", destino="forge:revisor-exemplo", pr=(None, "sem gh"))
         self.assertIn("aprova só com o CI do head todo verde, e2e incluso (`gh pr checks <n>`), quando houver PR", saida)
+
+
+class LeOCiNoBrief(unittest.TestCase):
+    """PARECER-LE-O-CI (G3, v0481 E8.1): o brief de review e de QA manda ler o CI do head e gravar a linha `- ci:`, sem rodar a
+    bateria; sem PR, não há aprovação. O da segurança e o do autor seguem como antes."""
+    COM_PR = ({"number": 7, "state": "OPEN", "head": "a" * 40}, None)
+    setUp, gerar = Gerar.setUp, Gerar.gerar  # o mesmo pedido e o mesmo gh falso, sem herdar os testes do `Gerar`
+
+    def test_review_e_qa_leem_o_ci_com_e_sem_gh(self):
+        for etapa in fc.PORTOES_QUE_LEEM_O_CI:
+            for pr in (self.COM_PR, (None, "sem gh")):
+                with self.subTest(etapa=etapa, pr=pr):
+                    saida = self.gerar(etapa, "E1.4", destino="forge:revisor-exemplo", pr=pr)
+                    self.assertIn(fc.LINHA_LE_O_CI, saida)
+                    self.assertIn("`- ci: <sha40 do Revisar-sha> verde`", saida)
+                    self.assertIn("não rode a suíte inteira", saida)
+
+    def test_review_e_qa_sem_pr_nao_aprovam(self):
+        for etapa in fc.PORTOES_QUE_LEEM_O_CI:
+            with self.subTest(etapa=etapa):
+                saida = self.gerar(etapa, "E1.4", destino="forge:revisor-exemplo")
+                self.assertIn(fc.SEM_PR_NO_PORTAO, saida)
+                self.assertNotIn("o parecer cita o PQ do autor e não afirma CI verde", saida)
+
+    def test_seguranca_e_autor_sem_a_linha(self):
+        self.assertNotIn(fc.LINHA_LE_O_CI, self.gerar("seguranca", "E1.4", destino="forge:revisor-exemplo", pr=self.COM_PR))
+        self.assertNotIn(fc.LINHA_LE_O_CI, self.gerar("codigo", "E1.1", pr=self.COM_PR))
+        self.assertNotIn(fc.SEM_PR_NO_PORTAO, self.gerar("seguranca", "E1.4", destino="forge:revisor-exemplo"))
+
+
+class QaLeOCiSemEsperarAConferencia(unittest.TestCase):
+    """G3-ENTREGA-PELO-CI (v0481 E28.6, F2 parte 3): o brief do QA manda ler o CI do head sem esperar a conferência da entrega, e o
+    pré-voo do portão (`pr --previo`) avisa a conferência que falta em vez de reprovar; o `pr` sem `--previo` segue exigindo-a."""
+    FALTA = "docs/pedidos/p.md: conferência: nenhuma linha cobre o head"
+    setUp, gerar = Gerar.setUp, Gerar.gerar
+
+    def test_o_brief_do_qa_nao_espera_a_conferencia(self):
+        saida = self.gerar("qa", "E1.4", destino="forge:revisor-exemplo", pr=LeOCiNoBrief.COM_PR)
+        self.assertIn("o CI do head basta, sem esperar a conferência da entrega (G3-ENTREGA-PELO-CI)", saida)
+
+    def conferencia(self, previo, linhas):
+        erro = io.StringIO()
+        with mock.patch.object(fc, "linhas_da_conferencia", return_value=linhas), redirect_stderr(erro):
+            return fc.conferencia_do_head(self.tmp, "p", ref="melhoria/x", branch="melhoria/x", previo=previo), erro.getvalue()
+
+    def test_no_previo_a_conferencia_que_falta_so_avisa(self):
+        saida, erro = self.conferencia(True, [self.FALTA])
+        self.assertEqual(saida, [])
+        self.assertIn(f"aviso: {self.FALTA}; o pré-voo segue (--previo, G3-ENTREGA-PELO-CI)", erro)
+
+    def test_fora_do_previo_a_conferencia_que_falta_reprova(self):
+        self.assertEqual(self.conferencia(False, [self.FALTA]), ([self.FALTA], ""))
+        self.assertEqual(self.conferencia(True, []), ([], ""))
+
+    def test_o_pr_passa_o_previo_a_conferencia_com_e_sem_base(self):
+        vazio = mock.Mock(return_value=[])
+        for base in (None, "develop"):
+            for previo in (False, True):
+                with self.subTest(base=base, previo=previo), mock.patch.multiple(
+                        fc, cmd_pr=vazio, tamanho_do_pr=vazio, checks_do_head=vazio, aviso_t1_do_pr=vazio, avisar_classe=vazio,
+                        isencoes_da_entrega=mock.Mock(return_value=False), promocao=mock.Mock(return_value=False),
+                        base_sem_flag_do_pr=mock.Mock(return_value=None), base_do_delta=mock.Mock(return_value=("origin/develop", None)),
+                        linhas_da_conferencia=mock.Mock(return_value=[self.FALTA])), redirect_stderr(io.StringIO()):
+                    saida = fc.pr_da_cli(self.tmp, "p", ref="melhoria/x", base=base, branch="melhoria/x", previo=previo)
+                    self.assertEqual(saida, [] if previo else [self.FALTA])
+
+
+class ChecksForaDaLinhaDoCi(unittest.TestCase):
+    """A1 do #893: no `Revisar-sha`, `bateria (pareceres)`, `bateria` e `catraca` ficam vermelhos por construção (esperam o parecer
+    ou o rótulo). A constante `CHECKS_FORA_DA_LINHA_DO_CI` é a fonte única: o brief, o esqueleto do parecer e as duas skills citam
+    cada um; e cada um é um job de verdade dos workflows, para a lista não divergir do CI."""
+    setUp, gerar = Gerar.setUp, Gerar.gerar
+
+    def citados(self, texto, onde):
+        self.assertEqual(len(fc.CHECKS_FORA_DA_LINHA_DO_CI), 3)
+        for check in fc.CHECKS_FORA_DA_LINHA_DO_CI:
+            with self.subTest(onde=onde, check=check):
+                self.assertIn(f"`{check}`", texto)
+
+    def test_o_brief_de_review_e_qa_cita_os_checks(self):
+        for etapa in fc.PORTOES_QUE_LEEM_O_CI:
+            linha = [l for l in self.gerar(etapa, "E1.4", destino="forge:revisor-exemplo", pr=LeOCiNoBrief.COM_PR).splitlines()
+                     if l.startswith("- G3 (PARECER-LE-O-CI)")]
+            self.assertEqual(len(linha), 1, etapa)
+            self.citados(linha[0], f"brief {etapa}")
+
+    def test_o_esqueleto_do_parecer_cita_os_checks(self):
+        for tipo in fc.PORTOES_QUE_LEEM_O_CI:
+            texto = fc.esqueleto_do_parecer(tipo, "p1", "melhoria/x", "a" * 40, "aprovado", "2026-01-01")
+            nota = [l for l in texto.splitlines() if "a linha `- ci:` vale" in l]
+            self.assertEqual(len(nota), 1, tipo)
+            self.citados(nota[0], f"esqueleto {tipo}")
+
+    def test_as_skills_citam_os_checks(self):
+        for skill in ("engineering-practices", "qa-testing"):
+            linhas = [l for l in (RAIZ / "skills" / skill / "SKILL.md").read_text(encoding="utf-8").splitlines() if "PARECER-LE-O-CI" in l]
+            self.assertEqual(len(linhas), 1, skill)
+            self.citados(linhas[0], skill)
+
+    def test_brief_esqueleto_e_skills_citam_a_forma_via(self):
+        """G3.7 (v0481 E8.10): o run do `Revisar-sha` cancelado pelo envio de outro parecer; vale o do descendente só de pareceres."""
+        textos = {"brief": fc.LINHA_LE_O_CI, "esqueleto": fc.NOTA_NO_ESQUELETO}
+        textos.update({s: [l for l in (RAIZ / "skills" / s / "SKILL.md").read_text(encoding="utf-8").splitlines()
+                           if "PARECER-LE-O-CI" in l][0] for s in ("engineering-practices", "qa-testing")})
+        for onde, texto in textos.items():
+            with self.subTest(onde=onde):
+                self.assertIn("verde via <sha40 do descendente", texto)
+
+    def test_cada_check_e_um_job_dos_workflows(self):
+        ESPERA = re.compile(r"\$\{\{[^}]*outputs\.espera[^}]*\}\}$")  # E47.6: o sufixo é condicional
+        nomes = set()
+        for yml in (RAIZ / ".github" / "workflows").glob("*.yml"):
+            nomes |= {ESPERA.sub("", l.split("name:", 1)[1].split("#")[0].strip()) for l in yml.read_text(encoding="utf-8").splitlines()
+                      if l.startswith("    name:")}  # E47.1: o sufixo da espera é vazio sem espera; o check é o nome sem ele
+        self.assertGreater(len(nomes), 10)
+        self.assertLessEqual(set(fc.CHECKS_FORA_DA_LINHA_DO_CI), nomes)
 
 
 DESATUALIZADO = ("docs/reviews/exemplo.md: commit: desatualizado: bin/forge-x mudou depois de aaaaaaa; peça novo parecer; o que mudou no "

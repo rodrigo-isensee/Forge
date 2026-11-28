@@ -1,0 +1,26 @@
+{
+  "pedido": "v0479-ae4-ordens",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "_ler_regular: o fstat recusa o que não é arquivo regular antes do fdopen (A3)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not stat.S_ISREG(os.fstat(fd).st_mode):  # antes do fdopen",
+      "para": "    if False:  # antes do fdopen",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_quadro_pasta_recusa_com_rc_2"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "recusa_do_apontador: KANBAN fora de UTF-8 (U+FFFD da troca) recusa (A4)",
+      "arquivo": "bin/forge-check",
+      "de": "    if \"\\ufffd\" in texto:  # A4",
+      "para": "    if False:  # A4",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_quadro_fora_de_utf8_recusa"
+      ]
+    }
+  ]
+}

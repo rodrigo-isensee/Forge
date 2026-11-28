@@ -1,0 +1,102 @@
+{
+  "pedido": "v048",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "execucao de PR so com o PR mesclado",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "and campo(pr, \"merged_at\", str) is not None and",
+      "para": "and True and",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_mesclado_na_develop_entra",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_perna_de_push_nao_vale_em_execucao_de_pr_e_a_de_pr_nao_vale_em_push"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "chave que nao e unidade do plano e peso velho",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if fantasmas := sorted(set(atuais) - set(conhecidas)):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_pesos_velhos_sao_acusados"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "unidade sem peso acima do limite e peso velho",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if conhecidas and len(sem_peso) > limite * len(conhecidas):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_pesos_velhos_sao_acusados"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "perna de push nao vale na execucao de PR nem a de PR no push",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "or bool(achado.group(1)) == de_pr or",
+      "para": "or",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_mesclado_na_develop_entra",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_perna_de_push_nao_vale_em_execucao_de_pr_e_a_de_pr_nao_vale_em_push"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a lista de execucoes de PR e lida",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "\"workflow_runs\", list) or []:",
+      "para": "\"workflow_runs\", list) and []:",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_mesclado_na_develop_entra",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_pr_nao_mesclado_de_fork_de_outra_base_ou_de_outro_sha_nao_entra",
+        "tests.test_pesos_do_ci.DepoisDoF6.test_perna_de_push_nao_vale_em_execucao_de_pr_e_a_de_pr_nao_vale_em_push"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "teto de execucoes com as de PR",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if len(execucoes) >= 2 * limite:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_teto_de_execucoes_conta_as_de_pr_ate_2_vezes_o_limite"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "sha da execucao fora do formato nao vira caminho da API",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if not (sha and SHA.fullmatch(sha)):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_execucao_de_pr_malformada_nao_quebra_nem_entra"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "sha so com 40 hexadecimais minusculos",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "sha and SHA.fullmatch(sha)",
+      "para": "sha",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_execucao_de_pr_malformada_nao_quebra_nem_entra"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "resposta de PRs que nao e lista nao quebra",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "(prs if isinstance(prs, list) else [])",
+      "para": "(prs if True else [])",
+      "testes": [
+        "tests.test_pesos_do_ci.DepoisDoF6.test_resposta_de_prs_que_nao_e_lista_de_prs_validos_nao_entra"
+      ]
+    }
+  ]
+}

@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 import test_fechar as fechar_base  # noqa: E402  (o módulo: a classe seria coletada de novo aqui)
 import test_fechar_checks_exigidos as exig  # noqa: E402
 
-API = '''if [ "$1" = api ]; then  # a chamada já foi registrada no começo do gh falso
+API = '''# a chamada já foi registrada no começo do gh falso; a dos check-runs do head (FECHAR-CHECKS-ANTES-DO-MERGE) segue para o falso de base
+if [ "$1" = api ] && [[ "$2" != "repos/{owner}/{repo}/commits/"* ]]; then
   [ "$3" = --jq ] || exit 64
   case "$2" in
     "repos/{owner}/{repo}/rules/branches/develop") f=api_regras ;;
@@ -27,6 +28,8 @@ API = '''if [ "$1" = api ]; then  # a chamada já foi registrada no começo do g
 fi
 '''
 CASO = 'case "$1 $2" in\n'
+# E114.5 (A3 da segurança): o passo 6 confere também o exigido do ruleset nos check-runs do head; aqui ele vem verde
+RUNS_COM_LINT = "bateria\t1\tcompleted\tsuccess\nbateria (python 3.14)\t2\tcompleted\tsuccess\ncatraca\t3\tcompleted\tsuccess\nlint\t4\tcompleted\tsuccess\n"
 
 
 class FecharExigidosDoDestino(unittest.TestCase):
@@ -52,6 +55,7 @@ class FecharExigidosDoDestino(unittest.TestCase):
     def test_exigido_do_ruleset_de_qualquer_workflow_em_pass_mescla(self):
         (self.estado / "api_regras").write_text("lint\n")
         self.leituras([*exig.OK, "lint\tpass\t1m\turl\tQualquer"])
+        (self.estado / "check_runs").write_text(RUNS_COM_LINT)
         r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "0")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("exigidos em pass: CI/bateria CI/bateria (python 3.14) Catraca/catraca */lint)", r.stdout)
@@ -62,6 +66,7 @@ class FecharExigidosDoDestino(unittest.TestCase):
     def test_ruleset_ilegivel_nao_acrescenta_e_a_protecao_vale(self):  # o corpo do 404 do ruleset não vira exigido
         (self.estado / "api_protecao").write_text("lint\n")
         self.leituras([*exig.OK, "lint\tpass\t1m\turl"])
+        (self.estado / "check_runs").write_text(RUNS_COM_LINT)
         r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "0")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("exigidos em pass: CI/bateria CI/bateria (python 3.14) Catraca/catraca */lint)", r.stdout)
@@ -152,6 +157,17 @@ class LimparClones(unittest.TestCase):
         self.git("switch", "-q", "melhoria/x", cwd=d)
         self.fica(d, self.limpar())
 
+    def test_commit_so_em_tag_arquivo_nao_prende_o_clone(self):  # LIMPAR-CLONE-PARECER (v0481 E14.1): a tag arquivo/* é da origin (apagada lá)
+        d = self.clone()
+        self.git("switch", "-q", "--detach", cwd=d)
+        self.git("commit", "-q", "--allow-empty", "-m", "so na tag", cwd=d)
+        self.git("tag", "arquivo/t-local", cwd=d)
+        self.git("switch", "-q", "melhoria/x", cwd=d)
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=ok"])
+        self.assertFalse(d.exists())
+
     def test_fsmonitor_do_clone_nao_roda(self):
         d = self.clone()
         marca = self.tmp / "marca-fsmonitor"
@@ -161,14 +177,12 @@ class LimparClones(unittest.TestCase):
         self.assertFalse(marca.exists())
         self.assertFalse(d.exists())
 
-    def test_clone_de_outra_branch_ou_de_outro_origin_nao_e_tocado(self):
+    def test_clone_de_outra_branch_nao_e_tocado(self):  # o de outro origin fica pendente: test_fechar_limpar_clone (E166.1)
         outra = self.clone("c1", "develop")
-        alheio = self.clone("c2")
-        self.git("remote", "set-url", "origin", str(self.tmp / "outro.git"), cwd=alheio)
         r = self.limpar()
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
-        self.assertTrue(outra.is_dir() and alheio.is_dir())
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
+        self.assertTrue(outra.is_dir())
 
     def test_worktree_que_ficou_nao_e_apagada_como_clone(self):
         wt = self.tmp / ".forge-contrib" / "wt" / "w1"
@@ -178,7 +192,7 @@ class LimparClones(unittest.TestCase):
         r = self.limpar()
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
         self.assertTrue(wt.is_dir())
-        self.assertNotIn("clone=", self.resumo(r)[0])
+        self.assertTrue(self.resumo(r)[0].endswith(" clone=nenhum"), r.stdout)  # LIMPAR-CLONE-NAO-LISTADO: o campo sempre sai
 
     # FORGE-FECHAR-CLONE-LIMPAR (v0478 E15.1): o --limpar rodado no clone que está na branch não o trata como worktree.
     def remota(self):
@@ -259,6 +273,115 @@ class LimparClones(unittest.TestCase):
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
         self.assertTrue(self.resumo(r)[0].endswith(" clone=pendente"))
         self.assertIn(f"rm -rf -- {d}", r.stdout)
+
+
+class LimparSemMerge(unittest.TestCase):
+    """LIMPEZA-AO-FIM-DO-ITEM: o --limpar sem PR MERGED nem aberto passa as cópias de $ref ao `forge-copia limpar` (PR fechado sem merge);
+    só a cópia limpa sai, e a branch local e a remota ficam. O `gh` do forge-copia é o falso do PATH (sem rede, R-CUSTO)."""
+    F = fechar_base.Fechar
+    setUp_f, tearDown, git, fechar = F.setUp, F.tearDown, F.git, F.fechar
+    clone = LimparClones.clone
+
+    def setUp(self):
+        self.setUp_f()
+        (self.tmp / "bin" / "gh").write_text('#!/bin/sh\ncat "$ESTADO/estados_copia"\n')
+        (self.tmp / "bin" / "gh").chmod(0o755)
+        (self.estado / "estados_copia").write_text("CLOSED false\n")
+        (self.estado / "lista_extra").write_text(f"234 CLOSED develop {self.git('rev-parse', 'melhoria/x')} false\n")
+
+    def limpar(self):
+        return self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+
+    def test_pr_fechado_apaga_o_clone_limpo_e_a_branch_fica(self):
+        d = self.clone()
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertFalse(d.exists())
+        self.assertIn("limpeza: sem merge, cópias apagadas=1", r.stdout)
+        self.assertIn("refs/heads/melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "melhoria/x")
+
+    def test_pr_fechado_apaga_a_worktree_limpa(self):
+        wt = self.tmp / ".forge-contrib" / "wt" / "w1"
+        wt.parent.mkdir(parents=True)
+        self.git("worktree", "add", "-q", str(wt), "melhoria/x")
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertFalse(wt.exists())
+
+    def test_copia_suja_fica_com_codigo_3(self):
+        d = self.clone()
+        (d / "novo").write_text("x\n")
+        r = self.limpar()
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertTrue(d.is_dir())
+        self.assertIn(f"git -C {d} status --short --branch", r.stdout)
+
+    def test_pr_aberto_para_sem_apagar(self):
+        d = self.clone()
+        (self.estado / "lista_extra").write_text(f"235 OPEN develop {self.git('rev-parse', 'melhoria/x')}\n")
+        r = self.limpar()
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("com PR aberto", r.stderr)
+        self.assertTrue(d.is_dir())
+
+    def test_sem_copia_para_como_antes(self):
+        r = self.limpar()
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("sem prova de merge", r.stderr)
+        self.assertIn("refs/heads/melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+
+    def test_a_copia_principal_na_branch_nao_e_copia_do_item(self):
+        self.git("switch", "-q", "melhoria/x")
+        r = self.limpar()
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("nenhuma cópia dela", r.stderr)
+        self.assertTrue(self.proj.is_dir())
+
+    def checa_vazio(self, linha, rc=0):
+        """O forge-check falso do forge-fechar imprime `linha` (a do `vazio`) e sai `rc`; a do forge-copia segue pelo gh falso."""
+        (self.tmp / "check").write_text(f'#!/usr/bin/env bash\necho "forge-check $*" >> "$REGISTRO"\necho "{linha}"\nexit {rc}\n')
+
+    def recusa_sem_prova(self, d):
+        r = self.limpar()
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no --limpar: sem prova de merge: nenhum PR MERGED em develop para melhoria/x; nada foi apagado", r.stderr)
+        self.assertNotIn("limpeza: sem merge", r.stdout)
+        self.assertTrue(d.is_dir())
+
+    def test_sem_pr_e_sem_vazio_sim_recusa_como_antes_e_a_copia_fica(self):
+        (self.estado / "lista_extra").write_text("")
+        self.recusa_sem_prova(self.clone())
+
+    def test_pr_fechado_de_fork_nao_e_prova_e_a_copia_fica(self):
+        (self.estado / "lista_extra").write_text(f"234 CLOSED develop {self.git('rev-parse', 'melhoria/x')} true\n")
+        self.recusa_sem_prova(self.clone())
+
+    def test_vazio_nao_recusa_como_antes_e_a_copia_fica(self):
+        (self.estado / "lista_extra").write_text("")
+        self.checa_vazio("vazio: não (1 arquivos)")
+        self.recusa_sem_prova(self.clone())
+
+    def test_forge_check_vazio_que_falha_nao_e_prova(self):
+        (self.estado / "lista_extra").write_text("")
+        self.checa_vazio("vazio: sim ref a base b árvore c", rc=2)
+        self.recusa_sem_prova(self.clone())
+
+    def test_sem_pr_com_vazio_sim_entra_na_limpeza_das_copias(self):
+        (self.estado / "lista_extra").write_text("")
+        self.checa_vazio("vazio: sim ref a base b árvore c")
+        d = self.clone()
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("limpeza: sem merge, cópias apagadas=1", r.stdout)
+        self.assertFalse(d.exists())
+
+    def test_clone_de_outra_branch_nao_e_tocado(self):
+        outra, d = self.clone("c1", "develop"), self.clone("c2")
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertFalse(d.exists())
+        self.assertTrue(outra.is_dir())
 
 
 if __name__ == "__main__":

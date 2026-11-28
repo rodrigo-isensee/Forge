@@ -1,0 +1,77 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E147.1 voltas: pedido sem cartão com movimento não conta como medido",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        movimento = chave in por_cartao  #",
+      "para": "        movimento = True  #",
+      "testes": [
+        "tests.test_voltas.RodadasDeBrief.test_pedido_so_em_docs_pedidos_existe_sem_historico"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E147.1 voltas: o brief segue contado sem cartão (vem do registro)",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "{t: 0 if movimento or t == \"brief\" else \"nao-medido\" for t in TIPOS_DE_VOLTA}",
+      "para": "{t: 0 if movimento else \"nao-medido\" for t in TIPOS_DE_VOLTA}",
+      "testes": [
+        "tests.test_voltas.RodadasDeBrief.test_pedido_so_em_docs_pedidos_existe_sem_historico",
+        "tests.test_voltas.RodadasDeBrief.test_rodada_extra_sem_cartao_conta_o_brief_e_nao_mede_o_quadro"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E147.1 voltas: minutos da rodada extra de brief seguem medidos sem cartão",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "minutos={_numero(total) if movimento or linhas else 'nao-medido'}",
+      "para": "minutos={_numero(total) if movimento else 'nao-medido'}",
+      "testes": [
+        "tests.test_voltas.RodadasDeBrief.test_rodada_extra_sem_cartao_conta_o_brief_e_nao_mede_o_quadro"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E147.1 voltas: pedido com rodada extra soma no total",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "        if movimento or linhas:\n            soma = ",
+      "para": "        if movimento:\n            soma = ",
+      "testes": [
+        "tests.test_voltas.RodadasDeBrief.test_rodada_extra_sem_cartao_conta_o_brief_e_nao_mede_o_quadro"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E147.1 voltas: total vazio só com pedido não medido",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "(\"nao-medido\", \"nao-medido\") if nao_medidos and not soma[0] else",
+      "para": "(\"nao-medido\", \"nao-medido\") if not soma[0] else",
+      "testes": [
+        "tests.test_voltas.Voltas.test_sem_historico_avisa_e_nao_quebra"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E147.1 voltas: nao-medidos só aparece com pedido não medido",
+      "arquivo": "bin/forge_voltas.py",
+      "de": "(f\" nao-medidos={nao_medidos}\" if nao_medidos else \"\")",
+      "para": "(f\" nao-medidos={nao_medidos}\" if True else \"\")",
+      "testes": [
+        "tests.test_voltas.Voltas.test_sem_historico_avisa_e_nao_quebra"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E147.1 metricas: pedido sem item com movimento sai nao-medido",
+      "arquivo": "bin/forge_governanca.py",
+      "de": "    if not itens:  # E147.1",
+      "para": "    if False:  # E147.1",
+      "testes": [
+        "tests.test_governanca.Metricas.test_pedido_sem_item_com_movimento_sai_nao_medido_e_nao_zero"
+      ]
+    }
+  ]
+}

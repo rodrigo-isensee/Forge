@@ -1,0 +1,23 @@
+{
+  "descricao": "V0481-PUBLICAR: sessão do Forge, GH_REPO=<forge> forge-check parecer publicar: libera (o R-CONTRIB é da sessão de projeto).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "GH_REPO=rodrigo-isensee/Forge forge-check parecer publicar .forge/pareceres/v1/review.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

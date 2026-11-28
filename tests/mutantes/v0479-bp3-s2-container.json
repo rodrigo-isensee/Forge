@@ -1,0 +1,56 @@
+{
+  "pedido": "v0479-bp3-s2-container",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "tirar a entrada .vscode/tasks.json (Write, Edit e Bash no arquivo voltam a rc 0; A1 da segurança)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \".vscode/tasks.json\", \"quem\": []",
+      "para": "\"caminho\": \".vscode/tasks-x.json\", \"quem\": []",
+      "testes": [
+        "tests.test_conformidade_vscode_container.ArquivosQueOVsCodeExecuta.test_write_edit_e_bash_no_arquivo_em_vigor_saem_2"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "tirar a entrada .devcontainer/devcontainer.json (Write, Edit e Bash no arquivo voltam a rc 0; A2 da segurança)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \".devcontainer/devcontainer.json\", \"quem\": []",
+      "para": "\"caminho\": \".devcontainer/devcontainer-x.json\", \"quem\": []",
+      "testes": [
+        "tests.test_conformidade_vscode_container.ArquivosQueOVsCodeExecuta.test_write_edit_e_bash_no_arquivo_em_vigor_saem_2"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "proteger a pasta .vscode/ inteira em vez do arquivo (o vizinho .vscode/settings.json deixa de ser gravável)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \".vscode/tasks.json\", \"quem\": []",
+      "para": "\"caminho\": \".vscode/\", \"quem\": []",
+      "testes": [
+        "tests.test_conformidade_vscode_container.ArquivosQueOVsCodeExecuta.test_vizinho_na_mesma_pasta_segue_gravavel"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o container do Forge volta a parar ao fechar o VS Code (D2 da BP3; A2 do review)",
+      "arquivo": ".devcontainer/devcontainer.json",
+      "de": "\"shutdownAction\": \"none\",",
+      "para": "\"shutdownAction\": \"stopContainer\",",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_devcontainer_prepara_sozinho_sem_rodar_o_work_tree"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "tirar a entrada .vscode/settings.json (Write, Edit e Bash no arquivo voltam a rc 0; A3 da segurança)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \".vscode/settings.json\", \"quem\": []",
+      "para": "\"caminho\": \".vscode/settings-x.json\", \"quem\": []",
+      "testes": [
+        "tests.test_conformidade_vscode_container.ArquivosQueOVsCodeExecuta.test_write_edit_e_bash_no_arquivo_em_vigor_saem_2"
+      ]
+    }
+  ]
+}

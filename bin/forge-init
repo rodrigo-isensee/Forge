@@ -2,7 +2,7 @@
 # Forge: prepara um projeto para ser desenvolvido pela fábrica.
 # Uso: forge-init [--nome NOME] [--descricao TEXTO] [--stack NOME] [--pronto COMANDO] [--forcar] [--sem-versionar] [--sem-sandbox] [DIRETORIO]
 # Copia templates/projeto para o diretório sem sobrescrever o que já existe (salvo --forcar),
-# substitui os marcadores {{PROJETO}}, {{DESCRICAO}}, {{STACK}}, {{COMANDO_PRONTO}}, {{PRONTO_RAPIDO}} e {{DETECCAO}} e ativa o hook de git
+# substitui os marcadores {{PROJETO}}, {{DESCRICAO}}, {{STACK}}, {{COMANDO_PRONTO}}, {{PRONTO_RAPIDO}}, {{DETECCAO}} e {{INSTALAR}} e ativa o hook de git
 # (nunca troca um core.hooksPath de outra ferramenta nem desliga hooks ativos em .git/hooks).
 # --sem-versionar (FILA-24, D1 = B): no git ficam só .forge/versao, .forge/config.json e as chaves enabledPlugins e
 # extraKnownMarketplaces do .claude/settings.json; o resto vai para .claude/settings.local.json e .git/info/exclude.
@@ -64,9 +64,16 @@ rapido="$(sed -n 's/^Pronto rápido: `\(.*\)`.*/\1/p' "$raiz_forge/stacks/$stack
 # shellcheck disable=SC2016
 deteccao="$(sed -n 's/^Detecção: //p' "$raiz_forge/stacks/$stack/pronto.md" | head -n1 | command grep -o '`[^`]*`' | tr -d '`' | paste -sd' ' -)" || true
 
+# K152: o comando que instala as dependências da stack (os argv de stacks/<stack>/instalar.json unidos por &&), que o
+# pre-push.local mostra quando falta ferramenta numa cópia nova. Sem o arquivo, ilegível ou com aspa simples: vazio.
+instalar="$(python3 -I -c 'import json, shlex, sys
+print(" && ".join(shlex.join(c) for c in json.load(open(sys.argv[1], encoding="utf-8"))["comandos"]))' \
+  "$raiz_forge/stacks/$stack/instalar.json" 2>/dev/null)" || instalar=""
+case "$instalar" in *"'"*) instalar="" ;; esac
+
 escapar() { printf '%s' "$1" | sed -e 's/[\/&|]/\\&/g'; }
 n_esc="$(escapar "$nome")"; d_esc="$(escapar "$descricao")"; p_esc="$(escapar "$pronto")"; s_esc="$(escapar "$stack")"
-r_esc="$(escapar "$rapido")"; t_esc="$(escapar "$deteccao")"
+r_esc="$(escapar "$rapido")"; t_esc="$(escapar "$deteccao")"; i_esc="$(escapar "$instalar")"
 
 # .claude/settings.json existente (o próprio `claude plugin install --scope project` cria um): mescla em vez de pular.
 # Une as chaves do modelo ao arquivo (dicionário por chave, lista sem repetir, valor do projeto fica); não apaga nada.
@@ -161,7 +168,7 @@ while IFS= read -r -d '' arq; do
   fi
   mkdir -p "$(dirname "$alvo")"
   sed -e "s|{{PROJETO}}|$n_esc|g" -e "s|{{DESCRICAO}}|$d_esc|g" -e "s|{{STACK}}|$s_esc|g" -e "s|{{COMANDO_PRONTO}}|$p_esc|g" \
-    -e "s|{{PRONTO_RAPIDO}}|$r_esc|g" -e "s|{{DETECCAO}}|$t_esc|g" "$arq" > "$alvo"
+    -e "s|{{PRONTO_RAPIDO}}|$r_esc|g" -e "s|{{DETECCAO}}|$t_esc|g" -e "s|{{INSTALAR}}|$i_esc|g" "$arq" > "$alvo"
   [ -x "$arq" ] && chmod +x "$alvo"
   if [ "$rel" = ".claude/settings.json" ] && [ "$sandbox_ok" -eq 0 ]; then  # B3: sem bwrap ou credencial, o modelo sai sem sandbox
     sandbox_oferta=1
@@ -193,6 +200,12 @@ PY
   echo "  pesados  .forge/config.json (padrão da stack $stack)"
 fi
 
+# Arquivos de controle negados ao Bash pelo sandbox (SANDBOX-TRAVA-CONTROLE, A2 da segurança): existem antes da primeira sessão,
+# porque o runtime cria vazio e 0444 o caminho negado que não existe. Só cria o que falta (`.forge/run/` não vai ao git).
+mkdir -p "$destino/.forge/run"
+[ -e "$destino/.forge/run/agentes.json" ] || [ -L "$destino/.forge/run/agentes.json" ] || printf '{"agentes": []}\n' > "$destino/.forge/run/agentes.json"
+[ -e "$destino/.forge/run/pesado.json" ] || [ -L "$destino/.forge/run/pesado.json" ] || printf 'null\n' > "$destino/.forge/run/pesado.json"
+
 # Versão do Forge usada (ADR 0005): só grava se ausente, para não esconder migração pendente de projeto antigo;
 # no projeto antigo grava 0.0.0, e o forge-upgrade aplica as migrações.
 versao_forge="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$raiz_forge/.claude-plugin/plugin.json")"
@@ -204,8 +217,9 @@ elif [ ! -e "$destino/.forge/versao" ] || [ "$forcar" -eq 1 ]; then
   mkdir -p "$destino/.forge"; printf '%s\n' "$versao_forge" > "$destino/.forge/versao"
   echo "  criado   .forge/versao ($versao_forge)"
 fi
-# Estado de execução local e preferências da pessoa (perfil de experiência) não são versionados.
-ignorados=('.forge/run/' '.forge/perfil' '.forge/novo-projeto.json' '.forge/onboarding.md')
+# Estado de execução local, preferências da pessoa (perfil de experiência) e as ordens do dono (um commit de branch
+# chegaria à cópia do Jarvis pelo merge; A3 da segurança E123.8) não são versionados.
+ignorados=('.forge/run/' '.forge/perfil' '.forge/novo-projeto.json' '.forge/onboarding.md' '.forge/ordens/')
 if [ "$sem_versionar" -eq 1 ]; then
   # FILA-24 (D1 = B): o que o Forge criou fica fora do git pelo .git/info/exclude, que não é versionado; o .gitignore do
   # projeto não muda. Só entram os arquivos criados agora: o que o projeto já tinha continua como estava.

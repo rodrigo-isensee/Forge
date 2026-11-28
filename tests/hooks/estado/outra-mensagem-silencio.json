@@ -1,0 +1,17 @@
+{
+  "descricao": "Mensagem do dono que não pergunta o estado: silêncio, sem rodar o forge-check status (o erro forçado nele não aparece no erros.log).",
+  "forcar": {
+    "onde": "status",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "prompt": "siga com o item seguinte"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "pedido": "v0479-forge-check-ci-verde",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M22",
+      "guarda": "parecer novo: slug só na convenção melhoria/",
+      "arquivo": "bin/forge-check",
+      "de": "slug = branch.removeprefix(\"melhoria/\") if branch.startswith(\"melhoria/\") else \"\"",
+      "para": "slug = branch.removeprefix(\"melhoria/\") if True else \"\"",
+      "testes": [
+        "tests.test_aq5_parecer_novo.ParecerNovo.test_grava_no_slug_da_branch_e_nao_no_pedido"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "parecer novo: slug só com a forma segura de nome",
+      "arquivo": "bin/forge-check",
+      "de": "slug if NOME_SEGURO_DE_BRIEF.fullmatch(slug) else pedido}.md",
+      "para": "slug if True else pedido}.md",
+      "testes": [
+        "tests.test_aq5_parecer_novo.ParecerNovo.test_grava_no_slug_da_branch_e_nao_no_pedido"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "parecer novo: grava no caminho do slug",
+      "arquivo": "bin/forge-check",
+      "de": "    rel = arquivo_do_parecer_novo(tipo, a.pedido, a.branch)\n",
+      "para": "    rel = f\"{CONTRATOS[tipo][0]}/{a.pedido}.md\"\n",
+      "testes": [
+        "tests.test_aq5_parecer_novo.ParecerNovo.test_grava_no_slug_da_branch_e_nao_no_pedido"
+      ]
+    }
+  ]
+}

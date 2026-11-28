@@ -1,0 +1,77 @@
+{
+  "pedido": "v0481-copia-base",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "COPIA-BASE: a branch que já existe no remoto parte do head remoto dela",
+      "arquivo": "bin/forge-copia",
+      "de": "    if branch and existe(copia, f\"refs/remotes/origin/{branch}\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_branch_que_ja_existe_no_remoto_parte_do_head_dela"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "COPIA-BASE: a base sem origin/ vale como origin/<base>",
+      "arquivo": "bin/forge-copia",
+      "de": "    return (base,) if base.startswith(\"origin/\") else",
+      "para": "    return (base,) if True else",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_clone_que_nasce_na_main_aceita_base_sem_origin"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "COPIA-BASE: só a ref que existe é ponto de partida",
+      "arquivo": "bin/forge-copia",
+      "de": "        if existe(copia, ref):",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_clone_que_nasce_na_main_aceita_base_sem_origin"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "COPIA-BASE: sem ponto de partida, a cópia é apagada e sai 1",
+      "arquivo": "bin/forge-copia",
+      "de": "    if not ponto or git(\"switch\", *alvo, ponto, cwd=real):",
+      "para": "    if git(\"switch\", *alvo, ponto, cwd=real):",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_clone_com_base_que_nao_existe_falha_com_1"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "COPIA-BASE: o switch que falha apaga a cópia",
+      "arquivo": "bin/forge-copia",
+      "de": "        shutil.rmtree(real, ignore_errors=True)  # COPIA-BASE",
+      "para": "        pass  # COPIA-BASE",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_switch_que_falha_apaga_a_copia",
+        "tests.test_forge_copia.Cria.test_clone_com_base_que_nao_existe_falha_com_1"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "COPIA-BASE: o clone que falha sai 1 antes de procurar a base",
+      "arquivo": "bin/forge-copia",
+      "de": "    if git(\"clone\", \"--\", origem, real):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_clone_que_falha_sai_1_antes_de_procurar_a_base"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "COPIA-BASE: a ref só existe com o rev-parse em 0",
+      "arquivo": "bin/forge-copia",
+      "de": "\"-q\", f\"{ref}^{{commit}}\"])[0] == 0",
+      "para": "\"-q\", f\"{ref}^{{commit}}\"])[0] != 0",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_clone_que_nasce_na_main_aceita_base_sem_origin"
+      ]
+    }
+  ]
+}

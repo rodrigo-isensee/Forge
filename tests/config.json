@@ -78,6 +78,9 @@
       ".github/workflows/ci.yml": [
         "\\bnpm\\b"
       ],
+      ".github/workflows/diario.yml": [
+        "\\bnpm\\b"
+      ],
       "scripts/preparar-estacao.sh": [
         "\\bNode(\\.js)?\\b",
         "\\bpnpm\\b"
@@ -99,7 +102,8 @@
     {"tipo": "trecho", "n": 7, "sha256": "6bff709e40e583c408e0585e149a68b4f368268b384189bce6194ebcf3800684"},
     {"tipo": "palavra", "n": 3, "sha256": "887539ae032b612757c3db85abb59a5021d6258e6238fe40556103f404d33dc0"},
     {"tipo": "palavra", "n": 3, "sha256": "227467f082ea66c3f9419cc76615ad680d56c5c167a7accbee3b4a9c94cb196e"},
-    {"tipo": "palavra", "n": 3, "sha256": "12c243f2ea0b6bc32902e349799d84f41c84822a39f2ce447bb1831eb4102ab7"}
+    {"tipo": "palavra", "n": 3, "sha256": "12c243f2ea0b6bc32902e349799d84f41c84822a39f2ce447bb1831eb4102ab7"},
+    {"tipo": "trecho", "n": 26, "sha256": "3d518989252aee08ea77b7d9fc207402e796a1f4bbb71d27343ebcd32fc3de50"}
   ],
   "anti_duplicacao": {
     "palavras": 12,
@@ -192,7 +196,7 @@
       "skills/briefs-e-conferencia/autor-ate-o-merge\\.md",
       "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez",
       "skills/falar-com-o-dono/nao-trava\\.md",
-      "a versão sai quando ficar pronta \\(diretriz 34\\)",
+      "a versão fecha com 20 itens integrados \\(diretriz 34\\)",
       "o pedido só fecha com ela gravada",
       "Teto do time \\(H6\\): até 20 agentes e 12 branches abertas",
       "agente livre termina o que está aberto",
@@ -353,6 +357,7 @@
     ],
     "templates/projeto/docs/engineering/protecao-de-branch.md": [
       "sem ator de bypass",
+      "\\*\\*Require merge queue\\*\\*",
       "`R-CONFORMIDADE`",
       "Enforcement status: \\*\\*Active\\*\\*"
     ],
@@ -513,7 +518,9 @@
       "\\*\\*Nunca\\*\\* apague `develop`, `homolog` nem `main`",
       "`git worktree prune`",
       "\\*\\*Fluxo contínuo:\\*\\*",
-      "a versão é uma tag e release sobre um commit da `develop`"
+      "a versão é uma tag e release sobre um commit da `develop`",
+      "Um merge por vez, testado sobre o topo",
+      "Topo vermelho: só o conserto, preso ao head revisado"
     ],
     "docs/regras/R-NEUTRO.md": [
       "nada específico de um projeto entra em agentes, skills, docs ou modelos"
@@ -572,7 +579,8 @@
       "conferir o diff contra a lista de `CA-n`",
       "no mesmo head do review",
       "## Mutantes declarados nos pedidos de controle",
-      "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado"
+      "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado",
+      "grave o JSON de cada caso ao terminar, em `relatorios/<rodada>/` no projeto, nunca em `/tmp`, que some; acrescente `relatorios/` ao `\\.gitignore` antes da rodada"
     ],
     "skills/cyber-security/SKILL.md": [
       "suíte inteira roda só no CI",
@@ -602,6 +610,10 @@
       "Por que o existente não basta"
     ],
     "skills/trabalho-em-paralelo/ritmo-e-corte.md": [
+      "\\*\\*Conserto da integração vermelha\\*\\*",
+      "nenhum portão é dispensado",
+      "merge preso ao head revisado",
+      "\\*\\*Lote\\*\\* \\(diretriz 26\\) é exceção declarada",
       "## Ritmo diário \\(diretriz 32 do dono\\)",
       "## Corte do trabalho por arquivo \\(diretriz 33 do dono\\)",
       "## Teto do time \\(decisão do dono, H6\\)",
@@ -610,8 +622,8 @@
       "no máximo 12 branches com trabalho aberto",
       "Até 20 agentes ao mesmo tempo",
       "Agente livre termina o que está aberto",
-      "## Versão quando ficar pronta \\(diretriz 34 do dono\\)",
-      "até 2 por dia, ou mais se couber",
+      "## Versão com 20 itens \\(diretriz 34 do dono\\)",
+      "A versão fecha com 20 itens integrados na `develop`",
       "o Jarvis avisa o dono numa linha quando ele fica verde"
     ],
     "skills/falar-com-o-dono/nao-trava.md": [
@@ -644,7 +656,7 @@
       "\\*\\*Ritmo diário:\\*\\*",
       "\\*\\*Corte por arquivo:\\*\\*",
       "\\*\\*Teto do time:\\*\\*",
-      "a versão sai quando a branch de integração tem um conjunto verde que valha uma versão, até 2 por dia",
+      "a versão fecha quando a branch de integração soma 20 itens integrados, sem versão por dia",
       "`R-VERIFY`",
       "`R-COPIA`"
     ],
@@ -832,9 +844,12 @@
     "scripts/jarvis-forge": 2
   },
   "invariantes_motivo_trecho": {
+    "templates/projeto/docs/engineering/protecao-de-branch.md": {
+      "\\*\\*Require merge queue\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto de organização não liga a fila nativa e o PR testado sobre a integração velha entra (BP2 D6)"}
+    },
     "templates/projeto/CLAUDE.md": {
       "\\*\\*Ritmo diário:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo não recebe o ritmo diário: junção contínua e a versão para a main (diretriz 32)"},
-      "a versão sai quando a branch de integração tem um conjunto verde que valha uma versão, até 2 por dia": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo segura a versão para uma vez só de manhã e o que está verde espera (diretriz 34)"},
+      "a versão fecha quando a branch de integração soma 20 itens integrados, sem versão por dia": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo não recebe o fechamento da versão com 20 itens integrados e volta a fechar versão por dia (diretriz 34, ordem do dono de 26/11)"},
       "\\*\\*Corte por arquivo:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo divide o mesmo arquivo entre agentes em paralelo e colhe conflito no fim (diretriz 33)"},
       "\\*\\*Teto do time:\\*\\*": {"regra": "R-TETO", "porque": "sem o texto, o projeto novo não recebe o teto de 20 agentes e 12 branches abertas do H6"}
     },
@@ -863,7 +878,8 @@
       "o autor roda o oráculo e não o edita": {"regra": "R-CONFORMIDADE", "porque": "sem o texto, o autor trata o oráculo do portão como teste seu e o ajusta para passar (EXT-1)"}
     },
     "skills/qa-testing/SKILL.md": {
-      "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado": {"regra": "R-QA", "porque": "sem o texto, o parecer lê só o git log e aceita o oráculo apagado da história por reset ou rebase (EXT-1, C-2)"}
+      "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado": {"regra": "R-QA", "porque": "sem o texto, o parecer lê só o git log e aceita o oráculo apagado da história por reset ou rebase (EXT-1, C-2)"},
+      "grave o JSON de cada caso ao terminar, em `relatorios/<rodada>/` no projeto, nunca em `/tmp`, que some; acrescente `relatorios/` ao `\\.gitignore` antes da rodada": {"regra": "R-QA", "porque": "sem o texto, a rodada longa de suíte ou E2E grava o resultado em /tmp ou só no fim e perde o que já rodou quando a sessão cai (K165)"}
     },
     "agents/jarvis.md": {
       "\\*\\*Recibo antes de acionar o time\\*\\* \\(mensagem no meio da rodada: na fala seguinte, antes de tudo\\)": {"regra": "R-DECISAO", "porque": "sem o texto, a mensagem do dono que chega no meio da rodada fica sem recibo e some atrás do andamento (RECIBO-NO-MEIO-DA-RODADA)"},
@@ -872,7 +888,7 @@
       "skills/briefs-e-conferencia/autor-ate-o-merge\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o Jarvis perde o detalhe do H2 (quando o autor travou, o aviso do hook e a volta única), movido pelo teto de caracteres (diretriz 25)"},
       "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis segura o time por uma decisão pendente e repete a pergunta ao dono (diretriz 34)"},
       "skills/falar-com-o-dono/nao-trava\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o Jarvis perde o detalhe de não travar e do comando exato no bloqueio de ambiente (diretriz 34)"},
-      "a versão sai quando ficar pronta \\(diretriz 34\\)": {"regra": "R-FLUXO", "porque": "sem o texto, a versão volta a esperar a manhã e o que está verde na develop fica parado (diretriz 34)"},
+      "a versão fecha com 20 itens integrados \\(diretriz 34\\)": {"regra": "R-FLUXO", "porque": "sem o texto, a versão volta a sair por dia ou parcial, fora dos 20 itens combinados com o dono (diretriz 34)"},
       "Teto do time \\(H6\\): até 20 agentes e 12 branches abertas": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis abre branch nova acima de 12 e as branches abertas se acumulam sem terminar (decisão do dono no H6)"},
       "agente livre termina o que está aberto": {"regra": "R-TETO", "porque": "sem o texto, o agente livre abre item novo e a revisão, o conserto e o teste vermelho das branches abertas ficam parados (H6)"},
       "skills/trabalho-em-paralelo/ritmo-e-corte\\.md": {"regra": "R-FLUXO", "porque": "sem o apontamento, o Jarvis perde o detalhe do ritmo diário e do corte por arquivo (diretrizes 32 e 33 do dono)"},
@@ -927,7 +943,7 @@
   },
   "custo_permitido": {},
   "testes_fora_do_ci": {},
-  "teto_pulados": 2,
+  "teto_pulados": 1,
   "padroes_custo_transcricao": [
     {"token": "custo claude -p", "regex": "^claude\\b.*\\s(?:-p|--print)\\b"},
     {"token": "custo plugin eval", "regex": "^claude\\s+plugin\\b.*\\beval\\b"},

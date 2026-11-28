@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "V1",
+      "guarda": "o git stage passa pela conferência do índice (E63.5, A2)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "INDICE_NO_GIT = {\"add\", \"stage\", \"update-index\", \"reset\"}  # E63.5: `stage` é o `add` (A2); o `reset` com caminho (A7)\n",
+      "para": "INDICE_NO_GIT = {\"add\", \"update-index\", \"reset\"}  # E63.5: `stage` é o `add` (A2); o `reset` com caminho (A7)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "V2",
+      "guarda": "o git reset com caminho passa pela conferência do índice (E63.5, A7)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "INDICE_NO_GIT = {\"add\", \"stage\", \"update-index\", \"reset\"}  # E63.5: `stage` é o `add` (A2); o `reset` com caminho (A7)\n",
+      "para": "INDICE_NO_GIT = {\"add\", \"stage\", \"update-index\"}  # E63.5: `stage` é o `add` (A2); o `reset` com caminho (A7)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "V3",
+      "guarda": "o caminho da política com * é procurado no texto do interpretador (E63.5, A9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if \"*\" in c:  # A9 da E63.3: o `*` da política casa um trecho sem barra no texto\n",
+      "para": "            if False:  # A9 da E63.3: o `*` da política casa um trecho sem barra no texto\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "V4",
+      "guarda": "o filtro barato do caminho com * só pula o texto sem o fim do caminho (E63.5, A9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if c.rsplit(\"*\", 1)[1] not in texto:  # o fim depois do `*` antes da busca: custo do corpus\n",
+      "para": "                if True:  # o fim depois do `*` antes da busca: custo do corpus\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "V5",
+      "guarda": "o trecho que casa o * vira o caminho conferido (E63.5, A9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if achado:\n            return achado.group(0)\n",
+      "para": "        if False:\n            return achado.group(0)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "V8",
+      "guarda": "o caminho da política com ~/ casa também pelo home real (E63.5, A9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    for forma in ((caminho, caminho.replace(\"~\", home, 1)) if caminho.startswith(\"~/\") else (caminho,)):\n",
+      "para": "    for forma in ((caminho, caminho.replace(\"~\", home, 1)) if False else (caminho,)):\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "V6",
+      "guarda": "o shell com a entrada tirada de um arquivo não lê o pipe (E63.5, E51.10)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if redirecoes and entrada_de_arquivo(redirecoes, linha):\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "V7",
+      "guarda": "a entrada tirada de <(…) é texto opaco (E63.5, A4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if alvo is None or re.search(r\"[`*?[{]|<\\(\", alvo.cru):\n",
+      "para": "    if alvo is None or re.search(r\"[`*?[{]\", alvo.cru):\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    }
+  ]
+}

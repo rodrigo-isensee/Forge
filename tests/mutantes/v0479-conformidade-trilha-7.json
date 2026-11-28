@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "U1",
+      "guarda": "o shell atrás de um envolvedor (env, timeout, sudo) conta (E63.5, A4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        shell = nome in SHELLS and (j == 0 or nomes[0] in ENVOLVEDORES)\n",
+      "para": "        shell = nome in SHELLS and j == 0\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "U2",
+      "guarda": "o source e o ponto como programa contam (E63.5, A4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not (shell or valores[j] in FONTES and na_posicao_de_programa(valores, j)):\n",
+      "para": "        if not shell:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "U3",
+      "guarda": "as opções do shell antes do script são puladas (E63.5, A4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        while i < len(valores) and valores[i][:1] in (\"-\", \"+\") and valores[i] not in ENTRADA_DO_SHELL:\n",
+      "para": "        while False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "U4",
+      "guarda": "a opção do shell com valor pula o valor (E63.5, A4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            i += 2 if valores[i] in SHELL_OPCAO_COM_VALOR else 1\n",
+      "para": "            i += 2 if False else 1\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "U5",
+      "guarda": "o shell com /dev/stdin ou com o script por substituição lê a entrada (E63.5, A4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if i >= len(valores) and shell or i < len(valores) and (valores[i] in ENTRADA_DO_SHELL or opacas[i]):\n",
+      "para": "        if i >= len(valores) and shell:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "U6",
+      "guarda": "a pasta mãe e o pedido citados em qualquer posição contam como controle (E63.5, A1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "CONTROLE_NO_TEXTO = re.compile(r\"forge-contrib[\\s\\S]*(?:pedidos|briefs|ordens)|(?:pedidos|briefs|ordens)\"\n                               r\"[\\s\\S]*forge-contrib\", re.I)\n",
+      "para": "CONTROLE_NO_TEXTO = re.compile(r\"\\.forge-contrib(?:/[^/\\s]+)?/docs/(?:pedidos|briefs|ordens)(?![\\w.-])\", re.I)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "U7",
+      "guarda": "com a pasta corrente no controle, citar pedidos ou briefs basta (E63.5, A1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self.controle and self.na_pasta_do_controle():\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "U8",
+      "guarda": "a cópia de wt/ não é a pasta do controle (E63.5, A1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return rel is not None and not rel.startswith(\"wt/\")\n",
+      "para": "        return rel is not None\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    }
+  ]
+}

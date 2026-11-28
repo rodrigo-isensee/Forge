@@ -1,0 +1,56 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP100",
+      "guarda": "AE7.1 fora_da_medida: manifesto fora da lista (F4, F5)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if cod != 0 or fora_da_lista(texto):",
+      "para": "if cod != 0 or False:",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_chave_hooks_no_manifesto_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP101",
+      "guarda": "AE7.1 CHAVES_MARKETPLACE: chave fora na raiz do marketplace (F5)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "CHAVES_MARKETPLACE = {\"$schema\",",
+      "para": "CHAVES_MARKETPLACE = {\"strict\", \"$schema\",",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f5_marketplace_fora_da_lista"
+      ]
+    },
+    {
+      "id": "CMP102",
+      "guarda": "AE7.1 RAIZ_FORA: settings.json na raiz (F3)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "b\".lsp.json\", b\"settings.json\", b\"monitors\"",
+      "para": "b\".lsp.json\", b\"monitors\"",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f3_arquivo_de_convencao_na_raiz"
+      ]
+    },
+    {
+      "id": "CMP103",
+      "guarda": "AE7.1 MODOS: link fora da F1 (A11)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "MODOS = (b\"100644\", b\"100755\")",
+      "para": "MODOS = (b\"100644\", b\"100755\", b\"120000\")",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_link_simbolico_em_qualquer_pasta_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP104",
+      "guarda": "AE7.1 CHAVES_PLUGIN: mcpServers fora da F4 (A16)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "CHAVES_PLUGIN = {\"name\",",
+      "para": "CHAVES_PLUGIN = {\"mcpServers\", \"name\",",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f4_chave_fora_da_lista_no_plugin_json"
+      ]
+    }
+  ]
+}

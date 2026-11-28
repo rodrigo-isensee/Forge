@@ -1,0 +1,25 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.5, S5 da segurança do #854): `-F query=@/dev/stdin` é a entrada padrão do gh, não um arquivo que o hook lê; a consulta ilegível recusa na sessão de projeto.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "q.graphql": "mutation{mergePullRequest(input:{pullRequestId:\"PR_x\"}){clientMutationId}}\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api graphql -F query=@/dev/stdin < q.graphql"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh api que muda algo no Forge (ou cujo repositório o hook não confirma)"
+  }
+}

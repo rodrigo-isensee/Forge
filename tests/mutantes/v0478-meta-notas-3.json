@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M15",
+      "guarda": "o pré-filtro pula o registro de resultado (\"type\":\"tool_result\") sem decodificar (mutante: decodifica); E137.1: a nota do assistente é a M1 de v0480-meta-notas-reconta",
+      "arquivo": "hooks/meta.py",
+      "de": "if ('\"type\":\"tool_result\"' in linha and",
+      "para": "if (False and",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_resultado_de_ferramenta_nem_se_decodifica"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "a marca nova é o uuid do registro mais novo lido (mutante: o mais velho)",
+      "arquivo": "hooks/meta.py",
+      "de": "if nova is None and isinstance(uuid, str):",
+      "para": "if isinstance(uuid, str):",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_segundo_stop_sem_fala_do_dono_nao_reconta_a_nota"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "a rodada para na marca do Stop anterior (mutante: só na fala do dono)",
+      "arquivo": "hooks/meta.py",
+      "de": " or (marca is not None and uuid == marca):",
+      "para": ":",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_segundo_stop_sem_fala_do_dono_nao_reconta_a_nota"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "a final anterior não conta como nota (mutante: conta)",
+      "arquivo": "hooks/meta.py",
+      "de": " and resumo(texto) != final_anterior:",
+      "para": ":",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_final_anterior_que_chegou_depois_ao_transcrito_nao_conta"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "registro que não é objeto não tem uuid (mutante: lido como objeto)",
+      "arquivo": "hooks/meta.py",
+      "de": "uuid = obj.get(\"uuid\") if isinstance(obj, dict) else None",
+      "para": "uuid = obj.get(\"uuid\") if True else None",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_registro_fora_da_forma_e_pulado_sem_erro"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "marca fora da forma (não objeto) vale como sem marca (mutante: lida como objeto); E137.1: a marca é por transcrito",
+      "arquivo": "hooks/meta.py",
+      "de": " if isinstance(vista, dict) else {}",
+      "para": " if True else {}",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_marca_ilegivel_ou_fora_da_forma_e_ignorada"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "marca ilegível vale como sem marca (mutante: a exceção sobe e a medida se perde)",
+      "arquivo": "hooks/meta.py",
+      "de": "    except (OSError, ValueError):\n        return {}\n    return {t: v",
+      "para": "    except (OSError, ValueError):\n        raise\n    return {t: v",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_marca_ilegivel_ou_fora_da_forma_e_ignorada"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "falha ao gravar a marca vai ao erros.log e a medida segue (mutante: a exceção sobe e a linha se perde)",
+      "arquivo": "hooks/meta.py",
+      "de": "        hook.registrar_erro(erro)\n    return sum(",
+      "para": "        raise\n    return sum(",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_marca_que_nao_grava_nao_perde_a_linha_da_medida"
+      ]
+    }
+  ]
+}

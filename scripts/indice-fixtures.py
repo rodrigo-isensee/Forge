@@ -3,11 +3,15 @@
 
 Uso: indice-fixtures.py              grava docs/hooks-fixtures.md a partir do corpus
      indice-fixtures.py --conferir   não grava; rc 1 se o arquivo não está em dia (o teste do índice usa o mesmo texto)
+     indice-fixtures.py --detalhe    não grava; imprime as contagens, as regras, os cartões e um exemplo por grupo
 
-O índice agrupa por hook (a pasta) e por prefixo (o nome do caso até o primeiro `-`). Para cada grupo: quantos casos,
-quantos recusam (`esperado.codigo` 2) e quantos liberam (0), as regras `R-*` que o `esperado.stderr` cita, os cartões que
-abrem a `descricao` e uma descrição de exemplo, a primeira sem termo de stack (`neutralidade_nucleo` de
-tests/config.json, ADR 0001: o índice é núcleo). Nenhuma fixture muda de nome nem de lugar: o índice só lê.
+O arquivo versionado (HOOKS-FIXTURES-GERADA, E18.1) lista, por hook (a pasta), os prefixos dos casos (o nome até o primeiro
+`-`), uma linha por prefixo em ordem alfabética e sem contagem: cada linha depende só do próprio prefixo, então caso novo
+num prefixo que já existe não muda o arquivo, e dois PRs que acrescentam fixtures se juntam sem conflito nele. O detalhe
+(quantos casos, quantos recusam com `esperado.codigo` 2 e quantos liberam com 0, as regras `R-*` do `esperado.stderr`, os
+cartões que abrem a `descricao` e uma descrição de exemplo, a primeira sem termo de stack de `neutralidade_nucleo` em
+tests/config.json, ADR 0001) muda a cada caso e por isso só sai no `--detalhe`, nunca no arquivo. Nenhuma fixture muda de
+nome nem de lugar: o índice só lê.
 """
 import json
 import re
@@ -71,18 +75,28 @@ def exemplo_neutro(casos, termos):
     return "—"
 
 
-def gerar(raiz=RAIZ, termos=None):
+def gerar(raiz=RAIZ):
+    """O texto de docs/hooks-fixtures.md: por hook, uma linha por prefixo, sem contagem (cada linha só do seu grupo)."""
+    linhas = ["# Índice das fixtures dos hooks", "",
+              "<!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script quando surgir prefixo ou hook novo. -->",
+              "",
+              "O corpus de `tests/hooks/<hook>/<caso>.json` roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada "
+              "de uma chamada ao hook e o código e a saída que ele tem de dar. Aqui, por hook, os prefixos do nome do caso "
+              "(até o primeiro `-`), em ordem alfabética e sem contagem: caso novo num prefixo que já existe não muda este "
+              "arquivo, e PRs paralelos se juntam sem conflito nele. As contagens, as regras `R-*`, os cartões e um exemplo "
+              "por grupo saem de `python3 scripts/indice-fixtures.py --detalhe`, sem gravar."]
+    for hook, por_prefixo in sorted(ler(raiz).items()):
+        linhas += ["", f"## `{hook}`", ""] + [f"- `{nome}-*`" for nome in sorted(por_prefixo)]
+    return "\n".join(linhas) + "\n"
+
+
+def detalhe(raiz=RAIZ, termos=None):
+    """As tabelas com contagens, regras, cartões e exemplo por grupo (só para o `--detalhe`; mudam a cada caso novo)."""
     grupos = ler(raiz)
     termos = termos_de_stack() if termos is None else termos
     total = sum(len(f) for por_prefixo in grupos.values() for f in por_prefixo.values())
-    linhas = ["# Índice das fixtures dos hooks", "",
-              "<!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->", "",
-              f"O corpus de `tests/hooks/<hook>/<caso>.json` ({total} fixtures) roda em `tests/test_hooks.py` (ADR 0003): "
-              "cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por "
-              "hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "
-              "\"Recusa\" é `esperado.codigo` 2; \"libera\", 0. As regras são as `R-*` do `stderr` esperado; os cartões, "
-              "o identificador que abre a `descricao`.", "", "## Por hook", "", "| Hook | Fixtures | Recusa | Libera | Prefixos |",
-              "| --- | ---: | ---: | ---: | ---: |"]
+    linhas = [f"# Detalhe das fixtures dos hooks ({total} fixtures)", "", "## Por hook", "",
+              "| Hook | Fixtures | Recusa | Libera | Prefixos |", "| --- | ---: | ---: | ---: | ---: |"]
     for hook, por_prefixo in sorted(grupos.items()):
         casos = [f for lista in por_prefixo.values() for f in lista]
         recusa, libera = placar(casos)
@@ -102,6 +116,9 @@ def gerar(raiz=RAIZ, termos=None):
 
 
 def main(argv):
+    if argv == ["--detalhe"]:
+        print(detalhe(RAIZ), end="")
+        return 0
     texto = gerar(RAIZ)
     destino = RAIZ / INDICE
     if argv == ["--conferir"]:

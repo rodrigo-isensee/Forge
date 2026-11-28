@@ -1,0 +1,66 @@
+{
+  "pedido": "v0479-trilha-forge-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "BRIEF-PORTAO-REBASE: o brief de portão com branch traz o envio por pull --rebase e o pedido: do parecer",
+      "arquivo": "bin/forge-check",
+      "de": "        if branch and interpolacao_segura(pedido=pedido_id, branch=branch):  # G-5",
+      "para": "        if branch and not interpolacao_segura(pedido=pedido_id, branch=branch):  # G-5",
+      "testes": [
+        "tests.test_trilha_forge_check.EnvioDoParecer"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "BRIEF-PORTAO-REBASE: sem branch, o brief de portão não escreve o envio",
+      "arquivo": "bin/forge-check",
+      "de": "        if branch and interpolacao_segura(pedido=pedido_id, branch=branch):  # G-5",
+      "para": "        if interpolacao_segura(pedido=pedido_id, branch=branch or 'x'):  # G-5",
+      "testes": [
+        "tests.test_trilha_forge_check.EnvioDoParecer"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "K-166: a etapa com entrega conferida recusa a delegação nova",
+      "arquivo": "bin/forge-check",
+      "de": "    if coberta and coberta in etapas_conferidas(raiz, caminho_pedido, historico):  # K-166",
+      "para": "    if coberta and coberta not in etapas_conferidas(raiz, caminho_pedido, historico):  # K-166",
+      "testes": [
+        "tests.test_trilha_forge_check.ModeloDePedidoNoGerar"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "K-166: as conferidas saem do ## Histórico do pedido",
+      "arquivo": "bin/forge-check",
+      "de": "    historico = secoes_por(pedido_txt, CABECALHO_PEDIDO).get(\"Histórico\", [])",
+      "para": "    historico = secoes_por(pedido_txt, CABECALHO_PEDIDO).get(\"Escopo\", [])",
+      "testes": [
+        "tests.test_trilha_forge_check.ModeloDePedidoNoGerar"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "K-252: a etapa que cita .githooks/ ganha a linha da proposta",
+      "arquivo": "bin/forge-check",
+      "de": "            if \".githooks/\" in dados[\"etapas\"][coberta][1]:",
+      "para": "            if \".githooks/\" not in dados[\"etapas\"][coberta][1]:",
+      "testes": [
+        "tests.test_trilha_forge_check.ModeloDePedidoNoGerar"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "K-156: o portão com pedido e base na forma ganha o PQ do forge-check pr",
+      "arquivo": "bin/forge-check",
+      "de": "        if interpolacao_segura(pedido=pedido_id, base=base.removeprefix(\"origin/\")):  # K-156",
+      "para": "        if not interpolacao_segura(pedido=pedido_id, base=base.removeprefix(\"origin/\")):  # K-156",
+      "testes": [
+        "tests.test_trilha_forge_check.ModeloDePedidoNoGerar"
+      ]
+    }
+  ]
+}

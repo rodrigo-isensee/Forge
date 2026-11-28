@@ -79,7 +79,7 @@
       "de": "    [ \"$(\"${g[@]}\" symbolic-ref -q HEAD 2>/dev/null || true)\" = \"refs/heads/$ref\" ] || continue",
       "para": "    true || continue",
       "testes": [
-        "tests.test_forge_fechar.LimparClones.test_clone_de_outra_branch_ou_de_outro_origin_nao_e_tocado"
+        "tests.test_forge_fechar.LimparClones.test_clone_de_outra_branch_nao_e_tocado"
       ]
     }
   ]

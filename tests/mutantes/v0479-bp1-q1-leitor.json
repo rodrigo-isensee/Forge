@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-bp1-q1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q1",
+      "guarda": "arquivo fora do formato (entradas não é lista de objetos)",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "if not isinstance(entradas, list) or not all(",
+      "para": "if not isinstance(entradas, list) and not all(",
+      "testes": [
+        "tests.test_forge_quarentena.Carregar.test_ausente_ilegivel_e_fora_do_formato_nao_deixam_entrada"
+      ]
+    },
+    {
+      "id": "Q2",
+      "guarda": "data só AAAA-MM-DD (texto fora do padrão não vale)",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "if not isinstance(texto, str) or not DATA.fullmatch(texto):",
+      "para": "if not isinstance(texto, str):",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_data_fora_de_aaaa_mm_dd"
+      ]
+    },
+    {
+      "id": "Q3",
+      "guarda": "classe dentro da lista",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "e[\"classe\"] not in CLASSES",
+      "para": "e[\"classe\"] in CLASSES",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_classe_fora_da_lista"
+      ]
+    },
+    {
+      "id": "Q4",
+      "guarda": "data ilegível é erro",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "(desde is None or prazo is None)",
+      "para": "(desde is None and prazo is None)",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_data_fora_de_aaaa_mm_dd"
+      ]
+    },
+    {
+      "id": "Q5",
+      "guarda": "prazo de no máximo 7 dias, nunca antes de desde",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "desde + datetime.timedelta(days=PRAZO_DIAS):",
+      "para": "desde + datetime.timedelta(days=PRAZO_DIAS + 1):",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_prazo_de_ate_sete_dias_e_nao_antes_de_desde"
+      ]
+    },
+    {
+      "id": "Q6",
+      "guarda": "autorizacao só A-<n>",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "and not OK_DO_DONO.fullmatch(str(e[\"autorizacao\"])):",
+      "para": "and OK_DO_DONO.fullmatch(str(e[\"autorizacao\"])):",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_autorizacao_so_a_n"
+      ]
+    },
+    {
+      "id": "Q7",
+      "guarda": "prorrogacao que não é objeto",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "if not isinstance(pror, dict):",
+      "para": "if isinstance(pror, dict):",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_prorrogacao_que_nao_e_objeto"
+      ]
+    },
+    {
+      "id": "Q8",
+      "guarda": "prorrogação depois do prazo e em até 7 dias",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "not prazo < novo <= prazo",
+      "para": "not prazo <= novo <= prazo",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_prorrogacao_fora_do_prazo"
+      ]
+    }
+  ]
+}

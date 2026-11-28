@@ -40,7 +40,9 @@ class TestPassoAPassoDaProtecao(unittest.TestCase):
     def test_checks_citados_existem_nos_workflows(self):
         nomes = set()
         for wf in sorted((RAIZ / ".github/workflows").glob("*.yml")):
-            nomes.update(re.findall(r"^\s+name:\s*([^\s#][^#\n]*?)\s*(?:#.*)?$", wf.read_text(encoding="utf-8"), re.M))
+            achados = re.findall(r"^\s+name:\s*([^\s#][^#\n]*?)\s*(?:#.*)?$", wf.read_text(encoding="utf-8"), re.M)
+            # E47.1: o sufixo da espera (vazio sem espera) não faz parte do check exigido
+            nomes.update(re.sub(r"\$\{\{[^}]*outputs\.espera[^}]*\}\}$", "", n) for n in achados)
         citados = re.findall(r"^- Check exigido: `([^`]+)`", ler(FORGE), re.M)
         self.assertGreaterEqual(len(citados), 2)
         for check in citados:
@@ -113,6 +115,37 @@ class ChecagemDoBrief(unittest.TestCase):
     def test_briefs_e_conferencia_manda_ler_a_skill(self):
         self.assertIn("Leia a skill `checagem-do-brief` para o que a ferramenta não sabe",
                       ler("skills/briefs-e-conferencia/SKILL.md"))
+
+
+class ModeloPedidoEBrief(unittest.TestCase):
+    """MODELO-PEDIDO-E-BRIEF (v0478 E86.1): o modelo de pedido e a checagem do brief trazem o que as entregas esqueciam."""
+
+    def etapas(self):
+        return ler("templates/projeto/docs/pedidos/_modelo.md").split("## Etapas\n", 1)[1].split("\n## ", 1)[0]
+
+    def test_modelo_de_pedido_ja_traz_a_retrospectiva_em_etapas(self):
+        self.assertRegex(self.etapas(), r"(?m)^- E1\.\d+ \(agile-coach\): retrospectiva do pedido")
+
+    def test_modelo_de_pedido_pede_uma_etapa_numerada_por_delegacao(self):
+        self.assertIn("Uma etapa numerada por delegação", self.etapas())
+
+    def test_pedido_com_dois_repositorios_usa_a_marca_que_a_ferramenta_le(self):
+        # A marca é a que o `forge-check` aceita na citação de sha (OUTRO_REPOSITORIO).
+        self.assertRegex(self.etapas(), r"dois repositórios: uma etapa e uma branch por repositório.*`\(outro repositório\)`")
+
+    def test_checagem_manda_ler_o_por_tema_e_ele_traz_cada_tema(self):
+        self.assertIn("`por-tema.md`", ler(SKILL_CHECAGEM))
+        tema = ler("skills/checagem-do-brief/por-tema.md")
+        for trecho in ("git worktree add --no-track", "status -sb", "**`.githooks/`:** o arquivo é do usuário",
+                       "pede o diff como proposta", "o PQ `forge-check pr <pedido>` com `rc=0`",
+                       "tira o número de um comando rodado na entrega", "com a data e o commit; nunca de uma rodada anterior"):
+            self.assertIn(trecho, tema, trecho)
+        for termo in SO_DO_FORGE:
+            self.assertNotIn(termo, tema, termo)
+
+    def test_onde_se_cria_a_worktree_se_confere_a_branch_logo_depois(self):
+        fluxo = next(l for l in ler("skills/fluxo-do-pedido/SKILL.md").splitlines() if l.startswith("4. **Desenvolvimento:**"))
+        self.assertRegex(fluxo, r"crie a worktree na sua sessão antes de delegar e confira `git status -sb`")
 
 
 if __name__ == "__main__":

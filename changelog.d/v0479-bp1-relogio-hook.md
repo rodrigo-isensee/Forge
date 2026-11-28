@@ -1,2 +1,0 @@
-### Corrigido
-- Hooks e testes: o vigia de prazo do `_comum.executar` recebe o relógio e o alarme só por palavra-chave (padrão real; nenhum hook nem o driver do lote os passa, conferido por AST), e a sonda S1 vira duas provas: a pequena, com relógio falso (recusa em 8 s, libera dentro e a fronteira exata), e a real, que só afirma a recusa com 16 s de git contra 8 s; a máquina rápida deixa de liberar a S1 no CI (v0478 E37.16).

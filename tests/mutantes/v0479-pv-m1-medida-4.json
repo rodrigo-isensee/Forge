@@ -1,0 +1,78 @@
+{
+  "pedido": "v0479-pv-m1-medida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "a lacuna diz qual fonte falhou",
+      "arquivo": "bin/forge-placar",
+      "de": "'--runs' if runs is None else '--pr-lista'",
+      "para": "'--runs' if runs is not None else '--pr-lista'",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_resposta_ilegivel_sai_lacuna_nunca_verde"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "lacuna no --json sai como JSON",
+      "arquivo": "bin/forge-placar",
+      "de": "print(json.dumps({\"lacuna\": motivo}, ensure_ascii=False) if args.json else",
+      "para": "print(json.dumps({\"lacuna\": motivo}, ensure_ascii=False) if False else",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_resposta_ilegivel_sai_lacuna_nunca_verde"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "o --json da medida sai como JSON",
+      "arquivo": "bin/forge-placar",
+      "de": "    if args.json:\n        print(json.dumps({\"janela\"",
+      "para": "    if False:\n        print(json.dumps({\"janela\"",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_verde_nos_dois_exigidos"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "janela sem PR diz que não há PR",
+      "arquivo": "bin/forge-placar",
+      "de": "    if not grupos:\n        print(\"total: nenhum PR",
+      "para": "    if False:\n        print(\"total: nenhum PR",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_dependabot_e_pr_fora_da_janela_ficam_fora"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "o subcomando ci-primeira chama a medida",
+      "arquivo": "bin/forge-placar",
+      "de": "if argv[:1] == [\"ci-primeira\"]:",
+      "para": "if argv[:1] == [\"ci-primeiro\"]:",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_verde_nos_dois_exigidos"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-placar",
+      "trecho": "isinstance(pr[\"author\"], dict)",
+      "motivo": "author objeto ou texto: o login do dependabot aparece nos dois; trocar o ramo é equivalente"
+    },
+    {
+      "arquivo": "bin/forge-placar",
+      "trecho": "c == \"total\"",
+      "motivo": "só a ordem de impressão (total por último); não decide estado nem taxa"
+    },
+    {
+      "arquivo": "bin/forge-placar",
+      "trecho": ".items())) or \"-\"",
+      "motivo": "só a impressão do traço quando não há vermelho; não decide estado nem taxa"
+    },
+    {
+      "arquivo": "tests/evals/test_placar.py",
+      "trecho": "cru is not None",
+      "motivo": "apoio do teste: a fonte crua só no caso da resposta ilegível"
+    }
+  ]
+}

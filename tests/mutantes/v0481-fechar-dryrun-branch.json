@@ -1,0 +1,57 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "FECHAR-DRYRUN-SEM-BRANCH: o --limpar --dry-run so descreve o passo 7, sem 1c",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$seco\" = 1 ] && [ \"$limpar\" = 1 ]; then",
+      "para": "if [ \"$seco\" = 1 ] && [ \"$limpar\" = 9 ]; then",
+      "testes": [
+        "tests.test_fechar.Fechar.test_limpar_dry_run_sem_a_branch_so_descreve_o_passo_7"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "FECHAR-DRYRUN-SEM-BRANCH: com a branch local, o --dry-run usa ela e nao cria nada",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if ! sha_dry=\"$(git rev-parse --verify -q \"refs/heads/$ref^{commit}\" 2>/dev/null)\"; then",
+      "para": "  if sha_dry=\"$(git rev-parse --verify -q \"refs/heads/$ref^{commit}\" 2>/dev/null)\"; then",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_no_dry_run_roda_o_conferir_ref_contra_a_homolog_local_sem_busca"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "FECHAR-DRYRUN-SEM-BRANCH: sem a branch local e sem a origin/<branch>, para com 1",
+      "arquivo": "bin/forge-fechar",
+      "de": "      || die \"parou no --dry-run: sem a branch local",
+      "para": "      || : \"parou no --dry-run: sem a branch local",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_no_dry_run_sem_a_branch_local_nem_a_origin_para_com_1_e_diz_como_destravar"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "FECHAR-DRYRUN-SEM-BRANCH: a branch que nao se cria para com 1",
+      "arquivo": "bin/forge-fechar",
+      "de": ">/dev/null 2>&1 || die \"parou no --dry-run: não consegui criar",
+      "para": ">/dev/null 2>&1 || : \"parou no --dry-run: não consegui criar",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_no_dry_run_que_nao_cria_a_branch_para_com_1"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "FECHAR-DRYRUN-SEM-BRANCH: a branch que o --dry-run cria sai no fim (branch_criada), o passo real le o servidor",
+      "arquivo": "bin/forge-fechar",
+      "de": "    branch_criada=\"$sha_dry\"",
+      "para": "    : branch_criada=\"$sha_dry\"",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_no_dry_run_sem_a_branch_local_cria_da_origin_sem_rastreio_e_roda",
+        "tests.test_fechar.Fechar.test_dry_run_sem_a_branch_local_nao_prende_o_passo_real_na_origin_velha"
+      ]
+    }
+  ]
+}

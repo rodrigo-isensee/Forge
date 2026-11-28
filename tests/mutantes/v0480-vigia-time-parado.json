@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-vigia-time-parado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "VIGIA-TIME-PARADO: só o Stop avisa",
+      "arquivo": "hooks/vigia.py",
+      "de": "if hook.campo(\"hook_event_name\") != \"Stop\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_subagent_stop_nao_bloqueia"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "VIGIA-TIME-PARADO: Stop que segue o bloqueio deixa encerrar",
+      "arquivo": "hooks/vigia.py",
+      "de": "if hook.campo(\"stop_hook_active\") is True:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_segundo_stop_seguido_deixa_passar"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "VIGIA-TIME-PARADO: agente vigente cala",
+      "arquivo": "hooks/vigia.py",
+      "de": "livres = [] if vivos else cartoes_livres(",
+      "para": "livres = [] if False else cartoes_livres(",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_agente_rodando_cala"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "VIGIA-TIME-PARADO: marca de dependência na Obs. tira o cartão",
+      "arquivo": "hooks/vigia.py",
+      "de": "if any(marca in _normal(celulas[-1]) for marca in MARCAS_DE_DEPENDENCIA):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_so_cartoes_dependentes_cala"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "VIGIA-TIME-PARADO: só a coluna Pronto para fazer conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "if not na_coluna or not linha.lstrip().startswith(\"|\"):",
+      "para": "if not linha.lstrip().startswith(\"|\"):",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_cartao_de_outra_coluna_nao_conta"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "VIGIA-TIME-PARADO: quadro acima do limite cala",
+      "arquivo": "hooks/vigia.py",
+      "de": "if len(dados) > LIMITE_QUADRO:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_quadro_grande_demais_cala"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "VIGIA-TIME-PARADO: ID fora do formato não vai ao modelo",
+      "arquivo": "hooks/vigia.py",
+      "de": "primeiro = f\", primeiro {livres[0]}\" if _ID_DO_CARTAO.fullmatch(livres[0]) else \"\"",
+      "para": "primeiro = f\", primeiro {livres[0]}\" if True else \"\"",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_id_fora_do_formato_nao_vai_ao_modelo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "VIGIA-TIME-PARADO: sem cartão livre cala",
+      "arquivo": "hooks/vigia.py",
+      "de": "    if not partes:\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_cartao_de_outra_coluna_nao_conta"
+      ]
+    }
+  ]
+}

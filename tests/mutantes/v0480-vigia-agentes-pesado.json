@@ -1,0 +1,67 @@
+{
+  "pedido": "v0480-vigia-agentes-pesado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "VIGIA-AGENTES-PESADO (E172.3): hook sem marcador (critico None) volta a liberar no prazo vencido",
+      "arquivo": "hooks/_comum.py",
+      "de": "    recusa = evento != \"PostToolUse\" and (critico is not None or evento == \"PreToolUse\")",
+      "para": "    recusa = critico is not None and evento != \"PostToolUse\" and (critico is not None or evento == \"PreToolUse\")",
+      "testes": [
+        "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_fixtures_do_vigia_agentes_pesado"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "VIGIA-AGENTES-PESADO: sem marcador, o prazo vencido fora do PreToolUse (SubagentStop, PostToolUseFailure) não recusa",
+      "arquivo": "hooks/_comum.py",
+      "de": "critico is not None or evento == \"PreToolUse\"",
+      "para": "True or evento == \"PreToolUse\"",
+      "testes": [
+        "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_fixtures_do_vigia_agentes_pesado"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "VIGIA-AGENTES-PESADO: o vigia arma sem o marcador crítico, só com a regra do prazo",
+      "arquivo": "hooks/_comum.py",
+      "de": "PRAZO_DA_DECISAO_S) if regra_do_prazo else None",
+      "para": "PRAZO_DA_DECISAO_S) if regra_do_prazo and critico is not None else None",
+      "testes": [
+        "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_fixtures_do_vigia_agentes_pesado",
+        "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_prazo_do_hook_pelo_relogio_falso"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "VIGIA-AGENTES-PESADO: o prazo do hook (8 s no agentes, 290 s no pesado) vale no lugar dos 3 s comuns",
+      "arquivo": "hooks/_comum.py",
+      "de": "max(prazo_do_hook or 0, PRAZO_DA_DECISAO_S)",
+      "para": "max(0, PRAZO_DA_DECISAO_S)",
+      "testes": [
+        "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_prazo_do_hook_pelo_relogio_falso"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "VIGIA-AGENTES-PESADO: no agentes, a sessão no clone do Forge é vigiada",
+      "arquivo": "hooks/agentes.py",
+      "de": "executar(\"agentes\", principal, clone_do_forge=True,",
+      "para": "executar(\"agentes\", principal, clone_do_forge=False,",
+      "testes": [
+        "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_fixtures_do_vigia_agentes_pesado"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "VIGIA-AGENTES-PESADO: no pesado, a sessão no clone do Forge é vigiada",
+      "arquivo": "hooks/pesado.py",
+      "de": "executar(\"pesado\", principal, clone_do_forge=True,",
+      "para": "executar(\"pesado\", principal, clone_do_forge=False,",
+      "testes": [
+        "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_fixtures_do_vigia_agentes_pesado"
+      ]
+    }
+  ]
+}

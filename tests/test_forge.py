@@ -314,6 +314,15 @@ class Agentes(unittest.TestCase):
         self.assertIn("stacks/<stack>/agents/", tabela)
 
 
+class ReadmeVisaoDeFoco(unittest.TestCase):
+    """DIR-31 (v0478 E67.1): o README diz por que a visão de foco vem ligada, onde desligar e como ligar na extensão do VS Code."""
+
+    def test_readme_diz_onde_desligar_e_a_extensao_do_vs_code(self):
+        texto = (RAIZ / "README.md").read_text(encoding="utf-8")
+        self.assertIn('Para desligar: `"viewMode": "default"`', texto)
+        self.assertIn("Ctrl+Alt+F", texto)
+
+
 class PrePushSoOsAfetados(unittest.TestCase):
     """M8 (decisão do dono, 2026-10-24): os textos não dizem mais que o pre-push roda a suíte inteira."""
 
@@ -889,6 +898,12 @@ class ForgeInit(unittest.TestCase):
         self.rodar()
         self.assertEqual((self.tmp / ".gitignore").read_text(encoding="utf-8").splitlines().count(".forge/run/"), 1)
 
+    def test_o_arquivo_de_ordens_fica_fora_do_git(self):  # A3 da segurança E123.8: o commit de branch não chega ao Jarvis
+        self.rodar()
+        (self.tmp / ".forge/ordens").mkdir()
+        (self.tmp / ".forge/ordens/ordens-em-vigor.md").write_text("ordem do dono\n", encoding="utf-8")
+        git("check-ignore", "-q", ".forge/ordens/ordens-em-vigor.md", cwd=self.tmp)  # não ignorado: sai com 1 e levanta
+
     def test_projeto_antigo_fica_com_versao_zero(self):
         (self.tmp / "KANBAN.md").write_text("# Quadro\n", encoding="utf-8")
         saida = self.rodar().stdout
@@ -957,7 +972,7 @@ class ForgeUpgrade(unittest.TestCase):
             self.assertEqual((self.tmp / rel).read_bytes().decode("utf-8"), texto, rel)
         docs = subprocess.run([str(RAIZ / "bin/forge-check"), "--raiz", str(self.tmp), "docs"],
                               env=ambiente_limpo(), capture_output=True, text=True)
-        self.assertEqual((docs.returncode, docs.stdout), (0, ""))
+        self.assertEqual((docs.returncode, docs.stdout), (0, "docs: ok\n"))
         self.assertEqual(git("log", "--format=%s", "develop..HEAD", cwd=self.tmp).stdout.strip(),
                          "chore(forge): migração 0.5.0")
         antes = git("rev-parse", "HEAD", cwd=self.tmp).stdout
@@ -1755,6 +1770,9 @@ class CI(unittest.TestCase):
         self.assertIn("github-actions", texto)
 
 
+FORGE_URL_PUBLICA = "https://github.com/rodrigo-isensee/Forge.git"
+
+
 class PrepararEstacao(unittest.TestCase):
     def test_scripts_existem_e_sao_executaveis(self):
         for nome in ("preparar-estacao.sh", "jarvis-forge", "jarvis", "instalar-atalho.sh"):
@@ -1812,22 +1830,22 @@ class PrepararEstacao(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
 
     @staticmethod
-    def _sem_gh(env, tmp):
-        """PATH sem o gh real: cada pasta que o tem vira uma pasta de links para o resto."""
+    def _sem_gh(env, tmp, nome="gh"):
+        """PATH sem o `nome` real (gh): cada pasta que o tem vira uma pasta de links para o resto."""
         novas = []
         for k, q in enumerate(env["PATH"].split(":")):
-            if (Path(q) / "gh").exists():
-                copia = Path(tmp) / f"sem-gh{k}"
-                copia.mkdir()
+            if (Path(q) / nome).exists():
+                copia = Path(tmp) / f"sem-{nome}{k}"
+                copia.mkdir(exist_ok=True)
                 for item in Path(q).iterdir():
-                    if item.name != "gh":
+                    if item.name != nome and not (copia / item.name).is_symlink():
                         (copia / item.name).symlink_to(item)
                 q = str(copia)
             novas.append(q)
         env["PATH"] = ":".join(novas)
 
     def _container(self, tmp, *args, logado=False, escopos="'gist', 'repo', 'workflow'", essencial=False, sem_gh=False, extras=None,
-                   plugin_ativo=False):
+                   plugin_ativo=False, sem_claude_local=False, sem_tmux=False, antes=None):
         """Roda `preparar-estacao.sh --container` sem rede: gh, tmux, shellcheck, claude, sudo, curl e apt-get são
         falsos e registram a chamada; o jarvis-forge da origem falsa cria a cópia vigente com `dev/`."""
         tmp = Path(tmp)
@@ -1836,8 +1854,14 @@ class PrepararEstacao(unittest.TestCase):
         for d in (home / ".claude", origem / "scripts", bin_falso):
             d.mkdir(parents=True, exist_ok=True)
         registro = tmp / "chamadas"
+        if not sem_claude_local:  # E119.1: o Claude Code atual já em ~/.local/bin (o teste de instalação o tira)
+            (home / ".local/bin").mkdir(parents=True, exist_ok=True)
+            (home / ".local/bin/claude").write_text("#!/bin/sh\nexit 0\n")
+            (home / ".local/bin/claude").chmod(0o755)
         (origem / "scripts" / "jarvis-forge").write_text(
             '#!/bin/sh\nd="$HOME/.local/share/forge/vigente/dev/agents"\nmkdir -p "$d" && echo aq > "$d/aq.md"\n')
+        if antes:  # prepara o home e o disco persistente antes do preparo (ex.: um estado quebrado)
+            antes(home, persist)
         mostrar_escopos = f"echo \"  - Token scopes: {escopos}\"; " if escopos else ""
         falsos = {
             "gh": 'case "$1" in --version) echo "gh version 2.104.0 (2026-11-12)"; exit 0 ;; esac\n'
@@ -1852,6 +1876,8 @@ class PrepararEstacao(unittest.TestCase):
         falsos.update({n: f'echo "{n} $*" >> "{registro}"\nexit 1\n' for n in ("sudo", "curl", "apt-get")})
         if sem_gh:
             falsos.pop("gh")
+        if sem_tmux:
+            falsos.pop("tmux")
         falsos.update(extras or {})
         if plugin_ativo:  # o installPath ativo do escopo do usuário (ADR 0017): só existe com o plugin instalado de verdade
             ativo = home / ".claude/plugins/cache/forge/forge/9.9.9"
@@ -1870,6 +1896,8 @@ class PrepararEstacao(unittest.TestCase):
                    FORGE_APT_CHAVE=str(tmp / "apt-chave.gpg"), FORGE_APT_LISTA=str(tmp / "apt-gh.list"))
         if sem_gh:
             self._sem_gh(env, tmp)
+        if sem_tmux:
+            self._sem_gh(env, tmp, "tmux")
         if essencial:
             env["FORGE_PREPARO_ESSENCIAL"] = "1"
         argv = list(args) if any(a in ("--verificar", "--container") for a in args) else ["--container", *args]
@@ -1965,7 +1993,7 @@ class PrepararEstacao(unittest.TestCase):
 
     def test_container_simular_nao_altera_nada(self):
         with tempfile.TemporaryDirectory() as tmp:
-            r, home, persist, chamadas = self._container(tmp, "--simular")
+            r, home, persist, chamadas = self._container(tmp, "--simular", sem_claude_local=True)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertIn("[simular]", r.stdout)
             for criado in ("Forge", ".config", ".local", ".forge-contrib"):
@@ -1979,7 +2007,8 @@ class PrepararEstacao(unittest.TestCase):
 
     def test_devcontainer_prepara_sozinho_sem_rodar_o_work_tree(self):
         """E2.54: o postStartCommand refaz o essencial sem o dono; B2 (0.43.1): como root, só roda clone raso novo da main (nunca
-        o work tree nem ref local), sem remoteEnv (o GH_TOKEN do dono não entra), sem segredo e sem travar o container."""
+        o work tree nem ref local), sem remoteEnv (o GH_TOKEN do dono não entra), sem segredo. DEVCONTAINER-SEM-GH (E35.6): no Forge
+        o clone é anônimo (sem gh, credential.helper vazio), a URL é fixa e a falha sai com 1 e aviso, sem "; true" engolindo."""
         for caminho in (".devcontainer/devcontainer.json", "templates/projeto/.devcontainer/devcontainer.json"):
             with self.subTest(caminho=caminho):
                 texto, cfg = self._cfg_devcontainer(caminho)
@@ -1991,13 +2020,21 @@ class PrepararEstacao(unittest.TestCase):
                 self.assertIn("mktemp -d", cmd)
                 self.assertIn("clone -q --depth 1 --branch main --single-branch", cmd)
                 self.assertNotRegex(cmd, r"refs/remotes|origin/main|\bshow\b")  # nada de ref local
-                self.assertTrue(cmd.rstrip().endswith("; true"), "falha do preparo não pode impedir o container de subir")
+                if caminho.startswith("templates"):
+                    self.assertTrue(cmd.rstrip().endswith("; true"), "falha do preparo não pode impedir o container de subir")
+                else:
+                    self.assertIn("GIT_TERMINAL_PROMPT=0 git -c credential.helper= clone", cmd)
+                    self.assertIn(FORGE_URL_PUBLICA, cmd)
+                    self.assertNotRegex(cmd, r"\bgh\b|config --get|(?<!rode )bash /workspaces")  # sem gh e nada vem da cópia de trabalho
+                    self.assertNotRegex(cmd, r";\s*true\s*$")
                 self.assertNotRegex(texto, r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|localEnv")
+                self.assertEqual(cfg.get("shutdownAction"), "none", "D2 da BP3: fechar o VS Code não para o container")
         self.assertIn("FORGE_PREPARO_ESSENCIAL=1", self._cfg_devcontainer(".devcontainer/devcontainer.json")[1]["postStartCommand"])
 
     def _poststart(self, tmp, caminho, script, main_script, local_script):
-        """Roda o postStartCommand literal. Remoto nu com `main_script` na main; o clone de trabalho tem o ref `origin/main` e a
-        `main` local FORJADOS para `local_script` (o agente grava .git/refs no sandbox). Devolve (processo, marcas executadas)."""
+        """Roda o postStartCommand literal. Remoto nu com `main_script` na main (a URL pública do Forge vira esse remoto); o clone de
+        trabalho (/workspaces/Forge) tem o ref origin/main e a main local FORJADOS para `local_script` (o agente grava .git/refs
+        no sandbox). Um gh falso grava a marca gh se alguém o chamar. Devolve (processo, marcas executadas)."""
         tmp = Path(tmp)
         remoto, trab, marcas = tmp / "remoto.git", tmp / "trab", tmp / "marcas"
         marcas.mkdir()
@@ -2015,33 +2052,123 @@ class PrepararEstacao(unittest.TestCase):
         git("update-ref", "refs/remotes/origin/main", forjado, cwd=trab)
         git("checkout", "-q", "-B", "main", forjado, cwd=trab)
         cmd = self._cfg_devcontainer(caminho)[1]["postStartCommand"]
-        cmd = cmd.replace("/workspaces/Forge", str(trab)).replace("${containerWorkspaceFolder}", str(trab))
-        r = subprocess.run(["bash", "-c", cmd], env=ambiente_limpo(), capture_output=True, text=True,
-                           stdin=subprocess.DEVNULL, timeout=60)
+        cmd = cmd.replace(FORGE_URL_PUBLICA, f"file://{remoto}").replace("/workspaces/Forge", str(trab))
+        cmd = cmd.replace("${containerWorkspaceFolder}", str(trab))
+        falsos = tmp / "falsos"
+        falsos.mkdir()
+        (falsos / "gh").write_text(f'#!/bin/sh\necho x > "{marcas}/gh"\nexit 1\n')
+        (falsos / "gh").chmod(0o755)
+        env = ambiente_limpo()
+        env["PATH"] = f"{falsos}:{env['PATH']}"
+        r = subprocess.run(["bash", "-c", cmd], env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=60)
         return r, sorted(p.name for p in marcas.iterdir())
 
     def test_poststart_roda_so_a_main_do_remoto_nunca_o_ref_local_forjado(self):
-        """A2 do review e A1 da segurança: forjar refs/remotes/origin/main (e a main local) não faz o root rodar o script do agente."""
+        """A2 do review e A1 da segurança: forjar refs/remotes/origin/main (e a main local) não faz o root rodar o script do agente.
+        Caso de abuso da defesa B2, de volta para o Forge (E35.6): o script forjado do work tree também não roda, o gh não é chamado
+        e o script da main recebe FORGE_PREPARO_ESSENCIAL=1 e --container."""
         casos = ((".devcontainer/devcontainer.json", "scripts/preparar-estacao.sh", "# FORGE_PREPARO_ESSENCIAL:-0\n"),
                  ("templates/projeto/.devcontainer/devcontainer.json", ".devcontainer/preparar-ambiente.sh", ""))
         for caminho, script, guarda in casos:
             with self.subTest(caminho=caminho), tempfile.TemporaryDirectory() as tmp:
-                bom = f'#!/bin/bash\n{guarda}echo x > "{tmp}/marcas/bom"\n'
+                bom = f'#!/bin/bash\n{guarda}echo "$FORGE_PREPARO_ESSENCIAL $*" > "{tmp}/marcas/bom"\n'
                 ruim = f'#!/bin/bash\n{guarda}echo x > "{tmp}/marcas/forjado"\n'
                 r, marcas = self._poststart(tmp, caminho, script, bom, ruim)
                 self.assertEqual((r.returncode, marcas), (0, ["bom"]), r.stdout + r.stderr)
+                if caminho.startswith(".devcontainer"):
+                    self.assertEqual((Path(tmp) / "marcas/bom").read_text().strip(), "1 --container")
+
+    def _poststart_forge(self, tmp, main_script):
+        """O comando do Forge com a main do remoto = main_script e o script do work tree forjado."""
+        forjado = f'#!/bin/bash\n# FORGE_PREPARO_ESSENCIAL:-0\necho x > "{tmp}/marcas/forjado"\n'
+        return self._poststart(tmp, ".devcontainer/devcontainer.json", "scripts/preparar-estacao.sh", main_script, forjado)
+
+    def test_poststart_do_forge_sai_1_com_aviso_quando_o_preparo_falha(self):
+        """E35.6 (A2 do review): script da main que falha: o comando literal sai 1 e avisa em ERRO, sem engolir."""
+        with tempfile.TemporaryDirectory() as tmp:
+            falha = f'#!/bin/bash\n# FORGE_PREPARO_ESSENCIAL:-0\necho "erro: gh não instalado" >&2\necho x > "{tmp}/marcas/rodou"\nexit 1\n'
+            r, marcas = self._poststart_forge(tmp, falha)
+            self.assertEqual((r.returncode, marcas), (1, ["rodou"]), r.stdout + r.stderr)
+            self.assertIn("ERRO: o preparo do container falhou", r.stderr)
+            self.assertIn("erro: gh não instalado", r.stderr)
 
     def test_poststart_do_forge_exige_a_guarda_no_script_da_main(self):
-        """A1 do devops: a main antiga (sem FORGE_PREPARO_ESSENCIAL) rodaria o --container inteiro como root; sem a marca, pula."""
+        """A1 do devops: a main antiga (sem FORGE_PREPARO_ESSENCIAL) rodaria o --container inteiro como root; sem a marca, não roda
+        e o comando avisa e sai 1 (E35.6: a falha não é mais engolida)."""
         with tempfile.TemporaryDirectory() as tmp:
             antigo = f'#!/bin/bash\necho x > "{tmp}/marcas/antigo"\n'
-            r, marcas = self._poststart(tmp, ".devcontainer/devcontainer.json", "scripts/preparar-estacao.sh", antigo, antigo + "#\n")
-            self.assertEqual((r.returncode, marcas), (0, []), r.stdout + r.stderr)
+            r, marcas = self._poststart_forge(tmp, antigo)
+            self.assertEqual((r.returncode, marcas), (1, []), r.stdout + r.stderr)
+            self.assertIn("ERRO: o preparo do container falhou", r.stderr)
+
+    def test_poststart_do_forge_sem_alcancar_a_main_sai_1_com_aviso(self):
+        """E35.6: sem rede ou sem o remoto, o clone falha: o comando avisa e sai 1, sem rodar nada nem prender o prompt."""
+        with tempfile.TemporaryDirectory() as tmp:
+            cmd = self._cfg_devcontainer(".devcontainer/devcontainer.json")[1]["postStartCommand"]
+            cmd = cmd.replace(FORGE_URL_PUBLICA, f"file://{tmp}/nao-existe.git")
+            r = subprocess.run(["bash", "-c", cmd], env=ambiente_limpo(), capture_output=True, text=True,
+                               stdin=subprocess.DEVNULL, timeout=60)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("ERRO: o preparo do container falhou", r.stderr)
 
     def test_poststart_sem_o_script_na_main_nao_derruba_o_container(self):
         with tempfile.TemporaryDirectory() as tmp:
             r, marcas = self._poststart(tmp, "templates/projeto/.devcontainer/devcontainer.json", "outro.txt", "x\n", "y\n")
             self.assertEqual((r.returncode, marcas), (0, []), r.stdout + r.stderr)
+
+    def test_container_cria_config_do_gh_e_sai_0_com_o_essencial_no_lugar(self):
+        """DEVCONTAINER-SEM-GH: recriado o container, o preparo deixa ~/.config/gh e o link ~/.forge-contrib e sai com 0."""
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "persist" / ".forge-contrib").mkdir(parents=True)
+            r, home, persist, _ = self._container(tmp, logado=True, essencial=True)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertTrue((home / ".config/gh").is_dir())
+            self.assertEqual((home / ".forge-contrib").resolve(), (persist / ".forge-contrib").resolve())
+            self.assertNotIn("erro:", r.stderr)
+
+    def test_container_sem_gh_sai_1_com_linha_de_erro_clara(self):
+        """DEVCONTAINER-SEM-GH: faltou o gh (apt falho): rc 1 e uma linha `erro:` na saída de erro, sem engolir; ~/.config/gh sai antes."""
+        with tempfile.TemporaryDirectory() as tmp:
+            r, home, _, _ = self._container(tmp, essencial=True, sem_gh=True)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("erro: gh não instalado", r.stderr)
+            self.assertTrue((home / ".config/gh").is_dir())
+
+    def test_container_sem_tmux_sai_1_com_linha_de_erro_clara(self):
+        """E35.6 (A1 do review, M6): faltou o tmux (apt falho): rc 1 e uma linha erro: na saída de erro."""
+        with tempfile.TemporaryDirectory() as tmp:
+            r, _, _, _ = self._container(tmp, essencial=True, sem_tmux=True)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("erro: tmux não instalado", r.stderr)
+            self.assertNotIn("erro: gh", r.stderr)
+
+    def test_container_sem_a_config_do_gh_sai_1_com_linha_de_erro_clara(self):
+        """E35.6 (A1 do review, M7): sem ~/.config/gh o sandbox do Bash não abre; ~/.config sendo um arquivo impede criá-la: rc 1 e erro:."""
+        with tempfile.TemporaryDirectory() as tmp:
+            r, home, _, _ = self._container(tmp, essencial=True, antes=lambda home, persist: (home / ".config").write_text("arquivo\n"))
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn(f"erro: {home}/.config/gh ausente", r.stderr)
+            self.assertNotIn("erro: gh", r.stderr)
+
+    def test_container_com_o_link_da_area_ausente_sai_1_com_linha_de_erro_clara(self):
+        """E35.6 (A1 do review, M8): o ~/.forge-contrib é um diretório com dados, diferente do disco persistente (o preparo não mexe,
+        e acusa o conflito): faltou o link, então rc 1 e uma linha erro: link."""
+        def quebrado(home, persist):
+            (persist / ".forge-contrib").mkdir(parents=True)
+            (home / ".forge-contrib").mkdir()
+            (home / ".forge-contrib" / "dado.txt").write_text("não perder")
+        with tempfile.TemporaryDirectory() as tmp:
+            r, home, persist, _ = self._container(tmp, essencial=True, antes=quebrado)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn(f"erro: link {home}/.forge-contrib -> {persist}/.forge-contrib ausente", r.stderr)
+            self.assertEqual((home / ".forge-contrib" / "dado.txt").read_text(), "não perder")
+
+    def test_container_simulado_nao_roda_a_conferencia_final(self):
+        """E35.6 (M12): --simular não instala nada, então não pode acusar o que ficou por instalar (rc 0, sem erro:)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            r, _, _, _ = self._container(tmp, "--container", "--simular", essencial=True, sem_gh=True, sem_tmux=True)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertNotIn("erro:", r.stderr)
 
     def test_container_essencial_nao_roda_vigente_nem_marketplace(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2097,7 +2224,7 @@ class PrepararEstacao(unittest.TestCase):
             self.assertEqual(r.returncode, 1)
             self.assertIn("falta: gh não instalado: rode bash ", r.stdout)
 
-    def _projeto_ambiente(self, tmp, *args, logado=False, sem_gh=False, extras=None):
+    def _projeto_ambiente(self, tmp, *args, logado=False, sem_gh=False, sem_tmux=False, extras=None, sem_claude_local=False):
         """Roda o preparar-ambiente.sh do modelo de projeto com gh falso e home descartável."""
         tmp = Path(tmp)
         home, persist, bin_falso, proj = tmp / "home", tmp / "persist", tmp / "bin", tmp / "proj"
@@ -2106,8 +2233,14 @@ class PrepararEstacao(unittest.TestCase):
         if not (proj / ".git").exists():
             git("init", "-q", cwd=proj)
         registro = tmp / "chamadas"
+        if not sem_claude_local:  # E119.1
+            (home / ".local/bin").mkdir(parents=True, exist_ok=True)
+            (home / ".local/bin/claude").write_text("#!/bin/sh\nexit 0\n")
+            (home / ".local/bin/claude").chmod(0o755)
         falsos = {} if sem_gh else {"gh": f'echo "gh $*" >> "{registro}"\n[ "$1 $2" = "auth status" ] && exit {0 if logado else 1}\nexit 0\n'}
         falsos.update({n: f'echo "{n} $*" >> "{registro}"\nexit 1\n' for n in ("sudo", "curl", "apt-get")})
+        if not sem_tmux:
+            falsos["tmux"] = "exit 0\n"
         falsos.update(extras or {})
         for nome, corpo in falsos.items():
             (bin_falso / nome).write_text("#!/bin/sh\n" + corpo)
@@ -2117,6 +2250,8 @@ class PrepararEstacao(unittest.TestCase):
                    FORGE_APT_CHAVE=str(tmp / "apt-chave.gpg"), FORGE_APT_LISTA=str(tmp / "apt-gh.list"))
         if sem_gh:
             self._sem_gh(env, tmp)
+        if sem_tmux:
+            self._sem_gh(env, tmp, "tmux")
         r = subprocess.run(["bash", str(RAIZ / "templates/projeto/.devcontainer/preparar-ambiente.sh"), *args], env=env,
                            capture_output=True, text=True, stdin=subprocess.DEVNULL)
         return r, home, persist, proj, (registro.read_text() if registro.exists() else "")
@@ -2148,6 +2283,56 @@ class PrepararEstacao(unittest.TestCase):
             self.assertEqual(r.returncode, 1)
             self.assertIn("falta: login do gh:", r.stdout)
             self.assertIn("fez: core.hooksPath=.githooks", r.stdout)
+
+    def test_modelo_de_projeto_instala_tmux_pelo_apt_e_verificar_lista_a_falta(self):
+        """BP3 S2: sem tmux, o preparo o instala pelo apt do sistema (sem chave nova) e o --verificar diz `falta: tmux`."""
+        with tempfile.TemporaryDirectory() as tmp:
+            r, _, _, proj, _ = self._projeto_ambiente(tmp, "--verificar", logado=True, sem_tmux=True)
+            self.assertEqual(r.returncode, 1)
+            self.assertIn(f"falta: tmux não instalado (a sessão do Jarvis não sobrevive a uma queda do terminal sem ele): rode bash {proj}/", r.stdout)
+            apt = {"sudo": 'exec "$@"\n', "apt-get": f'echo "apt-get $*" >> "{Path(tmp) / "chamadas"}"\nexit 0\n'}
+            r, _, _, _, chamadas = self._projeto_ambiente(tmp, logado=True, sem_tmux=True, extras=apt)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("fez: instalou tmux", r.stdout)
+            self.assertIn("apt-get install -y -qq tmux", chamadas)
+        with tempfile.TemporaryDirectory() as tmp:
+            r, *_ = self._projeto_ambiente(tmp, logado=True, sem_tmux=True)  # apt falso falha: a falta aparece e sai 1
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("falta: instalar tmux", r.stdout)
+
+    def test_modelo_de_projeto_vscode_so_anexa_ao_jarvis_existente_e_container_nao_para(self):
+        """BP3 S2 (D2, D3 do dono): a tarefa roda ao abrir a pasta, só anexa ao tmux que já existe (nunca `new-session`) e o
+        container do modelo não para ao fechar o VS Code."""
+        tarefas = json.loads((RAIZ / "templates/projeto/.vscode/tasks.json").read_text(encoding="utf-8"))["tasks"]
+        self.assertEqual(len(tarefas), 1)
+        t = tarefas[0]
+        self.assertEqual(t["runOptions"], {"runOn": "folderOpen"})
+        self.assertIn("tmux has-session", t["command"])
+        self.assertIn("tmux attach-session", t["command"])
+        self.assertNotIn("new-session", t["command"])
+        self.assertEqual(self._cfg_devcontainer("templates/projeto/.devcontainer/devcontainer.json")[1]["shutdownAction"], "none")
+
+    def test_tarefa_do_vscode_anexa_a_sessao_existente_e_nao_cria_outra(self):
+        """O comando literal da tarefa, com tmux falso: sessão presente -> attach da sessão exata; ausente -> aviso, sem criar nada."""
+        cmd = json.loads((RAIZ / "templates/projeto/.vscode/tasks.json").read_text(encoding="utf-8"))["tasks"][0]["command"]
+        for existe in (True, False):
+            with self.subTest(existe=existe), tempfile.TemporaryDirectory() as tmp:
+                tmp = Path(tmp)
+                proj, bin_falso, reg = tmp / "meu.proj", tmp / "bin", tmp / "chamadas"
+                proj.mkdir()
+                bin_falso.mkdir()
+                (bin_falso / "tmux").write_text(f'#!/bin/sh\necho "$*" >> "{reg}"\n[ "$1" = has-session ] && exit {0 if existe else 1}\nexit 0\n')
+                (bin_falso / "tmux").chmod(0o755)
+                env = ambiente_limpo()
+                env["PATH"] = f"{bin_falso}:{env['PATH']}"
+                r = subprocess.run(["bash", "-c", cmd], cwd=proj, env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+                chamadas = reg.read_text().splitlines()
+                self.assertEqual(r.returncode, 0, r.stderr)
+                if existe:
+                    self.assertEqual(chamadas, ["has-session -t =jarvis-meu_proj", "attach-session -t =jarvis-meu_proj"])
+                else:
+                    self.assertEqual(chamadas, ["has-session -t =jarvis-meu_proj"])
+                    self.assertIn("Nenhum Jarvis aberto", r.stdout)
 
     def test_modelo_de_projeto_recusa_opcao_desconhecida(self):
         r = subprocess.run(["bash", str(RAIZ / "templates/projeto/.devcontainer/preparar-ambiente.sh"), "--x"], capture_output=True, text=True)
@@ -3183,7 +3368,7 @@ class ForgeCheck(unittest.TestCase):
         self.escrever("docs/reviews/_modelo.md", "sem frontmatter\n")
         self.escrever("docs/architecture/features/f.md", "---\ntipo: plano-tecnico\ncontrato: 1\npedido: p1\n"
                       "estado: vigente\nux: docs/ux/f.md\nadrs: [0001, 0002]\nagentes: [node-backend]\n---\n")
-        self.assertEqual(self.check("docs"), (0, ""))
+        self.assertEqual(self.check("docs"), (0, "docs: ok\n"))
 
     def test_docs_invalidos(self):
         casos = {
@@ -3205,16 +3390,17 @@ class ForgeCheck(unittest.TestCase):
                 self.assertEqual(codigo, 1)
                 self.assertIn(trecho, saida)
                 self.assertRegex(saida, r"^\S+\.md: \S+: .+ \((R-[A-Z]+|ADR-0004)\)$".replace("^", "(?m)^", 1))
+                self.assertNotIn("docs: ok", saida)  # PQ-DOCS-SILENCIOSO: o ok só sai sem violação
                 (self.tmp / rel).unlink()
 
     def test_qa_medio_com_aceite_vale(self):
         self.pareceres(self.head(), m=2, extra="aceite_usuario: sim\n")
-        self.assertEqual(self.check("docs"), (0, ""))
+        self.assertEqual(self.check("docs"), (0, "docs: ok\n"))
 
     def test_qa_medio_sem_aceite_vale(self):
         """BUR-B4 (R-QA): médio ou baixo aberto vira cartão; o parecer aprovado vale sem `aceite_usuario`."""
         self.pareceres(self.head(), m=2)
-        self.assertEqual(self.check("docs"), (0, ""))
+        self.assertEqual(self.check("docs"), (0, "docs: ok\n"))
 
     def kanban(self, corpo):
         cab = "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
@@ -3505,7 +3691,9 @@ class ForgeCheck(unittest.TestCase):
         self.commitar()
         casa = self.tmp / "casa"
         gravar_conferida(casa, self.tmp, "p1")
-        env = dict(ambiente_limpo(), GIT_DIR=str(self.tmp / "nao-existe"), HOME=str(casa))  # GIT_* herdadas não valem
+        # GIT_* herdadas não valem; o gh é o falso de "sem PR" (a máquina do teste pode não ter credencial nem git para o gh real)
+        env = com_gh_falso(dict(ambiente_limpo(), GIT_DIR=str(self.tmp / "nao-existe"), HOME=str(casa)),
+                           script="echo 'no pull requests found for branch' >&2\nexit 1\n")
         r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "pr", "p1", "--raiz", str(self.tmp)],
                            env=env, capture_output=True, text=True)
         self.assertEqual((r.returncode, r.stdout.split(" · ")[0], r.stderr), (0, "pr: veredito: aprovado", ""))  # LOTE E1
@@ -5932,7 +6120,8 @@ class VoltaComRecomendacao(unittest.TestCase):
         self.pedido.write_text(PEDIDO + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n", encoding="utf-8")
         self.rel_anterior = "docs/briefs/pedido-sintetico-dev-exemplo-1.md"
         (self.repo / "docs" / "briefs").mkdir(parents=True)
-        (self.repo / self.rel_anterior).write_bytes(self.ANTERIOR.read_bytes())
+        anterior = self.ANTERIOR.read_text(encoding="utf-8").replace("\n", "\nBranch: melhoria/x   Base: develop\n", 1)  # G1.1: o anterior é do item
+        (self.repo / self.rel_anterior).write_text(anterior, encoding="utf-8")
         self.parecer(self.ACHADOS)
 
     def commitar(self, arquivos, mensagem):
@@ -6055,6 +6244,7 @@ class VoltaComRecomendacao(unittest.TestCase):
         self.assertNotIn("volta: ok", conferencia)
         self.assertIn("volta: recomendação R1 sem DECISÃO TÉCNICA no Histórico", self.conferir(self.preenchido(r.stdout), ref=None)[1])  # sem --ref também
         self.tecnica("- DECISÃO TÉCNICA 2026-10-20 (Jarvis): inclui R1 do review porque cai nas mesmas linhas do A1")
+        (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md").unlink()  # G1.1: a volta conferida acima já sucede o anterior
         r = self.gerar("--incluir", "docs/reviews/p1.md:R1")
         self.assertNotIn("DECISÃO TÉCNICA para", r.stdout)
         rc, conferencia = self.conferir(self.preenchido(r.stdout))
@@ -6465,6 +6655,7 @@ class LerDirigidoDoBrief(RepoComOrigem):
         self.assertEqual(rc, 0, saida + erro)
         ler = self.ler(saida)
         self.assertIn("bin/forge-fechar p1 --ref melhoria/x --dry-run", ler)
+        self.assertIn("a base entra só por `git merge origin/develop` (nunca a cópia local nem outra branch", ler)  # E47.1
         self.assertNotIn("docs/pedidos/p1.md", ler)
         self.assertIn("modelo: haiku", erro)
         self.assertIn("git merge-base --is-ancestor <mergeCommit> origin/develop", saida)  # o PQ do merge segue no brief (C-09)
@@ -7175,20 +7366,78 @@ class BloqueanteSoComDefeitoProvado(unittest.TestCase):
                     self.assertIn(frase, texto)
 
 
-class PesosDaSuite(unittest.TestCase):
-    """C5: o peso só equilibra a divisão, mas sem peso a mediana chuta; avisa quando passa de 20% sem peso."""
+MEDIR_PESO = "python3 scripts/suite-paralela.py --medir <módulo>"
 
-    def test_no_maximo_20_por_cento_dos_modulos_sem_peso(self):
-        modulos = sorted(p.stem for p in (RAIZ / "tests").glob("test*.py") if p.stem.isidentifier())
+
+def modulos_de_teste(caminhos):
+    """Os módulos de teste entre os `caminhos` (relativos à raiz, com `/`), como o `modulos()` do suite-paralela: os
+    `tests/test*.py` da raiz e os dos pacotes (pasta com `__init__.py` em todo nível), estes pelo nome com ponto."""
+    caminhos = set(caminhos)
+    nomes = set()
+    for c in caminhos:
+        partes = c.split("/")
+        if partes[0] != "tests" or len(partes) < 2 or not partes[-1].startswith("test") or not partes[-1].endswith(".py"):
+            continue
+        partes = [*partes[1:-1], partes[-1][:-3]]
+        if all(x.isidentifier() for x in partes) and all(
+                "/".join(["tests", *partes[:i + 1], "__init__.py"]) in caminhos for i in range(len(partes) - 1)):
+            nomes.add(".".join(partes))
+    return nomes
+
+
+def perdas_de_peso(modulos_base, pesos_base, modulos_head, pesos_head):
+    """PR-VERDE C1 (D4), com a E19.1: os módulos da base que tinham peso e o perderam. O módulo novo sem peso passa (vale
+    a mediana): o PR comum não edita os pesos e não conflita; a marca de versão os regera pelo CI
+    (`scripts/pesos-do-ci.py`)."""
+    return sorted(m for m in modulos_head & modulos_base if m in pesos_base and m not in pesos_head)
+
+
+def base_do_pr():
+    """O merge-base do HEAD com a `origin/develop` (no CI do PR, a ponta da base; na develop, o próprio HEAD)."""
+    r = subprocess.run(["git", "-C", str(RAIZ), "merge-base", "HEAD", "refs/remotes/origin/develop"],
+                       capture_output=True, text=True, env=ambiente_limpo())
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+class PesosDaSuite(unittest.TestCase):
+    """PR-VERDE C1 (D4 do desenho v0479-pr-verde-de-primeira): o peso só equilibra a divisão. E19.1 (ordem do dono
+    26/11): o módulo novo sem peso vale a mediana e não reprova; só o módulo da base não perde o peso."""
+
+    def test_pr_nao_aumenta_os_modulos_sem_peso(self):
+        base = base_do_pr()
+        self.assertTrue(base, "sem merge-base do HEAD com a origin/develop: a regra de pesos por PR não se confere "
+                              "(busque a develop: git fetch origin develop)")
+        arvore = subprocess.run(["git", "-C", str(RAIZ), "ls-tree", "-r", "--name-only", base, "--", "tests"],
+                                capture_output=True, text=True, env=ambiente_limpo(), check=True).stdout.split()
+        lido = subprocess.run(["git", "-C", str(RAIZ), "show", f"{base}:tests/pesos-d4.json"],
+                              capture_output=True, text=True, env=ambiente_limpo())
+        pesos_base = json.loads(lido.stdout) if lido.returncode == 0 else {}
+        # `(RAIZ / "tests").rglob` em linha: variável local não conta como quem varre tests/ (test_testes_tocados C.2)
+        arquivos = [*(RAIZ / "tests").rglob("test*.py"), *(RAIZ / "tests").rglob("__init__.py")]
+        head = modulos_de_teste(p.relative_to(RAIZ).as_posix() for p in arquivos)
+        minimo(head, 100, "módulos de teste")
         pesos = json.loads((RAIZ / "tests" / "pesos-d4.json").read_text(encoding="utf-8"))
-        sem_peso = [m for m in modulos if m not in pesos]
-        self.assertGreaterEqual(len(modulos), 1)
-        self.assertLessEqual(
-            len(sem_peso) * 5,
-            len(modulos),
-            f"{len(sem_peso)} de {len(modulos)} módulos sem peso ({', '.join(sem_peso)}); "
-            "meça cada um com python3 scripts/suite-paralela.py --medir <módulo> (ou a suíte inteira com FORGE_SUITE_MEDIR=1)",
+        perdidos = perdas_de_peso(modulos_de_teste(arvore), pesos_base, head, pesos)
+        self.assertEqual(perdidos, [], "módulo que tinha peso na base o perdeu em tests/pesos-d4.json; devolva o peso "
+                                       f"ou meça de novo com {MEDIR_PESO}")
+
+    def test_regra_por_pr(self):
+        base, pesos_base = {"test_a", "test_b"}, {"test_a": 1.0}
+        casos = (
+            ({"test_a", "test_b"}, {"test_a": 1.0}, []),  # o sem peso da base passa
+            ({"test_a", "test_b", "test_c"}, {"test_a": 1.0}, []),  # E19.1: novo sem medida passa (vale a mediana)
+            ({"test_a", "test_b", "test_c"}, {"test_a": 1.0, "test_c": 0.4}, []),  # novo medido passa
+            ({"test_a", "test_b"}, {}, ["test_a"]),  # tirar o peso de módulo existente reprova
+            ({"test_b"}, {}, []),  # módulo apagado com o peso dele passa
         )
+        for head, pesos, perdidos in casos:
+            with self.subTest(head=sorted(head), pesos=pesos):
+                self.assertEqual(perdas_de_peso(base, pesos_base, head, pesos), perdidos)
+
+    def test_modulos_de_pacote_e_da_raiz(self):
+        caminhos = ["tests/test_a.py", "tests/apoio.py", "tests/p/__init__.py", "tests/p/test_b.py",
+                    "tests/sem_init/test_c.py", "tests/test-d.py", "bin/test_e.py"]
+        self.assertEqual(modulos_de_teste(caminhos), {"test_a", "p.test_b"})
 
 
 class EsperaDoPushEVerificadores(unittest.TestCase):
@@ -7899,7 +8148,7 @@ class DocsPareceresPedidoECaminho(unittest.TestCase):
         arq.write_text(self.parecer(), encoding="utf-8")
         r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin/forge-check"), "--raiz", str(self.raiz), "docs", str(arq)],
                            capture_output=True, text=True, env=env, timeout=60)
-        self.assertEqual((r.returncode, r.stdout), (0, ""), r.stderr)
+        self.assertEqual((r.returncode, r.stdout), (0, "docs: ok\n"), r.stderr)
 
     def test_modelo_do_review_diz_o_id_do_pedido_e_o_parecer_sem_achados(self):
         modelo = (RAIZ / "templates/projeto/docs/reviews/_modelo.md").read_text(encoding="utf-8")
@@ -7909,41 +8158,48 @@ class DocsPareceresPedidoECaminho(unittest.TestCase):
 
 
 class RodarUmModuloComIsolamento(unittest.TestCase):
-    """E1.255 (v047): UNITTEST-I-NAO-IMPORTA, BRIEF-UNITTEST-DISCOVER e CONTRIB-TESTE-NICE (Q6 do dono). Sob `-I`,
-    `-m unittest tests.<mod>` não importa (a raiz sai do sys.path); a forma das skills roda, e a da contribuição em `nice`."""
-    FORMA = re.compile(r"`((?:nice -n 19 )?python3 -I -m unittest discover -s tests -p test_x\.py)`")
-    SKILLS_COM_A_FORMA = ("skills/qa-testing/SKILL.md", "skills/briefs-e-conferencia/SKILL.md",
-                          "skills/contribuir-com-o-forge/SKILL.md")
-
-    def formas(self):
-        return {rel: self.FORMA.findall((RAIZ / rel).read_text(encoding="utf-8")) for rel in self.SKILLS_COM_A_FORMA}
+    """E1.255 (v047) e E161.1 (v0478, TESTES-SEM-I-NA-RAIZ): a forma de rodar um módulo na raiz é
+    `python3 -m unittest tests.<mod>`, sem `-I`, dita uma vez só em `skills/qa-testing/comandos.md`; as outras skills
+    apontam para lá. Sob `-I`, `tests.<mod>` não importa (a raiz sai do sys.path); a contribuição segue em `nice`."""
+    COMANDOS = "skills/qa-testing/comandos.md"
+    FORMA = re.compile(r"`(python3 -m unittest tests\.test_x)`")
+    FORMA_ANTIGA = "-I -m unittest discover"
+    APONTAM = ("skills/qa-testing/SKILL.md", "skills/briefs-e-conferencia/SKILL.md",
+               "skills/contribuir-com-o-forge/SKILL.md")
 
     def rodar(self, comando):
-        """Um projeto mínimo como o Forge (tests/ sem __init__.py, teste que importa um vizinho), ambiente limpo."""
+        """Um projeto mínimo como o Forge (tests/ sem __init__.py; o teste põe a própria pasta no sys.path e importa um
+        vizinho), ambiente limpo."""
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / "tests").mkdir()
             (Path(tmp) / "tests" / "vizinho.py").write_text("VALOR = 1\n", encoding="utf-8")
             (Path(tmp) / "tests" / "test_x.py").write_text(
-                "import unittest\nfrom vizinho import VALOR\n\n\nclass T(unittest.TestCase):\n"
-                "    def test_v(self):\n        self.assertEqual(VALOR, 1)\n", encoding="utf-8")
+                "import sys\nimport unittest\nfrom pathlib import Path\n"
+                "sys.path.insert(0, str(Path(__file__).resolve().parent))\nfrom vizinho import VALOR\n\n\n"
+                "class T(unittest.TestCase):\n    def test_v(self):\n        self.assertEqual(VALOR, 1)\n", encoding="utf-8")
             argv = [sys.executable if p == "python3" else p for p in comando.split()]
             return subprocess.run(argv, cwd=tmp, env={"PATH": os.environ.get("PATH", "/usr/bin:/bin")},
                                   capture_output=True, text=True, timeout=60)
 
-    def test_cada_skill_traz_a_forma_e_a_contribuicao_em_nice_um_por_vez(self):
-        formas = self.formas()
-        self.assertEqual({rel: len(f) for rel, f in formas.items()}, dict.fromkeys(self.SKILLS_COM_A_FORMA, 1))
-        self.assertTrue(formas["skills/contribuir-com-o-forge/SKILL.md"][0].startswith("nice -n 19 "))
-        secao5 = (RAIZ / "skills/contribuir-com-o-forge/SKILL.md").read_text(encoding="utf-8").split("## 5.")[1].split("## 6.")[0]
-        self.assertIn("em `nice` e um arquivo por vez", secao5)
+    def test_a_forma_e_dita_uma_vez_e_as_skills_apontam_para_ela(self):
+        self.assertEqual(self.FORMA.findall((RAIZ / self.COMANDOS).read_text(encoding="utf-8")),
+                         ["python3 -m unittest tests.test_x"])
+        textos = {p.relative_to(RAIZ).as_posix(): p.read_text(encoding="utf-8")
+                  for pasta in ("skills", "agents") for p in sorted((RAIZ / pasta).rglob("*.md"))}
+        self.assertGreater(len(textos), 40)
+        self.assertEqual([rel for rel, t in textos.items() if self.FORMA_ANTIGA in t], [])
+        for rel in self.APONTAM:
+            with self.subTest(rel):
+                self.assertIn("comandos.md", textos[rel])
+        secao5 = textos["skills/contribuir-com-o-forge/SKILL.md"].split("## 5.")[1].split("## 6.")[0]
+        self.assertIn("em `nice` e um arquivo por vez: `nice -n 19` antes da forma", secao5)
         self.assertIn("**não roda a suíte inteira do Forge**", secao5)
 
-    def test_a_forma_das_skills_roda_com_menos_i(self):
-        for rel, (forma,) in self.formas().items():
-            with self.subTest(rel):
-                r = self.rodar(forma)
-                self.assertEqual(r.returncode, 0, r.stderr)
-                self.assertIn("Ran 1 test", r.stderr)
+    def test_a_forma_roda_na_raiz_sem_menos_i(self):
+        (forma,) = self.FORMA.findall((RAIZ / self.COMANDOS).read_text(encoding="utf-8"))
+        r = self.rodar(forma)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Ran 1 test", r.stderr)
 
     def test_tests_ponto_modulo_com_menos_i_nao_importa(self):
         r = self.rodar("python3 -I -m unittest tests.test_x")

@@ -1,0 +1,88 @@
+{
+  "pedido": "v0480-ordens-guarda",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M15",
+      "guarda": "CONFORMIDADE: a pasta das ordens do Forge entra em CAMINHOS_DO_CONTROLE, como pasta (A1 da segurança E123.8)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"~/.forge-contrib/*/docs/briefs/\",\n                        \"~/.forge-contrib/docs/ordens/\")",
+      "para": "\"~/.forge-contrib/*/docs/briefs/\")",
+      "testes": [
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_recusa_a_escrita_do_arquivo_de_ordens_na_sessao_do_forge",
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "CONFORMIDADE: `ordens` no texto da linha que o hook não modela (CONTROLE_NO_TEXTO; A1 da segurança E123.8)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "r\"forge-contrib[\\s\\S]*(?:pedidos|briefs|ordens)|(?:pedidos|briefs|ordens)\"",
+      "para": "r\"forge-contrib[\\s\\S]*(?:pedidos|briefs)|(?:pedidos|briefs)\"",
+      "testes": [
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_recusa_a_escrita_do_arquivo_de_ordens_na_sessao_do_forge",
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "CONFORMIDADE: `ordens` na linha da pasta corrente do controle (PEDIDO_OU_BRIEF; A1 da segurança E123.8)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "PEDIDO_OU_BRIEF = r\"pedidos|briefs|ordens\"",
+      "para": "PEDIDO_OU_BRIEF = r\"pedidos|briefs\"",
+      "testes": [
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "CONFORMIDADE: a entrada das ordens casa também relativa à cópia principal (A2 da segurança E123.8)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "c in PELA_COPIA_PRINCIPAL and em_qualquer_lugar(posix, c)",
+      "para": "False",
+      "testes": [
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "CONFORMIDADE: sem a cópia principal (.git que não se resolve ou nu), nenhuma forma (A2 da segurança E123.8)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if comum is None or comum.name != \".git\":\n            return []\n        rel = relativo_ao_pai(posix, comum.parent)",
+      "para": "        if comum is None:\n            return []\n        rel = relativo_ao_pai(posix, comum.parent)",
+      "testes": [
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_ve_o_arquivo_pela_copia_principal"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "CONFORMIDADE: caminho fora da cópia principal não vira forma relativa (A2 da segurança E123.8)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return [] if rel is None else [rel]",
+      "para": "return [] if False else [rel]",
+      "testes": [
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_ve_o_arquivo_pela_copia_principal"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "FORGE-INIT: a pasta das ordens entra em ignorados (A3 da segurança E123.8; pasta pelo A4 da E123.12)",
+      "arquivo": "bin/forge-init",
+      "de": " '.forge/onboarding.md' '.forge/ordens/')",
+      "para": " '.forge/onboarding.md')",
+      "testes": [
+        "tests.test_forge.ForgeInit.test_o_arquivo_de_ordens_fica_fora_do_git"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "CONFORMIDADE: a pasta das ordens do Forge é só do jarvis no mapa de donos (A1 da segurança E123.8)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \"~/.forge-contrib/docs/ordens/\", \"quem\": [\"jarvis\"]",
+      "para": "\"caminho\": \"~/.forge-contrib/docs/ordens-x/\", \"quem\": [\"jarvis\"]",
+      "testes": [
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal"
+      ]
+    }
+  ]
+}

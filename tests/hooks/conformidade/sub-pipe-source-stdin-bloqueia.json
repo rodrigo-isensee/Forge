@@ -1,0 +1,27 @@
+{
+  "descricao": "CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.5, A3 a A6 da segurança E63.3, A2 e A3 do QA E63.4; R-VERIFY, R-FLUXO): S8, o `source /dev/stdin` lê o pipe.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo 'git push --no-verify origin feature/x' | source /dev/stdin"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "envio do git"
+  }
+}

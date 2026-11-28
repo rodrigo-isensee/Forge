@@ -1,0 +1,28 @@
+{
+  "pedido": "v0481-s1-status",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "S1a: pergunta ao dono com data fora do calendário vira não verificável, rc 0",
+      "arquivo": "bin/forge_estado.py",
+      "de": "antes = instante(horas[0])",
+      "para": "antes = dt.datetime.fromisoformat(horas[0])",
+      "testes": [
+        "tests.test_forge_status_estado.Itens.test_decisoes_com_data_fora_do_calendario_nao_verificavel",
+        "tests.test_forge_status_estado.PeloForgeCheck.test_pergunta_com_data_inexistente_nao_verificavel_e_rc_0"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "S1a: a linha impressa passa pela limpeza ctx seguro",
+      "arquivo": "bin/forge_estado.py",
+      "de": "print(ctx[\"seguro\"](f\"status: {nome}: {texto}\"))",
+      "para": "print(f\"status: {nome}: {texto}\")",
+      "testes": [
+        "tests.test_forge_status_estado.Executar.test_linha_impressa_passa_pela_limpeza_do_contexto",
+        "tests.test_forge_status_estado.PeloForgeCheck.test_titulo_com_esc_e_u2028_sai_limpo_pelo_forge_check"
+      ]
+    }
+  ]
+}

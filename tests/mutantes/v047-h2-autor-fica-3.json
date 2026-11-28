@@ -56,20 +56,22 @@
       "id": "M22",
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE: a retomada reserva só as branches do próprio alvo",
       "arquivo": "hooks/agentes.py",
-      "de": "for a in autores if a[\"id\"] == alvo for b in",
+      "de": "for a in autores if a[\"id\"] == aid for b in",
       "para": "for a in autores if True for b in",
       "testes": [
-        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
+        "tests.test_hooks_agentes_autor.Autores.test_inicio_sem_autor_nao_reserva_branch"
       ]
     },
     {
       "id": "M23",
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE (review A5): a reserva da retomada vale o prazo curto (RESERVA_S)",
       "arquivo": "hooks/agentes.py",
-      "de": "(expira_s if a.get(\"id\") and a.get(\"tipo\") != RETOMADA\n",
-      "para": "(expira_s if a.get(\"id\")\n",
+      "de": "return expira_s if registro.get(\"id\") and registro.get(\"tipo\") != RETOMADA else",
+      "para": "return expira_s if registro.get(\"id\") else",
       "testes": [
-        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido",
+        "tests.test_hooks_agentes_autor.Autores.test_prazo_unico_por_registro"
       ]
     },
     {

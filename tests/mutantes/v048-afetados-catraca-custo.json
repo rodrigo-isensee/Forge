@@ -1,0 +1,86 @@
+{
+  "pedido": "v048-afetados-catraca-custo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a PROTEGIDOS ilegivel (sintaxe) conta como tocada",
+      "arquivo": "bin/forge-testes",
+      "de": "        return None\n    for no in arvore.body:",
+      "para": "        return ()\n    for no in arvore.body:",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_protegidos_ilegiveis_contam_como_tocados"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "so a atribuicao PROTEGIDOS vale como lista",
+      "arquivo": "bin/forge-testes",
+      "de": "if isinstance(no, ast.Assign) and [getattr(alvo, \"id\", None) for alvo in no.targets] == [\"PROTEGIDOS\"]:",
+      "para": "if isinstance(no, ast.Assign):",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_protegidos_ilegiveis_contam_como_tocados"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "PROTEGIDOS que nao e literal conta como tocada",
+      "arquivo": "bin/forge-testes",
+      "de": "                return None\n            if isinstance(valor, tuple)",
+      "para": "                return ()\n            if isinstance(valor, tuple)",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_protegidos_ilegiveis_contam_como_tocados"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "so tupla de textos nao vazia vale como lista",
+      "arquivo": "bin/forge-testes",
+      "de": "if isinstance(valor, tuple) and valor and all(isinstance(item, str) for item in valor):",
+      "para": "if all(isinstance(item, str) for item in valor):",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_protegidos_ilegiveis_contam_como_tocados"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "PROTEGIDOS de forma errada conta como tocada",
+      "arquivo": "bin/forge-testes",
+      "de": "                return valor\n            return None",
+      "para": "                return valor\n            return ()",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_protegidos_ilegiveis_contam_como_tocados"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "sem a atribuicao PROTEGIDOS conta como tocada",
+      "arquivo": "bin/forge-testes",
+      "de": "            return None\n    return None\n\n\ndef toca_a_catraca",
+      "para": "            return None\n    return ()\n\n\ndef toca_a_catraca",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_protegidos_ilegiveis_contam_como_tocados"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "hooks/ e bin/ pedem a catraca",
+      "arquivo": "bin/forge-testes",
+      "de": "    if caminho.startswith(PASTAS_DA_CATRACA):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_hooks_bin_e_protegidos_levam_a_catraca_e_o_custo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o protegido terminado em / vale como pasta",
+      "arquivo": "bin/forge-testes",
+      "de": "caminho == item or (item.endswith(\"/\") and caminho.startswith(item))",
+      "para": "caminho == item",
+      "testes": [
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_hooks_bin_e_protegidos_levam_a_catraca_e_o_custo"
+      ]
+    }
+  ]
+}
