@@ -36,8 +36,8 @@
       "id": "M16",
       "guarda": "so execucao do proprio repositorio (sem fork)",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "\"head_repository.full_name\": repo, \"status\"",
-      "para": "\"status\"",
+      "de": "\"head_branch\": \"develop\", \"path\": WORKFLOW, \"repository.full_name\": repo,\n                   \"head_repository.full_name\": repo, \"status\"",
+      "para": "\"head_branch\": \"develop\", \"path\": WORKFLOW, \"repository.full_name\": repo,\n                   \"status\"",
       "testes": [
         "tests.test_pesos_do_ci.Leitura.test_execucao_que_nao_e_push_na_develop_do_proprio_repositorio_nao_entra"
       ]
@@ -46,8 +46,8 @@
       "id": "M17",
       "guarda": "so execucao concluida com sucesso",
       "arquivo": "scripts/pesos-do-ci.py",
-      "de": "\"status\": \"completed\", \"conclusion\": \"success\"}",
-      "para": "\"status\": \"completed\"}",
+      "de": "\"status\": \"completed\", \"conclusion\": \"success\"}\n    return (campo(execucao, \"id\", int) is not None\n            and all(",
+      "para": "\"status\": \"completed\"}\n    return (campo(execucao, \"id\", int) is not None\n            and all(",
       "testes": [
         "tests.test_pesos_do_ci.Leitura.test_execucao_que_nao_e_push_na_develop_do_proprio_repositorio_nao_entra"
       ]
