@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "so a linha no formato da sonda entra na conferencia do par",
       "arquivo": "bin/forge-check",
-      "de": "map(SONDA_NO_ENTREGAR.match, novos.get(\"Entregar\", [])) if m):\n        if (tipo, ident)",
-      "para": "map(SONDA_NO_ENTREGAR.match, novos.get(\"Entregar\", [])) if True):\n        if (tipo, ident)",
+      "de": "map(SONDA_NO_ENTREGAR.match, novos.get(\"Entregar\", [])) if m):\n        if (tipo, ident, entrada)",
+      "para": "map(SONDA_NO_ENTREGAR.match, novos.get(\"Entregar\", [])) if True):\n        if (tipo, ident, entrada)",
       "testes": [
         "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_volta_com_a_sonda_do_parecer_nao_barra_a_escrita"
       ]
