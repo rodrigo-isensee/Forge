@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v048
 branch: melhoria/v0481-ambiente-claude-path
-commit: df4b2bf9acc9db23f376b385f50f59ccf42dc467
+commit: 75f2e456414d0cb3e8e6e32c3afd1752798db61d
 parecer: reprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
