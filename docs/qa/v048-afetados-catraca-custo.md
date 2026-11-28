@@ -3,47 +3,42 @@ tipo: qa
 contrato: 1
 pedido: v048
 branch: melhoria/v048-afetados-catraca-custo
-commit: f4ae675c22dd8b656a5dc28a7db85f1e3e3d1e99
-parecer: reprovado
-escopo: completo
+commit: ecc3b7429450779edbda367bb40ddf834e4417d4
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
+bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-28
 ---
-# QA: v048 (#960, AFETADOS-CATRACA-E-CUSTO, E9.1 e E9.2, classe C)
+# QA: v048 (#960, AFETADOS-CATRACA-E-CUSTO, E9.1 e E9.2, classe C), delta da volta 1
 
-1ª rodada completa no head f4ae675c (E9.4), diff `ed6e6dbf..f4ae675c`. Revisor, não autor; cópia própria em `/workspaces/.forge-contrib/.forge/wt/v048-afetados-catraca-custo-qa-engineer`.
+Delta `f4ae675c..ecc3b742`, revisado em cópia própria (`.../v048-afetados-catraca-custo-qa-engineer-2`). Revisor, não autor. A rodada completa de f4ae675c fica no histórico git deste arquivo.
 
 ## Achados
-- A1 (bloqueante) bin/forge-testes:1353 · a linha "catraca no diff" no stdout do plano quebra `modulos_listados` (bin/forge-mutante:1193, fullmatch no stdout): diff em bin/, hooks/ ou protegido perde o recorte H5. Reproduzido (S1); o review achou o mesmo (A1 dele).
-- A2 (recomendado) bin/forge-testes:575 · `contar_testes` conta `def test*` por `ast` e erra para baixo em módulos com herança, `load_tests` ou geração: 7325 contados contra 7439 reais (9 de 263 módulos divergem). O corte de 1000 pode atrasar ~1,5%; documente como aproximação.
+- A2 (recomendado) bin/forge-testes:575 · `contar_testes` conta `def test*` por `ast` e erra para baixo (7325 contados contra 7439 reais); do 1º parecer, fora do delta: cartão depois do merge, documente como aproximação.
 
 ## Sondas
-- S1 · `modulos_listados(["bin/forge-mutante"])` no head f4ae675c · espera: test_forge_mutante, test_hooks_volta_corpus, test_pre_push_patch · obtido: `set()`, pois o stdout do plano tem 2 linhas (a 2ª, "catraca no diff"); bug médio, só prazo
+- S1 (A1 anterior, resolvido) · `modulos_listados(["bin/forge-mutante"])` no head ecc3b742, com a catraca no plano · espera: test_forge_mutante, test_hooks_volta_corpus, test_pre_push_patch · obtido: `test_forge, test_forge_mutante, test_hooks_volta_corpus, test_indice_forge, test_oraculo_sempre_atual, test_oraculo_v047, test_pre_push_patch` (recorte H5 de volta); a linha da catraca vai ao stderr e o stdout do plano tem 1 linha.
 
-## Critério → teste → resultado
+## Critério → teste → resultado (delta)
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| E9.1: hooks/, bin/ e protegido levam catraca e custo | `CustoECatraca.test_hooks_bin_e_protegidos_levam_a_catraca_e_o_custo`, `ListaDaCatracaReal` | caminho protegido fora de hooks/ e bin/ (`scripts/conferir-release.py`) | passou |
-| E9.1: o resto fica como está | `test_o_resto_fica_como_esta`, `PeloComando.test_listar_sem_hook_bin_nem_protegido_fica_como_esta` | `scripts/protegido.pyx`, `docs/hooks/x.md`, lista vazia | passou |
-| E9.1: falha fechada | `test_protegidos_ilegiveis_contam_como_tocados`, `test_catraca_em_link_nao_conta`, `test_sem_a_catraca_nada_muda` | PROTEGIDOS vazia, não-texto, ausente, link | passou |
-| E9.1: catraca roda no modo do diff e devolve a saída dela, também sem teste afetado | `PeloComando.test_afetados_roda_a_catraca_...`, `test_sem_teste_afetado_a_catraca_roda_mesmo_assim`, `test_custo_vermelho_reprova_...` | saída diferente de 0, plano vazio | passou |
-| E9.2: 1000 mantém, 1001 corta | `PeloComando.test_no_limite_o_plano_fica_inteiro` (998+1+1), `test_acima_do_limite_...` (999+1+1) | os dois lados do limite | passou |
-| E9.2: contagem sem importar | `LimiteLocal.test_conta_so_os_metodos_test_das_classes`; conferida à parte contra `unittest` real nos 263 módulos | módulo ilegível, ausente, função solta | passou, com A2 |
-| E9.2: testes do arquivo mudado | `LimiteLocal.test_testes_do_arquivo_mudado` (MAPA, convenção, subcomando, sem test_forge) | `test_forge` excluído | passou |
-| E9.2: corte só no `--afetados` | `PeloComando.test_o_limite_vale_so_para_os_afetados` | 1001 testes sem `--afetados` | passou |
-| Estável de ponta a ponta: o consumidor `modulos_listados` | nenhum teste | stdout de duas linhas | sem teste: A1 |
+| Plano numa linha no stdout, catraca no stderr | `ContratoDoListar.test_modulos_listados_de_bin_forge_mutante_no_forge`, `PeloComando` (`len(stdout.splitlines()) == 1`) | diff em bin/ com catraca no plano | passou |
+| Catraca apagada no diff ou trocada por symlink pede a catraca e reprova sem executar | `CustoECatraca.test_catraca_em_link_pede_a_catraca_e_nao_e_rodavel`, `test_catraca_apagada_no_diff_pede_a_catraca`, `test_catraca_comum_e_rodavel`, `PeloComando.test_catraca_em_link_reprova_sem_executar` | symlink, apagada no diff, projeto sem catraca (segue sem) | passou |
+| scripts/ em PASTAS_DA_CATRACA | `test_hooks_bin_e_protegidos_levam_a_catraca_e_o_custo` (`scripts/outro.py`), `test_o_resto_fica_como_esta` (`lib/scripts/x.py`, `tests/scripts/x`) | prefixo, não substring | passou |
 
 ## Evidência
-- Testes do diff: `tests/test_afetados_catraca_custo.py` 19 OK (via `unittest discover -s tests`).
-- Vermelho antes do verde, `bin/forge-testes --vermelho ed6e6dbf --modulos test_afetados_catraca_custo`: 7 provam por asserção e 10 por API ausente; 2 "não prova (passa na base)" (`test_listar_sem_hook_bin_nem_protegido_fica_como_esta`, `test_o_limite_vale_so_para_os_afetados`), guardas de regressão do comportamento antigo, aceitas. Contagem: `não prova=2; prova (API ausente)=10; prova (asserção)=7`.
-- Mutantes: `bin/forge-mutante` nas 5 listas (`tests/mutantes/v048-afetados-catraca-custo{,-2,-3,-4,-5}.json`, `--processos 4`): M1 a M32 todos `morreu`, M32 pelo `test_conta_so_os_metodos_test_das_classes`. `--cobertura --base ed6e6dbf`: toda guarda mudada coberta, a 1235 da base isenta com motivo; nenhuma sem mutante.
-- A suíte inteira não foi rodada aqui (G3): fica para o CI.
+- Testes do delta, `python3 -m unittest tests.test_afetados_catraca_custo tests.test_forge_mutante.ContratoDoListar`: `Ran 23 tests ... OK`.
+- Vermelho do contrato, `bin/forge-testes --vermelho c7df0398 --modulos test_forge_mutante`: `contagem: não prova (passa na base)=158; prova (asserção)=1` (o `ContratoDoListar`, como esperado; os 158 são a suíte antiga do módulo, que passa na base).
+- Mutantes, `bin/forge-mutante tests/mutantes/v048-afetados-catraca-custo-5.json ...-2.json ...-3.json --processos 3`, saída 0: M32 a M39 e M9 a M23 todos `morreu` (M33 a M39 e M9, M12, M21 incluídos). `--cobertura --base f4ae675c` e `--base ed6e6dbf`: toda linha de guarda mudada coberta; a 1235 da base isenta com motivo; nenhuma sem mutante.
+- A suíte inteira não foi rodada aqui (G3): vale o CI.
 
 ## CI
-Sem linha `- ci:`. No PR #960, o run do f4ae675c foi substituído pelo dos pareceres (descendente 4f92db0b, diff só em docs/reviews e docs/security); neste instante a suíte 1/5 a 5/5 está pendente no descendente, a `bateria (pareceres)` e a `catraca` vermelhas (esperam parecer aprovado ou rótulo) e a `catraca (conferência)` pendente; no run anterior estava vermelha pelo texto do PR (A2 do review). Sem CI verde do head, o QA não aprova.
+- ci: ecc3b7429450779edbda367bb40ddf834e4417d4 verde
+
+No `gh pr checks` do #960, run do ecc3b742: suíte 1/5 a 5/5, instalação, bateria (passos), bateria (verificações longas), catraca (conferência) e árvore já provada verdes; só `bateria (pareceres)` falha (espera pareceres), fora da conta.
 
 ## Parecer
-Reprovado, por A1 (bloqueante): o plano do forge-testes ganhou uma 2ª linha no stdout que desliga o recorte de módulos do forge-mutante justamente nos diffs de classe C; falta um teste de contrato que rode `modulos_listados` com a catraca no plano. Os critérios E9.1 e E9.2 e os dois lados do limite estão provados, M1 a M32 morrem pela asserção e o vermelho foi visto. A2 vira cartão depois do merge. Na volta, retesto só o delta de `forge-check parecer delta`.
+Aprovado no delta. A1 resolvido: contrato do `--listar` no teste do forge-mutante, vermelho visto, catraca apagada ou trocada por symlink reprova sem executar, M33 a M39 e M9, M12, M21 mortos pela asserção. A2 antigo segue cartão pós-merge.
