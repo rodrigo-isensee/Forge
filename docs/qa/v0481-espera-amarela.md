@@ -68,7 +68,7 @@ Nenhum dos 4 sobreviventes é equivalente: Q1 e Q2 fazem um PR com parecer repro
 ## Achados
 - A1 (bloqueante) tests/catraca.py:2150 · mutantes Q1 e Q2 sobrevivem (linhas 2150 e 2158, `return nao_aprovam, False` virando True): nenhum teste dirige o CLI `--modo pareceres` com parecer reprovado sem arquivo sensível, nem QA reprovado com review aprovado e arquivo sensível; esperado rc 1, não 3. Defeito virar espera é o risco do #948.
 - A2 (bloqueante) tests/catraca.py:156 · mutante Q3 sobrevive: tirar `da branch` de `LINHA_DE_ESPERA` não derruba teste; falta caso da linha `sem parecer da branch` (espera, rc 3) e de seu vizinho que casa só no começo e não é espera.
-- A3 (bloqueante) .github/workflows/catraca.yml:58 · mutante Q5 sobrevive: com rc 1 do script e `gh` respondendo `nenhum` ou `failure`, o passo grava `espera=` e a catraca vira pendente com defeito. Em `test_espera_grava_o_sufixo...` o caso rc 1 usa `gh` que sai 9; precisa de rc 1 com `gh` devolvendo `nenhum`, nos dois workflows (mesmo ramo em ci.yml:618).
+- A3 (bloqueante) .github/workflows/catraca.yml:58 · mutante Q5 sobrevive: rc 1 do script com `gh` devolvendo `nenhum` ou `failure` grava `espera=` (defeito vira pendente). O teste usa `gh` que sai 9 no rc 1 e mascara; testar rc 1 com `gh` respondendo, nos dois workflows (ci.yml:618).
 - A4 (recomendado) tests/test_ci_local.py:1131 · `forge-testes --vermelho` sai 2 para os 3 testes de `EsperaAmarelaNosWorkflows` (erro de desempacotar na base, não asserção); provados à mão e pelos mutantes. Abrir com `assertIn("conferencia", jobs)`/asserção explícita faz a ferramenta dar veredito.
 
 ## Outras observações
