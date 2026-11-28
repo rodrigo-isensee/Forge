@@ -171,7 +171,7 @@ def fala_do_dono(transcrito):
 CLASSES_DE_JARGAO = {
     "etapa": re.compile(r"(?<![\w.])E\d+\.\d+(?!\w|\.\w)"),
     "commit": re.compile(r"(?<![\w-])(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}(?![\w-])"),
-    "regra": re.compile(r"(?<![\w-])R-[A-Z]{3,}(?![\w-])"),
+    "regra": re.compile(r"(?<![\w-])R-[A-Z]{2,}(?![\w-])"),
     "cartao": re.compile(r"(?<![\w-])[A-Z]{2}[A-Z0-9]*(?:-[A-Z0-9]+)+(?![\w-])"),
     "ferramenta": re.compile(r"(?<![\w/-])(?:forge-[a-z][\w-]*|(?:gh|git) [a-z][\w-]*)|(?:^|(?<=`))forge [a-z][\w-]*", re.M),
     "caminho": re.compile(r"(?<![\w/.-])[\w.-]*/[\w./-]*\.(?:md|py|json|sh)(?![\w-])"),

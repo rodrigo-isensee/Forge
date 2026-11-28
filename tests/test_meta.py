@@ -193,6 +193,11 @@ class JargaoPorClasse(unittest.TestCase):
         self.assertEqual(self.meta.classes_de_jargao("Terminei a E7.4.\nE a E7.5!"), {"etapa": 2})
         self.assertEqual(self.meta.classes_de_jargao("Subi a E7.4.1 hoje."), {})
 
+    def test_regra_de_duas_letras_conta_e_uma_letra_nao(self):
+        """E2.351: o ID de regra de duas letras (R-QA) conta; uma letra só ou minúscula não é ID de regra."""
+        self.assertEqual(self.meta.classes_de_jargao("Segue o R-QA na entrega."), {"regra": 1})
+        self.assertEqual(self.meta.classes_de_jargao("Vale o R-X e o R-Qa aqui."), {})
+
     def test_o_que_e_longe_do_termo_nao_explica(self):
         """E2.237: o "o que é" só vale na janela antes do termo (o custo não cresce com a mensagem)."""
         longe = "Sabe o que é" + " palavra" * 40 + " a E7.1 hoje"
