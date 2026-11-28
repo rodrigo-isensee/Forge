@@ -13,7 +13,9 @@ data: 2026-11-28
 1ª rodada completa no head 6c8fd19c (Base-sha a90a7a93), classe C. Cópia própria criada por `forge-copia clone ... --revisao`.
 
 ## Ferramentas (citadas, sem refazer)
-- ci: 6c8fd19ce2675be5c3206cf2fcba6679886ded1d verde (`gh pr checks 956` rc=0; runs 46136867176 e 46136867271 no headSha 6c8fd19c, `completed success`; suíte 5/5, catraca e catraca (conferência), instalação, teto de pulados, árvore provada).
+- ci: 6c8fd19ce2675be5c3206cf2fcba6679886ded1d verde
+- suíte: 6c8fd19ce2675be5c3206cf2fcba6679886ded1d rc=0 módulos=test_forge_copia,test_forge_copia_nome
+- Origem do CI: `gh pr checks 956` rc=0; runs 46136867176 e 46136867271 no headSha 6c8fd19c, `completed success`; suíte 5/5, catraca e catraca (conferência), instalação, teto de pulados, árvore provada.
 - Ordem do dono 28/11 07:41 (diff toca bin/): catraca do CI verde e `python3 tests/catraca.py --modo regras --base a90a7a93 --head HEAD` rc=0 local; o teste de custo (`tests.test_hooks_volta_corpus`) está nas partes da suíte do CI, verdes; local passou do teto de 160 s sem falha e não foi refeito.
 - Afetados: `python3 -m unittest tests.test_forge_copia tests.test_forge_copia_nome` 112 testes OK.
 - Mutantes: `bin/forge-mutante --processos 1` nas três specs: M1 a M20 morreram; `--cobertura --base a90a7a93`: toda condição mudada coberta (330 isenta com motivo, coberta pelo M16); `--conferir --base a90a7a93`: trechos no lugar, inclusive as 4 specs antigas editadas no E4.3.
