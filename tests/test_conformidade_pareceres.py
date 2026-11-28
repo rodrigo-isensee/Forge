@@ -476,6 +476,23 @@ class ParecerDeItem(NoTerminal):
                 self.libera_write(self.ITENS[:1])
                 self.assertEqual(len(conexoes), 0, f"o hook conectou pelo {esquema} da cópia")
 
+    def test_transporte_de_nome_livre_nao_roda_no_clone_parcial(self):
+        """Sonda S9 da segurança (0c74349, A5): o nome do transporte é livre e a chave por protocolo da cópia vence a geral;
+        com `remote.origin.vcs=x/../payload`, a busca preguiçosa rodaria o `./payload` da cópia, fora do sandbox. A lista
+        de recusa por nome não fecha; `GIT_ALLOW_PROTOCOL=none` no ambiente desse git fecha (S10)."""
+        marca = self.repo / "MARCA9"
+        self.git("config", "extensions.partialClone", "origin")
+        self.git("config", "remote.origin.promisor", "true")
+        self.git("config", "remote.origin.vcs", "x/../payload")
+        self.git("config", "protocol.x/../payload.allow", "always")
+        (self.repo / "git-remote-x").mkdir()
+        payload = self.repo / "payload"
+        payload.write_text(f"#!/bin/sh\ntouch {marca}\n", encoding="utf-8")
+        payload.chmod(0o755)
+        (self.repo / ".git" / "refs/remotes/origin/develop").write_text("1" * 40 + "\n", encoding="utf-8")
+        self.libera_write(self.ITENS[:1])
+        self.assertFalse(marca.exists(), "o hook rodou o transporte de nome livre da cópia")
+
     def test_remoto_lento_nao_recusa_o_parecer_dormente(self):
         self.armar("sleep 4")
         entrada = {"tool_name": "Write", "tool_input": {"file_path": str(self.repo / "docs/security/v1.md"), "content": "x\n"},

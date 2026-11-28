@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B2-M33",
+      "guarda": "A5 (0c74349): o `ambiente` do chamador entra no git depois do filtro dos `GIT_*`",
+      "arquivo": "bin/forge-check",
+      "de": "env.update(ambiente or {})",
+      "para": "env.update({})",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_transporte_de_nome_livre_nao_roda_no_clone_parcial"
+      ]
+    },
+    {
+      "id": "C1B2-M34",
+      "guarda": "A5 (0c74349): o `git` dos hooks repassa o `ambiente` ao do `forge-check`",
+      "arquivo": "hooks/_comum.py",
+      "de": "forge_check().git(raiz, *args, ambiente=ambiente)",
+      "para": "forge_check().git(raiz, *args)",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_transporte_de_nome_livre_nao_roda_no_clone_parcial"
+      ]
+    }
+  ]
+}

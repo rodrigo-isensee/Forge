@@ -16,8 +16,8 @@
       "id": "C1B2-M26",
       "guarda": "M20.1: a lista só acorda a guarda quando existe no commit",
       "arquivo": "hooks/conformidade.py",
-      "de": "{r}:{LISTA_FECHADA}\")[0] == 0 for r in refs)",
-      "para": "{r}:{LISTA_FECHADA}\")[0] != 0 for r in refs)",
+      "de": ")[0] == 0 for r in refs)",
+      "para": ")[0] != 0 for r in refs)",
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_dorme_sem_a_lista"
       ]
@@ -34,42 +34,76 @@
     },
     {
       "id": "C1B2-M28",
-      "guarda": "A3 (0ad43a8): o `cat-file` da lista fechada roda sem transporte, sem a busca preguiçosa do clone parcial",
+      "guarda": "A3 (0ad43a8): o `cat-file` da lista fechada roda sem transporte, sem a busca preguiçosa do clone parcial; segunda camada sob `SEM_PROTOCOLO` (A5, 0c74349), por isso a troca vem com a do ambiente",
       "arquivo": "hooks/conformidade.py",
-      "de": "git(topo, *SEM_TRANSPORTE, \"cat-file\"",
-      "para": "git(topo, \"cat-file\"",
+      "de": [
+        "git(topo, *SEM_TRANSPORTE, \"cat-file\"",
+        "ambiente=SEM_PROTOCOLO)"
+      ],
+      "para": [
+        "git(topo, \"cat-file\"",
+        "ambiente={})"
+      ],
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_uploadpack_da_copia_nao_roda_no_clone_parcial"
       ]
     },
     {
       "id": "C1B2-M29",
-      "guarda": "A3 (0ad43a8): a chave por protocolo da cópia, que vence a geral, também fica desligada",
+      "guarda": "A3 (0ad43a8): a chave por protocolo da cópia, que vence a geral, também fica desligada; segunda camada sob `SEM_PROTOCOLO` (A5, 0c74349), por isso a troca vem com a do ambiente",
       "arquivo": "hooks/conformidade.py",
-      "de": "\"-c\", \"protocol.allow=never\", \"-c\", \"protocol.file.allow=never\", \"-c\"",
-      "para": "\"-c\", \"protocol.allow=never\", \"-c\"",
+      "de": [
+        "\"-c\", \"protocol.allow=never\", \"-c\", \"protocol.file.allow=never\", \"-c\"",
+        "ambiente=SEM_PROTOCOLO)"
+      ],
+      "para": [
+        "\"-c\", \"protocol.allow=never\", \"-c\"",
+        "ambiente={})"
+      ],
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_uploadpack_da_copia_nao_roda_no_clone_parcial"
       ]
     },
     {
       "id": "C1B2-M30",
-      "guarda": "A4 (29c1bea): o `ftp` da cópia (helper `git-remote-ftp`) fica desligado no `cat-file` da lista",
+      "guarda": "A4 (29c1bea): o `ftp` da cópia (helper `git-remote-ftp`) fica desligado no `cat-file` da lista; segunda camada sob `SEM_PROTOCOLO` (A5, 0c74349), por isso a troca vem com a do ambiente",
       "arquivo": "hooks/conformidade.py",
-      "de": "\"-c\", \"protocol.ftp.allow=never\", \"-c\", \"protocol.ftps.allow=never\"",
-      "para": "\"-c\", \"protocol.ftps.allow=never\"",
+      "de": [
+        "\"-c\", \"protocol.ftp.allow=never\", \"-c\", \"protocol.ftps.allow=never\"",
+        "ambiente=SEM_PROTOCOLO)"
+      ],
+      "para": [
+        "\"-c\", \"protocol.ftps.allow=never\"",
+        "ambiente={})"
+      ],
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_ftp_da_copia_nao_conecta_no_clone_parcial"
       ]
     },
     {
       "id": "C1B2-M31",
-      "guarda": "A4 (29c1bea): o `ftps` da cópia (helper `git-remote-ftps`) fica desligado no `cat-file` da lista",
+      "guarda": "A4 (29c1bea): o `ftps` da cópia (helper `git-remote-ftps`) fica desligado no `cat-file` da lista; segunda camada sob `SEM_PROTOCOLO` (A5, 0c74349), por isso a troca vem com a do ambiente",
       "arquivo": "hooks/conformidade.py",
-      "de": "\"-c\", \"protocol.ftps.allow=never\",",
-      "para": "",
+      "de": [
+        "\"-c\", \"protocol.ftps.allow=never\",",
+        "ambiente=SEM_PROTOCOLO)"
+      ],
+      "para": [
+        "",
+        "ambiente={})"
+      ],
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_ftp_da_copia_nao_conecta_no_clone_parcial"
+      ]
+    },
+    {
+      "id": "C1B2-M32",
+      "guarda": "A5 (0c74349): `GIT_ALLOW_PROTOCOL=none` no ambiente do `cat-file` da lista vence a chave `protocol.<nome>.allow` de nome livre da cópia",
+      "arquivo": "hooks/conformidade.py",
+      "de": "ambiente=SEM_PROTOCOLO)",
+      "para": "ambiente={})",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_transporte_de_nome_livre_nao_roda_no_clone_parcial"
       ]
     }
   ]

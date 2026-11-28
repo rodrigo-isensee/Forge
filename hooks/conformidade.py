@@ -306,6 +306,10 @@ SEM_TRANSPORTE = ("-c", "protocol.allow=never", "-c", "protocol.file.allow=never
                   "-c", "protocol.git.allow=never", "-c", "protocol.ssh.allow=never", "-c", "protocol.http.allow=never",
                   "-c", "protocol.https.allow=never", "-c", "protocol.ftp.allow=never", "-c", "protocol.ftps.allow=never",
                   "-c", "protocol.fd.allow=never")
+# A5 da segurança (0c74349): o nome do transporte é livre (`remote.<nome>.vcs`, `<nome>::`) e a chave
+# `protocol.<nome>.allow` da cópia vence a geral, então nenhuma lista de recusa fecha; a lista de permissão vazia do
+# ambiente vence toda chave `protocol.*` (S10). A `SEM_TRANSPORTE` fica como segunda camada.
+SEM_PROTOCOLO = {"GIT_ALLOW_PROTOCOL": "none"}
 CONFIG_NO_AMBIENTE = re.compile(r"^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+|PARAMETERS)$")
 REFSPEC_NA_CONFIG = re.compile(r"remote\..+\.(fetch|push)", re.I)
 # IMPL-FURO-HOOK-N, N5 (L22, C-22-1): na branch de integração a única entrada é o `git merge` com parecer; o que grava
@@ -2788,12 +2792,13 @@ class Guarda:
 
     def lista_fechada(self, topo):
         """A lista existe na `origin/develop` local da cópia ou no `HEAD` (a branch aberta depois da virada a traz). Só refs
-        locais e sem transporte (`SEM_TRANSPORTE`): sem rede no hook (ADR 0003 item 2) e sem rodar a configuração da cópia
+        locais e sem transporte (`SEM_PROTOCOLO` e `SEM_TRANSPORTE`): sem rede no hook (ADR 0003 item 2) e sem rodar a configuração da cópia
         (`remote.origin.uploadpack`), nem pela busca preguiçosa do clone parcial. O ref
         recuado à mão esconde a lista: aceito, quem decide é o servidor (C5a)."""
         if topo not in self._listas:
             refs = ("refs/remotes/origin/develop", "HEAD")
-            self._listas[topo] = any(git(topo, *SEM_TRANSPORTE, "cat-file", "-e", f"{r}:{LISTA_FECHADA}")[0] == 0 for r in refs)
+            self._listas[topo] = any(git(topo, *SEM_TRANSPORTE, "cat-file", "-e", f"{r}:{LISTA_FECHADA}",
+                                          ambiente=SEM_PROTOCOLO)[0] == 0 for r in refs)
         return self._listas[topo]
 
     def barrar_parecer(self, o_que, corrigir=CORRIGIR_PUBLICAR):
