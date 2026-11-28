@@ -1,0 +1,132 @@
+{
+  "pedido": "vermelho-tests-evals",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o pacote do modulo entra no nome (evals.test_x)",
+      "arquivo": "bin/forge-testes",
+      "de": "r\"(?!tests\\.)(?:[a-z0-9_]+\\.)*test_[a-z0-9_]+\")",
+      "para": "r\"(?!tests\\.)test_[a-z0-9_]+\")",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito",
+        "tests.test_testes_tocados.Vermelho.test_vermelho_recusa_modulo_de_pacote_sem_arquivo_e_grafia_torta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "tests.tests.test_x segue recusado (um corte so)",
+      "arquivo": "bin/forge-testes",
+      "de": "r\"(?!tests\\.)(?:",
+      "para": "r\"(?:",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_o_modulo_pelo_nome_com_o_pacote"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o caminho do arquivo vira nome de modulo",
+      "arquivo": "bin/forge-testes",
+      "de": "nome_do_modulo(m) or m.removeprefix(\"tests.\")",
+      "para": "m.removeprefix(\"tests.\")",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito",
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_o_caminho_de_teste_da_raiz"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a lista de modulos conhecidos inclui os de pacote (modulo sem arquivo sai 2, o de pacote existe)",
+      "arquivo": "bin/forge-testes",
+      "de": "todos = sorted(n for n in map(nome_do_modulo, (p.relative_to(raiz).as_posix() for p in (raiz / \"tests\").rglob(\"test_*.py\"))) if n)",
+      "para": "todos = sorted(p.stem for p in (raiz / \"tests\").glob(\"test_*.py\") if NOME_DE_MODULO.fullmatch(p.stem))",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito",
+        "tests.test_testes_tocados.Vermelho.test_vermelho_recusa_modulo_de_pacote_sem_arquivo_e_grafia_torta",
+        "tests.test_testes_tocados.Vermelho.test_vermelho_sem_modulos_roda_o_modulo_de_pacote_do_diff"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o teste de pacote do diff fica no HEAD nas duas copias",
+      "arquivo": "bin/forge-testes",
+      "de": "TESTE_DO_DIFF = re.compile(r\"tests/((?:[a-z0-9_]+/)*test_[a-z0-9_]+\\.py|",
+      "para": "TESTE_DO_DIFF = re.compile(r\"tests/(test_[a-z0-9_]+\\.py|",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o modulo de pacote do diff conta como modificado",
+      "arquivo": "bin/forge-testes",
+      "de": "modificados = {nome_do_modulo(c) for c in caminhos if nome_do_modulo(c)}",
+      "para": "modificados = {MODULO_DE_TESTE.fullmatch(c).group(1) for c in caminhos if MODULO_DE_TESTE.fullmatch(c)}",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a base do modulo de pacote e lida pelo caminho do pacote",
+      "arquivo": "bin/forge-testes",
+      "de": "caminho = arquivo_do_modulo(modulo).as_posix()",
+      "para": "caminho = f\"tests/{modulo}.py\"",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_de_modulo_de_pacote_marca_herdada_o_teste_que_a_base_ja_tinha"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "a entrada herdada da base vale para Classe.teste de modulo de pacote",
+      "arquivo": "bin/forge-testes",
+      "de": "\".\".join(partes[-2:]) in existiam",
+      "para": "\".\".join(partes[2:]) in existiam",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_de_modulo_de_pacote_marca_herdada_o_teste_que_a_base_ja_tinha"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a falha de setUpClass da base acha a chave de modulo de pacote",
+      "arquivo": "bin/forge-testes",
+      "de": "f\"setUpClass ({'.'.join(partes[:-1])})\", f\"setUpModule ({modulo})\"):",
+      "para": "f\"setUpClass ({'.'.join(partes[:-1])})-x\", f\"setUpModule ({modulo})\"):",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_de_modulo_de_pacote_marca_herdada_o_teste_que_a_base_ja_tinha"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "so o teste de pacote do diff conta como modificado (a condicao do filtro)",
+      "arquivo": "bin/forge-testes",
+      "de": "for c in caminhos if nome_do_modulo(c)}",
+      "para": "for c in caminhos if False}",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "a lista de modulos conhecidos so leva arquivo que e nome de modulo (a condicao do filtro)",
+      "arquivo": "bin/forge-testes",
+      "de": "(p.relative_to(raiz).as_posix() for p in (raiz / \"tests\").rglob(\"test_*.py\"))) if n)",
+      "para": "(p.relative_to(raiz).as_posix() for p in (raiz / \"tests\").rglob(\"test_*.py\"))) if False)",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "NOME_DE_MODULO.fullmatch(p.stem)",
+      "motivo": "o filtro por nome saiu: nome_do_modulo (SUBMODULO_DE_TESTE) já valida o caminho, e o mutante M11 cobre o filtro novo"
+    },
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "len(partes) > 1",
+      "motivo": "a guarda de índice saiu: partes[1:-2] é fatia e não indexa, sem erro de limite; o mutante M10 cobre a chave"
+    }
+  ]
+}

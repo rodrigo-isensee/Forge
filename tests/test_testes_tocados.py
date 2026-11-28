@@ -1203,7 +1203,9 @@ class Vermelho(unittest.TestCase):
         self.salvar("apoio")
 
     def modulos_do_vermelho(self, r):
-        linha = next(l for l in r.stdout.splitlines() if l.startswith("vermelho: base="))
+        linhas = [l for l in r.stdout.splitlines() if l.startswith("vermelho: base=")]
+        self.assertTrue(linhas, f"sem a linha do plano (rc={r.returncode}):\n{r.stdout}{r.stderr}")
+        linha = linhas[0]
         return linha.split("módulos=")[1].split(" ")[0].split(","), linha
 
     # M8, opção C (critério de fim, item 4): o `--vermelho` sem `--modulos` não manda módulo de teste ao `planejar`.
@@ -1287,13 +1289,75 @@ class Vermelho(unittest.TestCase):
         self.assertEqual(self.modulos_do_vermelho(r)[0], ["test_outro", "test_lib"], r.stdout + r.stderr)
         r = self.rodar("--vermelho", "HEAD~1", "--modulos", "tests.test_outro")
         self.assertEqual(self.modulos_do_vermelho(r), curto, r.stdout + r.stderr)
-        for grafia in ("tests.tests.test_outro", "tests/test_outro.py", "tests.", "test_a,,test_b", "tests.test_a;b",
-                       "Tests.test_outro", "tests.test_outro.py", "xtests.test_outro"):
+        for grafia in ("tests.tests.test_outro", "tests.", "test_a,,test_b", "tests.test_a;b",
+                       "Tests.test_outro", "tests.test_outro.py"):
             with self.subTest(grafia):
                 r = self.rodar("--vermelho", "HEAD~1", "--modulos", grafia)
                 self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
                 self.assertIn("test_<nome> ou tests.test_<nome>", r.stderr)
                 self.assertEqual(list(self.tmp.iterdir()), [])
+
+    def com_teste_em_pacote(self):
+        """Base com `tests/evals/test_novo.py` (pacote); o diff corrige `lib.py` e acrescenta o teste que o prova."""
+        self.gravar("tests/evals/__init__.py", "")
+        self.gravar("tests/evals/test_novo.py", self.BASE_TESTE)
+        self.salvar("pacote")
+        self.corrigir_lib()
+        self.gravar("tests/evals/test_novo.py", self.BASE_TESTE.replace("lib.dobro(0), 0", "lib.dobro(2), 4"))
+        self.gravar("tests/evals/test_novo.py", (self.dir / "tests/evals/test_novo.py").read_text(encoding="utf-8")
+                    + self.metodo("test_dois", "self.assertTrue(True)"))
+        self.salvar("corrige")
+
+    def test_vermelho_sem_modulos_roda_o_modulo_de_pacote_do_diff(self):  # VERMELHO-TESTS-EVALS
+        self.com_teste_em_pacote()
+        r = self.rodar("--vermelho", "HEAD~1")
+        self.assertIn("evals.test_novo", self.modulos_do_vermelho(r)[0], r.stdout + r.stderr)
+
+    def test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito(self):  # VERMELHO-TESTS-EVALS
+        """`evals.test_novo` e `tests/evals/test_novo.py` dão o veredito por teste (prova) que o módulo da raiz daria."""
+        self.com_teste_em_pacote()
+        for forma in ("evals.test_novo", "tests.evals.test_novo", "tests/evals/test_novo.py"):
+            with self.subTest(forma):
+                r = self.rodar("--vermelho", "HEAD~1", "--modulos", forma)
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertEqual(self.modulos_do_vermelho(r)[0], ["evals.test_novo"], r.stdout)
+                self.assertIn("tests.evals.test_novo.T.test_um · H=ok · B=falha · prova (asserção)", r.stdout)
+                self.assertIn("tests.evals.test_novo.T.test_dois · H=ok · B=ok · não prova (passa na base)", r.stdout)
+        revertidos = [l for l in r.stdout.splitlines() if l.startswith("revertidos à base:")]
+        self.assertEqual(len(revertidos), 1, r.stdout + r.stderr)
+        self.assertNotIn("tests/evals/test_novo.py", revertidos[0])
+
+    def test_vermelho_de_modulo_de_pacote_marca_herdada_o_teste_que_a_base_ja_tinha(self):  # VERMELHO-TESTS-EVALS
+        self.gravar("tests/evals/__init__.py", "")
+        self.gravar("tests/evals/test_novo.py", "import unittest\nimport lib\n\n\nclass T(unittest.TestCase):\n"
+                    "    @classmethod\n    def setUpClass(cls):\n        cls.v = lib.ALVO\n\n"
+                    "    def test_um(self):\n        self.assertTrue(self.v)\n")
+        self.salvar("pacote")
+        self.gravar("lib.py", self.LIB + "ALVO = 1\n")
+        self.salvar("alvo")
+        r = self.rodar("--vermelho", "HEAD~1", "--modulos", "evals.test_novo")
+        self.assertIn("tests.evals.test_novo.T.test_um · H=ok · B=erro · não prova (herdada da base)", r.stdout,
+                      r.stdout + r.stderr)
+
+    def test_vermelho_recusa_modulo_de_pacote_sem_arquivo_e_grafia_torta(self):  # VERMELHO-TESTS-EVALS
+        self.com_teste_em_pacote()
+        r = self.rodar("--vermelho", "HEAD~1", "--modulos", "evals.test_falta")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("módulo sem arquivo em tests/: evals.test_falta", r.stderr)
+        r = self.rodar("--vermelho", "HEAD~1", "--modulos", "xtests.test_novo")  # pacote que não existe: sem arquivo
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        for grafia in ("evals.novo", "tests/evals/novo.py", "evals/test_novo", "Evals.test_novo"):
+            with self.subTest(grafia):
+                r = self.rodar("--vermelho", "HEAD~1", "--modulos", grafia)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("test_<nome> ou tests.test_<nome>", r.stderr)
+
+    def test_vermelho_aceita_o_caminho_de_teste_da_raiz(self):  # VERMELHO-TESTS-EVALS
+        self.com_modulos_do_mapa()
+        self.gravar("lib.py", "def dobro(x):\n    return x\n# mudou\n")
+        self.salvar("muda")
+        r = self.rodar("--vermelho", "HEAD~1", "--modulos", "tests/test_outro.py")
+        self.assertEqual(self.modulos_do_vermelho(r)[0], ["test_outro"], r.stdout + r.stderr)
 
     def test_vermelho_com_modulo_de_teste_apagado_no_diff_nao_o_roda(self):
         self.com_modulos_do_mapa()

@@ -2,7 +2,7 @@
 """Forge: teste dirigido durante a iteração do autor (TA-3). Só biblioteca padrão.
 
 Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO ...] [CAMINHO ...]
-     forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]   (M: test_<nome> ou tests.test_<nome>)
+     forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]   (M: test_<nome>, tests.test_<nome>, evals.test_<nome> ou tests/evals/test_<nome>.py)
      forge-testes --texto
      forge-testes --registros [--base REF]
      forge-testes --regerar [--base REF]
@@ -139,8 +139,9 @@ RAMO_BUSCAVEL = re.compile(r"[A-Za-z0-9._/-]+")  # o ramo de `--base` que vai ao
 # O que o `--vermelho` mantém no HEAD nas duas cópias: módulos de teste e dados de teste. Falha fechada: todo o
 # resto (inclusive `tests/catraca.py`, `tests/neutralidade.py` e os apoios de `tests/`) é produção e volta à base.
 # `tests/config.json` fica no HEAD porque guarda os invariantes que provam o texto (a saída lista os mantidos).
-TESTE_DO_DIFF = re.compile(r"tests/(test_[a-z0-9_]+\.py|config\.json|(fixtures|hooks|transcricoes|migracoes|mutantes)/.+)")
-NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
+TESTE_DO_DIFF = re.compile(r"tests/((?:[a-z0-9_]+/)*test_[a-z0-9_]+\.py|config\.json|(fixtures|hooks|transcricoes|migracoes|mutantes)/.+)")
+# `test_x`, ou `evals.test_x` de um pacote de tests/; `tests.` é o prefixo do `unittest`, cortado antes (`(?!tests\.)`)
+NOME_DE_MODULO = re.compile(r"(?!tests\.)(?:[a-z0-9_]+\.)*test_[a-z0-9_]+")
 
 # Mapa caminho -> módulos de teste. Primeira regra que casa vence; o caminho vira a união dos módulos.
 # Cada regra é (expressão regular sobre o caminho relativo à raiz, módulos em tests/). Prefira ser largo
@@ -868,7 +869,7 @@ class TodosExistiam:
 def testes_da_base(ancora, modulo):
     """`Classe.teste` do módulo de teste na versão da base, lido sem executar (`git show` e `ast`). Módulo que a base
     não tem: conjunto vazio (todos os testes são novos). Ilegível: `TodosExistiam`."""
-    caminho = f"tests/{modulo}.py"
+    caminho = arquivo_do_modulo(modulo).as_posix()
     try:
         if not git("ls-tree", ancora, "--", caminho).strip():
             return set()
@@ -895,10 +896,11 @@ def da_base(registro_b, ident, existiam=()):
     if ident in registro_b:
         return registro_b[ident]
     partes = ident.split(".")
-    for chave in (".".join(partes[:2]), partes[1] if len(partes) > 1 else "", f"setUpClass ({'.'.join(partes[:-1])})", f"setUpModule ({'.'.join(partes[:2])})"):
+    modulo = ".".join(partes[:-2])  # `tests.test_x` ou, de pacote, `tests.evals.test_x`
+    for chave in (modulo, ".".join(partes[1:-2]), f"setUpClass ({'.'.join(partes[:-1])})", f"setUpModule ({modulo})"):
         if chave in registro_b:
             entrada = registro_b[chave]
-            return {**entrada, "herdada": True} if ".".join(partes[2:]) in existiam else entrada
+            return {**entrada, "herdada": True} if ".".join(partes[-2:]) in existiam else entrada
     return None
 
 
@@ -935,9 +937,9 @@ def vermelho(base_pedida, modulos_pedidos, prazo):
     caminhos = [c for _, c in itens]
     producao = [(s, c) for s, c in itens if not TESTE_DO_DIFF.fullmatch(c)]
     mantidos = [c for c in caminhos if TESTE_DO_DIFF.fullmatch(c)]
-    modificados = {MODULO_DE_TESTE.fullmatch(c).group(1) for c in caminhos if MODULO_DE_TESTE.fullmatch(c)}
+    modificados = {nome_do_modulo(c) for c in caminhos if nome_do_modulo(c)}
     removidos = {Path(c).stem for s, c in producao if s == "A"}
-    todos = sorted(p.stem for p in (raiz / "tests").glob("test_*.py") if NOME_DE_MODULO.fullmatch(p.stem))
+    todos = sorted(n for n in map(nome_do_modulo, (p.relative_to(raiz).as_posix() for p in (raiz / "tests").rglob("test_*.py"))) if n)
     if modulos_pedidos is not None:
         modulos, restrito = modulos_pedidos, " (restrito por --modulos)"
         ausentes = [m for m in modulos if m not in todos]
@@ -1281,9 +1283,10 @@ def main(argv=None):
     if args.modulos is not None:
         # FORGE-TESTES-MODULOS-NOME: o nome com o pacote (`tests.test_x`, a forma do `unittest`) vale como `test_x`; um
         # corte só, no começo, e a validação depois dele (`tests.tests.test_x` e `tests/test_x.py` seguem recusados).
-        modulos_pedidos = [m.removeprefix("tests.") for m in args.modulos.split(",")]
+        # VERMELHO-TESTS-EVALS: o caminho do arquivo (tests/evals/test_x.py) e o módulo de pacote (evals.test_x) valem também.
+        modulos_pedidos = [nome_do_modulo(m) or m.removeprefix("tests.") for m in args.modulos.split(",")]
         if not all(NOME_DE_MODULO.fullmatch(m) for m in modulos_pedidos):
-            p.error("--modulos: nomes de módulo de teste (test_<nome> ou tests.test_<nome>) separados por vírgula")
+            p.error("--modulos: nomes de módulo de teste (test_<nome> ou tests.test_<nome>; pacote: evals.test_<nome> ou tests/evals/test_<nome>.py) separados por vírgula")
 
     if args.caminhos and (args.completa or args.vermelho is not None):
         p.error("caminhos não combinam com --completa nem com --vermelho")
