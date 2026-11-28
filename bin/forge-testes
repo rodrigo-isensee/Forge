@@ -212,7 +212,8 @@ MAPA = [
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
-    (r"bin/forge-mutante", ("test_forge_mutante", "test_forge", "test_pre_push_patch")),  # v0478 E94.5: o test_pre_push_patch roda a cópia
+    # v0478 E94.5: o test_pre_push_patch roda a cópia; E9.2: o test_afetados_catraca_custo roda o modulos_listados
+    (r"bin/forge-mutante", ("test_forge_mutante", "test_forge", "test_pre_push_patch", "test_afetados_catraca_custo")),
     (r"bin/forge-status", ("test_forge_status", "test_maquina", "test_forge")),  # MP2: o --maquina
     (r"bin/forge-contador", ("test_forge_contador", "test_forge_status_estado", "test_forge")),  # S1a (v0481 E20.1): o status roda o contador
     (r"bin/forge-copia", ("test_forge_copia", "test_forge_copia_nome", "test_forge")),  # v0478 E111.13: o test_forge_copia_nome roda o script (CLONE-NOME-UNICO)
@@ -544,12 +545,13 @@ def planejar_afetados(caminhos, raiz=Path(".")):
     return sorted(modulos), notas
 
 
-# E9.1 (v048, AFETADOS-CATRACA-E-CUSTO): o diff que toca hooks/, bin/ ou um arquivo protegido da catraca (a PROTEGIDOS de
-# tests/catraca.py, lida pela árvore com `ast`, sem cópia da lista) leva ao plano dirigido a catraca no modo do diff
-# (`tests/catraca.py --base REF`) e o teste de custo; o CI os reprovava com os afetados verdes (#957, #940, #944).
+# E9.1 (v048, AFETADOS-CATRACA-E-CUSTO): o diff que toca hooks/, bin/, scripts/ ou um arquivo protegido da catraca
+# (a PROTEGIDOS de tests/catraca.py, lida pela árvore com `ast`, sem cópia da lista) leva ao plano dirigido a catraca
+# no modo do diff (`tests/catraca.py --base REF`) e o teste de custo; o CI os reprovava com os afetados verdes (#957,
+# #940, #944).
 CATRACA = "tests/catraca.py"
 TESTE_DE_CUSTO = "test_hooks_volta_corpus"
-PASTAS_DA_CATRACA = ("hooks/", "bin/")
+PASTAS_DA_CATRACA = ("hooks/", "bin/", "scripts/")  # scripts/ está nas PASTAS_CUSTO e SENSIVEIS da catraca
 
 
 def protegidos_da_catraca(arquivo):
@@ -571,7 +573,7 @@ def protegidos_da_catraca(arquivo):
 
 
 def toca_a_catraca(caminho, protegidos):
-    """O caminho está em hooks/ ou bin/, é um protegido ou cai numa pasta protegida (o item terminado em `/`)."""
+    """O caminho está em hooks/, bin/ ou scripts/, é um protegido ou cai numa pasta protegida (o item terminado em `/`)."""
     if caminho.startswith(PASTAS_DA_CATRACA):
         return True
     return any(caminho == item or (item.endswith("/") and caminho.startswith(item)) for item in protegidos)
@@ -579,14 +581,24 @@ def toca_a_catraca(caminho, protegidos):
 
 def custo_e_catraca(caminhos, raiz=Path(".")):
     """(módulos a somar, se a catraca roda): o teste de custo, se a raiz o tem, e a catraca, quando algum caminho a toca;
-    ((), False) sem tests/catraca.py ou sem caminho que a toque. Falha fechada: PROTEGIDOS ilegível conta como tocada."""
+    ((), False) sem tests/catraca.py (o projeto sem catraca) ou sem caminho que a toque. Falha fechada: PROTEGIDOS
+    ilegível conta como tocada, e a catraca em link ou apagada no diff a pede, para o comando a reprovar sem executá-la."""
     arquivo = raiz / CATRACA
-    if not arquivo.is_file() or arquivo.is_symlink():
+    custo = (TESTE_DE_CUSTO,) if arquivo_do_modulo(TESTE_DE_CUSTO, raiz).is_file() else ()
+    if arquivo.is_symlink() or (CATRACA in caminhos and not arquivo.is_file()):
+        return custo, True
+    if not arquivo.is_file():
         return (), False
     protegidos = protegidos_da_catraca(arquivo)
     if not any(protegidos is None or toca_a_catraca(caminho, protegidos) for caminho in caminhos):
         return (), False
-    return ((TESTE_DE_CUSTO,) if arquivo_do_modulo(TESTE_DE_CUSTO, raiz).is_file() else ()), True
+    return custo, True
+
+
+def catraca_rodavel(raiz=Path(".")):
+    """A catraca é um arquivo comum (nem link nem ausente): só assim o comando a executa."""
+    arquivo = raiz / CATRACA
+    return arquivo.is_file() and not arquivo.is_symlink()
 
 
 # E9.2 (v048, ajuste do dono de 28/11 11:19): plano dos afetados acima de uns 1.000 testes roda no computador só a catraca,
@@ -1349,8 +1361,13 @@ def main(argv=None):
     else:
         print(f"forge-testes: dirigido ({', '.join(detalhe)}). O CI do PR roda a suíte inteira.")
         comando, modulos = comando_dirigido(detalhe, args.filtros), detalhe
+    # stderr: o stdout do plano é uma linha só, que o forge-mutante (modulos_listados) lê inteira
     if catraca:
-        print(f"forge-testes: catraca no diff ({CATRACA} --base {args.base}): o diff toca hooks/, bin/ ou arquivo protegido.")
+        print(f"forge-testes: catraca no diff ({CATRACA} --base {args.base}): o diff toca hooks/, bin/, scripts/ ou"
+              " arquivo protegido.", file=sys.stderr)
+        if not catraca_rodavel():
+            print(f"forge-testes: {CATRACA} apagado ou trocado por link: a catraca não roda e o plano reprova.",
+                  file=sys.stderr)
     if modo == "completo":
         for filtro in args.filtros:
             comando += ["-k", filtro]
@@ -1361,7 +1378,8 @@ def main(argv=None):
     inicio = time.monotonic()
     codigo = subprocess.run(comando).returncode if modo == "completo" or modulos else 0
     if catraca:
-        da_catraca = subprocess.run([sys.executable, "-I", CATRACA, "--base", args.base]).returncode
+        rodavel = catraca_rodavel()
+        da_catraca = subprocess.run([sys.executable, "-I", CATRACA, "--base", args.base]).returncode if rodavel else 1
         codigo = codigo or da_catraca
     anotar(modo, modulos, time.monotonic() - inicio, codigo)
     return codigo

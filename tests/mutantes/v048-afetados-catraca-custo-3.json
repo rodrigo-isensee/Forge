@@ -46,8 +46,8 @@
       "id": "M21",
       "guarda": "a catraca roda no modo do diff",
       "arquivo": "bin/forge-testes",
-      "de": "    if catraca:\n        da_catraca",
-      "para": "    if False:\n        da_catraca",
+      "de": "    if catraca:\n        rodavel = catraca_rodavel()",
+      "para": "    if False:\n        rodavel = catraca_rodavel()",
       "testes": [
         "tests.test_afetados_catraca_custo.PeloComando.test_afetados_roda_a_catraca_no_modo_do_diff_e_devolve_a_saida_dela"
       ]

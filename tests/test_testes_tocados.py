@@ -521,7 +521,7 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
                          com_oraculos(self.f, ["test_conferir_reversao", "test_forge", "test_indice_forge", "test_testes_tocados"]))
 
     def test_forge_mutante_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):
-        self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), com_oraculos(self.f, ["test_forge", "test_forge_mutante", "test_indice_forge",
+        self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), com_oraculos(self.f, ["test_afetados_catraca_custo", "test_forge", "test_forge_mutante", "test_indice_forge",
                                                                                      "test_pre_push_patch"]))
 
 
@@ -606,7 +606,7 @@ class Execucao(unittest.TestCase):
         self.assertIn("suíte completa (tests/config.json altera o mapa ou a configuração)", r.stdout)
 
     def test_arquivo_mapeado_renomeado_inclui_os_modulos_do_caminho_antigo(self):
-        for modulo in ("test_forge_mutante", "test_pre_push_patch"):  # o mapa de bin/forge-mutante os cita
+        for modulo in ("test_forge_mutante", "test_pre_push_patch", "test_afetados_catraca_custo"):  # o mapa de bin/forge-mutante os cita
             (self.dir / "tests" / f"{modulo}.py").write_text("x = 1\n", encoding="utf-8")
         git(self.dir, "add", "-A")
         git(self.dir, "commit", "-qm", "bin")
@@ -614,7 +614,7 @@ class Execucao(unittest.TestCase):
         git(self.dir, "mv", "bin/forge-sugerir", "bin/forge-mutante")
         r = subprocess.run([sys.executable, str(FERRAMENTA), "--base", "melhoria/x", "--listar"], cwd=self.dir,
                            env=AMBIENTE, capture_output=True, text=True)
-        self.assertIn("dirigido (test_forge, test_forge_mutante, test_pre_push_patch, test_sugerir)", r.stdout)  # test_sugerir vem do caminho antigo
+        self.assertIn("dirigido (test_afetados_catraca_custo, test_forge, test_forge_mutante, test_pre_push_patch, test_sugerir)", r.stdout)  # test_sugerir vem do caminho antigo
 
     # FORGE-TESTES-CAMINHOS: classe "a ferramenta recusa a forma de chamada que os briefs mandam usar". Variantes:
     # caminho relativo, absoluto, com `..`, a partir de subpasta, vários, fora do repositório, junto de opção

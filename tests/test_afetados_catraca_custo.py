@@ -54,12 +54,12 @@ class Brinquedo(unittest.TestCase):
 
 class CustoECatraca(Brinquedo):
     def test_hooks_bin_e_protegidos_levam_a_catraca_e_o_custo(self):
-        for caminho in ("hooks/a.py", "bin/forge-x", ".githooks/pre-push", "scripts/protegido.py"):
+        for caminho in ("hooks/a.py", "bin/forge-x", "scripts/outro.py", ".githooks/pre-push", "scripts/protegido.py"):
             with self.subTest(caminho=caminho):
                 self.assertEqual(self.plano("docs/guia.md", caminho), (("test_hooks_volta_corpus",), True))
 
     def test_o_resto_fica_como_esta(self):
-        for caminho in ("docs/guia.md", "scripts/protegido.pyx", "scripts/outro.py", "docs/hooks/x.md", "tests/bin/x"):
+        for caminho in ("docs/guia.md", "lib/scripts/x.py", "docs/hooks/x.md", "tests/bin/x", "tests/scripts/x"):
             with self.subTest(caminho=caminho):
                 self.assertEqual(self.plano(caminho), ((), False))
         self.assertEqual(self.plano(), ((), False))
@@ -68,11 +68,23 @@ class CustoECatraca(Brinquedo):
         (self.raiz / "tests" / "catraca.py").unlink()
         self.assertEqual(self.plano("bin/forge-x"), ((), False))
 
-    def test_catraca_em_link_nao_conta(self):
+    def test_catraca_em_link_pede_a_catraca_e_nao_e_rodavel(self):  # falha fechada (segurança c7df039 A1)
         alvo = self.raiz / "fora.py"
         (self.raiz / "tests" / "catraca.py").rename(alvo)
         (self.raiz / "tests" / "catraca.py").symlink_to(alvo)
-        self.assertEqual(self.plano("bin/forge-x"), ((), False))
+        for caminhos in (("docs/guia.md",), ("bin/forge-x",), ()):
+            with self.subTest(caminhos=caminhos):
+                self.assertEqual(self.plano(*caminhos), (("test_hooks_volta_corpus",), True))
+        self.assertFalse(self.f.catraca_rodavel(self.raiz))
+
+    def test_catraca_apagada_no_diff_pede_a_catraca(self):  # falha fechada (segurança c7df039 A1)
+        (self.raiz / "tests" / "catraca.py").unlink()
+        self.assertEqual(self.plano("tests/catraca.py"), (("test_hooks_volta_corpus",), True))
+        self.assertEqual(self.plano("docs/guia.md"), ((), False))  # o projeto sem catraca segue sem ela
+        self.assertFalse(self.f.catraca_rodavel(self.raiz))
+
+    def test_catraca_comum_e_rodavel(self):
+        self.assertTrue(self.f.catraca_rodavel(self.raiz))
 
     def test_sem_o_teste_de_custo_so_a_catraca(self):
         (self.raiz / "tests" / "test_hooks_volta_corpus.py").unlink()
@@ -124,6 +136,19 @@ class ListaDaCatracaReal(unittest.TestCase):
         self.assertEqual(f.custo_e_catraca(["docs/guia.md"], RAIZ), ((), False))
 
 
+class RecorteDoMutante(unittest.TestCase):
+    """Review e QA c7df039 A1 (sonda S1): com a catraca no plano, o modulos_listados do forge-mutante, que lê o stdout
+    inteiro do --listar, segue dando o recorte H5 do diff em bin/ (antes, conjunto vazio)."""
+
+    def test_modulos_listados_de_bin_forge_mutante(self):
+        carregador = importlib.machinery.SourceFileLoader("forge_mutante_e92", str(RAIZ / "bin" / "forge-mutante"))
+        spec = importlib.util.spec_from_loader("forge_mutante_e92", carregador)
+        mutante = importlib.util.module_from_spec(spec)
+        carregador.exec_module(mutante)
+        listados = mutante.modulos_listados(["bin/forge-mutante"])
+        self.assertLessEqual({"test_forge_mutante", "test_hooks_volta_corpus", "test_pre_push_patch"}, listados)
+
+
 class PeloComando(Brinquedo):
     """O comando inteiro, num repositório de brinquedo: o plano mostra a catraca e o custo, e a execução roda a catraca."""
 
@@ -156,7 +181,7 @@ class PeloComando(Brinquedo):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(r.stdout.splitlines()[0],
                          "forge-testes: dirigido (test_hooks_volta_corpus, test_protegido). O CI do PR roda a suíte inteira.")
-        self.assertIn("forge-testes: catraca no diff", r.stdout)
+        self.assertIn("forge-testes: catraca no diff", r.stderr)
         self.assertIn("plano de 1001 testes passa do limite local de 1000", r.stderr)
         self.assertIn("999 testes ficam para o CI do PR", r.stderr)
 
@@ -171,14 +196,25 @@ class PeloComando(Brinquedo):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue(r.stdout.startswith("forge-testes: dirigido ("), r.stdout)
         self.assertIn("test_hooks_volta_corpus", r.stdout.splitlines()[0])
-        self.assertIn("forge-testes: catraca no diff (tests/catraca.py --base origin/develop)", r.stdout)
+        self.assertIn("forge-testes: catraca no diff (tests/catraca.py --base origin/develop)", r.stderr)
+        self.assertEqual(len(r.stdout.splitlines()), 1, r.stdout)  # o plano numa linha só (review c7df039 A1)
+        self.assertNotIn("não roda", r.stderr)
         self.assertFalse((self.raiz / "catraca-rodou").exists())
 
     def test_listar_sem_hook_bin_nem_protegido_fica_como_esta(self):
         r = self.rodar("--afetados", "--listar", "docs/guia.md")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertNotIn("catraca", r.stdout)
+        self.assertNotIn("catraca", r.stdout + r.stderr)
         self.assertNotIn("test_hooks_volta_corpus", r.stdout)
+
+    def test_catraca_em_link_reprova_sem_executar(self):  # falha fechada (segurança c7df039 A1)
+        alvo = self.raiz / "fora.py"
+        (self.raiz / "tests" / "catraca.py").rename(alvo)
+        (self.raiz / "tests" / "catraca.py").symlink_to(alvo)
+        r = self.rodar("--afetados", "docs/guia.md")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("tests/catraca.py apagado ou trocado por link: a catraca não roda e o plano reprova", r.stderr)
+        self.assertFalse((self.raiz / "catraca-rodou").exists())
 
     def test_afetados_roda_a_catraca_no_modo_do_diff_e_devolve_a_saida_dela(self):
         (self.raiz / "catraca-saida").write_text("3", encoding="utf-8")

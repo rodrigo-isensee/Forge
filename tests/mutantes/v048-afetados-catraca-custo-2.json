@@ -4,12 +4,12 @@
   "mutantes": [
     {
       "id": "M9",
-      "guarda": "catraca ausente ou em link nao entra",
+      "guarda": "catraca em link pede a catraca (falha fechada)",
       "arquivo": "bin/forge-testes",
-      "de": "    if not arquivo.is_file() or arquivo.is_symlink():",
-      "para": "    if not arquivo.is_file():",
+      "de": "    if arquivo.is_symlink() or (CATRACA in caminhos",
+      "para": "    if (CATRACA in caminhos",
       "testes": [
-        "tests.test_afetados_catraca_custo.CustoECatraca.test_catraca_em_link_nao_conta"
+        "tests.test_afetados_catraca_custo.CustoECatraca.test_catraca_em_link_pede_a_catraca_e_nao_e_rodavel"
       ]
     },
     {
@@ -36,8 +36,8 @@
       "id": "M12",
       "guarda": "diff sem hook, bin nem protegido fica como esta",
       "arquivo": "bin/forge-testes",
-      "de": "        return (), False\n    return ((TESTE_DE_CUSTO,)",
-      "para": "        return (TESTE_DE_CUSTO,), True\n    return ((TESTE_DE_CUSTO,)",
+      "de": "        return (), False\n    return custo, True",
+      "para": "        return (TESTE_DE_CUSTO,), True\n    return custo, True",
       "testes": [
         "tests.test_afetados_catraca_custo.CustoECatraca.test_o_resto_fica_como_esta"
       ]
