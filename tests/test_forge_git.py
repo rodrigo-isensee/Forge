@@ -211,7 +211,7 @@ class Recusas(Base):
             forge_git.rede("https://exemplo.invalid/a", "push")
 
     def test_merge_tree_com_revisao_que_nao_existe(self):
-        self.assertEqual(forge_git.merge_tree(self.copia, "--write-tree", "main", "nao-existe"), (1, ""))
+        self.assertEqual(forge_git.merge_tree(self.copia, "--write-tree", "main", "nao-existe"), (128, ""))
 
 
 class Legitimos(Base):

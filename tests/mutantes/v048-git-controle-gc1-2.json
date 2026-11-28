@@ -35,10 +35,10 @@
     },
     {
       "id": "M12",
-      "guarda": "guarda: revisão que não existe devolve o rc do rev-parse",
+      "guarda": "guarda: revisão que não existe devolve erro (128), não o rc 1 do conflito",
       "arquivo": "bin/forge_git.py",
-      "de": "            if rc:\n                return rc, \"\"",
-      "para": "            if False:\n                return rc, \"\"",
+      "de": "            if rc:\n                return 128, \"\"  # como o git: erro, não o rc 1 do conflito",
+      "para": "            if False:\n                return 128, \"\"  # como o git: erro, não o rc 1 do conflito",
       "testes": [
         "tests.test_forge_git.Recusas.test_merge_tree_com_revisao_que_nao_existe"
       ]

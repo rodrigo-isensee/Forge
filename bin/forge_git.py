@@ -122,7 +122,7 @@ def merge_tree(raiz, *args, prazo=PRAZO_S):
         if not arg.startswith("-"):
             rc, arg = git(raiz, "rev-parse", "--verify", "--quiet", f"{arg}^{{commit}}")
             if rc:
-                return rc, ""
+                return 128, ""  # como o git: erro, não o rc 1 do conflito
         resolvidos.append(arg)
     with neutro(objetos_de=raiz) as pasta:
         return _rodar((f"--git-dir={pasta}", *NEUTRO, *SEM_CREDENCIAL), ("merge-tree", *resolvidos), prazo=prazo)
