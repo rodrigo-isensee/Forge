@@ -121,7 +121,7 @@ class D2(Comum):
         r = self.copia("clone", str(d), "--origem", str(self.origem), "--d2", "--base", "origin/nada")
         self.assertEqual(r.returncode, 1, r.stderr)
         self.assertFalse(d.exists())
-        self.assertIn("nenhuma destas refs existe no clone: origin/nada;", r.stderr)
+        self.assertIn("não criei o clone D2: nenhuma destas refs existe no clone: origin/nada;", r.stderr)
 
     def test_d2_com_branch_revisao_ou_worktree_e_recusado(self):
         for extra in (["clone", "--origem", str(self.origem), "--branch", "melhoria/x"],

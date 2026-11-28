@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "as refs tentadas sem a branch no D2",
       "arquivo": "bin/forge-copia",
-      "de": "([f\"origin/{branch}\"] if branch else [])",
-      "para": "[f\"origin/{branch}\"]",
+      "de": "[f\"origin/{branch}\"] if branch else []",
+      "para": "[f\"origin/{branch}\"] if True else []",
       "testes": [
         "tests.test_forge_copia_origem.D2.test_d2_sem_a_base_apaga_o_clone"
       ]
@@ -47,7 +47,7 @@
       "guarda": "url relativa vale a partir da origem",
       "arquivo": "bin/forge-copia",
       "de": "url = local if os.path.isdir(local) else url.strip()",
-      "para": "url = url.strip()",
+      "para": "url = local if False else url.strip()",
       "testes": [
         "tests.test_forge_copia_origem.OrigemLocal.test_url_relativa_vale_a_partir_da_origem"
       ]
@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "a recusa da origem sai antes do clone",
       "arquivo": "bin/forge-copia",
-      "de": "    if motivo:\n        return recusa(motivo)\n    if git(\"clone\"",
-      "para": "    if False:\n        return recusa(motivo)\n    if git(\"clone\"",
+      "de": "origem_real(a.origem)\n    if motivo:",
+      "para": "origem_real(a.origem)\n    if False:",
       "testes": [
         "tests.test_forge_copia_origem.OrigemLocal.test_pasta_local_sem_remoto_origin_e_recusada"
       ]
@@ -66,20 +66,20 @@
       "id": "M7",
       "guarda": "worktree sem ponto de partida nao chama o git",
       "arquivo": "bin/forge-copia",
-      "de": "    if ponto and git(\"worktree\"",
-      "para": "    if git(\"worktree\"",
+      "de": "    if not ponto:\n        print(f\"forge-copia: não criei a worktree",
+      "para": "    if False:\n        print(f\"forge-copia: não criei a worktree",
       "testes": [
         "tests.test_forge_copia_origem.Worktree.test_base_que_nao_existe_sai_1_com_as_refs_tentadas"
       ]
     },
     {
       "id": "M8",
-      "guarda": "a branch que ja existia fica",
+      "guarda": "a worktree que falha nao sai 0",
       "arquivo": "bin/forge-copia",
-      "de": "    if not antes and sha and ler(",
-      "para": "    if sha and ler(",
+      "de": "    if git(\"worktree\", \"add\", \"--no-track\", \"-b\", branch, \"--\", real, ponto) == 0:",
+      "para": "    if True:",
       "testes": [
-        "tests.test_forge_copia_origem.Worktree.test_branch_que_ja_existia_fica_quando_a_worktree_falha"
+        "tests.test_forge_copia_origem.Worktree.test_worktree_que_falha_apaga_a_branch_que_criou"
       ]
     }
   ]

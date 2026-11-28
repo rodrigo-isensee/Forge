@@ -180,12 +180,14 @@ def origem_real(origem):
 def worktree(real, branch, base):
     """A worktree nasce como o clone (COPIA-BASE); se o git falha, apaga a branch que ele criou (só a nova). Devolve 0 ou 1."""
     ponto, antes = ponto_de_partida(".", branch, base), existe(".", f"refs/heads/{branch}")
-    if ponto and git("worktree", "add", "--no-track", "-b", branch, "--", real, ponto) == 0:
+    if not ponto:
+        print(f"forge-copia: não criei a worktree de {branch}: {falha_do_ponto(branch, base, ponto, False)}", file=sys.stderr)
+        return 1
+    if git("worktree", "add", "--no-track", "-b", branch, "--", real, ponto) == 0:
         return 0
-    sha = ler(["git", "rev-parse", "--verify", "-q", f"{ponto}^{{commit}}"])[1].strip() if ponto else ""
-    if not antes and sha and ler(["git", "update-ref", "-d", f"refs/heads/{branch}", sha])[0] == 0:
+    sha = ler(["git", "rev-parse", "--verify", "-q", f"{ponto}^{{commit}}"])[1].strip()
+    if not antes and ler(["git", "update-ref", "-d", f"refs/heads/{branch}", sha])[0] == 0:
         print(f"forge-copia: a worktree falhou; apaguei a branch {branch} que ela criou", file=sys.stderr)
-    print(f"forge-copia: não criei a worktree de {branch}: {falha_do_ponto(branch, base, ponto, False)}", file=sys.stderr)
     return 1
 
 

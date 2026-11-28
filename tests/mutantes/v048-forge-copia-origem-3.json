@@ -1,0 +1,46 @@
+{
+  "pedido": "v048-forge-copia-origem-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "o D2 fica destacado",
+      "arquivo": "bin/forge-copia",
+      "de": "alvo = [\"--detach\"] if a.d2 else",
+      "para": "alvo = [\"--detach\"] if False else",
+      "testes": [
+        "tests.test_forge_copia_origem.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "o switch que falha apaga a copia",
+      "arquivo": "bin/forge-copia",
+      "de": "    if not ponto or git(\"switch\", *alvo, ponto, cwd=real):",
+      "para": "    if not ponto:",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_switch_que_falha_apaga_a_copia"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "a falha do D2 diz o clone D2",
+      "arquivo": "bin/forge-copia",
+      "de": "{a.branch or 'o clone D2'}:",
+      "para": "{a.branch}:",
+      "testes": [
+        "tests.test_forge_copia_origem.D2.test_d2_sem_a_base_apaga_o_clone"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "o D2 criado diz o clone D2 destacado",
+      "arquivo": "bin/forge-copia",
+      "de": "{a.branch or 'o clone D2 destacado'}",
+      "para": "{a.branch}",
+      "testes": [
+        "tests.test_forge_copia_origem.D2.test_clone_d2_nasce_destacado_na_develop_sem_branch"
+      ]
+    }
+  ]
+}
