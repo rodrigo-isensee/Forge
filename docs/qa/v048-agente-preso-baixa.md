@@ -16,7 +16,8 @@ data: 2026-11-28
 
 Delta 2a310c7c..af5dde24 (`forge-check parecer delta`: `tests/mutantes/trava-agente-morto.json` e `tests/test_agente_preso_baixa.py`). O M6 foi realinhado ao de/para da linha 492 de `hooks/agentes.py` (que termina em ":") e a sonda S9 virou comentário do teste. O mérito do código passou na 1ª rodada (2a310c7c) e não mudou; o A1 daquela rodada está resolvido.
 
-- ci: af5dde244f771d0bf2f1b45e1ddc9c41128e685f verde (run 46162734439: `suíte (python 3.12, partes 1/5 a 5/5)`, `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação` e `catraca (conferência)` verdes; fora `bateria (pareceres)`, `bateria` e `catraca`, que esperam parecer ou rótulo)
+- ci: af5dde244f771d0bf2f1b45e1ddc9c41128e685f verde
+CI lido: run 46162734439: `suíte (python 3.12, partes 1/5 a 5/5)`, `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação` e `catraca (conferência)` verdes; fora `bateria (pareceres)`, `bateria` e `catraca`, que esperam parecer ou rótulo
 
 ## Resultado do delta
 - `python3 -m unittest tests.test_forge_mutante.ConferirTodas tests.test_agente_preso_baixa` · Ran 22 tests, OK (a conferência das specs com a fonte, que era o A1, passa).
