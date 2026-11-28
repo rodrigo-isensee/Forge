@@ -46,8 +46,8 @@
       "id": "C1B2-M29",
       "guarda": "A3 (0ad43a8): a chave por protocolo da cópia, que vence a geral, também fica desligada",
       "arquivo": "hooks/conformidade.py",
-      "de": "for p in (\"\", *(f\"{n}.\" for n in (\"file\", \"ext\", \"git\", \"ssh\", \"http\", \"https\")))",
-      "para": "for p in (\"\",)",
+      "de": "\"-c\", \"protocol.allow=never\", \"-c\", \"protocol.file.allow=never\", \"-c\"",
+      "para": "\"-c\", \"protocol.allow=never\", \"-c\"",
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_uploadpack_da_copia_nao_roda_no_clone_parcial"
       ]
