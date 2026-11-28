@@ -3,41 +3,54 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v048
 branch: melhoria/v048-validar-yaml-workflow
-commit: d7a8c8f9e4508668b497477e1283b08ae0322fb5
+commit: 418faf58fdeccad239d75eeeaf22b41c9340db1e
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-11-28
 ---
-# Review de segurança: v048, validador de YAML dos workflows (E13.6), 1ª rodada
+# Review de segurança: v048, validador de YAML dos workflows (E13.6), 2ª rodada (delta)
 
 Gatilhos: CI/CD (validador dos workflows de `.github/`, que vai entrar no envio)
 
-Escopo lido: `d7a8c8f9` contra a base `a1971853` (`scripts/validar-yaml-workflow.py`, `tests/test_validar_yaml_workflow.py`, `tests/mutantes/v048-validar-yaml-workflow.json`, fragmento do changelog). Os commits seguintes da branch (`933a51fd`, `34dde413`) só trazem os pareceres de QA e de review, sem código.
+Delta lido (`forge-check parecer delta`): `d7a8c8f9..418faf58`. No domínio, só `scripts/validar-yaml-workflow.py` (regex de comentário, `lstat`/`S_ISREG`, teto de 1 MiB, rc 2 sem arquivos). Fora do domínio e lidos para conferir as sondas: os 6 testes novos, as duas specs de mutantes e a linha do índice. A 1ª rodada fica no git (`c088e268`).
 
-O que se confirma: o validador **não executa nada** (só importa as bibliotecas de expressão regular, `sys` e `pathlib`; nada de subprocesso, avaliação, import dinâmico nem rede) e **não acrescenta dependência**. **Erro de leitura falha fechada**: arquivo ausente, link quebrado, pasta e byte inválido em UTF-8 saem com rc 2 (linhas 65-69, conferido à mão). A saída não abre brecha para comando do log do CI: as linhas vêm de `splitlines()`, então chave e valor não carregam quebra de linha, e toda linha começa por `<arquivo>:<n>:`. O corpus legítimo passa: os 5 workflows, o `ci.yml` do modelo de projeto, os dois `dependabot.yml` e o `actionlint.yaml` saem com rc 0. Os 13 testes passam neste head.
+## Estado dos achados anteriores
+- A1 resolvido: `scripts/validar-yaml-workflow.py:43` (`\s#.*$` e `rstrip`). S1 refeita: 0,0002 s, 0,0002 s e 0,0005 s para N = 10000, 20000 e 40000, e 0,005 s para 400000. Teste: `test_linha_longa_de_espacos_e_linear`.
+- A2 resolvido para link e arquivo especial dentro da pasta: `:72-79`. S2 refeita: rc 2, "não é arquivo regular". S3 refeita: rc 2, sem ecoar o conteúdo de fora. Teto: um arquivo de 1 MiB + 1 byte sai rc 2. Testes: `test_link_para_arquivo_especial_sai_2`, `test_link_para_fora_nao_ecoa_o_conteudo`, `test_arquivo_acima_de_1_mib_sai_2`. A variante com a pasta como link fica no A5.
+- A3 resolvido: `:66-68`. Sem `.github/` e com a pasta vazia, os dois saem rc 2 com a mensagem no stderr. Teste: `test_sem_workflow_nenhum_sai_2`.
 
-O que não se confirma: **custo linear** (A1) e **não seguir link** (A2). As duas coisas estavam pedidas no brief e falham com repro. Severidade baixa nas duas: para explorar, alguém precisa pôr no repositório uma linha ou um link que passe pelo review. Elas bloqueiam por serem defeito de comportamento provado contra o requisito declarado (`R-SEGURANCA`), não por serem vulnerabilidades de alto impacto. A correção é pequena.
+Corpus legítimo: os workflows do repositório, os do modelo de projeto e o `dependabot.yml` saem rc 0. Os 19 testes do arquivo passam neste head.
 
 ## Achados
-- A1 (bloqueante) scripts/validar-yaml-workflow.py:40 · a remoção do comentário (`\s+#.*$`) é quadrática numa sequência de espaços sem `#`: 4,1 s numa linha de 40 KB, e o tempo quadruplica cada vez que a linha dobra (S1). Uma linha longa num workflow trava o envio de todos. Trocar por `\s#.*$` e `.rstrip()`, que é linear e passa os 13 testes
-- A2 (bloqueante) scripts/validar-yaml-workflow.py:66 · `read_text` segue link e lê arquivo especial sem limite: um link para `/dev/zero` em `.github/workflows/` prende o validador (S2), e um link para fora do repositório ecoa o conteúdo na saída (S3). Recusar o que não é arquivo regular (`lstat` + `S_ISREG`) e passar de 1 MiB, com rc 2
-- A3 (recomendado) scripts/validar-yaml-workflow.py:62 · sem argumento e sem `.github/workflows/` (ou com a pasta vazia), sai rc 0 sem ler nada: falha aberta quando o envio chamar o script de outro lugar. Com zero arquivos lidos, sair com rc 2 e uma mensagem no stderr
+- A4 (bloqueante) scripts/validar-yaml-workflow.py:39 · explorável: S4. O laço dos itens `- ` copia o resto da linha a cada volta, e o custo fica quadrático: uma linha de `- ` repetidos de 1 MiB (abaixo do teto) leva cerca de 46 s. É a mesma família do A1 (custo linear pedido), em código anterior ao delta
+- A5 (recomendado) scripts/validar-yaml-workflow.py:64 · com `.github/workflows` versionada como link para uma pasta de fora, o glob entra nela, o `lstat` vê arquivos regulares e o conteúdo de fora vai para a saída (S5). Recusar a pasta quando ela ou `.github` forem links, com rc 2
 
 ## Sondas
-- S1 · `validar("a: x" + " "*N + "y\n")` com N = 10000, 20000, 40000 · espera: tempo linear, abaixo de 0,05 s (1 milhão de linhas curtas, 10 MB, levam 5,2 s) · obtido: 0,27 s, 1,02 s, 4,10 s; com `\s#.*$` e `.rstrip()`: 0,000 s nas três
-- S2 · `ln -s /dev/zero .github/workflows/zero.yml; timeout 10 scripts/validar-yaml-workflow.py` (cópia do script numa árvore temporária) · espera: rc 2 (não é arquivo regular) · obtido: rc 124, o script lia sem parar até o timeout
-- S3 · `ln -s <tmp>/fora.txt .github/workflows/link.yml` (fora.txt: `segredo: token: XYZ-fora-do-repo`), sem argumento · espera: rc 2, sem ecoar o conteúdo de fora · obtido: rc 1 e `link.yml:1: valor simples com ... token: XYZ-fora-do-repo` no stdout
+- S4 · `validar("- "*n + "a: b\n")` com n = 64000, 128000, 256000 · espera: tempo linear, como em S1 (0,005 s para 400 mil caracteres) · obtido: 0,74 s, 2,98 s, 11,5 s (quadrático; cerca de 46 s em 1 MiB); com a correção do A4: 0,12 s em 1 MiB
 
 ## Detalhe dos achados
-**A1.** Evidência: `scripts/validar-yaml-workflow.py:40` e a sonda S1, com `validar()` carregado do head. Caminho: hoje, só quem escreve um workflow. Quando o cartão PREPUSH-VALIDA-YAML ligar o script ao envio, uma linha longa de espaços (colada sem querer ou posta por um PR mesclado) faz o envio de cada contribuidor levar minutos, e no CI queima o tempo do job: uma linha de 400 KB passaria de 6 minutos. Não há ganho para quem ataca além da negação de serviço do fluxo. Severidade baixa. Correção mínima: na linha 40, `re.sub(r"\s#.*$", "", resto).rstrip()`. Conferi numa cópia que os 13 testes continuam verdes e que S1 cai para 0,000 s. Falta um teste com linha longa de espaços dentro de um orçamento de tempo, que é o orçamento pedido para um analisador de entrada livre. Esforço P. Dono: `devops-engineer`.
+**A4.** Evidência: `scripts/validar-yaml-workflow.py:39-42`. Cada volta faz `resto[1:].lstrip()` duas vezes, e cada uma copia o resto da linha. Essas linhas não mudaram desde `d7a8c8f9`, então o achado é novo e fora do delta. Eu o deixei passar na 1ª rodada. Ele bloqueia pelo G1.2, porque a sonda S4 prova que é explorável e o requisito de custo linear era o mesmo do A1. Caminho de ataque: igual ao do A1. Quando o validador entrar no envio, uma linha de `- ` repetidos num workflow, mesclada por um PR, prende o envio de todos os contribuidores e o job do CI por até cerca de 46 s por linha. Severidade baixa (só negação de serviço do fluxo, e a linha teria de passar pelo review).
 
-**A2.** Evidência: `scripts/validar-yaml-workflow.py:62` (o glob aceita link) e `:66` (`read_text` segue o link e lê o arquivo inteiro). Caminho: o git versiona link simbólico. Um link em `.github/workflows/` para `/dev/zero` (ou para um arquivo enorme) prende o envio de quem atualizar a branch (S2). Um link para fora da árvore imprime até 60 caracteres por valor e a chave inteira do arquivo de destino (S3), e no CI isso iria para o log. Severidade baixa: o PR teria de passar pelo review, e no CI do PR o autor já controla o código que roda. Correção mínima: antes de ler, `st = os.lstat(arq)`; se não for `stat.S_ISREG(st.st_mode)` (isso já recusa link, pasta, FIFO e dispositivo) ou se `st.st_size` passar de 1 MiB, imprimir `<arq>: não é arquivo regular` (ou `grande demais`) no stderr e retornar 2. Isso vale com argumento e sem ele. Testes: um link para um arquivo válido sai 2 e um arquivo acima do teto sai 2. Esforço P. Dono: `devops-engineer`.
+Correção mínima: andar por índice, sem copiar.
+```python
+        i = 0
+        while resto.startswith("- ", i):
+            itens = True
+            j = i + 1
+            while j < len(resto) and resto[j].isspace():
+                j += 1
+            col, i = col + j - i, j
+        resto = resto[i:]
+```
+Conferi numa cópia que os 19 testes continuam verdes e que o corpus sai rc 0. Ela dá o mesmo resultado do head em 200 mil entradas aleatórias (alfabeto com `- `, tabulação, espaço inseparável, `:`, `#` e `|`). S4 cai para 0,12 s em 1 MiB. Teste a acrescentar: a mesma linha de S4 dentro de um orçamento de tempo, como em `test_linha_longa_de_espacos_e_linear`. Esforço P. Dono: `devops-engineer`.
 
-**A3.** Evidência: `scripts/validar-yaml-workflow.py:61-62,73`. Repro: uma cópia do script numa árvore sem `.github/workflows/` (e outra com a pasta vazia) sai com rc 0 e saída vazia. Caminho: o envio ou o CI chamam o script de um lugar onde a pasta não é resolvida (por exemplo, uma cópia instalada fora do repositório) e o verde chega sem nada conferido, que é a mesma aparência de verde do #929. Severidade baixa. Correção mínima: se nenhum arquivo foi lido, imprimir no stderr e retornar 2. Esforço P. Dono: `devops-engineer`.
+**A5.** Evidência: `scripts/validar-yaml-workflow.py:64-65` (o glob segue a pasta) e `:72` (o `lstat` só olha o último componente). Repro: numa árvore temporária, `.github/workflows` como link para uma pasta de fora com `x.yml` (`segredo: token: XYZ-pasta-fora`). Sem argumento, a saída foi rc 1 e `x.yml:1: valor simples com ... token: XYZ-pasta-fora` no stdout (S5). Caminho de ataque: o git versiona esse link. Um PR que troque a pasta pelo link faz o envio e o CI ecoarem trechos de `*.yml` de fora do repositório. Severidade baixa: o PR apaga os workflows reais, o que é muito visível no review, e no CI do PR o autor já controla o código. Por isso não bloqueia. Pela regra da segurança, ele volta e é corrigido antes do merge.
 
-Fora destes achados e já registrados por outros pareceres, sem repetir aqui: o mutante `break` sobrevivente (QA A1), o índice derivado que deixa o CI do head vermelho (review A1) e os subprocessos do teste sem `-I` (review A3).
+Correção mínima: no ramo sem argumento, se `pasta.is_symlink()` ou `pasta.parent.is_symlink()`, imprimir no stderr e retornar 2. Teste: a pasta como link sai rc 2 sem ecoar o conteúdo. Esforço P. Dono: `devops-engineer`.
 
-Suíte: o CI do Revisar-sha está vermelho (run 46166823206, workflow CI, `failure`, pelo índice derivado do review A1). Este parecer não afirma CI verde. Rodei só os 13 testes do arquivo novo, as sondas S1 a S3 e o repro do A3.
+Fora destes achados: entre o `lstat` e o `open` (`:72-75`) há uma janela de troca do arquivo. Ela só serve a quem já escreve na árvore local e não dá caminho de ataque, por isso não vira achado.
+
+Suíte: não afirmo CI verde. No momento da leitura, o CI do PR para `418faf58` tinha a suíte (5 partes) pendente e a `bateria (pareceres)` vermelha, que espera os pareceres. Rodei só os 19 testes do arquivo, as sondas S1 a S5, o corpus e a equivalência da correção do A4.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura estática, sondas locais em árvore temporária e cronometragem de `validar()`. Faltaram no PATH, e ficam como lacuna: o varredor de segredos, o SAST, os linters de workflow e o auditor de dependências da skill `cyber-security`. Nenhum deles mudaria este parecer, porque não há dependência nova nem workflow alterado.
+Nenhum risco aceito. Ferramentas: leitura estática, sondas locais em árvore temporária, cronometragem de `validar()` e comparação aleatória da correção proposta com o head. O teste com FIFO ficou de fora porque o hook de conformidade barra `mkfifo` em caminho com `.git`. O `lstat` com `S_ISREG` já recusa FIFO, como mostra S2 com um dispositivo. Faltaram no PATH, como na 1ª rodada: o varredor de segredos, o SAST, os linters de workflow e o auditor de dependências. Nenhum deles mudaria o parecer: não há dependência nova nem workflow alterado.
