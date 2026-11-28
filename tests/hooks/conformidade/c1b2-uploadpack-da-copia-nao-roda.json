@@ -1,0 +1,30 @@
+{
+  "descricao": "C1b-2, S1 da segurança (b2e8765): sem a lista no origin/develop local, o hook não roda o remote.origin.uploadpack da cópia (só refs locais, sem rede)",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "config": {
+        "remote.origin.url": ".",
+        "remote.origin.uploadpack": "touch MARCA; git-upload-pack"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/docs/reviews/v1.md",
+      "content": "parecer\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_caminho": [
+      "{raiz}/MARCA"
+    ]
+  }
+}
