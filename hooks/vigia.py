@@ -602,10 +602,15 @@ def depende_do_dono(celulas, responsavel):
 
 
 def agentes_rodando(hook, raiz):
-    """Registros vigentes do R-TETO (reserva ou agente iniciado), pela mesma leitura do `agentes.py`; ilegível levanta."""
+    """Registros vigentes do R-TETO (reserva ou agente iniciado), pela mesma leitura do `agentes.py`; ilegível levanta.
+    AGENTE-PRESO-SEM-BAIXA (v048 E12.2): sem o agente que a notificação terminal prova parado (`agentes.Liberacao`), que
+    não conta como rodando nem como preso; a baixa no arquivo fica com o próximo evento do `agentes.py`."""
     import agentes  # só no Stop: o módulo é grande
-    estado = agentes.ler_estado(agentes.arquivo_de_estado(raiz))  # sem diretório comum (None), o TypeError é a dúvida
-    return agentes.vigentes(estado["agentes"], time.time(), hook.expira_s())
+    arquivo = agentes.arquivo_de_estado(raiz)
+    estado = agentes.ler_estado(arquivo)  # sem diretório comum (None), o TypeError é a dúvida
+    leitor = agentes.Hook("agentes")  # a trava `pesado` da Liberacao é a da pasta do agentes.json, não a do vigia
+    leitor.entrada, leitor._run, agora = hook.entrada, arquivo.parent, time.time()
+    return agentes.vigentes(estado["agentes"], agora, hook.expira_s(), agentes.Liberacao(leitor, agora))
 
 
 # F4 (v0481 E34.1 e E34.6): PR aberto sem agente e instância presa, sem rede ----------------------------
