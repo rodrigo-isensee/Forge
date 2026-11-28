@@ -6,6 +6,7 @@ import importlib.machinery
 import importlib.util
 import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -228,10 +229,11 @@ class ChecksForaDaLinhaDoCi(unittest.TestCase):
                 self.assertIn("verde via <sha40 do descendente", texto)
 
     def test_cada_check_e_um_job_dos_workflows(self):
+        ESPERA = re.compile(r"\$\{\{[^}]*outputs\.espera[^}]*\}\}$")  # E47.6: o sufixo é condicional
         nomes = set()
         for yml in (RAIZ / ".github" / "workflows").glob("*.yml"):
-            nomes |= {l.split("name:", 1)[1].split("#")[0].strip() for l in yml.read_text(encoding="utf-8").splitlines()
-                      if l.startswith("    name:")}
+            nomes |= {ESPERA.sub("", l.split("name:", 1)[1].split("#")[0].strip()) for l in yml.read_text(encoding="utf-8").splitlines()
+                      if l.startswith("    name:")}  # E47.1: o sufixo da espera é vazio sem espera; o check é o nome sem ele
         self.assertGreater(len(nomes), 10)
         self.assertLessEqual(set(fc.CHECKS_FORA_DA_LINHA_DO_CI), nomes)
 
