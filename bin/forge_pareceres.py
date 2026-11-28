@@ -21,6 +21,7 @@ URL_DO_COMENTARIO = re.compile(r"https://([^/]+)/([^/]+)/([^/]+)/pull/([0-9]+)#i
 DESCRICAO = re.compile(r"(aprovado|riscos-aceitos|reprovado) · sha256 ([0-9a-f]{64}) · [0-9]+ bloqueantes · [0-9]+ recomendados")
 REGISTRO = "pareceres-publicados.jsonl"  # M4.1, na pasta de controle
 LISTA_FECHADA = ".github/pareceres-lista-fechada.json"  # M20.1, gravada no C5a; o mesmo nome do hook `conformidade` (C1b-2)
+SEM_CONFIG_DA_COPIA = ("-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=", "-c", "protocol.ext.allow=never")  # A3 do #947
 
 
 class Recusa(Exception):
@@ -296,10 +297,11 @@ def vigentes(raiz, pr, head, pedido):
 
 
 def git_lido(raiz, *args):
-    """(código, stdout) do `git` na cópia, sem as variáveis GIT_* herdadas; sem `git` ou sem resposta: (128, "")."""
+    """(código, stdout) do `git` na cópia, sem as variáveis GIT_* herdadas nem hooks, fsmonitor e `ext::` da cópia (o hook
+    parecer roda fora do sandbox; A3 do #947, como `bin/forge-adotar`); sem `git` ou sem resposta: (128, "")."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     try:
-        r = subprocess.run(["git", *args], cwd=raiz, capture_output=True, text=True, timeout=30, env=env)
+        r = subprocess.run(["git", *SEM_CONFIG_DA_COPIA, *args], cwd=raiz, capture_output=True, text=True, timeout=30, env=env)
     except (OSError, subprocess.TimeoutExpired):
         return 128, ""
     return r.returncode, r.stdout

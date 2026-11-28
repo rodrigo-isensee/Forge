@@ -46,8 +46,8 @@
       "id": "C2B-M21",
       "guarda": "o git da lista sem as GIT_* herdadas",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "env = {k: v for k, v in os.environ.items() if not k.startswith(\"GIT_\")}\n    try:\n        r = subprocess.run([\"git\", *args]",
-      "para": "env = {k: v for k, v in os.environ.items() if True}\n    try:\n        r = subprocess.run([\"git\", *args]",
+      "de": "env = {k: v for k, v in os.environ.items() if not k.startswith(\"GIT_\")}\n    try:\n        r = subprocess.run([\"git\", *SEM_CONFIG_DA_COPIA, *args]",
+      "para": "env = {k: v for k, v in os.environ.items() if True}\n    try:\n        r = subprocess.run([\"git\", *SEM_CONFIG_DA_COPIA, *args]",
       "testes": [
         "tests.test_forge_pareceres.ListaFechada.test_git_herdado_nao_desvia_a_leitura"
       ]

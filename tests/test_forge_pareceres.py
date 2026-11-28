@@ -1113,6 +1113,24 @@ class ListaFechada(unittest.TestCase):
         self.git(self.repo, "remote", "set-url", "origin", str(self.tmp / "nao-existe.git"))
         self.assertIsNone(self.lista())
 
+    def test_sonda_s3_hook_da_copia_nao_roda_no_fetch(self):
+        """Sonda S3 da segurança (2182673, A3): o fetch do hook parecer roda fora do sandbox; hook plantado na cópia não executa."""
+        # S3: sonda_s3.sh: origin bare, develop avança depois do clone, cópia sem fetch e com `.git/hooks/reference-transaction` executável que grava `marca`, `lista_fechada(cópia)` · espera: hook não executado
+        marca, hook = self.tmp / "marca", self.repo / ".git" / "hooks" / "reference-transaction"
+        hook.write_text(f"#!/bin/sh\ntouch '{marca}'\n", encoding="utf-8")
+        hook.chmod(0o755)
+        self.outro_envia("[947]")
+        self.assertEqual(self.lista(), frozenset({947}))
+        self.assertFalse(marca.exists())
+
+    def test_protocolo_ext_da_copia_nao_roda(self):
+        """A3: `protocol.ext.allow=always` na config local não faz o `ls-remote` rodar o comando de uma URL `ext::`."""
+        marca = self.tmp / "marca"
+        self.git(self.repo, "config", "protocol.ext.allow", "always")
+        self.git(self.repo, "remote", "set-url", "origin", f"ext::touch {marca}")
+        self.lista()
+        self.assertFalse(marca.exists())
+
     def test_so_a_linha_exata_da_develop(self):
         """O padrão do `ls-remote` casa o fim do nome: `a/refs/heads/develop` com a lista não vale pela develop."""
         com = self.commitar("[7]", enviar=False)
