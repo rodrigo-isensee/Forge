@@ -54,10 +54,10 @@ class CustoECatraca(Brinquedo):
     def test_hooks_bin_e_protegidos_levam_a_catraca_e_o_custo(self):
         for caminho in ("hooks/a.py", "bin/forge-x", ".githooks/pre-push", "scripts/protegido.py"):
             with self.subTest(caminho=caminho):
-                self.assertEqual(self.plano("README.md", caminho), (("test_hooks_volta_corpus",), True))
+                self.assertEqual(self.plano("docs/guia.md", caminho), (("test_hooks_volta_corpus",), True))
 
     def test_o_resto_fica_como_esta(self):
-        for caminho in ("README.md", "scripts/protegido.pyx", "scripts/outro.py", "docs/hooks/x.md", "tests/bin/x"):
+        for caminho in ("docs/guia.md", "scripts/protegido.pyx", "scripts/outro.py", "docs/hooks/x.md", "tests/bin/x"):
             with self.subTest(caminho=caminho):
                 self.assertEqual(self.plano(caminho), ((), False))
         self.assertEqual(self.plano(), ((), False))
@@ -81,7 +81,7 @@ class CustoECatraca(Brinquedo):
                       "PROTEGIDOS = tuple()\n", "OUTRA = ('.githooks/',)\n"):
             with self.subTest(texto=texto):
                 (self.raiz / "tests" / "catraca.py").write_text(texto, encoding="utf-8")
-                self.assertEqual(self.plano("README.md"), (("test_hooks_volta_corpus",), True))
+                self.assertEqual(self.plano("docs/guia.md"), (("test_hooks_volta_corpus",), True))
 
 
 class ListaDaCatracaReal(unittest.TestCase):
@@ -93,7 +93,7 @@ class ListaDaCatracaReal(unittest.TestCase):
         self.assertIn("scripts/conferir-release.py", protegidos)
         self.assertIn(".github/workflows/", protegidos)
         self.assertEqual(f.custo_e_catraca(["scripts/conferir-release.py"], RAIZ), (("test_hooks_volta_corpus",), True))
-        self.assertEqual(f.custo_e_catraca(["README.md"], RAIZ), ((), False))
+        self.assertEqual(f.custo_e_catraca(["docs/guia.md"], RAIZ), ((), False))
 
 
 class PeloComando(Brinquedo):
@@ -119,7 +119,7 @@ class PeloComando(Brinquedo):
         self.assertFalse((self.raiz / "catraca-rodou").exists())
 
     def test_listar_sem_hook_bin_nem_protegido_fica_como_esta(self):
-        r = self.rodar("--afetados", "--listar", "README.md")
+        r = self.rodar("--afetados", "--listar", "docs/guia.md")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertNotIn("catraca", r.stdout)
         self.assertNotIn("test_hooks_volta_corpus", r.stdout)
