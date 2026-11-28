@@ -1,0 +1,56 @@
+{
+  "pedido": "v0481-brief-sonda-escrita",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M8",
+      "guarda": "a sonda de parecer de outro pedido nao isenta a escrita (revisao-seguranca A1)",
+      "arquivo": "bin/forge-check",
+      "de": "for p in pareceres if p[\"campos\"].get(\"pedido\") == pedido_id and not p[\"problemas\"] for s",
+      "para": "for p in pareceres if not p[\"problemas\"] for s",
+      "testes": [
+        "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_sonda_de_parecer_de_outro_pedido_segue_barrada"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a sonda de parecer com problema nao isenta a escrita",
+      "arquivo": "bin/forge-check",
+      "de": "for p in pareceres if p[\"campos\"].get(\"pedido\") == pedido_id and not p[\"problemas\"] for s",
+      "para": "for p in pareceres if p[\"campos\"].get(\"pedido\") == pedido_id for s",
+      "testes": [
+        "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_sonda_de_parecer_com_problema_segue_barrada"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "--ref que nao e commit nao isenta a escrita",
+      "arquivo": "bin/forge-check",
+      "de": "    if not sha_ref:\n        return set()\n    pareceres, _, erro",
+      "para": "    if False:\n        return set()\n    pareceres, _, erro",
+      "testes": [
+        "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_ref_ilegivel_ou_parecer_fora_da_ref_segue_barrada"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "erro de leitura dos pareceres nao isenta a escrita",
+      "arquivo": "bin/forge-check",
+      "de": "return set() if erro else sondas_do_pedido(pareceres, pedido_id)",
+      "para": "return sondas_do_pedido(pareceres or [], pedido_id) if erro else sondas_do_pedido(pareceres, pedido_id)",
+      "testes": [
+        "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_ref_ilegivel_ou_parecer_fora_da_ref_segue_barrada"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "as sondas conferidas chegam a barreira de escrita do destino",
+      "arquivo": "bin/forge-check",
+      "de": "sondas=sondas_conferidas(raiz, texto, pedido_txt, pedido_id, ref, pareceres) if destino else set())",
+      "para": "sondas=sondas_conferidas(raiz, texto, pedido_txt, pedido_id, ref, pareceres) if not destino else set())",
+      "testes": [
+        "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_volta_com_a_sonda_do_parecer_nao_barra_a_escrita"
+      ]
+    }
+  ]
+}

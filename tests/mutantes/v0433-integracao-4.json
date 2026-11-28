@@ -240,8 +240,8 @@
       "id": "I62",
       "guarda": "bin/forge-check:7655 grupo(CABECALHO_DE_BRIEF_CAMPOS['Branch'], cabecalho_do_brief(texto)) or '' (negada)",
       "arquivo": "bin/forge-check",
-      "de": "        saida += conferir_escrita(secoes, destino, raiz, grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho_do_brief(texto)) or \"\", relidas)",
-      "para": "        saida += conferir_escrita(secoes, destino, raiz, not (grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho_do_brief(texto)) or \"\"), relidas)",
+      "de": "        saida += conferir_escrita(secoes, destino, raiz, grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho_do_brief(texto)) or \"\", sondas)",
+      "para": "        saida += conferir_escrita(secoes, destino, raiz, not (grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho_do_brief(texto)) or \"\"), sondas)",
       "testes": [
         "tests.test_t1_codigo_sem_teste",
         "tests.test_aq5_parecer_novo",
