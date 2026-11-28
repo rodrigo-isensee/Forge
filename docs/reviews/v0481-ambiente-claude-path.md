@@ -3,33 +3,30 @@ tipo: review
 contrato: 1
 pedido: v048
 branch: melhoria/v0481-ambiente-claude-path
-commit: df4b2bf9acc9db23f376b385f50f59ccf42dc467
+commit: 75f2e456414d0cb3e8e6e32c3afd1752798db61d
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-28
 ---
-# Review: v048 (E13.7, PR #965, ambiente: claude novo no PATH)
+# Review: v048 (E13.22, PR #965, volta 1, delta df4b2bf9..75f2e456)
 
-1.ª rodada completa no head df4b2bf9, contra a develop a1971853 (Base-sha do brief, igual à `origin/develop` lida).
+Revalidação. Li só `forge-check parecer delta docs/reviews/v0481-ambiente-claude-path.md`: intervalo df4b2bf9..75f2e456, no domínio só `scripts/preparar-estacao.sh` (+1 linha, `# shellcheck disable=SC2016` com motivo acima da 197).
 
 ## Achados
-- A1 (bloqueante) scripts/preparar-estacao.sh:197 · a regex nova entre aspas simples dispara SC2016 (info) e o `shellcheck` sai 1: o job "bateria (verificações longas)" do run 46166032218 no df4b2bf9 está vermelho. Ponha `# shellcheck disable=SC2016` com o motivo na linha de cima, como a 198 já faz.
-- A2 (recomendado) tests/test_ambiente_recriacao.py:219 · `bash_com_falsos` e o teste da sessão nova (linha 247) herdam `os.environ` inteiro no subprocesso; o `rodar` do mesmo arquivo já tira GIT_, GH_, XDG_ e FORGE_. Use o mesmo filtro.
-- A3 (recomendado) tests/test_ambiente_recriacao.py:277 · `comando() + ""` não faz nada; tire o `+ ""`.
+- A1 (bloqueante) scripts/preparar-estacao.sh:198 · o CI do head segue vermelho pelo diff: a regex nova desta linha deixou M7, M12 e M16 de tests/mutantes/v0480-ambiente-recriacao.json (linhas 66, 116, 156) com o `de` fora da fonte, e a suíte parte 4/5 cai em test_forge_mutante.py:1564. Alinhe as três trocas.
+- A2 (recomendado) tests/test_guia_varios_projetos.py:31 · o teste novo é a 2.ª linha que cita README.md, e a lista em tests/test_reval_delta.py:147 diz 1. A suíte parte 1/5 do 4ac2698e cai em test_reval_delta.py:195. Suba a contagem para 2; sem isso o CI segue vermelho.
 
 ## Sondas
-- S1 · `shellcheck scripts/preparar-estacao.sh` no df4b2bf9 · espera: rc=0 (na base a1971853 sai 0) · obtido: rc=1, SC2016 (info) na linha 197; o log do job 141043709196 mostra o mesmo
+- S1 · `python3 -m unittest tests.test_forge_mutante.ConferirTodas` · espera: OK (na base a1971853 dá OK) · obtido: FAILED no 75f2e456 e no df4b2bf9, M7, M12 e M16 de v0480-ambiente-recriacao.json
+- S2 · `python3 -m unittest tests.test_reval_delta.Guarda.test_caminho_de_texto_so_e_citado_como_a_lista_conhece` · espera: OK (na base dá OK) · obtido: FAILED no 4ac2698e, `README.md: 2 linhas, a lista diz 1`
 
-## Retomada e escopo
-- `git diff a1971853 df4b2bf9` e `git diff a1971853...df4b2bf9` dão o mesmo resultado (7 arquivos, +195/-5): a merge-base é a própria develop, então a retomada não trouxe nada velho por cima dela.
-- O comportamento é um só (o claude novo vem primeiro e o postStart do ambiente falha com ERRO, sem seguir em silêncio): a guarda do `.bashrc`, o `&&` do `mktemp`, o comando manual pela main e os avisos e o README pelo `/root/.local/bin/claude`. Isso dá 14 linhas de código, abaixo do teto H1.
-- GH-CONFIG-DERRUBA-SANDBOX: o `~/.config/gh` já vem da develop (`persistir` na linha 441 e a verificação na 470), então essa parte não pede mudança neste diff, como diz a entrega do E13.5.
-- Histórico: c711ac15 e 1ff74c20 têm a mesma mensagem, e o segundo só move os testes. Isso não bloqueia e some se o PR for integrado com squash.
+## Delta lido
+- A1 da 1.ª rodada resolvido: `shellcheck scripts/preparar-estacao.sh` no 75f2e456 sai 0. A diretiva tem motivo e segue o padrão da linha de baixo.
+- O descendente 4ac2698e só muda docs/qa/ e docs/security/ (2 arquivos, +21/-30) e tira o caminho pessoal: `scripts/verificar-contribuicao.sh` dá ok, e a bateria (passos) do run 46167394478 passou.
+- A1 repete o bloqueante da 1.ª rodada: a mesma linha da regex ainda deixa o CI vermelho, agora na suíte. No df4b2bf9 a suíte não rodou, porque a bateria (verificações longas) caiu antes no SC2016. O A2 é novo e fora do delta, então fica recomendado (G1.2), mas derruba o CI que o merge exige.
 
 ## Verificação
-- Testes do diff: `python3 -m unittest tests.test_ambiente_recriacao tests.test_guia_varios_projetos`: 22 testes, OK.
-- Mutantes: `bin/forge-mutante --processos 1 tests/mutantes/v0481-ambiente-claude-path.json`: os 8 morreram (M1 a M8). As guardas mudadas têm um mutante cada: o `grep ... && return` (M5, M6), o `&&` do `mktemp` (M1) e o `exit 1` (M2). O `--cobertura --base a1971853` dá `não coberto` para o JSON e para o shell, que ele não analisa, e por isso conferi as guardas à mão.
-- CI do df4b2bf9 (run 46166032218): "bateria (verificações longas)" falhou (SC2016, A1) e a suíte em 5 partes ficou `pending`. Sem CI verde, sem linha `ci:`.
+- CI do 4ac2698e (run 46167394478, descendente só com pareceres): suíte partes 1/5 e 4/5 vermelhas (A2, A1), o resto verde fora bateria (pareceres), bateria e catraca. Sem CI verde, sem linha `ci:`.
 
 ## Parecer
-Reprovado só pelo A1, que é um defeito provado: o CI do head está vermelho no shellcheck que o próprio diff causou. A correção é de uma linha, a diretiva com o motivo em scripts/preparar-estacao.sh:196, e o autor roda o `shellcheck` local antes do envio. O resto está correto. A regex só aceita o `.local/bin` seguido de `:`, logo na frente do PATH, os testes cobrem o fim do PATH, a linha que não se repete e a sessão nova que acha o claude certo, e o postStart para sem a pasta temporária. A2 e A3 são recomendados e viram cartão depois do merge.
+Reprovado. O delta está correto, mas o CI do head que a segurança deixou está vermelho por dois defeitos do próprio diff, os dois provados (S1, S2), e sem CI verde não há aprovação (PARECER-LE-O-CI). Volta ao autor: alinhar M7, M12 e M16 da spec v0480 e subir para 2 a contagem do README.md em tests/test_reval_delta.py:147. Antes do envio, ele roda local os dois testes das sondas. A2 e A3 da 1.ª rodada continuam recomendados e viram cartão.
