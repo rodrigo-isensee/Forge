@@ -207,8 +207,11 @@ if _pasta:
 # C1b-3 com o #938 (v0481 E45.30): 5903562 -> 5906303 (+2741, medidos no CI do #940 com a develop; total sobre
 # 5897219: +9084 passos, 0,154%). Autorizado pelo dono em 27/11 às 15:39; até 0,5% no total o time decide registrando
 # cada aumento; prova em tests/provas/v0479-corpus-custo.md, "C1b-3 com o #938".
+# C1b-3 com a develop em e950baeb (v0481 E45.68): 5906303 -> 5906549 (+246, medidos no CI do #940, run 46113149896;
+# total sobre 5897219: +9330 passos, 0,158%). Decisão do time, abaixo de 0,5% no total; prova em
+# tests/provas/v0479-corpus-custo.md, "C1b-3 com a develop em e950baeb".
 MEDIDA_DO_CORPUS = {"python": "3.12", "profundidade_do_tmp": 2, "variaveis_do_ambiente": 234,
-                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5906303}
+                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5906549}
 PASSOS_POR_NIVEL_DO_TMP = 460
 PASSOS_POR_VARIAVEL_POR_SUBPROCESSO = 2
 RUIDO_DO_CORPUS = {"subprocessos": 0, "interpretador": 0}
