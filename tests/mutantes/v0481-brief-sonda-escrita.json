@@ -46,7 +46,7 @@
       "id": "M5",
       "guarda": "sonda copiada sem par nos pareceres lidos reprova a volta",
       "arquivo": "bin/forge-check",
-      "de": "        if (tipo, ident) not in lidas:",
+      "de": "        if (tipo, ident, entrada) not in lidas:",
       "para": "        if False:",
       "testes": [
         "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_sonda_alterada_ou_sem_par_no_parecer_e_recusada"
@@ -60,6 +60,16 @@
       "para": "map(SONDA_NO_ENTREGAR.match, novos.get(\"Entregar\", [])) if True):\n        if (tipo, ident)",
       "testes": [
         "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_volta_com_a_sonda_do_parecer_nao_barra_a_escrita"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a copia repetida com outra entrada nao passa pelo par do id",
+      "arquivo": "bin/forge-check",
+      "de": "lidas = {(p[\"tipo\"], s[\"id\"], s[\"entrada\"]) for p",
+      "para": "lidas = {(p[\"tipo\"], s[\"id\"], entrada) for entrada in [m.group(4) for m in map(SONDA_NO_ENTREGAR.match, novos.get(\"Entregar\", [])) if m] for p",
+      "testes": [
+        "tests.test_brief_sonda_escrita.SondaComCaminhoDeHook.test_sonda_alterada_ou_sem_par_no_parecer_e_recusada"
       ]
     }
   ]

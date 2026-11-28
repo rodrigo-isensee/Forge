@@ -46,7 +46,9 @@ class SondaComCaminhoDeHook(vv2.BriefDeVolta):
 
     def test_sonda_alterada_ou_sem_par_no_parecer_e_recusada(self):
         casos = {"entrada trocada": (self.linha.replace("grava `marca`", "grava `outra`"), "volta: sonda S3 difere do parecer docs/reviews/p1.md"),
-                 "sonda a mais": (self.linha + "\n" + self.linha.replace(" S3)", " S9)"), "volta: sonda S9 de review não está nos pareceres lidos")}
+                 "sonda a mais": (self.linha + "\n" + self.linha.replace(" S3)", " S9)"), "volta: sonda S9 de review não está nos pareceres lidos"),
+                 "S3 repetida com outra entrada": (self.linha + "\n" + self.linha.replace("reference-transaction", "post-checkout"),
+                                                   "volta: sonda S3 de review não está nos pareceres lidos")}
         for nome, (troca, esperado) in casos.items():
             with self.subTest(nome):
                 rc, saida = self.conferir(self.texto.replace(self.linha, troca))

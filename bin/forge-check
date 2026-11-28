@@ -4918,9 +4918,9 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
                 saida.append((f"volta: falta sonda \"{sonda['id']}\" de {caminho_impresso(p['rel'])}", True))
             elif sonda["entrada"] not in entradas:
                 saida.append((f"volta: sonda {sonda['id']} difere do parecer {caminho_impresso(p['rel'])}", True))
-    lidas = {(p["tipo"], s["id"]) for p in pareceres for s in p["sondas"]}  # BRIEF-SONDA-ESCRITA: a sonda sem par não passa por copiada
-    for tipo, _, ident, _ in (m.groups() for m in map(SONDA_NO_ENTREGAR.match, novos.get("Entregar", [])) if m):
-        if (tipo, ident) not in lidas:
+    lidas = {(p["tipo"], s["id"], s["entrada"]) for p in pareceres for s in p["sondas"]}  # BRIEF-SONDA-ESCRITA: cada cópia, igual ao parecer
+    for tipo, _, ident, entrada in (m.groups() for m in map(SONDA_NO_ENTREGAR.match, novos.get("Entregar", [])) if m):
+        if (tipo, ident, entrada) not in lidas:
             saida.append((f"volta: sonda {ident} de {tipo} não está nos pareceres lidos", True))
     for linha in novos.get("Entregar", []):  # a recomendação incluída é relida da ref (ou do P): o texto ao lado da marca é o do parecer
         marca = INCLUIDO.search(linha)
