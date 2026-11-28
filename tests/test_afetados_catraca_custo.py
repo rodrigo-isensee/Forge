@@ -12,6 +12,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ambiente_git import sem_manutencao  # noqa: E402
@@ -141,6 +142,12 @@ class RecorteDoMutante(unittest.TestCase):
     inteiro do --listar, segue dando o recorte H5 do diff em bin/ (antes, conjunto vazio)."""
 
     def test_modulos_listados_de_bin_forge_mutante(self):
+        origem = os.getcwd()
+        os.chdir(RAIZ)  # o forge-mutante chama o forge-testes na pasta atual, com o ambiente dela (sem os GIT_* do CI)
+        self.addCleanup(os.chdir, origem)
+        ambiente = mock.patch.dict(os.environ, AMBIENTE, clear=True)
+        ambiente.start()
+        self.addCleanup(ambiente.stop)
         carregador = importlib.machinery.SourceFileLoader("forge_mutante_e92", str(RAIZ / "bin" / "forge-mutante"))
         spec = importlib.util.spec_from_loader("forge_mutante_e92", carregador)
         mutante = importlib.util.module_from_spec(spec)
