@@ -35,6 +35,7 @@
     {"caminho": ".devcontainer/devcontainer.json", "quem": [], "motivo": "arquivo em vigor (.devcontainer/devcontainer.json): os comandos do container rodam como root, fora do sandbox"},
     {"caminho": ".forge/versao", "quem": [], "motivo": "arquivo em vigor (.forge/versao)"},
     {"caminho": ".forge/config.json", "quem": [], "motivo": "arquivo em vigor (.forge/config.json)"},
+    {"caminho": "~/.forge-contrib/.forge/run/", "quem": [], "motivo": "pasta de controle do Forge (~/.forge-contrib/.forge/run/): o registro de publicações dos pareceres (pareceres-publicados.jsonl, M4.1) só o forge-check grava, nenhum papel (C1b-3); antes da .forge/run/ relativa, que a sessão do Forge não aplica"},
     {"caminho": ".forge/run/", "quem": [], "motivo": "estado dos hooks (.forge/run/)"},
     {"caminho": ".git/forge/", "quem": [], "motivo": "marca de sessão dos hooks (.git/forge/)"},
     {"caminho": ".git", "quem": [], "motivo": "o .git da raiz (pasta ou arquivo de worktree) liga o repositório às marcas e aos hooks (.git)"},
