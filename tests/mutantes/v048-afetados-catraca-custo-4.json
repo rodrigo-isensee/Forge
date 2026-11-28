@@ -1,0 +1,76 @@
+{
+  "pedido": "v048-afetados-catraca-custo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M24",
+      "guarda": "o limite corta só acima de LIMITE_LOCAL",
+      "arquivo": "bin/forge-testes",
+      "de": "(total := contar_testes(detalhe)) > LIMITE_LOCAL:",
+      "para": "(total := contar_testes(detalhe)) >= LIMITE_LOCAL:",
+      "testes": [
+        "tests.test_afetados_catraca_custo.PeloComando.test_no_limite_o_plano_fica_inteiro"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "acima do limite o plano dos afetados se reduz",
+      "arquivo": "bin/forge-testes",
+      "de": "    if args.afetados and (total := contar_testes(detalhe))",
+      "para": "    if False and (total := contar_testes(detalhe))",
+      "testes": [
+        "tests.test_afetados_catraca_custo.PeloComando.test_acima_do_limite_so_catraca_custo_e_o_arquivo_e_diz_o_que_fica"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "a contagem só leva os métodos test*",
+      "arquivo": "bin/forge-testes",
+      "de": "and no.name.startswith(\"test\"))",
+      "para": "and no.name.startswith(\"\"))",
+      "testes": [
+        "tests.test_afetados_catraca_custo.LimiteLocal.test_conta_so_os_metodos_test_das_classes"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "o módulo de teste no diff é teste do arquivo",
+      "arquivo": "bin/forge-testes",
+      "de": "        if nome := nome_do_modulo(caminho):\n            candidatos.add(nome)",
+      "para": "        if False:\n            candidatos.add(nome)",
+      "testes": [
+        "tests.test_afetados_catraca_custo.LimiteLocal.test_testes_do_arquivo_mudado"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "o tests/test_<nome>.py pela convenção ou pelo subcomando",
+      "arquivo": "bin/forge-testes",
+      "de": "            if achado := padrao.fullmatch(caminho):",
+      "para": "            if (achado := padrao.fullmatch(caminho)) and False:",
+      "testes": [
+        "tests.test_afetados_catraca_custo.LimiteLocal.test_testes_do_arquivo_mudado"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "o test_forge fica para o CI",
+      "arquivo": "bin/forge-testes",
+      "de": "candidatos - {\"test_forge\"} if",
+      "para": "candidatos - set() if",
+      "testes": [
+        "tests.test_afetados_catraca_custo.LimiteLocal.test_testes_do_arquivo_mudado"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "só o módulo com arquivo entra",
+      "arquivo": "bin/forge-testes",
+      "de": "- {\"test_forge\"} if arquivo_do_modulo(m, raiz).is_file()}",
+      "para": "- {\"test_forge\"} if True}",
+      "testes": [
+        "tests.test_afetados_catraca_custo.LimiteLocal.test_testes_do_arquivo_mudado"
+      ]
+    }
+  ]
+}
