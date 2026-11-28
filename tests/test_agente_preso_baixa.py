@@ -18,6 +18,9 @@ import vigia  # noqa: E402
 from test_trava_agente_morto import AID, SESSAO, USO, Base, cabecalho, carimbo  # noqa: E402
 
 
+# Sonda S9 da revisão de segurança no 116cc18 (o M6 de tests/mutantes/trava-agente-morto.json fora da fonte), refeita no CI:
+# python3 -m unittest tests.test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes (no 2a310c7c)
+
 def na_fila(quando, conteudo=None, isSidechain=False, **anexo):
     """A notificação do meio do turno, na forma que o Claude Code grava no transcript da sessão-mãe."""
     campos = {"type": "queued_command", "commandMode": "task-notification", "prompt": conteudo or cabecalho(),
